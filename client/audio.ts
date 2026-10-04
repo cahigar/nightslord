@@ -86,6 +86,11 @@ const SFX: Record<SfxId, (v: number) => void> = {
   tomb: (v) => { tone('square', 140, 60, 0.25, 0.3 * v); noise(0.15, 300, 0.4 * v, 0.1); },
   evolve: (v) => { [262, 330, 392, 523, 659, 784].forEach((f, i) => tone('square', f, f, 0.12, 0.15 * v, i * 0.07)); },
   surprise: (v) => { tone('square', 300, 900, 0.12, 0.2 * v); tone('square', 900, 200, 0.25, 0.18 * v, 0.14); },
+  groan: (v) => { const f = 90 + Math.random() * 30; tone('sawtooth', f, f * 0.7, 0.5, 0.22 * v); tone('square', f * 1.5, f, 0.45, 0.08 * v, 0.05); noise(0.35, 500, 0.12 * v, 0, 'bandpass', 250); },
+  explode: (v) => { noise(0.6, 1500, 0.6 * v, 0, 'lowpass', 120); tone('square', 160, 30, 0.5, 0.35 * v); noise(0.25, 3000, 0.2 * v, 0.05, 'highpass'); },
+  tentacle: (v) => { noise(0.3, 400, 0.4 * v, 0, 'bandpass', 1500); tone('sine', 70, 140, 0.3, 0.3 * v); tone('sawtooth', 110, 55, 0.35, 0.1 * v, 0.1); },
+  splash: (v) => { noise(0.35, 2500, 0.45 * v, 0, 'bandpass', 500); for (let i = 0; i < 3; i++) tone('sine', 900 + Math.random() * 600, 300, 0.08, 0.08 * v, 0.05 + i * 0.05); },
+  bubble: (v) => { for (let i = 0; i < 4; i++) { const f = 300 + Math.random() * 400; tone('sine', f, f * 2.2, 0.06, 0.1 * v, i * 0.07); } },
 };
 
 let lastPlayed: Record<string, number> = {};

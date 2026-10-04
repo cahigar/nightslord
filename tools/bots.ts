@@ -14,7 +14,7 @@ for (let i = 0; i < N; i++) {
   let q = 0, ang = Math.random() * 6.28;
   ws.on('open', () => {
     ws.send(JSON.stringify({ t: 'hello', name: `Bot${i + 1}` }));
-    const char = CHARACTER_IDS[i % 2]; // vampiro / lobo (gratis)
+    const char = CHARACTER_IDS[i % CHARACTER_IDS.length]; // en modo dev todos están desbloqueados
     ws.send(JSON.stringify(CODE ? { t: 'join', mode: 'code', code: CODE, char, skin: 'classic' } : { t: 'join', mode: 'random', char, skin: 'classic' }));
     setInterval(() => {
       if (Math.random() < 0.05) ang += (Math.random() - 0.5) * 3;

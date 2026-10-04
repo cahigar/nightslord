@@ -9,12 +9,13 @@ const ANIM_NAMES: [Anim, string][] = [
 
 export function showSpriteSheet() {
   const S = 3;
-  const rows: { label: string; kind: 'monster' | 'npc' | 'helsing'; variant: string; skin: string; seed?: number; tier?: number }[] = [];
+  const rows: { label: string; kind: 'monster' | 'npc' | 'helsing' | 'zombie'; variant: string; skin: string; seed?: number; tier?: number }[] = [];
   for (const c of CHARACTER_IDS) {
     for (const s of SKINS[c]) rows.push({ label: `${c}/${s.id}`, kind: 'monster', variant: c, skin: s.id });
     for (const t of [1, 2, 3]) rows.push({ label: `${c} nv${[5, 10, 15][t - 1]}`, kind: 'monster', variant: c, skin: 'classic', tier: t });
   }
   rows.push({ label: 'helsing', kind: 'helsing', variant: 'helsing', skin: '' });
+  for (const [i, v] of (['normal', 'fast', 'tough', 'fat'] as const).entries()) rows.push({ label: `zombi ${v}`, kind: 'zombie', variant: ['camper', 'teen', 'jock', 'villager'][i], skin: v, seed: i * 17 + 3 });
   for (const [i, v] of ['teen', 'teen', 'neighbor', 'jock', 'nerd', 'villager', 'villager', 'priest', 'maid', 'camper', 'camper', 'counselor'].entries()) rows.push({ label: v, kind: 'npc', variant: v, skin: '', seed: i * 13 + 5 });
   const cols = ANIM_NAMES.reduce((a, [an]) => a + ANIMS[an].frames.length, 0);
   const cw = SW * S + 4, ch = SH * S + 4;

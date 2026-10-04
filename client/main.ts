@@ -254,8 +254,8 @@ function updateHud() {
     (ultEl.querySelector('.cdt') as HTMLElement).textContent = locked ? 'Nv 10' : y.ultOn > 0 ? y.ultOn.toFixed(0) : y.ult >= 100 ? '¡R!' : `${y.ult}%`;
   }
   $('lvl').classList.toggle('t1', y.tier === 1); $('lvl').classList.toggle('t2', y.tier === 2); $('lvl').classList.toggle('t3', y.tier >= 3);
-  const BUFF_NAMES: Record<string, string> = { speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', invisAuto: '👻Presencia ausente', protect: '✨Protegido', slow: '🐌Lento', stun: '💫Aturdido', frenzy: '💨Frenesí', haste: '💨Sed', vuln: '💔Vulnerable', tomb: '⚱️Sarcófago' };
-  $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${BUFF_NAMES[b.t] ?? b.t}${b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
+  const BUFF_NAMES: Record<string, string> = { speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', invisAuto: '👻Presencia ausente', protect: '✨Protegido', slow: '🐌Lento', stun: '💫Aturdido', frenzy: '💨Frenesí', haste: '💨Sed', vuln: '💔Vulnerable', tomb: '⚱️Sarcófago', weak: '🤢Debilitado', dive: '🫧Sumergido', horde: '🧟Horda', deep: '🌊Abismo', puddle: '💧Charca' };
+  $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${BUFF_NAMES[b.t] ?? b.t}${b.t === 'horde' ? ' ' + b.r : b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
   const upKey = `${y.up}|${Object.values(y.ups).join(',')}`;
   if (upKey !== lastUpKey) {
     lastUpKey = upKey;

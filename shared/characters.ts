@@ -2,7 +2,7 @@
 // Para añadir un monstruo nuevo: añade una entrada en CHARACTERS (stats + habilidades),
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
-export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible';
+export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -31,6 +31,8 @@ export interface CharacterDef {
   evolution: { lvl: number; name: string; desc: string }[];
   /** true si el ataque básico es a distancia (no usa range/arc). */
   rangedBasic?: boolean;
+  /** Criatura acuática: camina sobre agua profunda y aprovecha cualquier agua (sea de quien sea). */
+  aquatic?: boolean;
 }
 
 export const CHARACTERS: Record<CharacterId, CharacterDef> = {
@@ -131,6 +133,55 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Desaparición Perfecta', desc: 'Cada baja te vuelve invisible (si ya lo eras, reapareces 1 s y vuelves a esfumarte).' },
     ],
   },
+  zombie: {
+    id: 'zombie',
+    name: 'Paciente Cero',
+    title: 'Zombi',
+    hp: 120,
+    speed: 195,
+    damage: 17,
+    range: 48,
+    arc: Math.PI / 2,
+    attackCd: 0.5,
+    armor: 0.05,
+    attackName: 'Mordisco infecto',
+    passive: 'Infección: sus zombis atacan solos a humanos, monstruos y Helsing.',
+    abilities: [
+      { key: 'Q', name: 'Contagio', desc: 'Convierte al humano más cercano al cursor en zombi aliado 30 s (máx. 5).', cooldown: 5 },
+      { key: 'E', name: 'Carne fresca', desc: 'Lanza carne: tus zombis corren hacia ella y atacan lo que haya cerca. Te acelera ir hacia ella.', cooldown: 10 },
+    ],
+    ult: { key: 'R', name: 'Salida de la tumba', desc: 'Emergen 3 zombis y 1 zombi gordo que corre hacia un enemigo y explota.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Epidemia', desc: 'Tus zombis dejan al morir una zona contaminada que ralentiza y debilita.' },
+      { lvl: 10, name: 'Salida de la tumba', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Cepas mutantes', desc: 'Algunos zombis nacen rápidos o resistentes.' },
+    ],
+  },
+  kthula: {
+    id: 'kthula',
+    name: "K'thula",
+    title: 'Horror abisal',
+    hp: 115,
+    speed: 200,
+    damage: 18,
+    range: 62,
+    arc: Math.PI * 0.6,
+    attackCd: 0.5,
+    armor: 0.05,
+    attackName: 'Tentáculo',
+    passive: 'Camina sobre agua profunda. En el agua (y en cualquier charca) es más rápido y se regenera.',
+    aquatic: true,
+    abilities: [
+      { key: 'Q', name: 'Tentáculo abisal', desc: 'Un tentáculo surge en el punto señalado, daña y arrastra hacia el centro.', cooldown: 6 },
+      { key: 'E', name: 'Sumergirse', desc: 'Se sumerge y se desplaza muy rápido (más tiempo en agua profunda). No se le puede golpear.', cooldown: 10 },
+    ],
+    ult: { key: 'R', name: 'Marejada abisal', desc: 'Una gran ola avanza en línea recta: daña, empuja y deja charcas detrás.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Señor de las profundidades', desc: 'Sobre agua va derramando charcas corruptas a su alrededor.' },
+      { lvl: 10, name: 'Marejada abisal', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Llamada del abismo', desc: 'Tentáculo con 2 cargas y al emerger deja una charca corrupta.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -178,6 +229,16 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Gabardina', price: 0, palette: { skin: '#e8dcc8', hair: '#5a3a2a', cloth: '#6a5a48', cloth2: '#4a3e30', accent: '#202020', eye: '#a0d0ff' } },
     { id: 'gala', name: 'Gala', price: 200, palette: { skin: '#f0e8f0', hair: '#202020', cloth: '#8a1a4a', cloth2: '#5a0e30', accent: '#e8c060', eye: '#ff80c0' } },
     { id: 'ghost', name: 'Espectral', price: 0, medal: 'survivor', palette: { skin: '#c0f0e0', hair: '#80c0b0', cloth: '#5a8a80', cloth2: '#3a6a60', accent: '#c0fff0', eye: '#ffffff' } },
+  ],
+  zombie: [
+    { id: 'classic', name: 'Bata de hospital', price: 0, palette: { skin: '#7a9a6a', hair: '#3a2a1a', cloth: '#a8c0c8', cloth2: '#7890a0', accent: '#8a1a1a', eye: '#e8ff60' } },
+    { id: 'office', name: 'Oficinista', price: 150, palette: { skin: '#8aa070', hair: '#5a4a3a', cloth: '#3a4058', cloth2: '#262a3a', accent: '#a02020', eye: '#ffe040' } },
+    { id: 'rotten', name: 'Podrido', price: 300, palette: { skin: '#5a6a40', hair: '#2a2a1a', cloth: '#6a5a3a', cloth2: '#4a3e28', accent: '#5a1a10', eye: '#ff6020' } },
+  ],
+  kthula: [
+    { id: 'classic', name: 'Abisal', price: 0, palette: { skin: '#3a7a6a', hair: '#2a5a50', cloth: '#1a2a3a', cloth2: '#0e1824', accent: '#60e0a0', eye: '#80ff60' } },
+    { id: 'coral', name: 'Coral', price: 200, palette: { skin: '#b04a5a', hair: '#7a2a3a', cloth: '#2a1a2a', cloth2: '#180e18', accent: '#ffa070', eye: '#ffe060' } },
+    { id: 'void', name: 'Del vacío', price: 350, palette: { skin: '#3a3a6a', hair: '#24244a', cloth: '#0e0e1a', cloth2: '#06060e', accent: '#a080ff', eye: '#ff60ff' } },
   ],
 };
 

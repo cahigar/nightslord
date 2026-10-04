@@ -20,7 +20,7 @@ interface Sample { t: number; x: number; y: number }
 interface CEnt {
   id: number; k: Kind; c: string; s?: string; n?: string; l?: number; h?: number; fl: number; f: 1 | -1; a: Anim; q: number; r?: number;
   animStart: number; samples: Sample[]; seen: number; flash: number; rx: number; ry: number;
-  o?: number; trail: { x: number; y: number; t: number }[]; tombAt: number;
+  o?: number; rr?: number; trail: { x: number; y: number; t: number }[]; tombAt: number;
 }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number }
 interface Floater { x: number; y: number; text: string; color: string; life: number; big?: boolean }
@@ -119,9 +119,10 @@ export class Game {
     const oldX = this.pred.x, oldY = this.pred.y;
     this.pending = this.pending.filter((p) => p.q > m.you.ack);
     let x = m.you.x, y = m.you.y;
+    const aqua = this.aquatic();
     if (!m.you.st) {
       for (const p of this.pending) {
-        const r = this.grid.move(x, y, p.mx * m.you.spd * TICK_DT, p.my * m.you.spd * TICK_DT, 18);
+        const r = this.grid.move(x, y, p.mx * m.you.spd * TICK_DT, p.my * m.you.spd * TICK_DT, 18, aqua);
         x = r.x; y = r.y;
       }
     }
@@ -144,7 +145,7 @@ export class Game {
       if (e.a !== s.a || e.q !== s.q) { e.animStart = now; e.a = s.a; e.q = s.q; }
       const fl = s.fl ?? 0;
       if (fl & Flag.Entombed && !(e.fl & Flag.Entombed)) e.tombAt = now;
-      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f = s.f; e.r = s.r; e.o = s.o; e.seen = now;
+      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.seen = now;
       e.samples.push({ t: now, x: s.x, y: s.y });
       if (e.samples.length > 6) e.samples.shift();
     }
@@ -164,16 +165,30 @@ export class Game {
       const sy = this.canvas.height / 2 + (this.renderPos().y - this.cam.y - 45) * this.cam.zoom;
       this.aim = Math.atan2(input.mouseY * devicePixelRatio - sy, input.mouseX * devicePixelRatio - sx);
     }
+    // distancia al cursor (habilidades que se lanzan en un punto: carne, tentáculo...)
+    let d = 200;
+    if (!input.touch.active) {
+      const rp = this.renderPos();
+      const wx = this.cam.x + (input.mouseX * devicePixelRatio - this.canvas.width / 2) / this.cam.zoom;
+      const wy = this.cam.y + (input.mouseY * devicePixelRatio - this.canvas.height / 2) / this.cam.zoom;
+      d = Math.hypot(wx - rp.x, wy - (rp.y - 45));
+    }
     const q = ++this.seq;
-    net.send({ t: 'input', q, mx: +mx.toFixed(3), my: +my.toFixed(3), a: +this.aim.toFixed(3), b });
+    net.send({ t: 'input', q, mx: +mx.toFixed(3), my: +my.toFixed(3), a: +this.aim.toFixed(3), b, d: Math.round(d) });
     if (!this.alive || !this.you) return;
     this.pending.push({ q, mx, my });
     if (this.pending.length > 40) this.pending.shift();
     this.pred.px = this.pred.x; this.pred.py = this.pred.y; this.pred.t = performance.now();
     if (!this.you.st && (mx || my)) {
-      const r = this.grid.move(this.pred.x, this.pred.y, mx * this.you.spd * TICK_DT, my * this.you.spd * TICK_DT, 18);
+      const r = this.grid.move(this.pred.x, this.pred.y, mx * this.you.spd * TICK_DT, my * this.you.spd * TICK_DT, 18, this.aquatic());
       this.pred.x = r.x; this.pred.y = r.y;
     }
+  }
+
+  /** ¿Mi personaje cruza el agua profunda? (cualquier criatura acuática). */
+  private aquatic() {
+    const c = this.ents.get(this.youId)?.c as CharacterId | undefined;
+    return !!(c && CHARACTERS[c]?.aquatic);
   }
 
   renderPos() {
@@ -202,7 +217,8 @@ export class Game {
       case 'die': {
         if (ev.k !== Kind.Player || ev.c) {
           const e = [...this.ents.values()].find((x) => Math.abs(x.rx - ev.x) < 30 && Math.abs(x.ry - ev.y) < 30 && x.k === ev.k);
-          this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: ev.c, s: e?.s, f: e?.f ?? 1, life: 6, seed: e?.id ?? 0 });
+          if (ev.k === Kind.Minion) this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 });
+          else this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: ev.c, s: e?.s, f: e?.f ?? 1, life: 6, seed: e?.id ?? 0 });
           if (this.corpses.length > 60) this.corpses.shift();
         }
         this.burst(ev.x, ev.y - 40, 18, ev.k === Kind.Player ? '#8040ff' : '#b0101a', 220, 3);
@@ -331,6 +347,7 @@ export class Game {
     this.decals = this.decals.filter((d) => d.life > 0);
     this.effects.update(dt);
     this.effects.draw(ctx, 'ground', now);
+    for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) this.effects.drawZone(ctx, e.c, e.rx, e.ry, e.rr ?? 60, (e.h ?? 100) / 100, now, e.id % 97);
     this.drawScentTrails(ctx, now);
 
     // decoración del suelo
@@ -347,8 +364,8 @@ export class Game {
       c.life -= dt;
       if (!inView(c.x, c.y)) continue;
       ctx.globalAlpha = Math.min(1, c.life / 1.5);
-      const kind = c.k === Kind.Player ? 'monster' : c.k === Kind.Helsing ? 'helsing' : 'npc';
-      if (c.c) {
+      const kind = c.k === Kind.Player ? 'monster' : c.k === Kind.Helsing ? 'helsing' : c.k === Kind.Minion ? 'zombie' : 'npc';
+      if (c.c && !(c.k === Kind.Minion && c.s === 'fat')) {
         const fr = getFrame(kind, c.c, c.s ?? 'classic', Anim.Dead, 0, c.seed % 97).base;
         ctx.save(); ctx.translate(c.x, c.y - 8); ctx.rotate((Math.PI / 2) * c.f); ctx.scale(c.f, 1);
         ctx.drawImage(fr, (-SW * PIXEL) / 2, (-SH * PIXEL) / 2 - 12, SW * PIXEL, SH * PIXEL);
@@ -393,7 +410,7 @@ export class Game {
       });
     }
     for (const e of this.ents.values()) {
-      if (!inView(e.rx, e.ry) || e.k === Kind.Projectile) continue;
+      if (!inView(e.rx, e.ry) || e.k === Kind.Projectile || e.k === Kind.Zone) continue;
       draws.push({ y: e.ry, fn: () => this.drawEnt(ctx, e, now, glows) });
       if (e.k === Kind.Npc) {
         const held = npcLook(e.c, e.id % 97).held;
@@ -556,6 +573,23 @@ export class Game {
       if (img.glow) glows.push({ img: img.glow, x: x - w / 2, y: y - h - 2 + bob, w, h, flip: false, a: 0.6 + Math.sin(now / 200 + e.id) * 0.3 });
       return;
     }
+    // ---- sumergido: solo ondas y burbujas
+    if (e.fl & Flag.Submerged) {
+      const t = now / 1000;
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = '#0c2228';
+      ctx.beginPath(); ctx.ellipse(x, y, 22, 8, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#60c0b0'; ctx.lineWidth = 2;
+      for (let i = 0; i < 2; i++) {
+        const k = (t * 1.2 + i * 0.5) % 1;
+        ctx.globalAlpha = (1 - k) * (e.id === this.youId ? 0.9 : 0.5);
+        ctx.beginPath(); ctx.ellipse(x, y, 10 + k * 26, 4 + k * 9, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      if (Math.random() < 0.25) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y - 2, vx: 0, vy: -30, life: 0.4, max: 0.4, color: '#a0e0d0', size: 3, grav: 0 });
+      return;
+    }
+    if (e.k === Kind.Minion) { this.drawMinion(ctx, e, now, glows); return; }
     const isMonster = e.k === Kind.Player;
     const tier = isMonster ? tierOf(e.l ?? 1) : 0;
     const ult = isMonster && !!(e.fl & Flag.Ult);
@@ -655,6 +689,41 @@ export class Game {
     }
   }
 
+  /** Zombi esbirro: sprite de humano zombificado + aro del color de su dueño. */
+  private drawMinion(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
+    const x = e.rx, y = e.ry;
+    const variant = e.c;
+    const swollen = !!(e.fl & Flag.Swollen);
+    let scale = variant === 'fat' ? 1.2 : variant === 'tough' ? 1.1 : 1;
+    if (swollen) scale *= 1 + Math.abs(Math.sin(now / 60)) * 0.15;
+    const mine = e.o === this.youId;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.ellipse(x + 3, y + 3, 18 * scale, 6 * scale, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = mine ? 'rgba(128,255,96,0.75)' : 'rgba(255,110,70,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(x, y + 2, 20 * scale, 7 * scale, 0, 0, Math.PI * 2); ctx.stroke();
+    const fr = getFrame('zombie', e.s ?? 'villager', variant, e.a, this.frameFor(e, now), e.l ?? e.id);
+    const w = SW * PIXEL * scale, h = SH * PIXEL * scale;
+    const dx = x - w / 2, dy = y - h + 9 * scale;
+    const flip = e.f === -1;
+    const blit = (img: HTMLCanvasElement) => {
+      if (flip) { ctx.save(); ctx.translate(x * 2, 0); ctx.scale(-1, 1); ctx.drawImage(img, dx, dy, w, h); ctx.restore(); }
+      else ctx.drawImage(img, dx, dy, w, h);
+    };
+    blit(fr.base);
+    if (now - e.flash < 90 || (swollen && Math.floor(now / 80) % 2)) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = swollen ? 0.5 : 0.75;
+      if (swollen) ctx.filter = 'sepia(1) saturate(8) hue-rotate(-40deg)';
+      blit(fr.base);
+      ctx.filter = 'none';
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+    if (fr.glow) glows.push({ img: fr.glow, x: dx, y: dy, w, h, flip, a: 0.9 });
+    if (e.fl & Flag.Slowed && Math.random() < 0.1) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 50, vx: 0, vy: 30, life: 0.5, max: 0.5, color: '#40c060', size: 3, grav: 100 });
+  }
+
   /** Niebla espesa más allá del borde jugable: el mundo sigue, pero se pierde en la bruma. */
   private drawEdgeFog(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number) {
     const S = MAP_SIZE, D = BORDER_DEPTH;
@@ -712,7 +781,7 @@ export class Game {
     const me = this.ents.get(this.youId);
     if (!me || me.c !== 'werewolf' || tierOf(this.you?.lvl ?? 1) < 1) return;
     for (const e of this.ents.values()) {
-      if (e.id === this.youId || e.k === Kind.PowerUp || e.k === Kind.Projectile) continue;
+      if (e.id === this.youId || e.k === Kind.PowerUp || e.k === Kind.Projectile || e.k === Kind.Zone) continue;
       if ((e.h ?? 100) >= 35) { e.trail.length = 0; continue; }
       const last = e.trail[e.trail.length - 1];
       if (!last || now - last.t > 90) { e.trail.push({ x: e.rx, y: e.ry, t: now }); if (e.trail.length > 18) e.trail.shift(); }
@@ -729,6 +798,7 @@ export class Game {
 
   private drawProjectile(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     if (e.c === 'sandstorm') { this.effects.drawStorm(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
+    if (e.c === 'wave') { this.effects.drawWave(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     const id = e.c === 'bat' ? `bat${Math.floor(now / 90) % 2}` : e.c === 'scarab' ? `scarab${Math.floor(now / 60) % 2}` : e.c;
     const img = getItem(id);
     const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
@@ -762,8 +832,9 @@ export class Game {
   }
 
   private drawOverlay(ctx: CanvasRenderingContext2D, e: CEnt, now: number) {
-    if (e.k === Kind.PowerUp || e.k === Kind.Projectile) return;
+    if (e.k === Kind.PowerUp || e.k === Kind.Projectile || e.k === Kind.Zone) return;
     if (e.fl & Flag.Invisible && e.id !== this.youId) return;
+    if (e.fl & Flag.Submerged && e.id !== this.youId) return;
     const tierLift = e.k === Kind.Player && tierOf(e.l ?? 1) >= 3 && (e.c === 'vampire' || e.c === 'invisible') ? 6 : 0;
     const x = e.rx, top = e.ry - SH * PIXEL + 8 - tierLift - (e.k === Kind.Player && e.fl & Flag.Ult && e.c === 'werewolf' ? 24 : 0);
     ctx.textAlign = 'center';
@@ -780,6 +851,8 @@ export class Game {
       ctx.fillStyle = '#000'; ctx.fillText('HELSING', x + 1, top - 1);
       ctx.fillStyle = '#ff9070'; ctx.fillText('HELSING', x, top - 2);
       if (e.h !== undefined) this.bar(ctx, x, top + 2, 40, e.h, '#ff8030');
+    } else if (e.k === Kind.Minion) {
+      if (e.h !== undefined && e.h < 100) this.bar(ctx, x, top + 8, 26, e.h, e.o === this.youId ? '#80ff60' : '#c06040');
     } else if (e.h !== undefined) {
       this.bar(ctx, x, top + 8, 30, e.h, '#e0e0e0');
     }
@@ -832,6 +905,7 @@ export class Game {
     for (const e of this.ents.values()) {
       if (e.k === Kind.Helsing) { c.fillStyle = '#ff8030'; c.fillRect(e.rx * s - 2, e.ry * s - 2, 4, 4); }
       else if (e.k === Kind.Player && e.id !== this.youId) { c.fillStyle = '#ff3050'; c.fillRect(e.rx * s - 2, e.ry * s - 2, 4, 4); }
+      else if (e.k === Kind.Minion && e.o === this.youId) { c.fillStyle = '#80ff60'; c.fillRect(e.rx * s - 1, e.ry * s - 1, 2, 2); }
     }
     const me = this.renderPos();
     c.fillStyle = '#ffe080'; c.fillRect(me.x * s - 3, me.y * s - 3, 6, 6);
@@ -842,13 +916,15 @@ export class Game {
   get lastSnap() { return this.lastSnapAt; }
 }
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0' };
 
 const TAUNTS: Record<CharacterId, string> = {
   vampire: '¡Bleh, bleh!',
   werewolf: '¡AUUUUU!',
   mummy: '¡Te envuelvo!',
   invisible: '¿Me buscabas?',
+  zombie: '¡Cereeebros!',
+  kthula: "Ph'nglui... ¡glub!",
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

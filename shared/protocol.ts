@@ -3,7 +3,7 @@ import type { CharacterId, UpgradeId } from './characters';
 import type { Profile } from './catalog';
 import type { MapThemeId } from './maps';
 
-export enum Kind { Player = 0, Npc = 1, Helsing = 2, PowerUp = 3, Projectile = 4 }
+export enum Kind { Player = 0, Npc = 1, Helsing = 2, PowerUp = 3, Projectile = 4, Minion = 5, Zone = 6 }
 
 export enum Anim { Idle = 0, Walk = 1, Attack = 2, Cast = 3, Wave = 4, Taunt = 5, Hurt = 6, Dead = 7 }
 
@@ -16,10 +16,13 @@ export enum Flag {
   Entombed = 8192, // encerrado en un sarcófago
   Panic = 16384, // humano en pánico
   Haste = 32768, // frenesí / acelerón
+  Submerged = 65536, // sumergido (K'thula)
+  Swollen = 131072, // zombi gordo a punto de explotar
+  Weak = 262144, // debilitado (hace menos daño)
 }
 
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp';
-export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm';
+export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave';
 
 export interface EntSnap {
   i: number; // id
@@ -36,7 +39,8 @@ export interface EntSnap {
   l?: number; // nivel
   n?: string; // nombre
   r?: number; // ángulo (proyectiles)
-  o?: number; // murciélagos orbitales disponibles (Conde nv. 15)
+  o?: number; // murciélagos orbitales (Conde nv. 15) · id del dueño (esbirros)
+  rr?: number; // radio (zonas)
 }
 
 export type GameEvent =
@@ -51,9 +55,10 @@ export type GameEvent =
 export type FxId =
   | 'mist' | 'howl' | 'curse' | 'push' | 'lvl' | 'swing' | 'dash' | 'vanish'
   | 'drain' | 'ghosthit' | 'undress' | 'crimson' | 'moon' | 'storm' | 'entomb' | 'disguise' | 'surprise'
-  | 'mistTrail' | 'orbitBlock' | 'step' | 'prey' | 'curseMark' | 'evolve' | 'frenzy' | 'reveal';
+  | 'mistTrail' | 'orbitBlock' | 'step' | 'prey' | 'curseMark' | 'evolve' | 'frenzy' | 'reveal'
+  | 'infect' | 'emerge' | 'fatboom' | 'meat' | 'tentacle' | 'tentacleWarn' | 'dive' | 'surface' | 'splash';
 
-export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise';
+export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble';
 
 export interface YouState {
   id: number;
@@ -87,7 +92,7 @@ export interface YouState {
 export type ClientMsg =
   | { t: 'hello'; token?: string; name: string }
   | { t: 'join'; mode: 'random' | 'code' | 'create'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
-  | { t: 'input'; q: number; mx: number; my: number; a: number; b: number }
+  | { t: 'input'; q: number; mx: number; my: number; a: number; b: number; d?: number } // d: distancia al cursor
   | { t: 'emote'; e: 'wave' | 'taunt' }
   | { t: 'upgrade'; u: UpgradeId }
   | { t: 'respawn'; char?: CharacterId; skin?: string }

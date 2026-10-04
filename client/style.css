@@ -45,8 +45,8 @@ input:focus, select:focus { border-color: #8050c0; }
 .btn.tiny { padding: 5px 8px; font-size: 9px; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.chars.small { grid-template-columns: repeat(4, 1fr); }
+.chars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.chars.small { grid-template-columns: repeat(6, 1fr); }
 .char { background: #0c0714; border: 3px solid var(--line); padding: 6px 4px; text-align: center; cursor: pointer; position: relative; }
 .char canvas { width: 66px; height: 86px; image-rendering: pixelated; display: block; margin: 0 auto; }
 .chars.small .char canvas { width: 44px; height: 58px; }
@@ -146,7 +146,8 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
 @media (pointer: coarse) { #minimap { display: none; } #bottom { bottom: 175px; } #upgrades { bottom: 290px; } }
 
 @media (max-width: 640px) {
-  .chars { grid-template-columns: repeat(2, 1fr); }
+  .chars { grid-template-columns: repeat(3, 1fr); }
+  .chars.small { grid-template-columns: repeat(3, 1fr); }
   #rank { width: 170px; font-size: 15px; }
   #killfeed { display: none; }
   #minimap { width: 100px; height: 100px; }

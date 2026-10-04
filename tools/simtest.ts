@@ -26,6 +26,8 @@ function run(char: CharacterId) {
   const press = (b: number, a = 0) => { room.onInput(conn, { q: ++q, mx: 0, my: 0, a, b }); step(); };
   const states: string[] = [];
   const npcs = () => [...room.npcs.values()];
+  press(BTN_Q); for (let i = 0; i < 5; i++) press(0); press(BTN_Q); for (let i = 0; i < 12; i++) press(0);
+  states.push(`trasQ esbirros=${room.minions.size} zonas=${room.zones.map((z) => z.kind).join(',')}`);
   press(BTN_E); for (let i = 0; i < 5; i++) press(0);
   states.push(`trasE presa=${npcs().filter((n) => n.preyT > 0).length} lenta=${npcs().filter((n) => n.slowT > 0).length}`);
   press(BTN_R); for (let i = 0; i < 25; i++) press(0);
@@ -34,7 +36,7 @@ function run(char: CharacterId) {
   states.push(`trasAtk maldición=${npcs().filter((n) => n.curseMarkT > 0).length} vivos=${npcs().length} hp=${Math.round(p.hp)}`);
   press(BTN_Q); press(0); press(BTN_Q);
   for (let i = 0; i < 260; i++) press(0); // 13 s sin combatir
-  states.push(`final invis=${p.invisKind} orbit=${p.orbit.join('/')} qc=${p.qCharges} tier=${p.tier}`);
+  states.push(`final invis=${p.invisKind} orbit=${p.orbit.join('/')} qc=${p.qCharges} tier=${p.tier} esbirros=${room.minions.size} zonas=${room.zones.map((z) => z.kind).join(',')}`);
   console.log(`\n== ${char}\n  ${states.join('\n  ')}\n  fx: ${[...fx.entries()].map(([f, n]) => `${f}×${n}`).join(' ')}`);
 }
 for (const c of CHARACTER_IDS) run(c);

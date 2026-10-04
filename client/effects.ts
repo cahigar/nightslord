@@ -104,6 +104,15 @@ export class Effects {
       case 'frenzy': this.burst(x, y - 30, 10, ['#c0e0ff', '#ffffff'], 140, 2, 0, 0.4); break;
       case 'evolve': this.evolve(ev, myId); break;
       case 'push': this.ripple(x, y - 20, '#c0e0ff', 0.4); break;
+      case 'infect': this.infect(ev); break;
+      case 'emerge': this.emerge(ev); break;
+      case 'fatboom': this.fatboom(ev); break;
+      case 'meat': this.meatThrow(ev); break;
+      case 'tentacleWarn': this.tentacleWarn(ev); break;
+      case 'tentacle': this.tentacle(ev); break;
+      case 'dive': this.splash(x, y, 0.8); break;
+      case 'surface': this.splash(x, y, 1); break;
+      case 'splash': this.splash(x, y, (ev.r ?? 60) / 60); break;
     }
   }
 
@@ -128,6 +137,23 @@ export class Effects {
         ctx.fillStyle = `rgba(255,255,255,${1 - k})`;
         for (const s of [-1, 1]) ctx.fillRect(snap(x + Math.cos(a) * 34), snap(y + Math.sin(a) * 34 + s * (10 - close * 8)), 3, 6);
       });
+    } else if (ev.c === 'kthula') {
+      // latigazo de tentáculo
+      this.add(0.22, 'top', (ctx, k) => {
+        ctx.fillStyle = (ev.n ?? 0) >= 2 ? '#60e0a0' : '#3a8a7a';
+        const len = reach * 1.1 * Math.min(1, k * 3);
+        for (let s2 = 0; s2 < len; s2 += PIXEL) {
+          const wob = Math.sin(s2 / 10 - k * 12) * 8 * (s2 / len);
+          const px = x + Math.cos(a) * s2 - Math.sin(a) * wob, py = y + Math.sin(a) * s2 + Math.cos(a) * wob;
+          const w = s2 > len * 0.75 ? PIXEL : PIXEL * 2;
+          ctx.globalAlpha = 1 - k;
+          ctx.fillRect(snap(px), snap(py), w, w);
+        }
+        ctx.globalAlpha = 1;
+      });
+      this.burst(ev.x, ev.y - 40, 4, ['#60e0a0', '#a0fff0'], 80, 2, 0, 0.4, true);
+    } else if (ev.c === 'zombie') {
+      this.clawMarks(x, y, a, '#b0d070', 0.16, reach / 52);
     } else if (ev.c === 'invisible') {
       this.add(0.15, 'top', (ctx, k) => {
         ctx.strokeStyle = `rgba(190,220,255,${0.5 * (1 - k)})`; ctx.lineWidth = 3;
@@ -458,6 +484,164 @@ export class Effects {
       const g = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
       const gx = x + (Math.random() - 0.5) * 80, gy = y - 40 + (Math.random() - 0.5) * 40;
       this.add(0.5, 'glow', (c2, k) => { c2.globalAlpha = 1 - k; c2.fillStyle = '#5ae0e0'; pixelGlyph(c2, g, gx, gy - k * 20, PIXEL); c2.globalAlpha = 1; });
+    }
+  }
+
+  // ------------------------------------------------------------------ Paciente Cero
+  private infect(ev: FxEv) {
+    if (ev.n === -1) { this.burst(ev.x, ev.y - 30, 14, ['#5a6a40', '#3a4a2a', '#8a9a60'], 120, 3, 300, 0.7); return; } // se desmorona
+    this.burst(ev.x, ev.y - 40, 22, ['#80d040', '#a0ff60', '#3a6a20'], 160, 3, 0, 0.8, true);
+    // espiral verde del jugador hacia el humano infectado
+    if (ev.tx !== undefined) {
+      const sx = ev.tx, sy = (ev.ty ?? ev.y) - 45;
+      this.add(0.35, 'glow', (ctx, k) => {
+        ctx.fillStyle = '#a0ff60';
+        for (let i = 0; i < 8; i++) {
+          const t = Math.min(1, k * 1.4 - i * 0.05);
+          if (t <= 0) continue;
+          const px = sx + (ev.x - sx) * t + Math.sin(t * 12 + i) * 8, py = sy + (ev.y - 40 - sy) * t + Math.cos(t * 12 + i) * 8;
+          ctx.fillRect(snap(px), snap(py), PIXEL * 2, PIXEL * 2);
+        }
+      });
+    }
+  }
+
+  private emerge(ev: FxEv) {
+    this.burst(ev.x, ev.y, 26, this.terrainColors(ev.x, ev.y).concat(['#2a1e14']), 150, 3, 420, 0.8);
+    this.add(1.2, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.8 * (1 - k);
+      ctx.fillStyle = '#1a120c';
+      ctx.beginPath(); ctx.ellipse(ev.x, ev.y + 2, 26, 9, 0, 0, Math.PI * 2); ctx.fill(); // tierra removida
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  private fatboom(ev: FxEv) {
+    const R = ev.r ?? 120;
+    this.add(0.6, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.6 * (1 - k);
+      ctx.fillStyle = '#5a8a20';
+      ctx.beginPath(); ctx.ellipse(ev.x, ev.y, R * (0.4 + k * 0.6), R * 0.6 * (0.4 + k * 0.6), 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 30, 50, ['#a0e040', '#6a9a20', '#7a1010', '#c0ff60'], 340, 4, 260, 0.9);
+    this.burst(ev.x, ev.y - 30, 14, ['#e0ff80'], 200, 3, 0, 0.5, true);
+    this.ripple(ev.x, ev.y, '#c0ff60', 0.5, R);
+  }
+
+  private meatThrow(ev: FxEv) {
+    const tx = ev.tx ?? ev.x, ty = ev.ty ?? ev.y;
+    this.add(0.4, 'top', (ctx, k) => {
+      const x = ev.x + (tx - ev.x) * k, y = ev.y - 40 + (ty - ev.y + 40) * k - Math.sin(k * Math.PI) * 60;
+      ctx.fillStyle = '#a02828'; ctx.fillRect(snap(x) - 6, snap(y) - 3, 12, 6);
+      ctx.fillStyle = '#e8d8c0'; ctx.fillRect(snap(x) + 6, snap(y) - 3, 3, 3);
+    });
+  }
+
+  // ------------------------------------------------------------------ K'thula
+  private tentacleWarn(ev: FxEv) {
+    const R = (ev.r ?? 70) * 0.8, dur = ev.d ?? 0.4;
+    this.add(dur, 'ground', (ctx, k, now) => {
+      ctx.globalAlpha = 0.35 + k * 0.4;
+      ctx.fillStyle = '#0a2a30';
+      ctx.beginPath(); ctx.ellipse(ev.x, ev.y, R * (0.5 + k * 0.5), R * 0.55 * (0.5 + k * 0.5), 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#80f0d0';
+      for (let i = 0; i < 9; i++) {
+        const a = i * 2.4 + now / 300, d = (i / 9) * R * 0.8;
+        ctx.fillRect(snap(ev.x + Math.cos(a) * d), snap(ev.y + Math.sin(a) * d * 0.55 - ((now / 6 + i * 17) % 18)), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  private tentacle(ev: FxEv) {
+    const R = ev.r ?? 70;
+    this.splash(ev.x, ev.y, 0.8);
+    // el tentáculo surge, se retuerce y se hunde
+    const side = Math.random() < 0.5 ? -1 : 1;
+    this.add(0.75, 'top', (ctx, k, now) => {
+      const grow = k < 0.25 ? k / 0.25 : k > 0.7 ? (1 - k) / 0.3 : 1;
+      const H = 110 * grow;
+      for (let s2 = 0; s2 < H; s2 += PIXEL) {
+        const t = s2 / 110;
+        const wob = Math.sin(t * 5 + now / 90) * 14 * t * side;
+        const w = Math.max(PIXEL, Math.round((1 - t) * 6) * PIXEL);
+        ctx.fillStyle = s2 % 12 < 6 ? '#2a6a5a' : '#3a8a72';
+        ctx.fillRect(snap(ev.x + wob - w / 2), snap(ev.y - s2), w, PIXEL);
+        if (s2 % 15 === 0 && t < 0.8) { ctx.fillStyle = '#c0a0b0'; ctx.fillRect(snap(ev.x + wob + w / 2 - PIXEL), snap(ev.y - s2), PIXEL, PIXEL); } // ventosas
+      }
+    });
+    this.add(0.9, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.5 * (1 - k);
+      ctx.strokeStyle = '#60e0a0'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(ev.x, ev.y, R * (1 - k * 0.5), R * 0.55 * (1 - k * 0.5), 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Salpicadura de agua oscura con burbujas. */
+  splash(x: number, y: number, scale = 1) {
+    this.burst(x, y - 10, Math.round(20 * scale), ['#1a4a5a', '#3a7a8a', '#80c0d0', '#2a6a5a'], 180 * scale, 3, 420, 0.7);
+    this.burst(x, y - 20, Math.round(6 * scale), ['#60e0a0'], 60, 2, -40, 0.9, true);
+    this.ripple(x, y, '#80c0d0', 0.6, 50 * scale);
+  }
+
+  /** Marejada (proyectil de la R de K'thula). */
+  drawWave(ctx: CanvasRenderingContext2D, x: number, y: number, a: number, now: number) {
+    const W = 84;
+    const px = -Math.sin(a), py = Math.cos(a);
+    for (let i = -W; i <= W; i += PIXEL) {
+      const crest = 34 + Math.sin(i / 14 + now / 80) * 8 - Math.abs(i) * 0.18;
+      const bx = x + px * i, by = y + py * i * 0.6;
+      ctx.fillStyle = '#0e2a3a'; ctx.fillRect(snap(bx), snap(by - crest), PIXEL, snap(crest));
+      ctx.fillStyle = '#2a6a7a'; ctx.fillRect(snap(bx), snap(by - crest), PIXEL, snap(crest * 0.45));
+      ctx.fillStyle = '#c0e8f0'; ctx.fillRect(snap(bx), snap(by - crest - PIXEL), PIXEL, PIXEL * 2); // espuma
+    }
+    if (Math.random() < 0.9) this.spray(x - Math.cos(a) * 30, y - Math.sin(a) * 20, a + Math.PI, 4, ['#3a7a8a', '#80c0d0', '#60e0a0'], 140);
+  }
+
+  /** Zonas dinámicas: charcas (agua poco profunda), contaminación y carne. */
+  drawZone(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, r: number, life: number, now: number, seed: number) {
+    const fade = Math.min(1, life * 4);
+    if (kind === 'puddle') {
+      ctx.globalAlpha = 0.5 * fade;
+      ctx.fillStyle = '#1a4a58';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.45 * fade;
+      ctx.fillStyle = '#2e7080';
+      ctx.beginPath(); ctx.ellipse(x - r * 0.15, y - r * 0.08, r * 0.7, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.5 * fade;
+      ctx.strokeStyle = '#7ac0c8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, Math.PI * 1.05, Math.PI * 1.7); ctx.stroke();
+      ctx.fillStyle = '#4a9a8a';
+      for (let i = 0; i < 4; i++) {
+        const t = ((now / 900 + i * 0.25 + seed * 0.13) % 1);
+        ctx.globalAlpha = 0.6 * (1 - t) * fade;
+        const rr = r * 0.2 + t * r * 0.5;
+        ctx.fillRect(snap(x + Math.cos(i * 1.7 + seed) * r * 0.3 - rr), snap(y + Math.sin(i * 2.3 + seed) * r * 0.2), snap(rr * 2), PIXEL);
+      }
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = '#60e0a0';
+      if (Math.floor(now / 200 + seed) % 5 === 0) ctx.fillRect(snap(x + Math.sin(seed) * r * 0.4), snap(y), PIXEL, PIXEL); // burbuja corrupta
+      ctx.globalAlpha = 1;
+    } else if (kind === 'toxic') {
+      ctx.globalAlpha = 0.45 * fade;
+      ctx.fillStyle = '#3a6a10';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.9 * fade;
+      ctx.fillStyle = '#a0ff40';
+      for (let i = 0; i < 6; i++) {
+        const t = ((now / 700 + i / 6) % 1);
+        ctx.fillRect(snap(x + Math.cos(i * 2.1 + seed) * r * 0.6), snap(y + Math.sin(i * 1.3 + seed) * r * 0.35 - t * 24), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'meat') {
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(x, y + 4, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8a1818'; ctx.fillRect(snap(x) - 9, snap(y) - 6, 18, 9);
+      ctx.fillStyle = '#c03030'; ctx.fillRect(snap(x) - 6, snap(y) - 6, 9, 3);
+      ctx.fillStyle = '#e8d8c0'; ctx.fillRect(snap(x) + 9, snap(y) - 6, 6, 3); ctx.fillRect(snap(x) + 12, snap(y) - 9, 3, 9);
+      ctx.fillStyle = '#101010'; // moscas
+      for (let i = 0; i < 3; i++) ctx.fillRect(snap(x + Math.cos(now / 120 + i * 2) * 16), snap(y - 16 + Math.sin(now / 90 + i) * 6), PIXEL, PIXEL);
     }
   }
 

@@ -294,7 +294,58 @@ const invisible: FormFn = (b, p, c, _anim, tier) => {
   arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin, 2, true);
 };
 
-export const FORMS: Record<CharacterId, FormFn> = { vampire, werewolf, mummy, invisible };
+const zombieForm: FormFn = (b, p, c, anim, tier) => {
+  // Paciente Cero: bata de hospital, piel verdosa, una mano siempre adelante
+  if (anim === Anim.Idle || anim === Anim.Walk) p = { ...p, ra: 1.4 + p.ra * 0.2, mouth: true };
+  const by = p.by;
+  arm(b, 10, 13 + by, p.la, 7, shade(c.skin, -0.2), c.skin);
+  legs(b, p, shade(c.skin, -0.25), c.skin, '#d8d8d0', { top: 24 });
+  // bata abierta con la espalda al aire
+  torso(b, by, c.cloth, { bottom: 25 });
+  b.rect(7, 22, 10, 4, c.cloth); for (const x of [7, 10, 13, 16]) b.set(x, 25, shade(c.cloth, -0.3));
+  for (let y = 13; y < 24; y += 3) b.set(11, y + by, c.cloth2); // estampado
+  b.rect(13, 15 + by, 2, 3, c.accent); b.set(14, 16 + by, shade(c.accent, -0.3)); // herida
+  b.rect(9, 12 + by, 2, 1, '#ffffff'); // pulsera de hospital
+  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'bald', eyeGlow: true });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 1, Y, 3, 2, c.hair); b.set(X + 5, Y, c.hair); // pelo ralo
+  b.set(X + 4, Y + 3, shade(c.skin, -0.35)); b.set(X + 2, Y + 7, shade(c.skin, -0.35)); // manchas
+  b.set(X + 8, Y + 9, c.accent); b.set(X + 7, Y + 9, '#e8e0c8', false, true);
+  if (tier >= 1 && !p.blink) b.set(X + 8, Y + 5, shade(c.eye, 0.3), true);
+  if (tier >= 2) for (const [x, y] of [[9, 16], [15, 20], [12, 23]]) b.set(x, y + (y < 22 ? by : 0), '#a0ff60', true); // pústulas
+  if (tier >= 3) { b.set(14, 17 + by, '#c0ff40', true); b.set(X + 3, Y + 1, '#a0ff60', true); } // goteo tóxico
+  arm(b, 13, 13 + by, p.ra, 7, shade(c.skin, -0.05), c.skin);
+};
+
+const kthulaForm: FormFn = (b, p, c, _anim, tier) => {
+  // K'thula: cabeza de pulpo, barba de tentáculos, túnica y alas pequeñas
+  const by = p.by, sw = p.sway ?? 0;
+  b.line(8, 12 + by, 4 - sw, 9 + by, c.hair); b.line(8, 13 + by, 3 - sw, 12 + by, c.hair); b.line(4 - sw, 9 + by, 3 - sw, 13 + by, c.hair); // alas
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin, 2, true);
+  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, c.skin, { top: 25 });
+  torso(b, by, c.cloth, { bottom: 26 });
+  b.rect(7, 22, 10, 5, c.cloth); b.rect(7, 26, 10, 1, c.cloth2);
+  b.line(12, 13 + by, 12, 26, c.cloth2);
+  const runes = tier >= 3;
+  for (const [x, y] of [[9, 16], [14, 19], [10, 22]]) b.set(x, y + (y < 22 ? by : 0), runes ? c.accent : shade(c.cloth, 0.15), runes);
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  // cabeza abombada (manto de pulpo hacia atrás)
+  b.ellipse(X + 4, Y + 2, 5, 4, c.skin);
+  b.rect(X + 1, Y + 3, 9, 5, c.skin);
+  b.rect(X - 1, Y, 3, 4, shade(c.skin, -0.15)); // manto
+  for (const [x, y] of [[X + 2, Y], [X + 5, Y - 1], [X + 3, Y + 3]]) b.set(x, y, shade(c.skin, 0.2)); // manchas
+  if (!p.blink) { b.set(X + 7, Y + 4, c.eye, true); b.set(X + 8, Y + 4, shade(c.eye, 0.3), true); if (tier >= 1) b.set(X + 6, Y + 4, shade(c.eye, -0.2), true); }
+  b.rect(X + 6, Y + 3, 3, 1, shade(c.skin, -0.35));
+  // barba de tentáculos que ondea
+  for (let k = 0; k < 4; k++) {
+    const tx = X + 4 + k * 1.5, len = 4 + (k % 2) * 2;
+    for (let i = 0; i < len; i++) b.set(tx + Math.round(Math.sin((i + k + sw) * 0.9) * 0.8), Y + 8 + i, i === len - 1 && tier >= 2 ? c.accent : shade(c.skin, k % 2 ? -0.1 : 0.05), i === len - 1 && tier >= 2);
+  }
+  if (tier >= 3) for (const dx of [0, 2, 4, 6]) b.set(X + 1 + dx, Y - 3 + (dx % 4 ? 0 : -1), c.accent, true); // corona de púas
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin, 2, true);
+};
+
+export const FORMS: Record<CharacterId, FormFn> = { vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm };
 
 // ---------------------------------------------------------------------------
 // Humanos y Helsing
@@ -373,10 +424,15 @@ function heldItem(b: PB, held: Held, hx: number, hy: number) {
   }
 }
 
-function drawNpc(b: PB, p: Pose, variant: string, seed: number) {
+type ZombieKind = 'normal' | 'fast' | 'tough' | 'fat';
+const ZOMBIE_SKIN: Record<ZombieKind, string> = { normal: '#6a9a50', fast: '#9aaab0', tough: '#4a6a3a', fat: '#7a9a48' };
+
+function drawNpc(b: PB, p: Pose, variant: string, seed: number, zombie?: ZombieKind, anim: Anim = Anim.Idle) {
   const n = npcLook(variant, seed);
-  const L = n.L, skin = n.skin, by = p.by;
-  const tw = n.stout ? 9 : 8;
+  if (zombie && (anim === Anim.Idle || anim === Anim.Walk)) p = { ...p, la: 1.35 + p.la * 0.2, ra: 1.5 + p.ra * 0.2, mouth: true };
+  const L = n.L, by = p.by;
+  const skin = zombie ? mix(n.skin, ZOMBIE_SKIN[zombie], 0.65) : n.skin;
+  const tw = zombie === 'fat' ? 11 : n.stout ? 9 : 8;
   arm(b, 10, 13 + by, p.la, 7, shade(L.top, -0.25), skin);
   const longSkirt = L.kind === 'dress' || L.kind === 'robe' || L.kind === 'apron';
   legs(b, p, shade(L.legs, -0.2), L.legs, L.shoe, { top: longSkirt ? 24 : HIP });
@@ -393,10 +449,17 @@ function drawNpc(b: PB, p: Pose, variant: string, seed: number) {
     case 'uniform': b.rect(13, 12 + by, 1, 6, L.top2); b.set(13, 14 + by, '#c0c0c0', false, true); b.line(13, 12 + by, 15, 15 + by, '#e0e0e0'); break;
     case 'tunic': b.rect(8, 18 + by, tw, 1, '#4a2a1a'); b.set(13, 18 + by, '#c0a040'); break;
   }
-  humanHead(b, p, { skin, hair: n.hair, eye: '#1a1a24', style: n.style, glasses: n.glasses ? '#202024' : undefined, cap: L.cap });
+  if (zombie) {
+    // ropa rasgada, manchas de sangre y barriga del zombi gordo
+    for (const [x, y] of [[8, HIP - 1], [11, HIP - 1], [14, 17], [9, 15]]) b.clear(x, y + (y < HIP - 1 ? by : 0));
+    b.set(12, 14 + by, '#7a1010'); b.set(13, 15 + by, '#5a0a0a'); b.set(10, 18 + by, '#7a1010');
+    if (zombie === 'fat') { b.ellipse(13, 18 + by, 4, 3, shade(skin, -0.05)); b.set(14, 17 + by, '#a0c060', true); b.set(12, 19 + by, '#a0c060', true); }
+  }
+  humanHead(b, p, { skin, hair: n.hair, eye: zombie ? '#e8ff60' : '#1a1a24', style: n.style, glasses: n.glasses ? '#202024' : undefined, cap: L.cap, eyeGlow: !!zombie });
+  if (zombie) { const X = 7 + (p.lean ?? 0), Y = 2 + by; b.set(X + 8, Y + 9, '#8a1010'); b.set(X + 4, Y + 7, shade(skin, -0.3)); }
   arm(b, 13, 13 + by, p.ra, 7, L.top, skin);
   const hx = 13 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
-  heldItem(b, n.held, hx, hy);
+  if (!zombie) heldItem(b, n.held, hx, hy);
 }
 
 function drawHelsing(b: PB, p: Pose) {
@@ -435,8 +498,8 @@ const cache = new Map<string, Baked>();
 
 export function frameCount(a: Anim) { return ANIMS[a].frames.length; }
 
-export function getFrame(kind: 'monster' | 'npc' | 'helsing', variant: string, skin: string, anim: Anim, frame: number, seed = 0, tier = 0): Baked {
-  const sd = kind === 'npc' ? seed % 97 : 0;
+export function getFrame(kind: 'monster' | 'npc' | 'helsing' | 'zombie', variant: string, skin: string, anim: Anim, frame: number, seed = 0, tier = 0): Baked {
+  const sd = kind === 'npc' || kind === 'zombie' ? seed % 97 : 0;
   const key = `${kind}|${variant}|${skin}|${anim}|${frame}|${sd}|${tier}`;
   let f = cache.get(key);
   if (f) return f;
@@ -447,6 +510,7 @@ export function getFrame(kind: 'monster' | 'npc' | 'helsing', variant: string, s
     const ch = variant as CharacterId;
     (FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim, tier);
   } else if (kind === 'helsing') drawHelsing(b, pose);
+  else if (kind === 'zombie') drawNpc(b, pose, variant, sd, (skin as ZombieKind) || 'normal', anim);
   else drawNpc(b, pose, variant, sd);
   f = b.finish({ outline: kind === 'monster' && variant === 'invisible' ? 'faint' : 'selout' });
   cache.set(key, f);

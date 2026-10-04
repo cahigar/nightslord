@@ -1,7 +1,7 @@
 // Interfaz de un "kit" de personaje: la implementación de sus habilidades.
 // La sala (Room) es autoritativa y expone una API; el kit solo decide QUÉ hace cada botón.
 // Para añadir un monstruo: crea un kit nuevo y regístralo en kits/index.ts.
-import type { Mob, Player, Projectile } from '../entities';
+import type { Minion, Mob, Player, Projectile } from '../entities';
 import type { Room } from '../Room';
 
 export interface Kit {
@@ -24,6 +24,8 @@ export interface Kit {
   onProjectileHit?(room: Room, p: Player, pr: Projectile, target: Mob, dealt: number): void;
   /** ¿Bloquea este proyectil enemigo? (p. ej. murciélagos orbitales) */
   blockProjectile?(room: Room, p: Player, pr: Projectile): boolean;
+  /** Cuando muere uno de sus esbirros. */
+  onMinionDeath?(room: Room, p: Player, m: Minion): void;
   /** Al alcanzar un nuevo tier de evolución (1, 2 o 3). */
   onTier?(room: Room, p: Player, tier: number): void;
 }

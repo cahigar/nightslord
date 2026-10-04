@@ -60,7 +60,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Saludar / Taunt | G / T | 😜 |
 | Silenciar | M | |
 
-## Contenido actual (v0.3)
+## Contenido actual (v0.4)
 
 **Monstruos**
 
@@ -68,16 +68,23 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 |---|---|---|---|---|---|
 | 🧛 El Conde | Mordisco con robo de vida | Murciélagos | Niebla | Noche Carmesí | gratis |
 | 🐺 Lobo de Luna | Zarpazo amplio | Embestida | Aullido | Luna Llena | gratis |
-| 🧟 Ramsés | Escarabajos a distancia que ralentizan | Vendas | Maldición | Tormenta del Faraón | 250 🪙 o medalla 🏹 |
+| ⚱️ Ramsés | Escarabajos a distancia que ralentizan | Vendas | Maldición | Tormenta del Faraón | 250 🪙 o medalla 🏹 |
 | 👻 La Dama Velada | Puñetazo fantasma | Desvestirse | Frenesí invisible | Todos somos la Dama | 400 🪙 o medalla 💀 |
+| 🧟 Paciente Cero | Mordisco infecto | Contagio (convierte a un humano en zombi aliado) | Carne fresca (cebo que atrae a sus zombis) | Salida de la tumba (horda + zombi gordo explosivo) | 350 🪙 o medalla 🍖 |
+| 🐙 K'thula | Tentáculo | Tentáculo abisal (golpe en zona que atrae) | Sumergirse (intocable, ×2 velocidad) | Marejada abisal (ola que empuja y deja charcas) | 450 🪙 o medalla 👑 |
+
+**Paciente Cero (invocador)**: máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
+
+**K'thula (acuático)**: cruza el agua profunda (lagos, ríos, piscinas) donde va ×1,3 más rápido y se regenera si no ha recibido daño en 3 s. Sumergirse dura 2,4 s en agua profunda y 1,2 s en tierra. Nv. 5: va derramando charcas al moverse por el agua. Nv. 15: dos cargas de Q y deja una charca al emerger.
+**Charcas**: da igual quién las cree; cualquier criatura acuática recibe en ellas la mitad del bonus del agua profunda, y el resto se ralentiza.
 
 **Evolución por niveles** (cada monstruo conserva su identidad):
 
 | Nivel | Qué cambia |
 |---|---|
-| 5 | Mejora de la pasiva (Sed de sangre · Instinto depredador · Maldición del faraón · Presencia Ausente). Ojos más intensos. |
+| 5 | Mejora de la pasiva (Sed de sangre · Instinto depredador · Maldición del faraón · Presencia Ausente · Epidemia · Señor de las profundidades). Ojos más intensos. |
 | 10 | Se desbloquea la **R**. Aura de partículas y detalles que brillan. |
-| 15 | Mejora de Q/E (Señor de los Murciélagos · Bestia Alfa · Faraón Despierto · Desaparición Perfecta). El Conde y la Dama levitan; Lobo y Ramsés irradian luz. |
+| 15 | Mejora de Q/E (Señor de los Murciélagos · Bestia Alfa · Faraón Despierto · Desaparición Perfecta · Cepas mutantes · Llamada del abismo). El Conde y la Dama levitan; Lobo y Ramsés irradian luz. |
 | 15+ | Solo estadísticas, como antes. |
 
 **La R se carga con bajas**, no con el tiempo: humano +4 %, otro monstruo +25 %, Helsing +40 % (al llegar al nivel 10 empieza con un 30 %). Todos los números están en `shared/balance.ts`.

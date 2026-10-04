@@ -54,4 +54,31 @@ export const BAL = {
     killInvisT: 3, reappearT: 1, // nivel 15
     ult: { dur: 15, radius: 750, surpriseStunPlayer: 2.5, surpriseStunHelsing: 5, vulnMul: 1.3, vulnMulHelsing: 1.5 },
   },
+  zombie: {
+    maxMinions: 5, maxMinionsUlt: 7,
+    contagionRange: 320, contagionCone: 0.9, minionLife: 30,
+    chainChance: 0.15, chainLife: 15, // los nacidos por contagio en cadena no contagian
+    minion: {
+      normal: { hp: 45, speed: 172, dmg: 0.45, cd: 0.9 },
+      fast: { hp: 30, speed: 228, dmg: 0.4, cd: 0.7 },
+      tough: { hp: 95, speed: 142, dmg: 0.5, cd: 1.0 },
+      fat: { hp: 70, speed: 175, dmg: 0, cd: 0 },
+    },
+    aggroR: 380, leashR: 600, followDist: 110, attackReach: 14,
+    rewardShare: 0.5, // las bajas de sus zombis dan la mitad de XP y puntos
+    toxicR: 70, toxicT: 4, toxicSlowMul: 0.6, weakMul: 0.75, // nivel 5 (Epidemia)
+    meatRange: 260, meatT: 5, meatPullR: 700, meatFightR: 160, meatSpeedMul: 1.35,
+    variantChanceT3: { fast: 0.25, tough: 0.25 },
+    ult: { normals: 3, fats: 1, life: 30, capT: 30, fatSeekR: 520, fatTriggerR: 46, fatSwellT: 0.55, fatBoomR: 120, fatBoomDmg: 2.2 },
+  },
+  kthula: {
+    deepSpeedMul: 1.3, deepRegen: 0.03, // por segundo, fracción de la vida máxima
+    shallowFactor: 0.5, // las charcas dan la mitad del bonus
+    regenSafeT: 3, // sin recibir daño en los últimos 3 s
+    puddleR: 70, puddleT: 8, puddleSlowMul: 0.6, maxPuddles: 12,
+    spillEvery: 0.8, spillR: 46, spillT: 6, // nivel 5
+    tentacleRange: 300, tentacleDelay: 0.4, tentacleR: 74, tentacleDmg: 1.2, tentaclePull: 60, qChargesT3: 2,
+    diveLand: 1.2, diveDeep: 2.4, diveSpeedMul: 2.0, divePuddleR: 85, // duración doble a petición
+    ult: { speed: 360, life: 1.5, hitR: 84, dmg: 1.1, knock: 170, puddleEvery: 70, puddleR: 64 },
+  },
 };

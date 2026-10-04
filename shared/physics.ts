@@ -27,10 +27,11 @@ export class ObstacleGrid {
   }
 
   /** Mueve un círculo resolviendo colisiones. Devuelve la nueva posición. */
-  move(x: number, y: number, dx: number, dy: number, r: number): { x: number; y: number; hit: boolean } {
+  move(x: number, y: number, dx: number, dy: number, r: number, overWater = false): { x: number; y: number; hit: boolean } {
     let nx = x + dx, ny = y + dy, hit = false;
     for (let iter = 0; iter < 2; iter++) {
       for (const o of this.near(nx, ny, r + 4)) {
+        if (overWater && o.type === 'water') continue; // las criaturas acuáticas cruzan el agua profunda
         const cx = Math.max(o.x, Math.min(nx, o.x + o.w));
         const cy = Math.max(o.y, Math.min(ny, o.y + o.h));
         let ex = nx - cx, ey = ny - cy;
@@ -54,6 +55,12 @@ export class ObstacleGrid {
     nx = Math.max(r, Math.min(MAP_SIZE - r, nx));
     ny = Math.max(r, Math.min(MAP_SIZE - r, ny));
     return { x: nx, y: ny, hit };
+  }
+
+  /** ¿Hay agua profunda (obstáculo de agua) bajo este punto? */
+  deepWater(x: number, y: number): boolean {
+    for (const o of this.near(x, y, 1)) if (o.type === 'water' && x >= o.x && x <= o.x + o.w && y >= o.y && y <= o.y + o.h) return true;
+    return false;
   }
 
   blocked(x: number, y: number, r: number, ignoreWater = false): boolean {

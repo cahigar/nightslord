@@ -33,6 +33,7 @@ export interface Mob {
   entombT: number; // encerrado en sarcófago
   entombBy: number;
   entombDot: number;
+  weakT: number; // debilitado: hace menos daño
 }
 
 export type InvisKind = 'none' | 'timed' | 'auto' | 'full';
@@ -54,8 +55,8 @@ export interface Player extends Mob {
   upPts: number;
   cd: [number, number, number];
   cdMax: [number, number, number];
-  input: { mx: number; my: number; a: number; b: number };
-  queue: { q: number; mx: number; my: number; a: number; b: number }[];
+  input: { mx: number; my: number; a: number; b: number; d: number };
+  queue: { q: number; mx: number; my: number; a: number; b: number; d: number }[];
   ack: number;
   // efectos
   speedT: number;
@@ -83,6 +84,10 @@ export interface Player extends Mob {
   hits: Map<number, number>; // impactos por objetivo (marca de maldición)
   lastAtkFromInvis: boolean;
   stepT: number;
+  submergeT: number; // K'thula sumergido (no se le puede golpear ni ataca)
+  lastHurtT: number;
+  spillT: number;
+  meatId: number; // carne fresca activa (Paciente Cero)
   // estadísticas de la vida actual
   lifeStart: number;
   lifeKills: number;
@@ -115,6 +120,24 @@ export interface Helsing extends Mob {
   strafe: number;
 }
 
+/** Esbirro (zombi de Paciente Cero). Reutilizable para futuros invocadores. */
+export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat';
+export interface Minion extends Mob {
+  kind: Kind.Minion;
+  owner: number; // id del jugador dueño
+  variant: MinionVariant;
+  look: string; // aspecto del humano original
+  lookSeed: number;
+  life: number;
+  chain: boolean; // puede contagiar a sus víctimas
+  target: number;
+  thinkT: number;
+  atkCd: number;
+  speed: number;
+  swellT: number; // zombi gordo a punto de explotar
+  born: number;
+}
+
 export interface PowerUp { id: number; x: number; y: number; type: PowerUpType }
 
 export interface Projectile {
@@ -133,15 +156,18 @@ export interface Projectile {
   hitR?: number;
   hitSet?: Set<number>;
   bounced?: boolean;
+  trailAcc?: number;
 }
 
-/** Zona temporal con efecto (p. ej. estela de niebla). Cápsula entre A y B. */
-export interface Zone { id: number; kind: 'mistTrail'; ax: number; ay: number; bx: number; by: number; w: number; until: number; owner: number }
+/** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
+ *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat';
+export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number }
 
-export type Source = { player?: Player; helsing?: Helsing; name: string; kind: Kind };
+export type Source = { player?: Player; helsing?: Helsing; minion?: Minion; name: string; kind: Kind };
 
 /** Valores iniciales de los estados genéricos. */
 export const mobStatus = () => ({
   stunT: 0, slowT: 0, slowMul: 1, fearT: 0, panicT: 0, vulnT: 0, vulnMul: 1, preyT: 0,
-  curseMarkT: 0, curseBy: -1, entombT: 0, entombBy: -1, entombDot: 0, knock: null, dead: false,
+  curseMarkT: 0, curseBy: -1, entombT: 0, entombBy: -1, entombDot: 0, weakT: 0, knock: null, dead: false,
 });

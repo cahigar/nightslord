@@ -29,6 +29,8 @@ export const CHARACTER_UNLOCK: Record<CharacterId, { price: number; medal?: stri
   werewolf: { price: 0 },
   mummy: { price: 250, medal: 'hunter' }, // con la medalla o pagando
   invisible: { price: 400, medal: 'predator' },
+  zombie: { price: 350, medal: 'glutton' },
+  kthula: { price: 450, medal: 'lord' },
 };
 
 // ---------- Perfil persistente ----------

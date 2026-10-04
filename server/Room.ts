@@ -13,7 +13,7 @@ import { ObstacleGrid } from '../shared/physics';
 import {
   Anim, Flag, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type SfxId, type YouState,
 } from '../shared/protocol';
-import { mobStatus, type Helsing, type Mob, type Npc, type Player, type PowerUp, type Projectile, type Source, type Zone } from './entities';
+import { mobStatus, type Helsing, type Minion, type MinionVariant, type Mob, type Npc, type Player, type PowerUp, type Projectile, type Source, type Zone, type ZoneKind } from './entities';
 import { KITS } from './kits';
 import { store } from './store';
 import type { Conn } from './types';
@@ -31,6 +31,9 @@ const POWERUP_WEIGHTS: [PowerUpType, number][] = [
 const dist2 = (ax: number, ay: number, bx: number, by: number) => (ax - bx) ** 2 + (ay - by) ** 2;
 const angleDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
 const DAMA = BAL.invisible;
+const ZB = BAL.zombie;
+const KT = BAL.kthula;
+const isAquatic = (m: Mob) => m.kind === Kind.Player && !!(m as Player).def.aquatic;
 
 // ---------------------------------------------------------------------------
 export class Room {
@@ -42,6 +45,8 @@ export class Room {
   helsings = new Map<number, Helsing>();
   powerups = new Map<number, PowerUp>();
   projectiles = new Map<number, Projectile>();
+  minions = new Map<number, Minion>();
+  private timers: { at: number; fn: () => void }[] = [];
   zones: Zone[] = [];
   conns = new Map<number, Conn>();
 
@@ -98,7 +103,7 @@ export class Room {
 
   removeConn(conn: Conn) {
     const p = this.players.get(conn.id);
-    if (p) this.recordBest(p);
+    if (p) { this.recordBest(p); this.releaseMinions(p.id); }
     this.players.delete(conn.id);
     this.conns.delete(conn.id);
     conn.roomCode = null;
@@ -126,11 +131,12 @@ export class Room {
       coinsEarned: 0,
       ups: { vit: 0, str: 0, spd: 0, pow: 0 }, upPts: 0,
       cd: [0, 0, 0], cdMax: [def.attackCd, def.abilities[0].cooldown, def.abilities[1].cooldown],
-      input: { mx: 0, my: 0, a: 0, b: 0 }, queue: [], ack: prev?.ack ?? 0,
+      input: { mx: 0, my: 0, a: 0, b: 0, d: 200 }, queue: [], ack: prev?.ack ?? 0,
       speedT: 0, furyT: 0, howlT: 0, shieldHp: 0, shieldT: 0, invisT: 0, invisKind: 'none', invisBonus: false, mistT: 0,
       protectT: SPAWN_PROTECTION, dash: null,
       ult: 0, ultT: 0, ultExt: 0, qCharges: 1, qLock: 0, orbit: [], lastCombatT: this.time, reinvisT: 0,
       frenzyT: 0, killSpeedT: 0, hits: new Map(), lastAtkFromInvis: false, stepT: 0,
+      submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1,
       lifeStart: this.time, lifeKills: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
       lastAttacker: '',
     };
@@ -139,13 +145,13 @@ export class Room {
   }
 
   // ------------------------------------------------------------------ entradas
-  onInput(conn: Conn, m: { q: number; mx: number; my: number; a: number; b: number }) {
+  onInput(conn: Conn, m: { q: number; mx: number; my: number; a: number; b: number; d?: number }) {
     const p = this.players.get(conn.id);
     if (!p) return;
     const len = Math.hypot(m.mx, m.my);
     const mx = len > 1 ? m.mx / len : m.mx || 0;
     const my = len > 1 ? m.my / len : m.my || 0;
-    p.queue.push({ q: m.q | 0, mx, my, a: +m.a || 0, b: m.b | 0 });
+    p.queue.push({ q: m.q | 0, mx, my, a: +m.a || 0, b: m.b | 0, d: Math.max(0, Math.min(1200, +(m.d ?? 200) || 0)) });
     if (p.queue.length > 6) p.queue.splice(0, p.queue.length - 3);
   }
 
@@ -178,7 +184,7 @@ export class Room {
   onCheat(conn: Conn, lvl?: number, ult?: boolean, tp?: [number, number]) {
     const p = this.players.get(conn.id);
     if (!p || p.dead) return;
-    if (tp && !this.grid.blocked(+tp[0], +tp[1], p.r)) { p.x = +tp[0]; p.y = +tp[1]; }
+    if (tp && !this.grid.blocked(+tp[0], +tp[1], p.r, !!p.def.aquatic)) { p.x = +tp[0]; p.y = +tp[1]; }
     if (lvl) { let guard = 0; while (p.level < Math.min(MAX_LEVEL, lvl) && guard++ < 60) this.addXp(p, xpForLevel(p.level) - p.xp); }
     if (ult && p.tier >= 2) p.ult = ULT.max;
   }
@@ -231,7 +237,64 @@ export class Room {
     return pr;
   }
 
-  addZone(z: Omit<Zone, 'id'>) { this.zones.push({ ...z, id: this.nextId++ }); }
+  /** Añade una zona. Las charcas tienen un máximo por dueño (se elimina la más antigua). */
+  addZone(z: Omit<Zone, 'id' | 'born'>) {
+    const zone: Zone = { ...z, id: this.nextId++, born: this.time };
+    this.zones.push(zone);
+    if (z.kind === 'puddle') {
+      const mine = this.zones.filter((o) => o.kind === 'puddle' && o.owner === z.owner);
+      if (mine.length > KT.maxPuddles) { const old = mine[0]; this.zones = this.zones.filter((o) => o !== old); }
+    }
+    return zone;
+  }
+
+  /** Charca circular (agua poco profunda). */
+  puddle(owner: number, x: number, y: number, r: number, t: number) {
+    if (this.grid.deepWater(x, y)) return null; // en agua profunda no hace falta
+    return this.addZone({ kind: 'puddle', ax: x, ay: y, bx: x, by: y, w: r * 2, until: this.time + t, owner });
+  }
+
+  /** Agua bajo un punto: 'deep' (lagos, ríos, piscinas), 'shallow' (charcas de cualquier criatura) o null. */
+  waterAt(x: number, y: number): 'deep' | 'shallow' | null {
+    if (this.grid.deepWater(x, y)) return 'deep';
+    for (const z of this.zones) if (z.kind === 'puddle' && (x - z.ax) ** 2 + (y - z.ay) ** 2 < (z.w / 2) ** 2) return 'shallow';
+    return null;
+  }
+
+  /** Ejecuta algo tras un retardo (en tiempo de simulación). */
+  later(delay: number, fn: () => void) { this.timers.push({ at: this.time + delay, fn }); }
+
+  // ------------------------------------------------------------------ esbirros (zombis de Paciente Cero)
+  minionsOf(ownerId: number) { return [...this.minions.values()].filter((m) => m.owner === ownerId && !m.dead); }
+
+  spawnMinion(owner: Player, x: number, y: number, variant: MinionVariant, look: string, lookSeed: number, life: number, chain: boolean): Minion {
+    const cap = owner.ultT > 0 ? ZB.maxMinionsUlt : ZB.maxMinions;
+    const mine = this.minionsOf(owner.id).sort((a, b) => a.born - b.born);
+    while (mine.length >= cap) { const old = mine.shift()!; old.life = 0; this.kill(old, { name: '', kind: Kind.Minion }); }
+    const st = ZB.minion[variant];
+    const m: Minion = {
+      ...mobStatus(),
+      id: this.nextId++, kind: Kind.Minion, x, y, r: variant === 'fat' ? 18 : variant === 'tough' ? 16 : NPC_RADIUS, facing: owner.facing,
+      hp: st.hp, maxHp: st.hp, anim: Anim.Cast, animSeq: 1, animUntil: this.time + 0.5, moving: false,
+      owner: owner.id, variant, look, lookSeed, life, chain, target: -1, thinkT: 0, atkCd: 0.6, speed: st.speed, swellT: 0, born: this.time,
+    };
+    this.minions.set(m.id, m);
+    return m;
+  }
+
+  /** El dueño se ha ido: sus esbirros se desmoronan. */
+  private releaseMinions(ownerId: number) {
+    for (const m of this.minions.values()) if (m.owner === ownerId) { this.fx('infect', m.x, m.y, { o: m.id, n: -1 }); this.minions.delete(m.id); }
+    this.zones = this.zones.filter((z) => z.owner !== ownerId);
+  }
+
+  /** ¿Es m enemigo del jugador p? (no lo es él mismo ni sus esbirros) */
+  isEnemyOf(p: Player | null, m: Mob) {
+    if (!p) return true;
+    if (m === p) return false;
+    if (m.kind === Kind.Minion && (m as Minion).owner === p.id) return false;
+    return true;
+  }
 
   /** Rompe invisibilidad/protección al actuar. Devuelve el multiplicador de daño (golpe desde invisibilidad). */
   breakStealth(p: Player): number {
@@ -251,8 +314,12 @@ export class Room {
     for (const n of this.npcs.values()) if (dist2(x, y, n.x, n.y) < (radius + n.r) ** 2) fn(n);
     for (const h of this.helsings.values()) if (dist2(x, y, h.x, h.y) < (radius + h.r) ** 2) fn(h);
     for (const o of this.players.values()) {
-      if (o === p || o.dead || o.protectT > 0 || o.mistT > 0) continue;
+      if (o === p || o.dead || o.protectT > 0 || o.mistT > 0 || o.submergeT > 0) continue;
       if (dist2(x, y, o.x, o.y) < (radius + o.r) ** 2) fn(o);
+    }
+    for (const m of this.minions.values()) {
+      if (m.dead || m.owner === p.id) continue;
+      if (dist2(x, y, m.x, m.y) < (radius + m.r) ** 2) fn(m);
     }
   }
 
@@ -392,6 +459,12 @@ export class Room {
     if (p.howlT > 0) s *= BAL.werewolf.howlSpeedMul;
     if (p.slowT > 0) s *= p.slowMul;
     s *= KITS[p.char].speedMul?.(this, p) ?? 1;
+    if (p.def.aquatic) {
+      const w = this.waterAt(p.x, p.y);
+      if (w === 'deep') s *= KT.deepSpeedMul;
+      else if (w === 'shallow') s *= 1 + (KT.deepSpeedMul - 1) * KT.shallowFactor;
+    }
+    if (p.submergeT > 0) s *= KT.diveSpeedMul;
     return s;
   }
 
@@ -406,6 +479,12 @@ export class Room {
     for (const p of this.players.values()) if (!p.dead) this.updatePlayer(p, dt);
     for (const n of this.npcs.values()) this.updateNpc(n, dt);
     for (const h of this.helsings.values()) this.updateHelsing(h, dt);
+    for (const m of this.minions.values()) this.updateMinion(m, dt);
+    if (this.timers.length) {
+      const due = this.timers.filter((t) => t.at <= this.time);
+      this.timers = this.timers.filter((t) => t.at > this.time);
+      for (const t of due) t.fn();
+    }
     this.updateProjectiles(dt);
     this.updateZones();
     this.updatePickups();
@@ -426,6 +505,7 @@ export class Room {
     if (m.vulnT <= 0) m.vulnMul = 1;
     m.preyT = Math.max(0, m.preyT - dt);
     m.curseMarkT = Math.max(0, m.curseMarkT - dt);
+    m.weakT = Math.max(0, m.weakT - dt);
     if (m.entombT > 0) {
       m.entombT -= dt;
       m.knock = null;
@@ -440,7 +520,7 @@ export class Room {
       return true;
     }
     if (m.knock) {
-      const res = this.grid.move(m.x, m.y, m.knock.vx * dt, m.knock.vy * dt, m.r);
+      const res = this.grid.move(m.x, m.y, m.knock.vx * dt, m.knock.vy * dt, m.r, isAquatic(m));
       m.x = res.x; m.y = res.y;
       m.knock.t -= dt;
       if (m.knock.t <= 0) m.knock = null;
@@ -470,8 +550,14 @@ export class Room {
       p.invisT -= dt;
       if (p.invisT <= 0) { p.invisT = 0; p.invisBonus = false; p.invisKind = 'none'; }
     }
-    // regeneración lenta
-    if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.008 * dt);
+    // regeneración lenta (y la de las criaturas acuáticas en el agua, si no les han dado hace poco)
+    let regen = 0.008;
+    if (p.def.aquatic && this.time - p.lastHurtT >= KT.regenSafeT) {
+      const w = this.waterAt(p.x, p.y);
+      if (w === 'deep') regen += KT.deepRegen;
+      else if (w === 'shallow') regen += KT.deepRegen * KT.shallowFactor;
+    }
+    if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * regen * dt);
     kit.tick?.(this, p, dt);
 
     const inp = p.queue.shift();
@@ -484,7 +570,7 @@ export class Room {
     if (p.entombT > 0) { p.dash = null; return; }
 
     if (p.dash) {
-      const res = this.grid.move(p.x, p.y, p.dash.dx * p.dash.speed * dt, p.dash.dy * p.dash.speed * dt, p.r);
+      const res = this.grid.move(p.x, p.y, p.dash.dx * p.dash.speed * dt, p.dash.dy * p.dash.speed * dt, p.r, !!p.def.aquatic);
       p.x = res.x; p.y = res.y;
       const dash = p.dash;
       this.forEachEnemyNear(p, p.x, p.y, p.r + 26, (m) => {
@@ -500,7 +586,7 @@ export class Room {
       const sp = this.calcSpeed(p);
       p.moving = (mx !== 0 || my !== 0) && sp > 0;
       if (p.moving) {
-        const res = this.grid.move(p.x, p.y, mx * sp * dt, my * sp * dt, p.r);
+        const res = this.grid.move(p.x, p.y, mx * sp * dt, my * sp * dt, p.r, !!p.def.aquatic);
         p.x = res.x; p.y = res.y;
         if (p.anim === Anim.Wave || p.anim === Anim.Taunt) p.animUntil = 0;
       }
@@ -513,7 +599,7 @@ export class Room {
       if (p.stepT <= 0) { p.stepT = 0.42; this.fx('step', p.x, p.y, { r: +Math.atan2(my, mx).toFixed(1) }); }
     }
 
-    if (p.stunT > 0) return;
+    if (p.stunT > 0 || p.submergeT > 0) return;
     if (b & BTN_ATTACK && p.cd[0] <= 0) {
       p.cd[0] = p.cdMax[0] * (kit.atkSpeedMul?.(this, p) ?? 1);
       p.lastCombatT = this.time;
@@ -548,12 +634,16 @@ export class Room {
     if (m.entombT > 0) {
       if (!src.player || src.player.id !== m.entombBy) return 0;
     }
-    if (src.player) amount = KITS[src.player.char].onDealDamage?.(this, src.player, m, amount) ?? amount;
+    if (src.player && !src.minion) amount = KITS[src.player.char].onDealDamage?.(this, src.player, m, amount) ?? amount;
+    // debilitado (zona contaminada)
+    const atk: Mob | undefined = src.minion ?? src.player ?? src.helsing;
+    if (atk && atk.weakT > 0) amount *= ZB.weakMul;
     if (m.vulnT > 0) amount *= m.vulnMul;
     if (m.kind === Kind.Player) {
       const p = m as Player;
-      if (p.protectT > 0 || p.mistT > 0) return 0;
+      if (p.protectT > 0 || p.mistT > 0 || p.submergeT > 0) return 0;
       amount *= 1 - p.def.armor;
+      p.lastHurtT = this.time;
       if (p.shieldHp > 0) {
         const absorbed = Math.min(p.shieldHp, amount);
         p.shieldHp -= absorbed;
@@ -581,26 +671,45 @@ export class Room {
     return amount;
   }
 
-  private kill(m: Mob, src: Source) {
+  kill(m: Mob, src: Source) {
+    if (m.dead) return;
     m.dead = true;
     m.hp = 0;
     const killer = src.player && !src.player.dead ? src.player : undefined;
+    const share = src.minion ? ZB.rewardShare : 1; // bajas de esbirros: la mitad
     let c = '';
+    if (m.kind === Kind.Minion) {
+      const mn = m as Minion;
+      c = mn.look;
+      this.minions.delete(mn.id);
+      const owner = this.findPlayerById(mn.owner);
+      if (owner && !owner.dead) KITS[owner.char].onMinionDeath?.(this, owner, mn);
+      if (killer && killer.id !== mn.owner) this.reward(killer, 4, 3, 0);
+      this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c }, m.x, m.y);
+      return;
+    }
     if (m.kind === Kind.Npc) {
       const n = m as Npc;
       c = n.variant;
       this.npcs.delete(n.id);
       this.sfx('scream', n.x, n.y);
       // ¡sorpresa! era un humano disfrazado de la Dama
-      if (n.disguiseT > 0 && (!killer || killer.id !== n.disguiseBy)) {
+      if (n.disguiseT > 0 && (!killer || killer.id !== n.disguiseBy || src.minion)) {
         const dama = this.findPlayerById(n.disguiseBy);
-        if (killer) this.surprise(killer, DAMA.ult.surpriseStunPlayer, DAMA.ult.vulnMul);
+        if (src.minion) this.surprise(src.minion, DAMA.ult.surpriseStunHelsing, DAMA.ult.vulnMulHelsing);
+        else if (killer) this.surprise(killer, DAMA.ult.surpriseStunPlayer, DAMA.ult.vulnMul);
         else if (src.helsing) this.surprise(src.helsing, DAMA.ult.surpriseStunHelsing, DAMA.ult.vulnMulHelsing);
         if (dama) this.fx('undress', n.x, n.y, { o: -1, s: dama.skin, r: 1 });
       }
+      // contagio en cadena: la víctima de un zombi puede levantarse como zombi
+      if (killer && src.minion?.chain && Math.random() < ZB.chainChance) {
+        const z = this.spawnMinion(killer, n.x, n.y, this.minionVariant(killer), n.variant, n.id % 97, ZB.chainLife, false);
+        this.fx('infect', z.x, z.y, { o: z.id, n: 1 });
+        this.sfx('groan', z.x, z.y);
+      }
       if (killer) {
-        this.reward(killer, 12, 10, 1);
-        this.chargeUlt(killer, ULT.npc);
+        this.reward(killer, 12 * share, 10 * share, src.minion ? 0 : 1);
+        if (!src.minion) this.chargeUlt(killer, ULT.npc);
         const st = killer.conn.profile.stats;
         st.npcKills++;
         this.medal(killer, 'firstblood');
@@ -611,8 +720,8 @@ export class Room {
       this.helsings.delete(m.id);
       this.helsingRespawnT = Math.max(this.helsingRespawnT, 6);
       if (killer) {
-        this.reward(killer, 70, 80, 8);
-        this.chargeUlt(killer, ULT.helsing);
+        this.reward(killer, 70 * share, 80 * share, src.minion ? 4 : 8);
+        this.chargeUlt(killer, ULT.helsing * share);
         const st = killer.conn.profile.stats;
         st.helsingKills++;
         this.medal(killer, 'hunter');
@@ -625,11 +734,13 @@ export class Room {
       v.diedAt = this.time;
       v.dash = null;
       v.ultT = 0;
+      v.submergeT = 0;
+      this.releaseMinions(v.id);
       this.recordBest(v);
       v.conn.profile.stats.deaths++;
       if (killer) {
-        this.reward(killer, 40 + Math.round(v.totalXp * 0.25), 50 + Math.round(v.points * 0.25), 5);
-        this.chargeUlt(killer, ULT.player);
+        this.reward(killer, (40 + Math.round(v.totalXp * 0.25)) * share, (50 + Math.round(v.points * 0.25)) * share, 5);
+        this.chargeUlt(killer, ULT.player * share);
         killer.lifeKills++;
         killer.conn.profile.stats.playerKills++;
         if (killer.lifeKills >= 3) this.medal(killer, 'predator');
@@ -644,8 +755,15 @@ export class Room {
       v.conn.send({ t: 'profile', profile: v.conn.profile });
       store.touch();
     }
-    if (killer) KITS[killer.char].onKill?.(this, killer, m);
+    if (killer && !src.minion) KITS[killer.char].onKill?.(this, killer, m);
     this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c }, m.x, m.y);
+  }
+
+  /** Variante de zombi según la evolución del dueño (nivel 15: cepas mutantes). */
+  minionVariant(owner: Player): MinionVariant {
+    if (owner.tier < 3) return 'normal';
+    const r = Math.random();
+    return r < ZB.variantChanceT3.fast ? 'fast' : r < ZB.variantChanceT3.fast + ZB.variantChanceT3.tough ? 'tough' : 'normal';
   }
 
   private surprise(m: Mob, stun: number, vuln: number) {
@@ -668,6 +786,7 @@ export class Room {
   }
 
   private reward(p: Player, xp: number, pts: number, coins: number) {
+    xp = Math.round(xp); pts = Math.round(pts);
     p.points += pts;
     p.coinsEarned += coins;
     p.conn.profile.coins += coins;
@@ -717,13 +836,18 @@ export class Room {
   }
 
   // ------------------------------------------------------------------ IA humanos
-  private visibleMonsterNear(x: number, y: number, radius: number): Player | null {
-    let best: Player | null = null;
+  private visibleMonsterNear(x: number, y: number, radius: number): Mob | null {
+    let best: Mob | null = null;
     let bd = radius * radius;
     for (const p of this.players.values()) {
-      if (p.dead || p.invisKind !== 'none' || p.entombT > 0) continue;
+      if (p.dead || p.invisKind !== 'none' || p.entombT > 0 || p.submergeT > 0) continue;
       const d = dist2(x, y, p.x, p.y);
       if (d < bd) { bd = d; best = p; }
+    }
+    for (const m of this.minions.values()) {
+      if (m.dead || m.entombT > 0) continue;
+      const d = dist2(x, y, m.x, m.y);
+      if (d < bd) { bd = d; best = m; }
     }
     return best;
   }
@@ -795,7 +919,8 @@ export class Room {
     const p = this.findPlayerById(id);
     if (p) return p;
     const n = this.npcs.get(id);
-    return n && n.disguiseT > 0 ? n : null;
+    if (n && n.disguiseT > 0) return n;
+    return this.minions.get(id) ?? null;
   }
 
   private updateHelsing(h: Helsing, dt: number) {
@@ -809,11 +934,11 @@ export class Room {
       h.thinkT = 0.5;
       let t = this.helsingTarget(h.target);
       if (t && (t.dead || t.entombT > 0 || dist2(h.x, h.y, t.x, t.y) > 650 ** 2)) t = null;
-      if (t && t.kind === Kind.Player && ((t as Player).invisKind !== 'none' || (t as Player).mistT > 0)) t = null;
+      if (t && t.kind === Kind.Player && ((t as Player).invisKind !== 'none' || (t as Player).mistT > 0 || (t as Player).submergeT > 0)) t = null;
       if (!t) {
         let bd = Infinity;
         for (const p of this.players.values()) {
-          if (p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0) continue;
+          if (p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0) continue;
           const range = p.id === this.bountyId ? 700 : 460;
           const d = dist2(h.x, h.y, p.x, p.y);
           if (d < range * range && d < bd && this.grid.lineOfSight(h.x, h.y, p.x, p.y)) { bd = d; t = p; }
@@ -822,6 +947,12 @@ export class Room {
           if (n.disguiseT <= 0) continue;
           const d = dist2(h.x, h.y, n.x, n.y);
           if (d < 460 * 460 && d < bd && this.grid.lineOfSight(h.x, h.y, n.x, n.y)) { bd = d; t = n; }
+        }
+        // los zombis cercanos también son monstruos a abatir (con menos prioridad)
+        if (!t) for (const m of this.minions.values()) {
+          if (m.dead || m.entombT > 0) continue;
+          const d = dist2(h.x, h.y, m.x, m.y);
+          if (d < 300 * 300 && d < bd) { bd = d; t = m; }
         }
       }
       h.target = t ? t.id : -1;
@@ -878,6 +1009,108 @@ export class Room {
     }
   }
 
+  // ------------------------------------------------------------------ IA de esbirros (zombis)
+  private mobById(id: number): Mob | null {
+    if (id < 0) return null;
+    return this.npcs.get(id) ?? this.helsings.get(id) ?? this.minions.get(id) ?? this.findPlayerById(id);
+  }
+
+  private updateMinion(m: Minion, dt: number) {
+    if (m.dead) return;
+    m.life -= dt;
+    m.atkCd = Math.max(0, m.atkCd - dt);
+    const owner = this.findPlayerById(m.owner);
+    if (!owner || owner.dead || m.life <= 0) { this.kill(m, { name: '', kind: Kind.Minion }); return; }
+    if (this.applyStatus(m, dt)) return;
+    if (m.stunT > 0 || m.fearT > 0) { m.moving = false; return; }
+    if (m.anim === Anim.Cast && this.time < m.animUntil && m.swellT <= 0) { m.moving = false; return; } // saliendo de la tierra
+    // zombi gordo hinchándose: aviso antes de explotar
+    if (m.swellT > 0) {
+      m.swellT -= dt;
+      m.moving = false;
+      if (m.swellT <= 0) this.explodeFat(m, owner);
+      return;
+    }
+    const meat = this.zones.find((z) => z.kind === 'meat' && z.owner === m.owner);
+    m.thinkT -= dt;
+    if (m.thinkT <= 0) {
+      m.thinkT = 0.35;
+      let best: Mob | null = null, bd = Infinity;
+      const cx = meat ? meat.ax : m.x, cy = meat ? meat.ay : m.y;
+      const R = meat ? ZB.meatFightR : m.variant === 'fat' ? ZB.ult.fatSeekR : ZB.aggroR;
+      const leash2 = (ZB.leashR * 1.5) ** 2;
+      const consider = (t: Mob) => {
+        if (t.dead || t.entombT > 0 || !this.isEnemyOf(owner, t)) return;
+        if (m.variant === 'fat' && t.kind !== Kind.Player && t.kind !== Kind.Helsing) return;
+        const d = dist2(cx, cy, t.x, t.y);
+        if (d < R * R && d < bd && (meat || dist2(owner.x, owner.y, t.x, t.y) < leash2)) { bd = d; best = t; }
+      };
+      for (const n of this.npcs.values()) consider(n);
+      for (const h of this.helsings.values()) consider(h);
+      for (const p of this.players.values()) if (!p.dead && p.invisKind === 'none' && p.submergeT <= 0 && p.protectT <= 0 && p.mistT <= 0) consider(p);
+      for (const o of this.minions.values()) if (o.owner !== m.owner) consider(o);
+      m.target = best ? (best as Mob).id : -1;
+    }
+    const t = this.mobById(m.target);
+    let tx: number, ty: number, speed = m.speed;
+    if (t && !t.dead) { tx = t.x; ty = t.y; }
+    else if (meat && dist2(m.x, m.y, meat.ax, meat.ay) < ZB.meatPullR ** 2) { tx = meat.ax; ty = meat.ay; speed *= 1.2; }
+    else if (dist2(m.x, m.y, owner.x, owner.y) > ZB.followDist ** 2) { tx = owner.x - owner.facing * 50; ty = owner.y + ((m.id % 5) - 2) * 18; }
+    else { m.moving = false; return; }
+    if (m.slowT > 0) speed *= m.slowMul;
+    const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy) || 1;
+    m.facing = dx >= 0 ? 1 : -1;
+    if (t && !t.dead && d < 90) speed *= 1.6; // embestida final del zombi
+    if (t && !t.dead) {
+      if (m.variant === 'fat') {
+        if (d < ZB.ult.fatTriggerR + t.r) {
+          m.swellT = ZB.ult.fatSwellT;
+          this.setAnim(m, Anim.Cast, ZB.ult.fatSwellT);
+          this.sfx('groan', m.x, m.y);
+          return;
+        }
+      } else if (d < m.r + t.r + ZB.attackReach) {
+        m.moving = false;
+        if (m.atkCd <= 0) {
+          m.atkCd = ZB.minion[m.variant].cd;
+          this.setAnim(m, Anim.Attack, 0.3);
+          this.damage(t, this.calcDamage(owner, ZB.minion[m.variant].dmg), { player: owner, minion: m, name: owner.name, kind: Kind.Player });
+          this.sfx('bite', m.x, m.y);
+        }
+        return;
+      }
+    }
+    const step = Math.min(d, speed * dt);
+    // rodear obstáculos: si el camino directo está bloqueado, probar desvíos
+    let ux = dx / d, uy = dy / d;
+    if (this.grid.blocked(m.x + ux * (m.r + 14), m.y + uy * (m.r + 14), m.r)) {
+      for (const rot of [0.7, -0.7, 1.3, -1.3, 1.9, -1.9]) {
+        const c = Math.cos(rot * (m.id % 2 ? 1 : -1)), sn = Math.sin(rot * (m.id % 2 ? 1 : -1));
+        const vx = ux * c - uy * sn, vy = ux * sn + uy * c;
+        if (!this.grid.blocked(m.x + vx * (m.r + 14), m.y + vy * (m.r + 14), m.r)) { ux = vx; uy = vy; break; }
+      }
+    }
+    const res = this.grid.move(m.x, m.y, ux * step, uy * step, m.r);
+    m.x = res.x; m.y = res.y;
+    m.moving = step > 0.5;
+  }
+
+  /** El zombi gordo revienta: daño en área a todos los enemigos de su dueño. */
+  private explodeFat(m: Minion, owner: Player) {
+    const R = ZB.ult.fatBoomR;
+    const src: Source = { player: owner, minion: m, name: owner.name, kind: Kind.Player };
+    this.forEachEnemyNear(owner, m.x, m.y, R, (t) => {
+      if (t === m) return;
+      this.damage(t, this.calcDamage(owner, ZB.ult.fatBoomDmg), src);
+      const d = Math.hypot(t.x - m.x, t.y - m.y) || 1;
+      this.knockback(t, (t.x - m.x) / d, (t.y - m.y) / d, 120);
+    });
+    this.fx('fatboom', m.x, m.y, { r: R, o: m.id });
+    this.sfx('explode', m.x, m.y);
+    m.life = 0;
+    this.kill(m, { name: '', kind: Kind.Minion });
+  }
+
   findPlayerById(id: number): Player | null {
     if (id < 0) return null;
     for (const p of this.players.values()) if (p.id === id) return p;
@@ -905,7 +1138,7 @@ export class Room {
           const helsing = pr.hOwner !== undefined ? this.helsings.get(pr.hOwner) : undefined;
           const src: Source = { helsing, name: 'Helsing', kind: Kind.Helsing };
           for (const p of this.players.values()) {
-            if (p.dead || dist2(pr.x, pr.y, p.x, p.y) > (p.r + 6) ** 2) continue;
+            if (p.dead || p.submergeT > 0 || dist2(pr.x, pr.y, p.x, p.y) > (p.r + 6) ** 2) continue;
             this.damage(p, pr.dmg, src);
             done = true;
             break;
@@ -916,13 +1149,20 @@ export class Room {
             done = true;
             break;
           }
+          if (!done) for (const mn of this.minions.values()) {
+            if (mn.dead || dist2(pr.x, pr.y, mn.x, mn.y) > (mn.r + 6) ** 2) continue;
+            this.damage(mn, pr.dmg, src);
+            done = true;
+            break;
+          }
         } else {
           const owner = this.findPlayerById(pr.owner);
           const hitR = pr.hitR ?? 8;
           const tryHit = (m: Mob) => {
             if (done || m.dead || dist2(pr.x, pr.y, m.x, m.y) > (m.r + hitR) ** 2) return;
             if (pr.hitSet?.has(m.id)) return;
-            if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).mistT > 0)) return;
+            if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).mistT > 0 || (m as Player).submergeT > 0)) return;
+            if (m.kind === Kind.Minion && (m as Minion).owner === pr.owner) return;
             const dealt = this.damage(m, pr.dmg, owner ? this.src(owner) : { name: '???', kind: Kind.Player });
             if (owner && !owner.dead) KITS[owner.char].onProjectileHit?.(this, owner, pr, m, dealt);
             if (pr.pierce) pr.hitSet?.add(m.id);
@@ -931,6 +1171,18 @@ export class Room {
           for (const n of this.npcs.values()) tryHit(n);
           for (const h of this.helsings.values()) tryHit(h);
           for (const p of this.players.values()) if (p.id !== pr.owner) tryHit(p);
+          for (const mn of this.minions.values()) tryHit(mn);
+        }
+      }
+      // la ola de K'thula va dejando charcas detrás
+      if (pr.type === 'wave' && !done) {
+        const owner = this.findPlayerById(pr.owner);
+        const step = Math.hypot(pr.vx, pr.vy) * dt;
+        pr.trailAcc = (pr.trailAcc ?? 0) + step;
+        if (owner && pr.trailAcc >= KT.ult.puddleEvery) {
+          pr.trailAcc = 0;
+          const nx = -pr.vy, ny = pr.vx, nl = Math.hypot(nx, ny) || 1;
+          for (const s of [-1, 1]) this.puddle(owner.id, pr.x + (nx / nl) * s * 40, pr.y + (ny / nl) * s * 40, KT.ult.puddleR, KT.puddleT);
         }
       }
       if (done) this.projectiles.delete(pr.id);
@@ -940,13 +1192,18 @@ export class Room {
   private updateZones() {
     if (!this.zones.length) return;
     this.zones = this.zones.filter((z) => z.until > this.time);
+    const V = BAL.vampire;
     for (const z of this.zones) {
+      if (z.kind === 'meat') continue;
       const owner = this.findPlayerById(z.owner);
-      const inside = (m: Mob) => distToSegment(m.x, m.y, z.ax, z.ay, z.bx, z.by) < z.w / 2 + m.r;
-      const B = BAL.vampire;
-      for (const n of this.npcs.values()) if (inside(n)) this.slow(n, B.mistTrailSlowT, B.mistTrailSlow);
-      for (const h of this.helsings.values()) if (inside(h)) this.slow(h, B.mistTrailSlowT, B.mistTrailSlow);
-      for (const p of this.players.values()) if (p !== owner && !p.dead && inside(p)) this.slow(p, B.mistTrailSlowT, B.mistTrailSlow);
+      const inside = (m: Mob) => distToSegment(m.x, m.y, z.ax, z.ay, z.bx, z.by) < z.w / 2 + (z.kind === 'puddle' ? 0 : m.r);
+      const all: Mob[] = [...this.npcs.values(), ...this.helsings.values(), ...this.minions.values(), ...[...this.players.values()].filter((p) => !p.dead)];
+      for (const m of all) {
+        if (!inside(m)) continue;
+        if (z.kind === 'mistTrail') { if (m !== owner && this.isEnemyOf(owner, m)) this.slow(m, V.mistTrailSlowT, V.mistTrailSlow); }
+        else if (z.kind === 'puddle') { if (!isAquatic(m)) this.slow(m, 0.35, KT.puddleSlowMul); } // el agua ralentiza a todos menos a los acuáticos
+        else if (z.kind === 'toxic') { if (this.isEnemyOf(owner, m)) { this.slow(m, 0.4, ZB.toxicSlowMul); m.weakT = Math.max(m.weakT, 0.5); } }
+      }
     }
   }
 
@@ -999,6 +1256,8 @@ export class Room {
     if (m.preyT > 0) f |= Flag.Prey;
     if (m.curseMarkT > 0) f |= Flag.Cursed;
     if (m.entombT > 0) f |= Flag.Entombed;
+    if (m.weakT > 0) f |= Flag.Weak;
+    if (m.kind === Kind.Minion && (m as Minion).swellT > 0) f |= Flag.Swollen;
     if (m.kind === Kind.Player) {
       const p = m as Player;
       if (p.invisKind !== 'none') f |= Flag.Invisible;
@@ -1009,6 +1268,7 @@ export class Room {
       if (p.id === this.bountyId) f |= Flag.Bounty;
       if (p.ultT > 0) f |= Flag.Ult;
       if (p.frenzyT > 0 || p.killSpeedT > 0) f |= Flag.Haste;
+      if (p.submergeT > 0) f |= Flag.Submerged;
     }
     return f;
   }
@@ -1032,7 +1292,10 @@ export class Room {
         if (s.fl) s.fl &= ~(Flag.Feared | Flag.Panic);
       }
     } else if (m.kind === Kind.Helsing) s.c = 'helsing';
-    else {
+    else if (m.kind === Kind.Minion) {
+      const mn = m as Minion;
+      s.c = mn.variant; s.s = mn.look; s.l = mn.lookSeed; s.o = mn.owner;
+    } else {
       const p = m as Player;
       s.c = p.char; s.s = p.skin; s.n = p.name; s.l = p.level;
       if (s.h === undefined) s.h = 100;
@@ -1061,6 +1324,12 @@ export class Room {
       }
       for (const n of this.npcs.values()) if (inView(n.x, n.y)) ents.push(this.snapMob(n));
       for (const h of this.helsings.values()) if (inView(h.x, h.y)) ents.push(this.snapMob(h));
+      for (const m of this.minions.values()) if (inView(m.x, m.y)) ents.push(this.snapMob(m));
+      for (const z of this.zones) {
+        if (z.kind === 'mistTrail' || !inView(z.ax, z.ay)) continue;
+        const life = Math.max(0, (z.until - this.time) / Math.max(0.1, z.until - z.born));
+        ents.push({ i: z.id, k: Kind.Zone, x: Math.round(z.ax), y: Math.round(z.ay), f: 1, a: Anim.Idle, q: 0, c: z.kind, rr: Math.round(z.w / 2), h: Math.round(life * 100), o: z.owner });
+      }
       for (const u of this.powerups.values()) if (inView(u.x, u.y)) ents.push({ i: u.id, k: Kind.PowerUp, x: Math.round(u.x), y: Math.round(u.y), f: 1, a: Anim.Idle, q: 0, c: u.type });
       for (const pr of this.projectiles.values()) {
         if (!inView(pr.x, pr.y)) continue;
@@ -1075,6 +1344,9 @@ export class Room {
       addB(me.invisKind === 'auto' ? 'invisAuto' : 'invis', me.invisKind !== 'none' ? Math.max(me.invisT, 0.1) : 0);
       addB('protect', me.protectT); addB('slow', me.slowT); addB('stun', me.stunT);
       addB('frenzy', me.frenzyT); addB('haste', me.killSpeedT); addB('vuln', me.vulnT); addB('tomb', me.entombT);
+      addB('weak', me.weakT); addB('dive', me.submergeT);
+      if (me.char === 'zombie') { const n = this.minionsOf(me.id).length; if (n) buffs.push({ t: 'horde', r: n }); }
+      if (me.def.aquatic) { const w = this.waterAt(me.x, me.y); if (w) buffs.push({ t: w === 'deep' ? 'deep' : 'puddle', r: 999 }); }
 
       const qMax = this.qChargesMax(me);
       const you: YouState = {
