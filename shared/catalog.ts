@@ -12,8 +12,8 @@ export interface MedalDef {
 export const MEDALS: MedalDef[] = [
   { id: 'firstblood', name: 'Primera sangre', desc: 'Caza a tu primer humano.', icon: '🩸', coins: 10 },
   { id: 'glutton', name: 'Glotón', desc: 'Caza 100 humanos en total.', icon: '🍖', coins: 60 },
-  { id: 'hunter', name: 'Cazador de cazadores', desc: 'Derrota a un Helsing.', icon: '🏹', coins: 40 },
-  { id: 'slayer', name: 'Pesadilla de Helsing', desc: 'Derrota a 25 Helsings en total.', icon: '⚰️', coins: 150 },
+  { id: 'hunter', name: 'Cazador de cazadores', desc: 'Derrota a un Cazador.', icon: '🏹', coins: 40 },
+  { id: 'slayer', name: 'Pesadilla de los Cazadores', desc: 'Derrota a 25 Cazadores en total.', icon: '⚰️', coins: 150 },
   { id: 'predator', name: 'Depredador', desc: 'Derrota a 3 monstruos en una sola vida.', icon: '💀', coins: 80 },
   { id: 'survivor', name: 'Inmortal', desc: 'Sobrevive 5 minutos seguidos.', icon: '🕯️', coins: 60 },
   { id: 'lord', name: 'Señor de la Noche', desc: 'Sé el nº 1 de una sala con 3+ jugadores.', icon: '👑', coins: 100 },
@@ -43,7 +43,7 @@ export interface Profile {
   skins: string[]; // "char:skin" desbloqueadas (comprando)
   stats: {
     npcKills: number;
-    helsingKills: number;
+    hunterKills: number;
     playerKills: number;
     deaths: number;
     games: number;

@@ -90,6 +90,9 @@ const SFX: Record<SfxId, (v: number) => void> = {
   explode: (v) => { noise(0.6, 1500, 0.6 * v, 0, 'lowpass', 120); tone('square', 160, 30, 0.5, 0.35 * v); noise(0.25, 3000, 0.2 * v, 0.05, 'highpass'); },
   tentacle: (v) => { noise(0.3, 400, 0.4 * v, 0, 'bandpass', 1500); tone('sine', 70, 140, 0.3, 0.3 * v); tone('sawtooth', 110, 55, 0.35, 0.1 * v, 0.1); },
   splash: (v) => { noise(0.35, 2500, 0.45 * v, 0, 'bandpass', 500); for (let i = 0; i < 3; i++) tone('sine', 900 + Math.random() * 600, 300, 0.08, 0.08 * v, 0.05 + i * 0.05); },
+  smite: (v) => { tone('square', 1200, 300, 0.35, 0.2 * v); tone('triangle', 600, 900, 0.5, 0.18 * v, 0.05); noise(0.4, 800, 0.4 * v, 0, 'lowpass', 150); },
+  glass: (v) => { for (let i = 0; i < 5; i++) tone('triangle', 2400 + Math.random() * 1600, 1800, 0.06, 0.1 * v, i * 0.025); noise(0.15, 5000, 0.25 * v, 0, 'highpass'); },
+  chant: (v) => { [110, 131, 110, 98].forEach((f, i) => { tone('sawtooth', f, f * 0.99, 0.45, 0.1 * v, i * 0.4); tone('sine', f * 2, f * 2, 0.45, 0.06 * v, i * 0.4); }); },
   bubble: (v) => { for (let i = 0; i < 4; i++) { const f = 300 + Math.random() * 400; tone('sine', f, f * 2.2, 0.06, 0.1 * v, i * 0.07); } },
 };
 

@@ -16,7 +16,12 @@ class ProfileStore {
     try {
       if (existsSync(FILE)) {
         const arr = JSON.parse(readFileSync(FILE, 'utf8')) as Profile[];
-        for (const p of arr) this.profiles.set(p.token, p);
+        for (const p of arr) {
+          // migración: helsingKills → hunterKills
+          const st = p.stats as Profile['stats'] & { helsingKills?: number };
+          if (st.helsingKills !== undefined) { st.hunterKills = (st.hunterKills ?? 0) + st.helsingKills; delete st.helsingKills; }
+          this.profiles.set(p.token, p);
+        }
         console.log(`[store] ${this.profiles.size} perfiles cargados`);
       }
     } catch (e) {
@@ -38,7 +43,7 @@ class ProfileStore {
       medals: [],
       chars: [],
       skins: [],
-      stats: { npcKills: 0, helsingKills: 0, playerKills: 0, deaths: 0, games: 0, bestScore: 0 },
+      stats: { npcKills: 0, hunterKills: 0, playerKills: 0, deaths: 0, games: 0, bestScore: 0 },
       createdAt: Date.now(),
     };
     this.profiles.set(p.token, p);

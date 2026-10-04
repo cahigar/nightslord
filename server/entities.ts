@@ -1,9 +1,10 @@
 // Tipos de entidades del servidor (compartidos por la sala y los kits de personaje).
+import type { HunterDef, HunterType } from '../shared/balance';
 import type { CharacterDef, CharacterId, UpgradeId } from '../shared/characters';
 import type { Anim, Kind, PowerUpType, ProjectileType } from '../shared/protocol';
 import type { Conn } from './types';
 
-/** Estado común a cualquier criatura (jugadores, humanos, Helsing). */
+/** Estado común a cualquier criatura (jugadores, humanos, Hunter). */
 export interface Mob {
   id: number;
   kind: Kind;
@@ -88,6 +89,11 @@ export interface Player extends Mob {
   lastHurtT: number;
   spillT: number;
   meatId: number; // carne fresca activa (Paciente Cero)
+  jetT: number; // K'thula: chorro de agua activo
+  jetTick: number;
+  stillT: number; // tiempo quieta (charca que crece)
+  growZone: number; // id de la charca que está creciendo
+  summonedAt: number; // última vez que un sectario lo invocó
   // estadísticas de la vida actual
   lifeStart: number;
   lifeKills: number;
@@ -107,10 +113,17 @@ export interface Npc extends Mob {
   screamCd: number;
   disguiseBy: number; // id de la Dama que lo disfrazó
   disguiseT: number;
+  infectT: number; // infectado por Paciente Cero: pierde vida hasta convertirse
+  infectBy: number;
 }
 
-export interface Helsing extends Mob {
-  kind: Kind.Helsing;
+export interface Hunter extends Mob {
+  kind: Kind.Hunter;
+  type: HunterType;
+  def: HunterDef;
+  lungeT: number; lungeCd: number; ldx: number; ldy: number; // inquisidor
+  potionCd: number; // exorcista
+  ritualT: number; ritualCd: number; fleeT: number; ritualZone: number; // sectario
   target: number;
   thinkT: number;
   shootCd: number;
@@ -148,8 +161,8 @@ export interface Projectile {
   vx: number;
   vy: number;
   life: number;
-  owner: number; // id del jugador (o -1 si es de un Helsing)
-  hOwner?: number; // id del Helsing que lo disparó
+  owner: number; // id del jugador (o -1 si es de un Hunter)
+  hOwner?: number; // id del Hunter que lo disparó
   dmg: number;
   pierce?: boolean; // atraviesa objetivos (tormenta)
   ghost?: boolean; // atraviesa obstáculos
@@ -157,14 +170,16 @@ export interface Projectile {
   hitSet?: Set<number>;
   bounced?: boolean;
   trailAcc?: number;
+  land?: boolean; // revienta al final de su recorrido (frasco de agua bendita)
 }
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat';
-export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number }
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual';
+/** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
+export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number> }
 
-export type Source = { player?: Player; helsing?: Helsing; minion?: Minion; name: string; kind: Kind };
+export type Source = { player?: Player; hunter?: Hunter; minion?: Minion; name: string; kind: Kind };
 
 /** Valores iniciales de los estados genéricos. */
 export const mobStatus = () => ({

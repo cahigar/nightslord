@@ -1,15 +1,15 @@
 # 🦇 El Señor de la Noche .io (Nights Lord)
 
-Juego multijugador gratuito tipo **.io** en pixel art 2D. Eres un monstruo clásico del cine de terror: cazas humanos para hacerte más fuerte, esquivas (o cazas) a los **Helsing** y compites con otros monstruos por ser el número 1 de la sala.
+Juego multijugador gratuito tipo **.io** en pixel art 2D. Eres un monstruo clásico del cine de terror: cazas humanos para hacerte más fuerte, esquivas (o cazas) a los **Cazadores** y al resto de la orden y compites con otros monstruos por ser el número 1 de la sala.
 
 - **Salas libres**: entras y sales cuando quieras sin parar la partida. Sala aleatoria, por código (`?sala=ABCD`) o creando la tuya (pública/privada, con mapa a elegir).
-- **Ranking de sala** por puntos en tiempo real (el líder lleva 👑 y los Helsing le ven desde más lejos).
+- **Ranking de sala** por puntos en tiempo real (el líder lleva 👑 y los Cazadores le ven desde más lejos).
 - **Progresión persistente**: monedas, medallas, personajes y skins desbloqueables.
 - Todo en **TypeScript**: servidor autoritativo en Node + cliente Canvas 2D sin motor.
 - **Sprites, mapas y sonido 100 % procedurales** (no hay ficheros de imagen ni audio):
   - Personajes de 24×32 con sombreado automático, contorno coloreado y ojos/fuegos que brillan en la oscuridad.
   - Terreno por ruido con tramado, caminos serpenteantes, lagos irregulares, bosques agrupados y sombras.
-  - Iluminación nocturna: farolas, braseros, ventanas, antorchas y linternas de los NPC, farol de los Helsing, niebla, luciérnagas y ascuas.
+  - Iluminación nocturna: farolas, braseros, ventanas, antorchas y linternas de los NPC, farol de los Cazadores, niebla, luciérnagas y ascuas.
 
 ## Arrancar en local
 
@@ -60,7 +60,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Saludar / Taunt | G / T | 😜 |
 | Silenciar | M | |
 
-## Contenido actual (v0.4)
+## Contenido actual (v0.5)
 
 **Monstruos**
 
@@ -73,9 +73,9 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | 🧟 Paciente Cero | Mordisco infecto | Contagio (convierte a un humano en zombi aliado) | Carne fresca (cebo que atrae a sus zombis) | Salida de la tumba (horda + zombi gordo explosivo) | 350 🪙 o medalla 🍖 |
 | 🐙 K'thula | Tentáculo | Tentáculo abisal (golpe en zona que atrae) | Sumergirse (intocable, ×2 velocidad) | Marejada abisal (ola que empuja y deja charcas) | 450 🪙 o medalla 👑 |
 
-**Paciente Cero (invocador)**: máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
+**Paciente Cero (invocador)**: algo menos de vida que el resto (95). El Contagio tarda unos 5 s: la vida del humano baja poco a poco y al llegar a cero se levanta como zombi. Máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
 
-**K'thula (acuático)**: cruza el agua profunda (lagos, ríos, piscinas) donde va ×1,3 más rápido y se regenera si no ha recibido daño en 3 s. Sumergirse dura 2,4 s en agua profunda y 1,2 s en tierra. Nv. 5: va derramando charcas al moverse por el agua. Nv. 15: dos cargas de Q y deja una charca al emerger.
+**K'thula (acuático)**: cruza el agua profunda (lagos, ríos, piscinas) donde va ×1,3 más rápido y se regenera si no ha recibido daño en 3 s. Sumergirse dura 2,4 s en agua profunda y 1,2 s en tierra. En el agua su ataque básico es un chorro a presión (1,5 s, recarga 0,5 s). Si se queda quieto fuera del agua, brota bajo él una charca que va creciendo (nv. 5: más grande y más rápida). Nv. 15: dos cargas de Q y deja una charca al emerger.
 **Charcas**: da igual quién las cree; cualquier criatura acuática recibe en ellas la mitad del bonus del agua profunda, y el resto se ralentiza.
 
 **Evolución por niveles** (cada monstruo conserva su identidad):
@@ -87,18 +87,30 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | 15 | Mejora de Q/E (Señor de los Murciélagos · Bestia Alfa · Faraón Despierto · Desaparición Perfecta · Cepas mutantes · Llamada del abismo). El Conde y la Dama levitan; Lobo y Ramsés irradian luz. |
 | 15+ | Solo estadísticas, como antes. |
 
-**La R se carga con bajas**, no con el tiempo: humano +4 %, otro monstruo +25 %, Helsing +40 % (al llegar al nivel 10 empieza con un 30 %). Todos los números están en `shared/balance.ts`.
+**La R se carga con bajas**, no con el tiempo: humano +4 %, otro monstruo +25 %, Cazador +40 % (Sectario +15 %, Heraldo +60 %) (al llegar al nivel 10 empieza con un 30 %). Todos los números están en `shared/balance.ts`.
 
 **Mapas** (procedurales con semilla): Calle del Olmo, Transilvania, Campamento Lago Sereno.
 - **Agua en todos**: estanque y piscinas (Olmo), río con puentes (Transilvania), lago (Campamento). Se consulta con `map.water`, `waterAt(map, x, y)` y `obstacle.body`.
 - **Televisiones** como entidades localizables (`map.tvs`): en ventanas de casas y cabañas, en escaparates de tiendas de electrodomésticos y abandonadas a la intemperie.
 - **Bordes temáticos**: el mundo continúa fuera del área jugable (bosque denso, agua profunda, acantilados, vallas, muros, casas, cementerios) y se pierde en una niebla espesa.
 
-**Entidades**: humanos que huyen y gritan (variantes por mapa), Helsing con ballesta y estaca que te persiguen, 6 power-ups (sangre, rapidez, furia, escudo, monedas, XP).
+**Entidades**: humanos que huyen y gritan (variantes por mapa), la orden de cazadores (ver abajo), 6 power-ups (sangre, rapidez, furia, escudo, monedas, XP).
 
-**Recompensas**: humano 10 pts / 1 🪙 · Helsing 80 pts / 8 🪙 · monstruo 50 pts + 25 % de los suyos / 5 🪙. Al morir conservas el 70 % de los puntos de sala.
+**La orden de cazadores** (aparecen según el **nivel medio de la sala**; los de más nivel son pocos y proporcionales al número de jugadores, mínimo 1 cuando se alcanza la media; si la media baja, se retiran sin que nadie los vea). Todos van primero a por los zombis que tengan cerca.
 
-**Medallas**: Primera sangre, Glotón, Cazador de cazadores, Pesadilla de Helsing, Depredador, Inmortal, Señor de la Noche, Criatura ancestral, Buenas noches.
+| | Aparece | Cómo pelea |
+|---|---|---|
+| Cazador | siempre | Ballesta a distancia y estaca cuerpo a cuerpo. |
+| Inquisidor | media ≥ 5 | Espada en llamas y embestida; prefiere a los monstruos de más nivel. |
+| Exorcista | media ≥ 10 | Lanza frascos de agua bendita: charco que quema poco a poco y aturde al pisarlo. |
+| Sectario | hay algún monstruo de nivel 15+ | Muy débil. Hace un ritual (círculo pixelado, 4 s) e invoca dentro a un monstruo de nivel 15+ al azar con la mitad de su vida actual; luego huye y desaparece. Matarlo interrumpe el ritual. |
+| Heraldo de la luz | media de los jugadores de nivel ≥ 10 llega a 20 | Ángel lento pero constante (no se le ralentiza, asusta ni empuja). Maza que quita mucha vida. Ignora a los de nivel < 10. |
+
+**Mejoras 1-2-3 a partir del nivel 15**: Vitalidad y Fuerza suben su tope de 8 a 16 y Velocidad de 6 a 10.
+
+**Recompensas**: humano 10 pts / 1 🪙 · Cazador 80 pts / 8 🪙 (Heraldo 300 pts / 25 🪙) · monstruo 50 pts + 25 % de los suyos / 5 🪙. Al morir conservas el 70 % de los puntos de sala.
+
+**Medallas**: Primera sangre, Glotón, Cazador de cazadores, Pesadilla de los Cazadores, Depredador, Inmortal, Señor de la Noche, Criatura ancestral, Buenas noches.
 
 ## Arquitectura
 

@@ -13,7 +13,7 @@ export const ROOM_IDLE_CLOSE_MS = 60_000; // cerrar sala vacía tras 60 s
 
 export const PLAYER_RADIUS = 18;
 export const NPC_RADIUS = 14;
-export const HELSING_RADIUS = 17;
+export const HUNTER_RADIUS = 17;
 export const POWERUP_RADIUS = 16;
 
 export const SPAWN_PROTECTION = 3; // segundos

@@ -23,6 +23,63 @@ interface Effect {
 
 const snap = (v: number) => Math.round(v / PIXEL) * PIXEL;
 
+/** Elipse pixelada (contorno hecho de "píxeles" del mundo). */
+export function pixelEllipse(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, color: string, thick = 1) {
+  ctx.fillStyle = color;
+  const n = Math.max(10, Math.round((rx + ry) / 2.2));
+  let lx = NaN, ly = NaN;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const px = snap(x + Math.cos(a) * rx), py = snap(y + Math.sin(a) * ry);
+    if (px === lx && py === ly) continue;
+    lx = px; ly = py;
+    ctx.fillRect(px, py, PIXEL * thick, PIXEL);
+  }
+}
+
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+const hash2 = (x: number, y: number, s: number) => { const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453; return h - Math.floor(h); };
+// paleta de agua poco profunda (en la línea del agua del terreno, algo más clara)
+const PUDDLE_RAMP = ['#0e2236', '#143048', '#1a3e58', '#22506a', '#2c6078'];
+const PUDDLE_FOAM = ['#3a5e7e', '#4e7494', '#6a8eaa'];
+const puddleCache = new Map<string, HTMLCanvasElement>();
+/** Charca horneada en pixel art: orilla mojada, espuma y agua con tramado Bayer (como el agua del terreno). */
+function bakePuddle(r: number, seed: number): HTMLCanvasElement {
+  const key = `${r}|${seed}`;
+  let c = puddleCache.get(key);
+  if (c) return c;
+  const ry = r * 0.62;
+  const W = Math.ceil((r * 2.3) / PIXEL), H = Math.ceil((ry * 2.3) / PIXEL);
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(W, H);
+  const hex = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const ramp = PUDDLE_RAMP.map(hex), foam = PUDDLE_FOAM.map(hex);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const dx = (i + 0.5) * PIXEL - W * PIXEL / 2, dy = (j + 0.5) * PIXEL - H * PIXEL / 2;
+    const ang = Math.atan2(dy / ry, dx / r);
+    const wob = Math.sin(ang * 3 + seed) * 0.06 + Math.sin(ang * 7 + seed * 2.3) * 0.04 + (hash2(i, j, seed) - 0.5) * 0.04;
+    const d = Math.hypot(dx / r, dy / ry) + wob;
+    if (d > 1.1) continue;
+    const b = BAYER4[(j & 3) * 4 + (i & 3)];
+    let col: number[]; let a = 255;
+    if (d > 1.0) { col = [10, 14, 18]; a = 110; } // tierra mojada
+    else if (d > 0.88) col = foam[Math.min(2, Math.floor((1 - (d - 0.88) / 0.12) * 1.5 + b))];
+    else {
+      // más profunda en el centro, reflejo de luna arriba a la izquierda
+      let t = (1 - d) * 3.2 * 0.5 + b * 0.9;
+      if (dy < 0 && dx < 0 && d > 0.45 && d < 0.7) t += 1.2;
+      col = ramp[Math.max(0, Math.min(4, Math.floor(4 - t)))];
+    }
+    const o = (j * W + i) * 4;
+    img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = a;
+  }
+  g.putImageData(img, 0, 0);
+  puddleCache.set(key, c);
+  if (puddleCache.size > 300) puddleCache.delete(puddleCache.keys().next().value!);
+  return c;
+}
+
 /** Pequeños glifos egipcios en pixel art (5x5). */
 const GLYPHS = [
   ['..x..', '.xxx.', '..x..', '..x..', '..x..'], // ankh simplificado
@@ -113,6 +170,10 @@ export class Effects {
       case 'dive': this.splash(x, y, 0.8); break;
       case 'surface': this.splash(x, y, 1); break;
       case 'splash': this.splash(x, y, (ev.r ?? 60) / 60); break;
+      case 'descend': this.lightPillar(x, y, 1.4, '#fff0a0'); break;
+      case 'smite': this.smite(x, y); break;
+      case 'holysplash': this.holySplash(x, y, ev.r ?? 70); break;
+      case 'summon': this.lightPillar(x, y, ev.n ? 1 : 0.8, ev.n ? '#ff4060' : '#c060ff'); this.burst(x, y - 30, 24, ['#c060ff', '#ff4060', '#2e1a3a'], 200, 3, 0, 0.8, true); break;
     }
   }
 
@@ -586,6 +647,62 @@ export class Effects {
     this.ripple(x, y, '#80c0d0', 0.6, 50 * scale);
   }
 
+  /** Columna de luz (llegada del heraldo, invocación del sectario). */
+  private lightPillar(x: number, y: number, dur: number, color: string) {
+    this.add(dur, 'glow', (ctx, k) => {
+      const w = 28 * (1 - k * 0.6);
+      ctx.globalAlpha = 0.7 * (1 - k);
+      ctx.fillStyle = color;
+      for (let yy = -320; yy < 0; yy += PIXEL * 2) {
+        const ww = w * (0.6 + 0.4 * Math.sin(yy / 20 + k * 20));
+        ctx.fillRect(snap(x - ww / 2), snap(y + yy), snap(ww), PIXEL * 2);
+      }
+      ctx.globalAlpha = 0.9 * (1 - k);
+      pixelEllipse(ctx, x, y, 30 + k * 40, 10 + k * 14, color);
+      ctx.globalAlpha = 1;
+    });
+    this.burst(x, y - 20, 16, [color, '#ffffff'], 140, 3, -60, 1, true);
+  }
+
+  /** Golpe de maza del heraldo: anillo de luz que estalla. */
+  private smite(x: number, y: number) {
+    this.add(0.45, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      pixelEllipse(ctx, x, y, 20 + k * 70, 7 + k * 24, '#fff0a0', 2);
+      pixelEllipse(ctx, x, y, 10 + k * 40, 4 + k * 14, '#ffffff');
+      ctx.globalAlpha = 1;
+    });
+    this.burst(x, y - 30, 20, ['#fff0a0', '#ffd040', '#ffffff'], 220, 3, 200, 0.6, true);
+  }
+
+  /** El frasco de agua bendita se rompe. */
+  private holySplash(x: number, y: number, r: number) {
+    this.burst(x, y - 10, 22, ['#c8e8ff', '#80c8ff', '#ffffff', '#d0e8f0'], 200, 3, 500, 0.6);
+    this.ripple(x, y, '#c8e8ff', 0.5, r);
+  }
+
+  /** Chorro de agua a presión (ataque básico de K'thula en el agua). */
+  drawJet(ctx: CanvasRenderingContext2D, x: number, y: number, a: number, len: number, now: number) {
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const nx = -sa, ny = ca;
+    const step = PIXEL * 2;
+    for (let d = 0; d < len; d += step) {
+      const t = d / len;
+      const w = 7 + t * 13 + Math.sin(d / 9 - now / 40) * 3;
+      const px = x + ca * d, py = y + sa * d * 0.85;
+      for (let k = -w; k <= w; k += PIXEL) {
+        const edge = Math.abs(k) / w;
+        ctx.fillStyle = edge > 0.75 ? '#2a6a8a' : edge > 0.35 ? '#5aa0c8' : '#c8e8f8';
+        ctx.fillRect(snap(px + nx * k), snap(py + ny * k), PIXEL, PIXEL * 2);
+      }
+    }
+    // espuma y gotas al final del chorro
+    const ex = x + ca * len, ey = y + sa * len * 0.85;
+    if (Math.random() < 0.8) this.spray(ex, ey + 30, a + Math.PI, 3, ['#c8e8f8', '#5aa0c8', '#2a6a8a'], 160);
+    ctx.fillStyle = '#e8f8ff';
+    for (let i = 0; i < 4; i++) ctx.fillRect(snap(ex + Math.sin(now / 50 + i * 2) * 10), snap(ey + Math.cos(now / 60 + i * 3) * 8), PIXEL * 2, PIXEL * 2);
+  }
+
   /** Marejada (proyectil de la R de K'thula). */
   drawWave(ctx: CanvasRenderingContext2D, x: number, y: number, a: number, now: number) {
     const W = 84;
@@ -604,25 +721,79 @@ export class Effects {
   drawZone(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, r: number, life: number, now: number, seed: number) {
     const fade = Math.min(1, life * 4);
     if (kind === 'puddle') {
-      ctx.globalAlpha = 0.5 * fade;
-      ctx.fillStyle = '#1a4a58';
-      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 0.45 * fade;
-      ctx.fillStyle = '#2e7080';
-      ctx.beginPath(); ctx.ellipse(x - r * 0.15, y - r * 0.08, r * 0.7, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 0.5 * fade;
-      ctx.strokeStyle = '#7ac0c8'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, Math.PI * 1.05, Math.PI * 1.7); ctx.stroke();
-      ctx.fillStyle = '#4a9a8a';
-      for (let i = 0; i < 4; i++) {
-        const t = ((now / 900 + i * 0.25 + seed * 0.13) % 1);
-        ctx.globalAlpha = 0.6 * (1 - t) * fade;
-        const rr = r * 0.2 + t * r * 0.5;
-        ctx.fillRect(snap(x + Math.cos(i * 1.7 + seed) * r * 0.3 - rr), snap(y + Math.sin(i * 2.3 + seed) * r * 0.2), snap(rr * 2), PIXEL);
+      const rq = Math.max(12, Math.round(r / 4) * 4);
+      const img = bakePuddle(rq, seed % 16);
+      const w = img.width * PIXEL, h = img.height * PIXEL;
+      ctx.globalAlpha = 0.92 * fade;
+      ctx.drawImage(img, snap(x - w / 2), snap(y - h / 2), w, h);
+      // destellos como los del agua del terreno
+      ctx.fillStyle = '#7aa6d0';
+      for (let i = 0; i < 3; i++) {
+        const gx = x + (hash2(i, seed, 3) - 0.5) * rq * 1.1, gy = y + (hash2(seed, i, 4) - 0.5) * rq * 0.6;
+        const k = Math.pow(Math.max(0, Math.sin(now / 625 + i * 2.1 + seed)), 6);
+        if (k < 0.05) continue;
+        ctx.globalAlpha = k * 0.8 * fade;
+        ctx.fillRect(snap(gx), snap(gy), PIXEL * 3 + Math.round(k * 2) * PIXEL, PIXEL);
       }
-      ctx.globalAlpha = fade;
-      ctx.fillStyle = '#60e0a0';
-      if (Math.floor(now / 200 + seed) % 5 === 0) ctx.fillRect(snap(x + Math.sin(seed) * r * 0.4), snap(y), PIXEL, PIXEL); // burbuja corrupta
+      // onda que se abre de vez en cuando
+      const t = (now / 1800 + seed * 0.37) % 1;
+      ctx.globalAlpha = 0.45 * (1 - t) * fade;
+      pixelEllipse(ctx, x + Math.sin(seed) * rq * 0.25, y, rq * 0.15 + t * rq * 0.5, (rq * 0.15 + t * rq * 0.5) * 0.55, '#6a8eaa');
+      ctx.globalAlpha = 1;
+    } else if (kind === 'holy') {
+      // charco sagrado: azul pálido con destellos que suben
+      const rq = Math.max(12, Math.round(r / 4) * 4);
+      ctx.globalAlpha = 0.55 * fade;
+      const img = bakePuddle(rq, (seed % 16) + 32);
+      ctx.filter = 'hue-rotate(-15deg) saturate(0.6) brightness(1.9)';
+      ctx.drawImage(img, snap(x - img.width * PIXEL / 2), snap(y - img.height * PIXEL / 2), img.width * PIXEL, img.height * PIXEL);
+      ctx.filter = 'none';
+      ctx.globalAlpha = 0.9 * fade;
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 7; i++) {
+        const t = (now / 900 + i / 7) % 1;
+        ctx.globalAlpha = (1 - t) * fade;
+        ctx.fillRect(snap(x + Math.cos(i * 2.4 + seed) * r * 0.6), snap(y + Math.sin(i * 1.7 + seed) * r * 0.35 - t * 30), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 0.6 * fade;
+      ctx.fillStyle = '#e0f0ff';
+      ctx.fillRect(snap(x) - PIXEL, snap(y) - PIXEL * 4, PIXEL * 2, PIXEL * 8); ctx.fillRect(snap(x) - PIXEL * 3, snap(y) - PIXEL * 2, PIXEL * 6, PIXEL * 2); // cruz
+      ctx.globalAlpha = 1;
+    } else if (kind === 'ritual') {
+      // círculo ritual pixelado: dos anillos, runas que giran y velas
+      const pulse = 0.6 + Math.sin(now / 120) * 0.25;
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = '#200010';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = pulse;
+      pixelEllipse(ctx, x, y, r, r * 0.62, '#ff2050');
+      pixelEllipse(ctx, x, y, r * 0.72, r * 0.72 * 0.62, '#a01040');
+      // estrella de 5 puntas
+      ctx.fillStyle = '#ff4060';
+      const pts = [0, 1, 2, 3, 4].map((i) => { const a = -Math.PI / 2 + (i * 4 * Math.PI) / 5 + now / 3000; return [x + Math.cos(a) * r * 0.7, y + Math.sin(a) * r * 0.7 * 0.62]; });
+      for (let i = 0; i < 5; i++) {
+        const [x0, y0] = pts[i], [x1, y1] = pts[(i + 1) % 5];
+        const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / PIXEL);
+        for (let k = 0; k <= n; k++) ctx.fillRect(snap(x0 + (x1 - x0) * (k / n)), snap(y0 + (y1 - y0) * (k / n)), PIXEL, PIXEL);
+      }
+      // runas en el anillo
+      ctx.fillStyle = '#ffa0b0';
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 - now / 1500;
+        pixelGlyph(ctx, GLYPHS[i % GLYPHS.length], x + Math.cos(a) * r * 0.86 - 4, y + Math.sin(a) * r * 0.86 * 0.62 - 4, 1.5);
+      }
+      // velas
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+        const cx = x + Math.cos(a) * r * 1.02, cy = y + Math.sin(a) * r * 0.64;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#e8e0c8'; ctx.fillRect(snap(cx), snap(cy) - PIXEL * 2, PIXEL, PIXEL * 2);
+        ctx.fillStyle = Math.random() < 0.5 ? '#ffd040' : '#ff8020'; ctx.fillRect(snap(cx), snap(cy) - PIXEL * 3, PIXEL, PIXEL);
+      }
+      // la luz sube conforme avanza el ritual (life va de 1 a 0)
+      ctx.globalAlpha = (1 - life) * 0.5;
+      ctx.fillStyle = '#ff2050';
+      for (let yy = 0; yy < 160 * (1 - life); yy += PIXEL * 2) ctx.fillRect(snap(x - r * 0.3), snap(y - yy), snap(r * 0.6), PIXEL);
       ctx.globalAlpha = 1;
     } else if (kind === 'toxic') {
       ctx.globalAlpha = 0.45 * fade;

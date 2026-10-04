@@ -2,18 +2,18 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, tierOf, ULT } from '../shared/balance';
+import { BAL, HUNTERS, ORDER, tierOf, ULT, type HunterType } from '../shared/balance';
 import {
-  BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HELSING_RADIUS, MAP_SIZE, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
+  BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAP_SIZE, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
 } from '../shared/constants';
-import { CHARACTERS, MAX_LEVEL, UPGRADES, xpForLevel, type CharacterId, type UpgradeId } from '../shared/characters';
+import { CHARACTERS, MAX_LEVEL, UPGRADES, upgradeMax, xpForLevel, type CharacterId, type UpgradeId } from '../shared/characters';
 import { distToSegment, generateMap, type GameMap, type MapThemeId } from '../shared/maps';
 import { ObstacleGrid } from '../shared/physics';
 import {
   Anim, Flag, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type SfxId, type YouState,
 } from '../shared/protocol';
-import { mobStatus, type Helsing, type Minion, type MinionVariant, type Mob, type Npc, type Player, type PowerUp, type Projectile, type Source, type Zone, type ZoneKind } from './entities';
+import { mobStatus, type Hunter, type Minion, type MinionVariant, type Mob, type Npc, type Player, type PowerUp, type Projectile, type Source, type Zone, type ZoneKind } from './entities';
 import { KITS } from './kits';
 import { store } from './store';
 import type { Conn } from './types';
@@ -42,7 +42,7 @@ export class Room {
   readonly seed: number;
   players = new Map<number, Player>(); // por conn.id
   npcs = new Map<number, Npc>();
-  helsings = new Map<number, Helsing>();
+  hunters = new Map<number, Hunter>();
   powerups = new Map<number, PowerUp>();
   projectiles = new Map<number, Projectile>();
   minions = new Map<number, Minion>();
@@ -55,7 +55,7 @@ export class Room {
   time = 0;
   private events: { ev: GameEvent; x: number; y: number; global?: boolean }[] = [];
   private loop: NodeJS.Timeout;
-  private helsingRespawnT = 0;
+  private hunterRespawnT = 0;
   private powerupRespawnT = 0;
   emptySince = Date.now();
   bountyId = -1;
@@ -65,7 +65,7 @@ export class Room {
     this.map = generateMap(theme, this.seed);
     this.grid = new ObstacleGrid(this.map);
     for (let i = 0; i < 45; i++) this.spawnNpc();
-    for (let i = 0; i < 4; i++) this.spawnHelsing();
+    for (let i = 0; i < 4; i++) this.spawnHunter('cazador');
     for (let i = 0; i < 28; i++) this.spawnPowerUp();
     let last = performance.now();
     let acc = 0;
@@ -136,7 +136,7 @@ export class Room {
       protectT: SPAWN_PROTECTION, dash: null,
       ult: 0, ultT: 0, ultExt: 0, qCharges: 1, qLock: 0, orbit: [], lastCombatT: this.time, reinvisT: 0,
       frenzyT: 0, killSpeedT: 0, hits: new Map(), lastAtkFromInvis: false, stepT: 0,
-      submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1,
+      submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999,
       lifeStart: this.time, lifeKills: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
       lastAttacker: '',
     };
@@ -166,7 +166,7 @@ export class Room {
   onUpgrade(conn: Conn, u: UpgradeId) {
     const p = this.players.get(conn.id);
     const def = UPGRADES.find((x) => x.id === u);
-    if (!p || p.dead || !def || p.upPts <= 0 || p.ups[u] >= def.max) return;
+    if (!p || p.dead || !def || p.upPts <= 0 || p.ups[u] >= upgradeMax(def, p.level)) return;
     p.ups[u]++;
     p.upPts--;
     if (u === 'vit') {
@@ -312,7 +312,7 @@ export class Room {
 
   forEachEnemyNear(p: Player, x: number, y: number, radius: number, fn: (m: Mob) => void) {
     for (const n of this.npcs.values()) if (dist2(x, y, n.x, n.y) < (radius + n.r) ** 2) fn(n);
-    for (const h of this.helsings.values()) if (dist2(x, y, h.x, h.y) < (radius + h.r) ** 2) fn(h);
+    for (const h of this.hunters.values()) if (dist2(x, y, h.x, h.y) < (radius + h.r) ** 2) fn(h);
     for (const o of this.players.values()) {
       if (o === p || o.dead || o.protectT > 0 || o.mistT > 0 || o.submergeT > 0) continue;
       if (dist2(x, y, o.x, o.y) < (radius + o.r) ** 2) fn(o);
@@ -398,7 +398,7 @@ export class Room {
       let ok = true;
       const md2 = minDist * minDist * (i < 30 ? 1 : 0.25);
       for (const p of this.players.values()) if (!p.dead && dist2(x, y, p.x, p.y) < md2) { ok = false; break; }
-      if (ok) for (const h of this.helsings.values()) if (dist2(x, y, h.x, h.y) < md2) { ok = false; break; }
+      if (ok) for (const h of this.hunters.values()) if (dist2(x, y, h.x, h.y) < md2) { ok = false; break; }
       if (ok) return { x, y };
     }
     for (;;) {
@@ -415,20 +415,23 @@ export class Room {
       id: this.nextId++, kind: Kind.Npc, x: pos.x, y: pos.y, r: NPC_RADIUS, facing: 1, hp: 30, maxHp: 30,
       anim: Anim.Idle, animSeq: 0, animUntil: 0, moving: false,
       variant: variants[Math.floor(Math.random() * variants.length)], tx: pos.x, ty: pos.y, thinkT: 0, fleeing: false, screamCd: 0,
-      disguiseBy: -1, disguiseT: 0,
+      disguiseBy: -1, disguiseT: 0, infectT: 0, infectBy: -1,
     };
     this.npcs.set(n.id, n);
   }
 
-  private spawnHelsing() {
-    const pos = this.findSpawn(700, HELSING_RADIUS + 2);
-    const h: Helsing = {
+  private spawnHunter(type: HunterType = 'cazador') {
+    const def = HUNTERS[type];
+    const pos = this.findSpawn(700, def.r + 2);
+    const h: Hunter = {
       ...mobStatus(),
-      id: this.nextId++, kind: Kind.Helsing, x: pos.x, y: pos.y, r: HELSING_RADIUS, facing: 1, hp: 180, maxHp: 180,
-      anim: Anim.Idle, animSeq: 0, animUntil: 0, moving: false,
+      id: this.nextId++, kind: Kind.Hunter, x: pos.x, y: pos.y, r: def.r, facing: 1, hp: def.hp, maxHp: def.hp,
+      anim: Anim.Idle, animSeq: 0, animUntil: 0, moving: false, type, def,
+      lungeT: 0, lungeCd: 2, ldx: 0, ldy: 0, potionCd: 1.5, ritualT: 0, ritualCd: 8 + Math.random() * 6, fleeT: 0, ritualZone: -1,
       target: -1, thinkT: 0, shootCd: 1, meleeCd: 0, tx: pos.x, ty: pos.y, strafe: Math.random() < 0.5 ? 1 : -1,
     };
-    this.helsings.set(h.id, h);
+    this.hunters.set(h.id, h);
+    if (type === 'heraldo') { this.fx('descend', h.x, h.y, { o: h.id }); this.sfx('smite', h.x, h.y); }
   }
 
   private spawnPowerUp() {
@@ -478,7 +481,7 @@ export class Room {
 
     for (const p of this.players.values()) if (!p.dead) this.updatePlayer(p, dt);
     for (const n of this.npcs.values()) this.updateNpc(n, dt);
-    for (const h of this.helsings.values()) this.updateHelsing(h, dt);
+    for (const h of this.hunters.values()) this.updateHunter(h, dt);
     for (const m of this.minions.values()) this.updateMinion(m, dt);
     if (this.timers.length) {
       const due = this.timers.filter((t) => t.at <= this.time);
@@ -636,7 +639,7 @@ export class Room {
     }
     if (src.player && !src.minion) amount = KITS[src.player.char].onDealDamage?.(this, src.player, m, amount) ?? amount;
     // debilitado (zona contaminada)
-    const atk: Mob | undefined = src.minion ?? src.player ?? src.helsing;
+    const atk: Mob | undefined = src.minion ?? src.player ?? src.hunter;
     if (atk && atk.weakT > 0) amount *= ZB.weakMul;
     if (m.vulnT > 0) amount *= m.vulnMul;
     if (m.kind === Kind.Player) {
@@ -658,7 +661,7 @@ export class Room {
         this.fx('reveal', p.x, p.y, { o: p.id });
       }
     }
-    if (m.kind === Kind.Helsing && src.player) (m as Helsing).target = src.player.id;
+    if (m.kind === Kind.Hunter && src.player) (m as Hunter).target = src.player.id;
     amount = Math.max(0, amount);
     if (m.entombT > 0 && src.player && amount > 0) {
       src.player.hp = Math.min(src.player.maxHp, src.player.hp + amount * BAL.mummy.ult.healFrac);
@@ -696,9 +699,9 @@ export class Room {
       // ¡sorpresa! era un humano disfrazado de la Dama
       if (n.disguiseT > 0 && (!killer || killer.id !== n.disguiseBy || src.minion)) {
         const dama = this.findPlayerById(n.disguiseBy);
-        if (src.minion) this.surprise(src.minion, DAMA.ult.surpriseStunHelsing, DAMA.ult.vulnMulHelsing);
+        if (src.minion) this.surprise(src.minion, DAMA.ult.surpriseStunHunter, DAMA.ult.vulnMulHunter);
         else if (killer) this.surprise(killer, DAMA.ult.surpriseStunPlayer, DAMA.ult.vulnMul);
-        else if (src.helsing) this.surprise(src.helsing, DAMA.ult.surpriseStunHelsing, DAMA.ult.vulnMulHelsing);
+        else if (src.hunter) this.surprise(src.hunter, DAMA.ult.surpriseStunHunter, DAMA.ult.vulnMulHunter);
         if (dama) this.fx('undress', n.x, n.y, { o: -1, s: dama.skin, r: 1 });
       }
       // contagio en cadena: la víctima de un zombi puede levantarse como zombi
@@ -715,18 +718,21 @@ export class Room {
         this.medal(killer, 'firstblood');
         if (st.npcKills >= 100) this.medal(killer, 'glutton');
       }
-    } else if (m.kind === Kind.Helsing) {
-      c = 'helsing';
-      this.helsings.delete(m.id);
-      this.helsingRespawnT = Math.max(this.helsingRespawnT, 6);
+    } else if (m.kind === Kind.Hunter) {
+      const h = m as Hunter;
+      c = h.type;
+      this.hunters.delete(m.id);
+      this.zones = this.zones.filter((z) => !(z.kind === 'ritual' && z.owner === h.id)); // ritual interrumpido
+      this.hunterRespawnT = Math.max(this.hunterRespawnT, 6);
       if (killer) {
-        this.reward(killer, 70 * share, 80 * share, src.minion ? 4 : 8);
-        this.chargeUlt(killer, ULT.helsing * share);
+        const rw = h.def.reward;
+        this.reward(killer, rw.xp * share, rw.pts * share, src.minion ? Math.ceil(rw.coins / 2) : rw.coins);
+        this.chargeUlt(killer, rw.ult * share);
         const st = killer.conn.profile.stats;
-        st.helsingKills++;
+        st.hunterKills++;
         this.medal(killer, 'hunter');
-        if (st.helsingKills >= 25) this.medal(killer, 'slayer');
-        this.emit({ e: 'kill', a: killer.name, v: 'Helsing', ak: Kind.Player, vk: Kind.Helsing }, m.x, m.y, true);
+        if (st.hunterKills >= 25) this.medal(killer, 'slayer');
+        this.emit({ e: 'kill', a: killer.name, v: h.def.name, ak: Kind.Player, vk: Kind.Hunter }, m.x, m.y, true);
       }
     } else if (m.kind === Kind.Player) {
       const v = m as Player;
@@ -852,8 +858,26 @@ export class Room {
     return best;
   }
 
+  /** Fin del contagio: el humano se levanta como zombi de quien lo infectó. */
+  private turnZombie(n: Npc) {
+    const owner = this.findPlayerById(n.infectBy);
+    this.npcs.delete(n.id);
+    n.dead = true;
+    if (!owner || owner.dead) { this.emit({ e: 'die', x: Math.round(n.x), y: Math.round(n.y), k: n.kind, c: n.variant }, n.x, n.y); return; }
+    const z = this.spawnMinion(owner, n.x, n.y, this.minionVariant(owner), n.variant, n.id % 97, ZB.minionLife, true);
+    this.fx('emerge', z.x, z.y, { o: z.id });
+    this.sfx('groan', z.x, z.y);
+  }
+
   private updateNpc(n: Npc, dt: number) {
     n.screamCd = Math.max(0, n.screamCd - dt);
+    if (n.infectT > 0) {
+      // contagio: la vida baja poco a poco hasta cero y se levanta como zombi
+      n.infectT -= dt;
+      n.hp -= (n.maxHp / ZB.infectT) * dt;
+      n.slowT = Math.max(n.slowT, 0.2); n.slowMul = Math.min(n.slowMul, ZB.infectSlowMul);
+      if (n.infectT <= 0 || n.hp <= 0) { this.turnZombie(n); return; }
+    }
     if (n.disguiseT > 0) { n.disguiseT -= dt; if (n.disguiseT <= 0) { n.disguiseBy = -1; this.fx('disguise', n.x, n.y, { o: n.id, r: -1 }); } }
     if (this.applyStatus(n, dt)) return;
     if (n.stunT > 0 || n.fearT > 0) { n.moving = false; return; }
@@ -912,9 +936,9 @@ export class Room {
     }
   }
 
-  // ------------------------------------------------------------------ IA Helsing
-  /** Objetivo de Helsing: un jugador o un humano disfrazado de la Dama (¡se dejan engañar!). */
-  private helsingTarget(id: number): Mob | null {
+  // ------------------------------------------------------------------ IA de la orden de cazadores
+  /** Objetivo válido: un jugador, un humano disfrazado de la Dama (¡se dejan engañar!) o un zombi. */
+  private hunterTarget(id: number): Mob | null {
     if (id < 0) return null;
     const p = this.findPlayerById(id);
     if (p) return p;
@@ -923,38 +947,63 @@ export class Room {
     return this.minions.get(id) ?? null;
   }
 
-  private updateHelsing(h: Helsing, dt: number) {
+  private hiddenPlayer(p: Player) {
+    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0;
+  }
+
+  /** Elige objetivo. Los zombis cercanos van primero (si no, el Paciente Cero los farmea con su horda). */
+  private pickHunterTarget(h: Hunter): Mob | null {
+    const PR = ORDER.minionPriorityR;
+    let best: Mob | null = null, bd = PR * PR;
+    for (const m of this.minions.values()) {
+      if (m.dead || m.entombT > 0) continue;
+      const d = dist2(h.x, h.y, m.x, m.y);
+      if (d < bd) { bd = d; best = m; }
+    }
+    if (best) return best;
+    let score = Infinity;
+    for (const p of this.players.values()) {
+      if (this.hiddenPlayer(p)) continue;
+      if (h.type === 'heraldo' && p.level < ORDER.herald.ignoreBelow) continue;
+      const range = p.id === this.bountyId ? 700 : h.type === 'heraldo' || h.type === 'inquisidor' ? 620 : 460;
+      const d = Math.sqrt(dist2(h.x, h.y, p.x, p.y));
+      if (d > range || !this.grid.lineOfSight(h.x, h.y, p.x, p.y)) continue;
+      // inquisidor y heraldo prefieren monstruos de más nivel (dejan tranquilos a los que empiezan)
+      const sc = h.type === 'inquisidor' || h.type === 'heraldo' ? d - p.level * ORDER.levelBias : d;
+      if (sc < score) { score = sc; best = p; }
+    }
+    if (h.type !== 'heraldo') for (const n of this.npcs.values()) {
+      if (n.disguiseT <= 0) continue;
+      const d = Math.sqrt(dist2(h.x, h.y, n.x, n.y));
+      if (d < 460 && d < score && this.grid.lineOfSight(h.x, h.y, n.x, n.y)) { score = d; best = n; }
+    }
+    return best;
+  }
+
+  private updateHunter(h: Hunter, dt: number) {
     h.shootCd = Math.max(0, h.shootCd - dt);
     h.meleeCd = Math.max(0, h.meleeCd - dt);
+    h.lungeCd = Math.max(0, h.lungeCd - dt);
+    h.potionCd = Math.max(0, h.potionCd - dt);
+    if (h.type === 'heraldo') {
+      // lento pero constante: no se le asusta, ralentiza ni empuja, y los aturdimientos le duran poco
+      h.fearT = 0; h.panicT = 0; h.slowT = 0; h.slowMul = 1; h.knock = null;
+      if (h.stunT > ORDER.herald.stunMul * 2) h.stunT = ORDER.herald.stunMul * 2;
+    }
     if (this.applyStatus(h, dt)) return;
-    if (h.stunT > 0 || h.fearT > 0) { h.moving = false; return; }
+    if (h.stunT > 0 || h.fearT > 0) { h.moving = false; h.lungeT = 0; return; }
+    if (h.type === 'sectario') { this.updateCultist(h, dt); return; }
+    const D = h.def;
 
     h.thinkT -= dt;
     if (h.thinkT <= 0) {
       h.thinkT = 0.5;
-      let t = this.helsingTarget(h.target);
-      if (t && (t.dead || t.entombT > 0 || dist2(h.x, h.y, t.x, t.y) > 650 ** 2)) t = null;
-      if (t && t.kind === Kind.Player && ((t as Player).invisKind !== 'none' || (t as Player).mistT > 0 || (t as Player).submergeT > 0)) t = null;
-      if (!t) {
-        let bd = Infinity;
-        for (const p of this.players.values()) {
-          if (p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0) continue;
-          const range = p.id === this.bountyId ? 700 : 460;
-          const d = dist2(h.x, h.y, p.x, p.y);
-          if (d < range * range && d < bd && this.grid.lineOfSight(h.x, h.y, p.x, p.y)) { bd = d; t = p; }
-        }
-        for (const n of this.npcs.values()) {
-          if (n.disguiseT <= 0) continue;
-          const d = dist2(h.x, h.y, n.x, n.y);
-          if (d < 460 * 460 && d < bd && this.grid.lineOfSight(h.x, h.y, n.x, n.y)) { bd = d; t = n; }
-        }
-        // los zombis cercanos también son monstruos a abatir (con menos prioridad)
-        if (!t) for (const m of this.minions.values()) {
-          if (m.dead || m.entombT > 0) continue;
-          const d = dist2(h.x, h.y, m.x, m.y);
-          if (d < 300 * 300 && d < bd) { bd = d; t = m; }
-        }
-      }
+      let t = this.hunterTarget(h.target);
+      if (t && (t.dead || t.entombT > 0 || dist2(h.x, h.y, t.x, t.y) > 700 ** 2)) t = null;
+      if (t && t.kind === Kind.Player && this.hiddenPlayer(t as Player)) t = null;
+      // reevaluar: un zombi que se acerca pasa por delante de cualquier jugador
+      const pick = this.pickHunterTarget(h);
+      if (pick && (!t || pick.kind === Kind.Minion || t.kind !== Kind.Minion && Math.random() < 0.3)) t = pick;
       h.target = t ? t.id : -1;
       if (!t) {
         if (h.hp < h.maxHp) h.hp = Math.min(h.maxHp, h.hp + 10);
@@ -966,53 +1015,158 @@ export class Room {
       if (Math.random() < 0.1) h.strafe *= -1;
     }
 
-    const t = this.helsingTarget(h.target);
-    let mx = 0, my = 0, speed = 90;
+    const t = this.hunterTarget(h.target);
+    const src: Source = { hunter: h, name: D.name, kind: Kind.Hunter };
+    let mx = 0, my = 0, speed = D.speed * 0.6;
     if (t && !t.dead) {
       const dx = t.x - h.x, dy = t.y - h.y;
       const d = Math.hypot(dx, dy) || 1;
       const ux = dx / d, uy = dy / d;
       h.facing = dx >= 0 ? 1 : -1;
-      speed = 150;
-      if (d > 300) { mx = ux; my = uy; }
-      else if (d < 160) { mx = -ux; my = -uy; }
-      else { mx = -uy * h.strafe * 0.7; my = ux * h.strafe * 0.7; }
-      if (d < h.r + t.r + 26 && h.meleeCd <= 0) {
-        h.meleeCd = 1.3;
+      speed = D.speed;
+      // distancia preferida según el oficio
+      if (h.type === 'cazador') {
+        if (d > 300) { mx = ux; my = uy; } else if (d < 160) { mx = -ux; my = -uy; } else { mx = -uy * h.strafe * 0.7; my = ux * h.strafe * 0.7; }
+      } else if (h.type === 'exorcista') {
+        if (d > 360) { mx = ux; my = uy; } else if (d < 220) { mx = -ux; my = -uy; } else { mx = -uy * h.strafe * 0.6; my = ux * h.strafe * 0.6; }
+      } else { mx = ux; my = uy; } // inquisidor y heraldo: siempre hacia delante
+      // embestida del inquisidor
+      if (h.type === 'inquisidor' && h.lungeT <= 0 && h.lungeCd <= 0 && d < ORDER.lunge.range && d > ORDER.lunge.min) {
+        h.lungeT = ORDER.lunge.t; h.lungeCd = ORDER.lunge.cd; h.ldx = ux; h.ldy = uy;
+        this.setAnim(h, Anim.Attack, ORDER.lunge.t);
+        this.sfx('dash', h.x, h.y);
+      }
+      if (h.lungeT > 0) { h.lungeT -= dt; mx = h.ldx; my = h.ldy; speed = D.speed * ORDER.lunge.mul; }
+      if (d < h.r + t.r + D.reach && h.meleeCd <= 0 && D.melee > 0) {
+        h.meleeCd = D.meleeCd;
+        h.lungeT = 0;
         this.setAnim(h, Anim.Attack, 0.3);
-        this.damage(t, 34, { helsing: h, name: 'Helsing', kind: Kind.Helsing });
-        this.sfx('stake', h.x, h.y);
-      } else if (h.shootCd <= 0 && d < 520) {
-        h.shootCd = 1.6 + Math.random() * 0.4;
+        this.damage(t, D.melee, src);
+        if (h.type === 'heraldo') { this.fx('smite', t.x, t.y, { o: h.id }); this.sfx('smite', t.x, t.y); this.knockback(t, ux, uy, 60); }
+        else this.sfx(h.type === 'inquisidor' ? 'claw' : 'stake', h.x, h.y);
+      } else if (h.type === 'cazador' && h.shootCd <= 0 && d < ORDER.shoot.range) {
+        h.shootCd = ORDER.shoot.cd + Math.random() * 0.4;
         // apuntar con algo de predicción
-        const tt = d / 640;
+        const tt = d / ORDER.shoot.speed;
         let vx = 0, vy = 0;
         if (t.kind === Kind.Player) { const tp = t as Player; const s = this.calcSpeed(tp); vx = tp.input.mx * s; vy = tp.input.my * s; }
         const a = Math.atan2(t.y + vy * tt - h.y, t.x + vx * tt - h.x) + (Math.random() - 0.5) * 0.12;
-        const pr = this.shoot('bolt', -1, h.x, h.y, a, 640, 1.0, 26);
+        const pr = this.shoot('bolt', -1, h.x, h.y, a, ORDER.shoot.speed, 1.0, ORDER.shoot.dmg);
         pr.hOwner = h.id;
         this.setAnim(h, Anim.Attack, 0.3);
         this.sfx('bolt', h.x, h.y);
+      } else if (h.type === 'exorcista' && h.potionCd <= 0 && d < ORDER.potion.range) {
+        // frasco de agua bendita lanzado al punto donde estará el objetivo
+        h.potionCd = ORDER.potion.cd + Math.random() * 0.6;
+        let tx = t.x, ty = t.y;
+        if (t.kind === Kind.Player) { const tp = t as Player; const s = this.calcSpeed(tp) * 0.6; const tt = d / ORDER.potion.speed; tx += tp.input.mx * s * tt; ty += tp.input.my * s * tt; }
+        const dd = Math.hypot(tx - h.x, ty - h.y);
+        const pr = this.shoot('holy', -1, h.x, h.y, Math.atan2(ty - h.y, tx - h.x), ORDER.potion.speed, dd / ORDER.potion.speed, 0);
+        pr.hOwner = h.id; pr.ghost = true; pr.land = true;
+        this.setAnim(h, Anim.Cast, 0.35);
+        this.sfx('bolt', h.x, h.y);
       }
     } else {
+      h.lungeT = 0;
       const dx = h.tx - h.x, dy = h.ty - h.y;
       const d = Math.hypot(dx, dy);
       if (d > 8) { mx = dx / d; my = dy / d; h.facing = dx >= 0 ? 1 : -1; }
     }
+    this.moveHunter(h, mx, my, speed, dt, !!t);
+  }
+
+  private moveHunter(h: Hunter, mx: number, my: number, speed: number, dt: number, chasing: boolean) {
     if (h.slowT > 0) speed *= h.slowMul;
     h.moving = mx !== 0 || my !== 0;
-    if (h.moving) {
-      const res = this.grid.move(h.x, h.y, mx * speed * dt, my * speed * dt, h.r);
-      if (res.hit && !t) { h.tx = h.x; h.ty = h.y; }
-      if (res.hit && t) h.strafe *= -1;
-      h.x = res.x; h.y = res.y;
-    }
+    if (!h.moving) return;
+    const res = this.grid.move(h.x, h.y, mx * speed * dt, my * speed * dt, h.r);
+    if (res.hit && !chasing) { h.tx = h.x; h.ty = h.y; }
+    if (res.hit && chasing) { h.strafe *= -1; h.lungeT = 0; }
+    h.x = res.x; h.y = res.y;
   }
+
+  /** Agua bendita: el frasco revienta y deja un charco sagrado. */
+  private holySplash(pr: Projectile) {
+    this.addZone({ kind: 'holy', ax: pr.x, ay: pr.y, bx: pr.x, by: pr.y, w: ORDER.potion.r * 2, until: this.time + ORDER.potion.t, owner: pr.hOwner ?? -1 });
+    this.fx('holysplash', pr.x, pr.y, { r: ORDER.potion.r });
+    this.sfx('glass', pr.x, pr.y);
+  }
+
+  /** Sectario: muy débil. Busca un sitio, hace un ritual e invoca a un monstruo de nivel alto con la mitad de su vida; luego huye. */
+  private updateCultist(h: Hunter, dt: number) {
+    const RT = ORDER.ritual;
+    h.ritualCd = Math.max(0, h.ritualCd - dt);
+    const victims = () => [...this.players.values()].filter((p) => !p.dead && p.level >= RT.minLevel && p.entombT <= 0 && p.protectT <= 0 && this.time - p.summonedAt > RT.victimCd);
+    // ritual en curso: quieto, cantando
+    if (h.ritualT > 0) {
+      h.moving = false;
+      h.ritualT -= dt;
+      if (h.ritualT > 0) return;
+      this.zones = this.zones.filter((z) => z.id !== h.ritualZone);
+      const list = victims();
+      if (list.length) {
+        const v = list[Math.floor(Math.random() * list.length)];
+        this.fx('summon', v.x, v.y, { o: v.id, n: 0 });
+        let x = h.x + (Math.random() - 0.5) * 30, y = h.y + 10;
+        if (this.grid.blocked(x, y, v.r, !!v.def.aquatic)) { x = h.x; y = h.y; }
+        v.x = x; v.y = y; v.dash = null; v.knock = null; v.submergeT = 0; v.jetT = 0;
+        v.hp = Math.max(1, Math.ceil(v.hp / 2)); // llega con la mitad de su vida actual
+        v.summonedAt = this.time;
+        v.lastAttacker = 'Sectario';
+        v.conn.send({ t: 'toast', text: '¡Un sectario te ha invocado! Llegas con la mitad de tu vida.' });
+        this.fx('summon', x, y, { o: v.id, n: 1 });
+        this.sfx('chant', x, y);
+      }
+      h.fleeT = RT.flee;
+      h.ritualCd = RT.cd;
+      return;
+    }
+    let mx = 0, my = 0, speed = h.def.speed * 0.5;
+    // huir de los monstruos cercanos (y después del ritual, salir corriendo y desaparecer)
+    let fx = 0, fy = 0, threat = false;
+    for (const p of this.players.values()) {
+      if (p.dead) continue;
+      const d2 = dist2(h.x, h.y, p.x, p.y);
+      if (d2 < (h.fleeT > 0 ? 700 : 320) ** 2) { const d = Math.sqrt(d2) || 1; fx -= (p.x - h.x) / d; fy -= (p.y - h.y) / d; threat = true; }
+    }
+    if (h.fleeT > 0) {
+      h.fleeT -= dt;
+      if (h.fleeT <= 0) { this.fx('vanish', h.x, h.y, { o: h.id }); this.hunters.delete(h.id); h.dead = true; return; }
+    }
+    if (threat) {
+      const l = Math.hypot(fx, fy) || 1;
+      mx = fx / l; my = fy / l; speed = h.def.speed;
+    } else if (h.ritualCd <= 0 && victims().length && !this.grid.blocked(h.x, h.y, RT.r * 0.6)) {
+      // empezar el ritual: círculo pixelado en el suelo
+      h.ritualT = RT.t;
+      h.moving = false;
+      const z = this.addZone({ kind: 'ritual', ax: h.x, ay: h.y, bx: h.x, by: h.y, w: RT.r * 2, until: this.time + RT.t + 0.2, owner: h.id });
+      h.ritualZone = z.id;
+      this.setAnim(h, Anim.Cast, RT.t);
+      this.sfx('chant', h.x, h.y);
+      return;
+    } else {
+      // pasear (cerca de otros cazadores si los hay: así el invocado cae en territorio hostil)
+      h.thinkT -= dt;
+      if (h.thinkT <= 0) {
+        h.thinkT = 1;
+        let ally: Hunter | null = null, bd = 900 * 900;
+        for (const o of this.hunters.values()) if (o !== h && o.type !== 'sectario') { const d = dist2(h.x, h.y, o.x, o.y); if (d < bd) { bd = d; ally = o; } }
+        if (ally && bd > 160 * 160) { h.tx = ally.x + (Math.random() - 0.5) * 120; h.ty = ally.y + (Math.random() - 0.5) * 120; }
+        else if (Math.random() < 0.3) { h.tx = h.x + (Math.random() - 0.5) * 400; h.ty = h.y + (Math.random() - 0.5) * 400; }
+      }
+      const dx = h.tx - h.x, dy = h.ty - h.y, d = Math.hypot(dx, dy);
+      if (d > 10) { mx = dx / d; my = dy / d; }
+    }
+    if (mx || my) h.facing = mx >= 0 ? 1 : -1;
+    this.moveHunter(h, mx, my, speed, dt, false);
+  }
+
 
   // ------------------------------------------------------------------ IA de esbirros (zombis)
   private mobById(id: number): Mob | null {
     if (id < 0) return null;
-    return this.npcs.get(id) ?? this.helsings.get(id) ?? this.minions.get(id) ?? this.findPlayerById(id);
+    return this.npcs.get(id) ?? this.hunters.get(id) ?? this.minions.get(id) ?? this.findPlayerById(id);
   }
 
   private updateMinion(m: Minion, dt: number) {
@@ -1041,12 +1195,13 @@ export class Room {
       const leash2 = (ZB.leashR * 1.5) ** 2;
       const consider = (t: Mob) => {
         if (t.dead || t.entombT > 0 || !this.isEnemyOf(owner, t)) return;
-        if (m.variant === 'fat' && t.kind !== Kind.Player && t.kind !== Kind.Helsing) return;
+        if (t.kind === Kind.Npc && (t as Npc).infectT > 0) return; // ya es de la horda
+        if (m.variant === 'fat' && t.kind !== Kind.Player && t.kind !== Kind.Hunter) return;
         const d = dist2(cx, cy, t.x, t.y);
         if (d < R * R && d < bd && (meat || dist2(owner.x, owner.y, t.x, t.y) < leash2)) { bd = d; best = t; }
       };
       for (const n of this.npcs.values()) consider(n);
-      for (const h of this.helsings.values()) consider(h);
+      for (const h of this.hunters.values()) consider(h);
       for (const p of this.players.values()) if (!p.dead && p.invisKind === 'none' && p.submergeT <= 0 && p.protectT <= 0 && p.mistT <= 0) consider(p);
       for (const o of this.minions.values()) if (o.owner !== m.owner) consider(o);
       m.target = best ? (best as Mob).id : -1;
@@ -1122,6 +1277,7 @@ export class Room {
     for (const pr of this.projectiles.values()) {
       pr.life -= dt;
       let done = pr.life <= 0;
+      if (done && pr.land) this.holySplash(pr);
       const steps = 2;
       for (let s = 0; s < steps && !done; s++) {
         pr.x += (pr.vx * dt) / steps;
@@ -1134,9 +1290,10 @@ export class Room {
         }
         if (done) break;
         if (pr.owner === -1) {
-          // virote de Helsing: daña a monstruos (y a humanos disfrazados de la Dama)
-          const helsing = pr.hOwner !== undefined ? this.helsings.get(pr.hOwner) : undefined;
-          const src: Source = { helsing, name: 'Helsing', kind: Kind.Helsing };
+          // virote de Hunter: daña a monstruos (y a humanos disfrazados de la Dama)
+          const hunter = pr.hOwner !== undefined ? this.hunters.get(pr.hOwner) : undefined;
+          const src: Source = { hunter, name: hunter?.def.name ?? 'Cazador', kind: Kind.Hunter };
+          if (pr.land) continue; // el frasco vuela por encima y revienta al final
           for (const p of this.players.values()) {
             if (p.dead || p.submergeT > 0 || dist2(pr.x, pr.y, p.x, p.y) > (p.r + 6) ** 2) continue;
             this.damage(p, pr.dmg, src);
@@ -1169,7 +1326,7 @@ export class Room {
             else done = true;
           };
           for (const n of this.npcs.values()) tryHit(n);
-          for (const h of this.helsings.values()) tryHit(h);
+          for (const h of this.hunters.values()) tryHit(h);
           for (const p of this.players.values()) if (p.id !== pr.owner) tryHit(p);
           for (const mn of this.minions.values()) tryHit(mn);
         }
@@ -1194,15 +1351,25 @@ export class Room {
     this.zones = this.zones.filter((z) => z.until > this.time);
     const V = BAL.vampire;
     for (const z of this.zones) {
-      if (z.kind === 'meat') continue;
+      if (z.kind === 'meat' || z.kind === 'ritual') continue;
       const owner = this.findPlayerById(z.owner);
       const inside = (m: Mob) => distToSegment(m.x, m.y, z.ax, z.ay, z.bx, z.by) < z.w / 2 + (z.kind === 'puddle' ? 0 : m.r);
-      const all: Mob[] = [...this.npcs.values(), ...this.helsings.values(), ...this.minions.values(), ...[...this.players.values()].filter((p) => !p.dead)];
+      const all: Mob[] = [...this.npcs.values(), ...this.hunters.values(), ...this.minions.values(), ...[...this.players.values()].filter((p) => !p.dead)];
       for (const m of all) {
         if (!inside(m)) continue;
         if (z.kind === 'mistTrail') { if (m !== owner && this.isEnemyOf(owner, m)) this.slow(m, V.mistTrailSlowT, V.mistTrailSlow); }
         else if (z.kind === 'puddle') { if (!isAquatic(m)) this.slow(m, 0.35, KT.puddleSlowMul); } // el agua ralentiza a todos menos a los acuáticos
         else if (z.kind === 'toxic') { if (this.isEnemyOf(owner, m)) { this.slow(m, 0.4, ZB.toxicSlowMul); m.weakT = Math.max(m.weakT, 0.5); } }
+        else if (z.kind === 'holy') {
+          // agua bendita: quema poco a poco a los monstruos y los aturde al pisarla
+          const monster = m.kind === Kind.Player || m.kind === Kind.Minion || (m.kind === Kind.Npc && (m as Npc).disguiseT > 0);
+          if (!monster || (m.kind === Kind.Player && (m as Player).submergeT > 0)) continue;
+          const hz = this.hunters.get(z.owner);
+          const src: Source = { hunter: hz, name: 'Exorcista', kind: Kind.Hunter };
+          if (!z.hit) z.hit = new Set();
+          if (!z.hit.has(m.id)) { z.hit.add(m.id); m.stunT = Math.max(m.stunT, ORDER.potion.stun); }
+          this.damage(m, ORDER.potion.dps * TICK_DT, src);
+        }
       }
     }
   }
@@ -1228,15 +1395,60 @@ export class Room {
     }
   }
 
+  /** Cuántos cazadores de cada tipo quiere la sala según el nivel medio y el número de jugadores. */
+  hunterWants(): Record<HunterType, number> {
+    const alive = this.alivePlayers();
+    const pc = alive.length;
+    const avg = pc ? alive.reduce((s, p) => s + p.level, 0) / pc : 0;
+    const vets = alive.filter((p) => p.level >= ORDER.herald.ignoreBelow);
+    const avgVets = vets.length ? vets.reduce((s, p) => s + p.level, 0) / vets.length : 0;
+    const n15 = alive.filter((p) => p.level >= ORDER.ritual.minLevel).length;
+    const C = ORDER.caps;
+    const clamp = (v: number, max: number) => Math.max(1, Math.min(max, v));
+    const want: Record<HunterType, number> = {
+      inquisidor: avg >= ORDER.inquisidorAvg ? clamp(Math.round(pc * 0.25), C.inquisidor) : 0,
+      exorcista: avg >= ORDER.exorcistaAvg ? clamp(Math.floor(pc / 4), C.exorcista) : 0,
+      sectario: n15 > 0 ? clamp(Math.ceil(n15 / 3), C.sectario) : 0,
+      heraldo: vets.length && avgVets >= ORDER.heraldoAvg ? clamp(Math.floor(vets.length / 4), C.heraldo) : 0,
+      cazador: 0,
+    };
+    const special = want.inquisidor + want.exorcista + want.heraldo;
+    want.cazador = Math.max(3, Math.min(12, 4 + Math.floor(pc / 2)) - special); // el total no se dispara
+    return want;
+  }
+
+  private hunterCounts(): Record<HunterType, number> {
+    const c: Record<HunterType, number> = { cazador: 0, inquisidor: 0, exorcista: 0, sectario: 0, heraldo: 0 };
+    for (const h of this.hunters.values()) c[h.type]++;
+    return c;
+  }
+
+  /** Si sobran (la media de nivel ha bajado), se retiran los que nadie está viendo. */
+  private cullHunters() {
+    const want = this.hunterWants(), have = this.hunterCounts();
+    for (const h of this.hunters.values()) {
+      if (have[h.type] <= want[h.type] || h.target >= 0 || h.ritualT > 0) continue;
+      let seen = false;
+      for (const p of this.players.values()) if (!p.dead && dist2(p.x, p.y, h.x, h.y) < 1000 * 1000) { seen = true; break; }
+      if (seen) continue;
+      this.hunters.delete(h.id);
+      have[h.type]--;
+    }
+  }
+
   private maintainPopulation(dt: number) {
     const pc = this.alivePlayers().length;
     const npcTarget = Math.min(95, 45 + pc * 4);
     if (this.npcs.size < npcTarget && this.tick % 10 === 0) this.spawnNpc();
-    const helsingTarget = Math.min(12, 4 + Math.floor(pc / 2));
-    this.helsingRespawnT = Math.max(0, this.helsingRespawnT - dt);
-    if (this.helsings.size < helsingTarget && this.helsingRespawnT <= 0) {
-      this.spawnHelsing();
-      this.helsingRespawnT = 4;
+    this.hunterRespawnT = Math.max(0, this.hunterRespawnT - dt);
+    if (this.tick % TICK_RATE === 0) this.cullHunters();
+    if (this.hunterRespawnT <= 0) {
+      const want = this.hunterWants();
+      const have = this.hunterCounts();
+      // primero los de más nivel que falten, después cazadores normales
+      const order: HunterType[] = ['heraldo', 'sectario', 'exorcista', 'inquisidor', 'cazador'];
+      const next = order.find((t) => have[t] < want[t]);
+      if (next) { this.spawnHunter(next); this.hunterRespawnT = next === 'cazador' ? 4 : 6; }
     }
     this.powerupRespawnT -= dt;
     if (this.powerups.size < 28 && this.powerupRespawnT <= 0) {
@@ -1258,6 +1470,8 @@ export class Room {
     if (m.entombT > 0) f |= Flag.Entombed;
     if (m.weakT > 0) f |= Flag.Weak;
     if (m.kind === Kind.Minion && (m as Minion).swellT > 0) f |= Flag.Swollen;
+    if (m.kind === Kind.Npc && (m as Npc).infectT > 0) f |= Flag.Infected;
+    if (m.kind === Kind.Hunter && (m as Hunter).ritualT > 0) f |= Flag.Ritual;
     if (m.kind === Kind.Player) {
       const p = m as Player;
       if (p.invisKind !== 'none') f |= Flag.Invisible;
@@ -1269,6 +1483,7 @@ export class Room {
       if (p.ultT > 0) f |= Flag.Ult;
       if (p.frenzyT > 0 || p.killSpeedT > 0) f |= Flag.Haste;
       if (p.submergeT > 0) f |= Flag.Submerged;
+      if (p.jetT > 0) f |= Flag.Jet;
     }
     return f;
   }
@@ -1291,13 +1506,14 @@ export class Room {
         s.h = s.h ?? 100;
         if (s.fl) s.fl &= ~(Flag.Feared | Flag.Panic);
       }
-    } else if (m.kind === Kind.Helsing) s.c = 'helsing';
+    } else if (m.kind === Kind.Hunter) s.c = (m as Hunter).type;
     else if (m.kind === Kind.Minion) {
       const mn = m as Minion;
       s.c = mn.variant; s.s = mn.look; s.l = mn.lookSeed; s.o = mn.owner;
     } else {
       const p = m as Player;
       s.c = p.char; s.s = p.skin; s.n = p.name; s.l = p.level;
+      if (p.jetT > 0) s.r = +p.input.a.toFixed(2);
       if (s.h === undefined) s.h = 100;
       if (p.orbit.length) s.o = p.orbit.filter((t) => t <= 0).length;
     }
@@ -1323,7 +1539,7 @@ export class Room {
         ents.push(this.snapMob(p));
       }
       for (const n of this.npcs.values()) if (inView(n.x, n.y)) ents.push(this.snapMob(n));
-      for (const h of this.helsings.values()) if (inView(h.x, h.y)) ents.push(this.snapMob(h));
+      for (const h of this.hunters.values()) if (inView(h.x, h.y)) ents.push(this.snapMob(h));
       for (const m of this.minions.values()) if (inView(m.x, m.y)) ents.push(this.snapMob(m));
       for (const z of this.zones) {
         if (z.kind === 'mistTrail' || !inView(z.ax, z.ay)) continue;

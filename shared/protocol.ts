@@ -3,7 +3,7 @@ import type { CharacterId, UpgradeId } from './characters';
 import type { Profile } from './catalog';
 import type { MapThemeId } from './maps';
 
-export enum Kind { Player = 0, Npc = 1, Helsing = 2, PowerUp = 3, Projectile = 4, Minion = 5, Zone = 6 }
+export enum Kind { Player = 0, Npc = 1, Hunter = 2, PowerUp = 3, Projectile = 4, Minion = 5, Zone = 6 }
 
 export enum Anim { Idle = 0, Walk = 1, Attack = 2, Cast = 3, Wave = 4, Taunt = 5, Hurt = 6, Dead = 7 }
 
@@ -19,10 +19,13 @@ export enum Flag {
   Submerged = 65536, // sumergido (K'thula)
   Swollen = 131072, // zombi gordo a punto de explotar
   Weak = 262144, // debilitado (hace menos daño)
+  Infected = 524288, // humano infectado (se convierte en zombi)
+  Jet = 1048576, // K'thula lanzando su chorro (r = ángulo)
+  Ritual = 2097152, // sectario en pleno ritual
 }
 
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp';
-export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave';
+export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy';
 
 export interface EntSnap {
   i: number; // id
@@ -56,9 +59,10 @@ export type FxId =
   | 'mist' | 'howl' | 'curse' | 'push' | 'lvl' | 'swing' | 'dash' | 'vanish'
   | 'drain' | 'ghosthit' | 'undress' | 'crimson' | 'moon' | 'storm' | 'entomb' | 'disguise' | 'surprise'
   | 'mistTrail' | 'orbitBlock' | 'step' | 'prey' | 'curseMark' | 'evolve' | 'frenzy' | 'reveal'
-  | 'infect' | 'emerge' | 'fatboom' | 'meat' | 'tentacle' | 'tentacleWarn' | 'dive' | 'surface' | 'splash';
+  | 'infect' | 'emerge' | 'fatboom' | 'meat' | 'tentacle' | 'tentacleWarn' | 'dive' | 'surface' | 'splash'
+  | 'descend' | 'smite' | 'holysplash' | 'summon';
 
-export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble';
+export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant';
 
 export interface YouState {
   id: number;
@@ -108,6 +112,7 @@ export interface RoomInfo { code: string; players: number; max: number; theme: M
 export type ServerMsg =
   | { t: 'welcome'; profile: Profile; dev?: boolean }
   | { t: 'profile'; profile: Profile }
+  | { t: 'toast'; text: string }
   | { t: 'joined'; code: string; theme: MapThemeId; seed: number; priv: boolean; you: number }
   | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[] }
   | { t: 'rank'; list: [string, number, CharacterId, number][]; total: number } // nombre, puntos, personaje, id

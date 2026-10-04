@@ -348,7 +348,7 @@ const kthulaForm: FormFn = (b, p, c, _anim, tier) => {
 export const FORMS: Record<CharacterId, FormFn> = { vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm };
 
 // ---------------------------------------------------------------------------
-// Humanos y Helsing
+// Humanos y Hunter
 // ---------------------------------------------------------------------------
 const SKIN_TONES = ['#f2c8a0', '#e0a882', '#c08560', '#8d5a3c', '#5e3a26', '#f5d5b8'];
 const HAIR = ['#2a1a10', '#5a3418', '#d8b050', '#141414', '#9a3a1a', '#8a8a8a', '#e8d8a0', '#3a2a50'];
@@ -462,7 +462,120 @@ function drawNpc(b: PB, p: Pose, variant: string, seed: number, zombie?: ZombieK
   if (!zombie) heldItem(b, n.held, hx, hy);
 }
 
-function drawHelsing(b: PB, p: Pose) {
+/** Cazador clásico y el resto de la orden (inquisidor, exorcista, sectario, heraldo de la luz). */
+function drawHunterType(b: PB, p: Pose, type: string) {
+  switch (type) {
+    case 'inquisidor': return drawInquisitor(b, p);
+    case 'exorcista': return drawExorcist(b, p);
+    case 'sectario': return drawCultist(b, p);
+    case 'heraldo': return drawHerald(b, p);
+    default: return drawHunter(b, p);
+  }
+}
+
+/** Capucha que tapa la cabeza dejando la cara en sombra. */
+function hood(b: PB, p: Pose, c: string, face: string, eye: string, eyeGlow: boolean, peak = 0) {
+  const X = 7 + (p.lean ?? 0), Y = 2 + p.by;
+  b.rect(X, Y + 1, 10, 10, c); b.rect(X + 1, Y, 8, 1, c);
+  for (let k = 1; k <= peak; k++) b.rect(X + 3 + Math.floor(k / 2), Y - k, 4 - Math.floor(k / 2), 1, c);
+  b.rect(X + 5, Y + 3, 5, 6, face); // hueco de la cara
+  b.set(X + 7, Y + 5, eye, eyeGlow); b.set(X + 9, Y + 5, eye, eyeGlow);
+  b.line(X + 1, Y + 2, X + 1, Y + 10, shade(c, -0.25));
+}
+
+function drawInquisitor(b: PB, p: Pose) {
+  const by = p.by, robe = '#5a0e14', robe2 = '#3a080c', black = '#16121a';
+  arm(b, 10, 13 + by, p.la, 7, shade(robe, -0.3), '#1a1418');
+  legs(b, p, '#1a1418', '#221c22', '#0e0c10', { top: 24 });
+  torso(b, by, robe, { x: 7, w: 10, bottom: 28 });
+  b.rect(7, 22, 10, 6, robe); b.line(12, 13 + by, 12, 27, robe2);
+  b.rect(8, 12 + by, 8, 3, black); // esclavina negra
+  b.rect(11, 15 + by, 2, 6, '#c8a040'); b.rect(10, 17 + by, 4, 1, '#c8a040'); // cruz bordada
+  b.rect(7, 21 + by, 10, 1, '#2a1a10');
+  hood(b, p, black, '#2a1a1e', '#ff5030', true, 3);
+  // espada envuelta en llamas
+  const dx = Math.sin(p.ra), dy = Math.cos(p.ra);
+  const hx = 13 + dx * 6, hy = 13 + by + dy * 6;
+  arm(b, 13, 13 + by, p.ra, 6, robe, '#1a1418');
+  const ux = Math.sin(p.ra - 1.2), uy = Math.cos(p.ra - 1.2);
+  b.line(hx - ux, hy - uy, hx + ux, hy + uy, '#6a5030');
+  for (let i = 1; i <= 8; i++) { b.set(hx + dx * 0 + Math.sin(p.ra - 2.4) * i, hy + Math.cos(p.ra - 2.4) * i, i > 2 ? '#d0d0e0' : '#808090', i > 5); if (i > 3 && i % 2) b.set(hx + Math.sin(p.ra - 2.4) * i + 1, hy + Math.cos(p.ra - 2.4) * i - 1, '#ff9020', true); }
+}
+
+function drawExorcist(b: PB, p: Pose) {
+  const by = p.by, cass = '#141218', stole = '#6a2a8a', skin = '#d8b090';
+  arm(b, 10, 13 + by, p.la, 7, shade(cass, -0.2), skin);
+  // libro en la mano de atrás
+  const bx = 10 + Math.sin(p.la) * 6, byy = 13 + by + Math.cos(p.la) * 6;
+  b.rect(bx - 2, byy - 1, 4, 3, '#5a1a1a'); b.rect(bx - 1, byy - 1, 2, 3, '#e8e0c8');
+  legs(b, p, '#141218', '#1a181e', '#0a0a0a', { top: 25 });
+  torso(b, by, cass, { x: 7, w: 9, bottom: 28 });
+  b.rect(7, 22, 9, 6, cass);
+  for (let y = 14; y < 26; y += 2) b.set(12, y + (y < 22 ? by : 0), '#3a3640'); // botones
+  b.rect(10, 12 + by, 1, 12, stole); b.rect(14, 12 + by, 1, 12, stole); b.set(10, 23 + by, '#e0c040'); b.set(14, 23 + by, '#e0c040');
+  humanHead(b, p, { skin, hair: '#c8c8c8', eye: '#1a1a24', style: 'short', glasses: '#202024' });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 3, Y + 11, 4, 1, '#f0f0f0'); // alzacuellos
+  // frasco de agua bendita
+  const dx = Math.sin(p.ra), dy = Math.cos(p.ra);
+  const hx = 13 + dx * 7, hy = 13 + by + dy * 7;
+  arm(b, 13, 13 + by, p.ra, 6, cass, skin);
+  b.rect(hx, hy - 3, 3, 3, '#80c8ff', true); b.set(hx + 1, hy - 4, '#d0e8f0'); b.set(hx + 1, hy - 5, '#8a6a40'); b.set(hx + 1, hy - 2, '#e0f8ff', true);
+}
+
+function drawCultist(b: PB, p: Pose) {
+  const by = p.by, sw = p.sway ?? 0, robe = '#2e1a3a', robe2 = '#1e1026';
+  arm(b, 10, 13 + by, p.la, 7, shade(robe, -0.25), '#b8a090');
+  legs(b, p, '#1a1020', '#22142a', '#0e0a10', { top: 24 });
+  torso(b, by, robe, { x: 8, w: 8, bottom: 28 });
+  b.rect(7 - sw, 22, 10, 6, robe);
+  for (const x of [8, 11, 14]) b.clear(x - sw, 27); // bajo raído
+  b.line(12, 13 + by, 12, 27, robe2);
+  b.set(11, 16 + by, '#c03050', true); b.set(12, 17 + by, '#c03050', true); b.set(13, 16 + by, '#c03050', true); // símbolo
+  b.rect(8, 20 + by, 8, 1, '#5a3a20');
+  hood(b, p, robe, '#120a14', '#ff2040', true, 1);
+  // daga y vela
+  const dx = Math.sin(p.ra), dy = Math.cos(p.ra);
+  const hx = 13 + dx * 7, hy = 13 + by + dy * 7;
+  arm(b, 13, 13 + by, p.ra, 6, robe, '#b8a090');
+  b.line(hx, hy, hx + 3, hy - 2, '#c0c0d0'); b.set(hx - 1, hy + 1, '#5a3a20');
+  b.rect(8, 22 + by, 2, 2, '#e8e0c8'); b.set(8, 21 + by, '#ffb040', true);
+}
+
+function drawHerald(b: PB, p: Pose) {
+  const by = p.by, white = '#e8e4f0', gold = '#e0b040', skin = '#f0e0d0';
+  // alas detrás (batiendo despacio con el balanceo)
+  const flap = Math.round((p.sway ?? 0) * 0.7);
+  for (let i = 0; i < 12; i++) {
+    const y = 6 + i + by - flap;
+    const w = i < 3 ? 4 + i : 7 - Math.floor((i - 3) / 1.6);
+    if (w <= 0) continue;
+    const col = i % 3 === 2 ? '#9aa4d0' : i % 3 === 1 ? '#c8d0f0' : '#f4f6ff';
+    b.rect(7 - w, y, w, 1, col);
+    b.rect(17, y, w, 1, col);
+    b.set(7 - w, y, '#8a94c8'); b.set(16 + w, y, '#8a94c8'); // puntas de las plumas
+  }
+  b.set(1, 9 + by - flap, '#fff8d0', true); b.set(22, 9 + by - flap, '#fff8d0', true);
+  arm(b, 10, 13 + by, p.la, 7, shade(white, -0.2), gold, 2, true);
+  legs(b, p, '#a8a0b8', '#c8c0d8', gold, { top: 25, boots: gold });
+  torso(b, by, white, { x: 7, w: 10, bottom: 28 });
+  b.rect(7, 22, 10, 6, white); b.rect(7, 27, 10, 1, gold);
+  b.rect(8, 12 + by, 8, 5, '#d0c8a0'); b.rect(8, 12 + by, 8, 1, gold); b.rect(11, 13 + by, 2, 4, gold, true); // peto con sol
+  b.rect(7, 20 + by, 10, 1, gold);
+  humanHead(b, p, { skin, hair: '#f0e0a0', eye: '#fff8c0', style: 'long', eyeGlow: true });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 2, Y - 3, 6, 1, '#fff0a0', true); b.set(X + 1, Y - 2, '#fff0a0', true); b.set(X + 8, Y - 2, '#fff0a0', true); // aureola
+  // maza
+  const dx = Math.sin(p.ra), dy = Math.cos(p.ra);
+  const hx = 13 + dx * 6, hy = 13 + by + dy * 6;
+  arm(b, 13, 13 + by, p.ra, 6, white, gold, 2, true);
+  const ux = Math.sin(p.ra + 2.6), uy = Math.cos(p.ra + 2.6);
+  for (let i = 0; i < 7; i++) b.set(hx + ux * i, hy + uy * i, '#8a6a30');
+  const mx = hx + ux * 8, my = hy + uy * 8;
+  b.rect(mx - 1, my - 1, 4, 4, gold); b.set(mx, my, '#fff8d0', true); b.set(mx - 2, my + 1, gold); b.set(mx + 3, my + 1, gold); b.set(mx + 1, my - 2, gold); b.set(mx + 1, my + 3, gold);
+}
+
+function drawHunter(b: PB, p: Pose) {
   const by = p.by, sw = p.sway ?? 0;
   const coat = '#5a3e2c', coat2 = '#3a281c', skin = '#d8a880', hat = '#26201e';
   // faldones del abrigo y bufanda
@@ -498,7 +611,7 @@ const cache = new Map<string, Baked>();
 
 export function frameCount(a: Anim) { return ANIMS[a].frames.length; }
 
-export function getFrame(kind: 'monster' | 'npc' | 'helsing' | 'zombie', variant: string, skin: string, anim: Anim, frame: number, seed = 0, tier = 0): Baked {
+export function getFrame(kind: 'monster' | 'npc' | 'hunter' | 'zombie', variant: string, skin: string, anim: Anim, frame: number, seed = 0, tier = 0): Baked {
   const sd = kind === 'npc' || kind === 'zombie' ? seed % 97 : 0;
   const key = `${kind}|${variant}|${skin}|${anim}|${frame}|${sd}|${tier}`;
   let f = cache.get(key);
@@ -509,7 +622,7 @@ export function getFrame(kind: 'monster' | 'npc' | 'helsing' | 'zombie', variant
   if (kind === 'monster') {
     const ch = variant as CharacterId;
     (FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim, tier);
-  } else if (kind === 'helsing') drawHelsing(b, pose);
+  } else if (kind === 'hunter') drawHunterType(b, pose, variant);
   else if (kind === 'zombie') drawNpc(b, pose, variant, sd, (skin as ZombieKind) || 'normal', anim);
   else drawNpc(b, pose, variant, sd);
   f = b.finish({ outline: kind === 'monster' && variant === 'invisible' ? 'faint' : 'selout' });
@@ -534,6 +647,7 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   scarab0: { art: ['.l.l.l..', '..gGGg..', '.gGYGGgh', '..gGGg..', '.l.l.l..'], pal: { g: '#1a4a3a', G: '#2a8a6a', Y: '#e0c040', h: '#0a1a14', l: '#0a1a14' }, glow: 'Y' },
   scarab1: { art: ['l.l.l...', '..gGGg..', '.gGYGGgh', '..gGGg..', 'l.l.l...'], pal: { g: '#1a4a3a', G: '#2a8a6a', Y: '#e0c040', h: '#0a1a14', l: '#0a1a14' }, glow: 'Y' },
   footprint: { art: ['.oo..', 'oooo.', '.oo..', '.....', '..oo.', '.oooo', '..oo.'], pal: { o: '#2a2230' } },
+  holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };
 

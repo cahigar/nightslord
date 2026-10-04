@@ -137,7 +137,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'zombie',
     name: 'Paciente Cero',
     title: 'Zombi',
-    hp: 120,
+    hp: 95, // invocador: algo menos de vida que el resto
     speed: 195,
     damage: 17,
     range: 48,
@@ -145,9 +145,9 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackCd: 0.5,
     armor: 0.05,
     attackName: 'Mordisco infecto',
-    passive: 'Infección: sus zombis atacan solos a humanos, monstruos y Helsing.',
+    passive: 'Infección: sus zombis atacan solos a humanos, monstruos y Cazadores.',
     abilities: [
-      { key: 'Q', name: 'Contagio', desc: 'Convierte al humano más cercano al cursor en zombi aliado 30 s (máx. 5).', cooldown: 5 },
+      { key: 'Q', name: 'Contagio', desc: 'Infecta al humano más cercano al cursor: en 5 s pierde la vida y se levanta como zombi aliado durante 30 s (máx. 5).', cooldown: 5 },
       { key: 'E', name: 'Carne fresca', desc: 'Lanza carne: tus zombis corren hacia ella y atacan lo que haya cerca. Te acelera ir hacia ella.', cooldown: 10 },
     ],
     ult: { key: 'R', name: 'Salida de la tumba', desc: 'Emergen 3 zombis y 1 zombi gordo que corre hacia un enemigo y explota.', cooldown: 0 },
@@ -169,7 +169,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackCd: 0.5,
     armor: 0.05,
     attackName: 'Tentáculo',
-    passive: 'Camina sobre agua profunda. En el agua (y en cualquier charca) es más rápido y se regenera.',
+    passive: 'Camina sobre agua profunda; en el agua (y en cualquier charca) es más rápido, se regenera y su ataque pasa a ser un chorro. Si se queda quieto fuera del agua, brota una charca bajo él.',
     aquatic: true,
     abilities: [
       { key: 'Q', name: 'Tentáculo abisal', desc: 'Un tentáculo surge en el punto señalado, daña y arrastra hacia el centro.', cooldown: 6 },
@@ -177,7 +177,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     ],
     ult: { key: 'R', name: 'Marejada abisal', desc: 'Una gran ola avanza en línea recta: daña, empuja y deja charcas detrás.', cooldown: 0 },
     evolution: [
-      { lvl: 5, name: 'Señor de las profundidades', desc: 'Sobre agua va derramando charcas corruptas a su alrededor.' },
+      { lvl: 5, name: 'Señor de las profundidades', desc: 'La charca que brota al quedarse quieto crece más y más rápido.' },
       { lvl: 10, name: 'Marejada abisal', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
       { lvl: 15, name: 'Llamada del abismo', desc: 'Tentáculo con 2 cargas y al emerger deja una charca corrupta.' },
     ],
@@ -248,12 +248,14 @@ export function getSkin(char: CharacterId, skinId: string): SkinDef {
 
 // ---------- Mejoras por nivel ----------
 export type UpgradeId = 'vit' | 'str' | 'spd' | 'pow';
-export const UPGRADES: { id: UpgradeId; key: string; name: string; desc: string; max: number }[] = [
-  { id: 'vit', key: '1', name: 'Vitalidad', desc: '+15 % vida máxima', max: 8 },
-  { id: 'str', key: '2', name: 'Fuerza', desc: '+12 % daño', max: 8 },
-  { id: 'spd', key: '3', name: 'Velocidad', desc: '+5 % velocidad', max: 6 },
-  { id: 'pow', key: '4', name: 'Poder oscuro', desc: '-8 % enfriamiento habilidades', max: 6 },
+/** max: tope hasta el nivel 14 · maxHigh: tope a partir del nivel 15 (se puede seguir mejorando 1-2-3). */
+export const UPGRADES: { id: UpgradeId; key: string; name: string; desc: string; max: number; maxHigh: number }[] = [
+  { id: 'vit', key: '1', name: 'Vitalidad', desc: '+15 % vida máxima', max: 8, maxHigh: 16 },
+  { id: 'str', key: '2', name: 'Fuerza', desc: '+12 % daño', max: 8, maxHigh: 16 },
+  { id: 'spd', key: '3', name: 'Velocidad', desc: '+5 % velocidad', max: 6, maxHigh: 10 },
+  { id: 'pow', key: '4', name: 'Poder oscuro', desc: '-8 % enfriamiento habilidades', max: 6, maxHigh: 6 },
 ];
+export const upgradeMax = (u: { max: number; maxHigh: number }, level: number) => (level >= 15 ? u.maxHigh : u.max);
 
 export const xpForLevel = (level: number) => Math.round(40 + level * 35 + level * level * 4);
 export const MAX_LEVEL = 30;

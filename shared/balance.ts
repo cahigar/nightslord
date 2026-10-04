@@ -11,7 +11,7 @@ export const ULT = {
   onUnlock: 30, // carga regalada al llegar al nivel 10
   npc: 4, // humano normal: aporta poco
   player: 25, // otro monstruo: bastante
-  helsing: 40, // Helsing: mucho
+  hunter: 40, // Hunter: mucho
   powerup: 0,
 };
 
@@ -30,7 +30,7 @@ export const BAL = {
   werewolf: {
     preyHpFrac: 0.35, chaseR: 480, chaseDot: 0.72, chaseSpeedMul: 1.15, // nivel 5
     dashT: 0.3, dashSpeedMul: 3.2, dashDmg: 1.2, dashKnock: 200, qChargesT3: 2, chargeLock: 0.35,
-    howlT: 5, howlDmgMul: 1.3, howlSpeedMul: 1.2, howlR: 420, fearNpcT: 1.8, fearHelsingT: 0.8, fearHelsingR: 260,
+    howlT: 5, howlDmgMul: 1.3, howlSpeedMul: 1.2, howlR: 420, fearNpcT: 1.8, fearHunterT: 0.8, fearHunterR: 260,
     preyMarkT: 6, preyBonus: 0.6, // nivel 15
     ult: { dur: 7, extendPerKill: 1, maxExtend: 5, speedMul: 1.25, atkSpeedMul: 0.65, rangeMul: 1.3, scale: 1.25 },
   },
@@ -52,7 +52,7 @@ export const BAL = {
     undressT: 4,
     frenzyT: 4, frenzySpeedMul: 1.35, frenzyAtkSpeedMul: 0.6,
     killInvisT: 3, reappearT: 1, // nivel 15
-    ult: { dur: 15, radius: 750, surpriseStunPlayer: 2.5, surpriseStunHelsing: 5, vulnMul: 1.3, vulnMulHelsing: 1.5 },
+    ult: { dur: 15, radius: 750, surpriseStunPlayer: 2.5, surpriseStunHunter: 5, vulnMul: 1.3, vulnMulHunter: 1.5 },
   },
   zombie: {
     maxMinions: 5, maxMinionsUlt: 7,
@@ -64,6 +64,7 @@ export const BAL = {
       tough: { hp: 95, speed: 142, dmg: 0.5, cd: 1.0 },
       fat: { hp: 70, speed: 175, dmg: 0, cd: 0 },
     },
+    infectT: 5, infectSlowMul: 0.55, // contagio: tarda 5 s en convertirse
     aggroR: 380, leashR: 600, followDist: 110, attackReach: 14,
     rewardShare: 0.5, // las bajas de sus zombis dan la mitad de XP y puntos
     toxicR: 70, toxicT: 4, toxicSlowMul: 0.6, weakMul: 0.75, // nivel 5 (Epidemia)
@@ -76,9 +77,39 @@ export const BAL = {
     shallowFactor: 0.5, // las charcas dan la mitad del bonus
     regenSafeT: 3, // sin recibir daño en los últimos 3 s
     puddleR: 70, puddleT: 8, puddleSlowMul: 0.6, maxPuddles: 12,
-    spillEvery: 0.8, spillR: 46, spillT: 6, // nivel 5
+    stillDelay: 0.35, growR0: 26, growRate: 34, growMax: 70, growMaxT1: 100, growRateT1: 50, growT: 8, // charca bajo ella al estar quieta fuera del agua (nv. 5: mayor y más rápida)
+    jetT: 1.5, jetCd: 0.5, jetEvery: 0.15, jetRange: 270, jetW: 28, jetDmg: 0.3, jetPush: 18, jetMoveMul: 0.65, // ataque básico en el agua
     tentacleRange: 300, tentacleDelay: 0.4, tentacleR: 74, tentacleDmg: 1.2, tentaclePull: 60, qChargesT3: 2,
     diveLand: 1.2, diveDeep: 2.4, diveSpeedMul: 2.0, divePuddleR: 85, // duración doble a petición
     ult: { speed: 360, life: 1.5, hitR: 84, dmg: 1.1, knock: 170, puddleEvery: 70, puddleR: 64 },
   },
+};
+
+// ---------------------------------------------------------------------------
+// La orden de cazadores: aparecen según el nivel medio de la sala
+// ---------------------------------------------------------------------------
+export type HunterType = 'cazador' | 'inquisidor' | 'exorcista' | 'sectario' | 'heraldo';
+export interface HunterDef {
+  name: string; hp: number; speed: number; r: number;
+  melee: number; meleeCd: number; reach: number;
+  reward: { xp: number; pts: number; coins: number; ult: number };
+}
+export const HUNTERS: Record<HunterType, HunterDef> = {
+  cazador: { name: 'Cazador', hp: 180, speed: 150, r: 17, melee: 34, meleeCd: 1.3, reach: 26, reward: { xp: 70, pts: 80, coins: 8, ult: 40 } },
+  inquisidor: { name: 'Inquisidor', hp: 280, speed: 168, r: 17, melee: 44, meleeCd: 1.2, reach: 30, reward: { xp: 110, pts: 120, coins: 12, ult: 45 } },
+  exorcista: { name: 'Exorcista', hp: 190, speed: 140, r: 17, melee: 18, meleeCd: 1.4, reach: 24, reward: { xp: 100, pts: 110, coins: 10, ult: 40 } },
+  sectario: { name: 'Sectario', hp: 45, speed: 175, r: 15, melee: 0, meleeCd: 9, reach: 0, reward: { xp: 40, pts: 40, coins: 5, ult: 15 } },
+  heraldo: { name: 'Heraldo de la luz', hp: 650, speed: 105, r: 20, melee: 78, meleeCd: 1.8, reach: 46, reward: { xp: 260, pts: 300, coins: 25, ult: 60 } },
+};
+export const ORDER = {
+  minionPriorityR: 260, // si hay zombis tan cerca, los cazadores van primero a por ellos
+  shoot: { dmg: 26, cd: 1.8, speed: 640, range: 520 }, // ballesta del cazador
+  lunge: { cd: 4, t: 0.35, mul: 2.8, range: 260, min: 90 }, // embestida del inquisidor
+  levelBias: 22, // el inquisidor prefiere monstruos de nivel alto (px por nivel)
+  potion: { cd: 3.2, range: 430, speed: 430, r: 70, t: 3.5, dps: 4, stun: 1.1 }, // agua bendita del exorcista
+  ritual: { t: 4, r: 70, cd: 30, flee: 9, victimCd: 45, minLevel: 15 }, // sectario
+  herald: { ignoreBelow: 10, stunMul: 0.4 },
+  // aparición (nivel medio de la sala)
+  inquisidorAvg: 5, exorcistaAvg: 10, heraldoAvg: 20,
+  caps: { inquisidor: 3, exorcista: 3, sectario: 2, heraldo: 2 },
 };

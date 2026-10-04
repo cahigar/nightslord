@@ -30,7 +30,7 @@ export const werewolfKit: Kit = {
       p.howlT = B.howlT * room.powMult(p);
       room.setAnim(p, Anim.Cast, 0.8);
       for (const n of room.npcs.values()) if ((p.x - n.x) ** 2 + (p.y - n.y) ** 2 < B.howlR ** 2) n.fearT = B.fearNpcT;
-      for (const h of room.helsings.values()) if ((p.x - h.x) ** 2 + (p.y - h.y) ** 2 < B.fearHelsingR ** 2) h.fearT = B.fearHelsingT;
+      for (const h of room.hunters.values()) if ((p.x - h.x) ** 2 + (p.y - h.y) ** 2 < B.fearHunterR ** 2) h.fearT = B.fearHunterT;
       if (p.tier >= 3) {
         room.forEachEnemyNear(p, p.x, p.y, B.howlR, (m) => {
           m.preyT = B.preyMarkT;

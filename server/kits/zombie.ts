@@ -19,7 +19,7 @@ export const zombieKit: Kit = {
       const ax = p.x + Math.cos(a) * aimD, ay = p.y + Math.sin(a) * aimD;
       let best: Npc | null = null, bd = Infinity;
       for (const n of room.npcs.values()) {
-        if (n.dead || n.entombT > 0) continue;
+        if (n.dead || n.entombT > 0 || n.infectT > 0 || n.disguiseT > 0) continue;
         const dp = Math.hypot(n.x - p.x, n.y - p.y);
         if (dp > B.contagionRange + 40) continue;
         const ang = Math.abs(Math.atan2(Math.sin(Math.atan2(n.y - p.y, n.x - p.x) - a), Math.cos(Math.atan2(n.y - p.y, n.x - p.x) - a)));
@@ -29,12 +29,13 @@ export const zombieKit: Kit = {
       }
       if (!best) { p.cd[1] = 0.3; return; } // sin objetivo no se gasta
       const n = best as Npc;
-      room.npcs.delete(n.id);
-      n.dead = true;
-      const z = room.spawnMinion(p, n.x, n.y, room.minionVariant(p), n.variant, n.id % 97, B.minionLife, true);
+      // la vida del humano baja poco a poco (~5 s) y al llegar a cero se levanta como zombi
+      n.infectT = B.infectT;
+      n.infectBy = p.id;
+      n.fleeing = true;
       room.setAnim(p, Anim.Cast, 0.35);
-      room.fx('infect', z.x, z.y, { o: z.id, n: 0, tx: Math.round(p.x), ty: Math.round(p.y) });
-      room.sfx('groan', z.x, z.y);
+      room.fx('infect', n.x, n.y, { o: n.id, n: 0, tx: Math.round(p.x), ty: Math.round(p.y) });
+      room.sfx('groan', n.x, n.y);
     } else {
       // Carne fresca: lanzada hacia el cursor; los zombis acuden
       const d = Math.min(p.input.d, B.meatRange);

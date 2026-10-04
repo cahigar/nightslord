@@ -2,9 +2,9 @@
 import { CHARACTERS, type CharacterId } from '../shared/characters';
 import { MAP_SIZE, PIXEL, TICK_DT } from '../shared/constants';
 import { BORDER_DEPTH, generateMap, THEMES, type GameMap, type MapThemeId, type Obstacle } from '../shared/maps';
-import { tierOf } from '../shared/balance';
+import { BAL, tierOf } from '../shared/balance';
 import { Ambient } from './ambient';
-import { Effects } from './effects';
+import { Effects, pixelEllipse } from './effects';
 import { Terrain } from './terrain';
 import { ObstacleGrid } from '../shared/physics';
 import { Anim, Flag, Kind, type EntSnap, type GameEvent, type ServerMsg, type YouState } from '../shared/protocol';
@@ -185,6 +185,13 @@ export class Game {
     }
   }
 
+  /** ¿Hay agua (profunda o charca) bajo este punto? */
+  private waterUnder(x: number, y: number) {
+    if (this.grid.deepWater(x, y)) return true;
+    for (const z of this.ents.values()) if (z.k === Kind.Zone && z.c === 'puddle' && (z.rx - x) ** 2 + ((z.ry - y) / 0.62) ** 2 < (z.rr ?? 0) ** 2) return true;
+    return false;
+  }
+
   /** ¿Mi personaje cruza el agua profunda? (cualquier criatura acuática). */
   private aquatic() {
     const c = this.ents.get(this.youId)?.c as CharacterId | undefined;
@@ -312,7 +319,7 @@ export class Game {
     const inView = (x: number, y: number) => x > vx0 && x < vx1 && y > vy0 && y < vy1;
     const world = () => ctx.setTransform(z, 0, 0, z, Math.round(-camX * z), Math.round(-camY * z));
     const glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[] = [];
-    const dyn: Light[] = []; // luces dinámicas (antorchas de NPC, farol de Helsing)
+    const dyn: Light[] = []; // luces dinámicas (antorchas de NPC, farol de Hunter)
     const cones: { x: number; y: number; a: number }[] = []; // linternas
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -364,7 +371,7 @@ export class Game {
       c.life -= dt;
       if (!inView(c.x, c.y)) continue;
       ctx.globalAlpha = Math.min(1, c.life / 1.5);
-      const kind = c.k === Kind.Player ? 'monster' : c.k === Kind.Helsing ? 'helsing' : c.k === Kind.Minion ? 'zombie' : 'npc';
+      const kind = c.k === Kind.Player ? 'monster' : c.k === Kind.Hunter ? 'hunter' : c.k === Kind.Minion ? 'zombie' : 'npc';
       if (c.c && !(c.k === Kind.Minion && c.s === 'fat')) {
         const fr = getFrame(kind, c.c, c.s ?? 'classic', Anim.Dead, 0, c.seed % 97).base;
         ctx.save(); ctx.translate(c.x, c.y - 8); ctx.rotate((Math.PI / 2) * c.f); ctx.scale(c.f, 1);
@@ -417,7 +424,15 @@ export class Game {
         if (held === 'flashlight') cones.push({ x: e.rx + e.f * 20, y: e.ry - 40, a: e.f === 1 ? 0 : Math.PI });
         else if (held === 'torch') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 60, r: 200, c: 'warm', flicker: true });
         else if (held === 'lantern' || held === 'candle') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 40, r: 130, c: 'warm', flicker: true });
-      } else if (e.k === Kind.Helsing) dyn.push({ x: e.rx - e.f * 12, y: e.ry - 40, r: 150, c: 'warm', flicker: true });
+      } else if (e.k === Kind.Player && e.fl & Flag.Jet) {
+        const a = e.id === this.youId ? this.aim : e.r ?? 0;
+        dyn.push({ x: e.rx + Math.cos(a) * 130, y: e.ry - 34 + Math.sin(a) * 110, r: 170, c: 'cold' });
+      } else if (e.k === Kind.Hunter) {
+        if (e.c === 'heraldo') dyn.push({ x: e.rx, y: e.ry - 60, r: 260, c: 'white', flicker: true });
+        else if (e.c === 'exorcista') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 40, r: 110, c: 'cold' });
+        else if (e.c === 'sectario') dyn.push({ x: e.rx, y: e.ry - 30, r: e.fl & Flag.Ritual ? 220 : 90, c: e.fl & Flag.Ritual ? 'warm' : 'warm', flicker: true });
+        else dyn.push({ x: e.rx - e.f * 12, y: e.ry - 40, r: 150, c: 'warm', flicker: true });
+      }
     }
     draws.sort((a, b) => a.y - b.y);
     for (const d of draws) d.fn();
@@ -578,12 +593,11 @@ export class Game {
       const t = now / 1000;
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = '#0c2228';
-      ctx.beginPath(); ctx.ellipse(x, y, 22, 8, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#60c0b0'; ctx.lineWidth = 2;
+      for (let j = -2; j <= 2; j++) { const hw = Math.round(Math.sqrt(1 - (j / 2.6) ** 2) * 7) * 3; ctx.fillRect(Math.round((x - hw) / 3) * 3, Math.round((y + j * 3) / 3) * 3, hw * 2, 3); }
       for (let i = 0; i < 2; i++) {
         const k = (t * 1.2 + i * 0.5) % 1;
         ctx.globalAlpha = (1 - k) * (e.id === this.youId ? 0.9 : 0.5);
-        ctx.beginPath(); ctx.ellipse(x, y, 10 + k * 26, 4 + k * 9, 0, 0, Math.PI * 2); ctx.stroke();
+        pixelEllipse(ctx, x, y, 10 + k * 26, 4 + k * 9, i ? '#a0e0d0' : '#60c0b0');
       }
       ctx.globalAlpha = 1;
       if (Math.random() < 0.25) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y - 2, vx: 0, vy: -30, life: 0.4, max: 0.4, color: '#a0e0d0', size: 3, grav: 0 });
@@ -611,8 +625,12 @@ export class Game {
     }
 
     // ---- elementos detrás del personaje (definitivas)
-    let scale = 1;
+    let scale = e.k === Kind.Hunter && e.c === 'heraldo' ? 1.35 : 1;
     let lift = 0;
+    if (e.k === Kind.Hunter && e.c === 'heraldo') {
+      lift = 6 + Math.sin(now / 400 + e.id) * 3; // flota
+      if (Math.random() < 0.3) this.effects.particles.push({ x: x + (Math.random() - 0.5) * 50, y: y - 20 - Math.random() * 80, vx: 0, vy: -20, life: 0.9, max: 0.9, color: Math.random() < 0.5 ? '#fff0a0' : '#ffffff', size: 3, grav: 0, glow: true });
+    }
     if (ult && e.c === 'werewolf') {
       scale = 1.25;
       this.drawMoon(ctx, x - e.f * 8, y - 112, now);
@@ -637,7 +655,7 @@ export class Game {
       ctx.beginPath(); ctx.ellipse(x, y + 2, 30, 10, 0, 0, Math.PI * 2); ctx.fill();
     }
 
-    const kind = isMonster ? 'monster' : e.k === Kind.Helsing ? 'helsing' : 'npc';
+    const kind = isMonster ? 'monster' : e.k === Kind.Hunter ? 'hunter' : 'npc';
     const fr = getFrame(kind, e.c, e.s ?? 'classic', e.a, this.frameFor(e, now), e.id % 97, tier);
     let alpha = 1;
     if (isMonster && e.c === 'invisible') alpha = 0.92;
@@ -667,7 +685,34 @@ export class Game {
       ctx.filter = 'none';
       ctx.globalCompositeOperation = 'source-over';
     }
+    // humano infectado: se va poniendo verde a medida que pierde la vida
+    if (e.fl & Flag.Infected) {
+      ctx.globalCompositeOperation = 'source-atop';
+      ctx.globalAlpha = 0.25 + (1 - (e.h ?? 100) / 100) * 0.5;
+      ctx.filter = 'sepia(1) saturate(5) hue-rotate(50deg) brightness(0.8)';
+      blit(fr.base);
+      ctx.filter = 'none';
+      ctx.globalCompositeOperation = 'source-over';
+      if (Math.random() < 0.25) this.particles.push({ x: x + (Math.random() - 0.5) * 22, y: y - 20 - Math.random() * 50, vx: 0, vy: -25, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#a0ff60' : '#5a8a30', size: 3, grav: 0 });
+    }
     ctx.globalAlpha = 1;
+    // criaturas acuáticas: salpicaduras en los pies al andar por el agua
+    if (isMonster && CHARACTERS[e.c as CharacterId]?.aquatic && this.waterUnder(x, y)) {
+      if (e.a === Anim.Walk && Math.random() < 0.55) {
+        for (let i = 0; i < 2; i++) this.particles.push({ x: x + (Math.random() - 0.5) * 26, y: y + 2, vx: (Math.random() - 0.5) * 90 - e.f * 30, vy: -80 - Math.random() * 80, life: 0.45, max: 0.45, color: ['#c8e8f8', '#7aa6d0', '#3a6a90'][Math.floor(Math.random() * 3)], size: 3, grav: 520 });
+      }
+      const k = (now / 700 + e.id * 0.3) % 1;
+      ctx.globalAlpha = 0.55 * (1 - k);
+      pixelEllipse(ctx, x, y + 3, 12 + k * 18, 4 + k * 6, '#a0c8e8');
+      ctx.globalAlpha = 1;
+    }
+    // chorro de agua a presión
+    if (e.fl & Flag.Jet) {
+      const a = e.id === this.youId ? this.aim : e.r ?? (e.f === 1 ? 0 : Math.PI);
+      let len: number = BAL.kthula.jetRange;
+      for (let k = 30; k <= len; k += 30) if (this.grid.blocked(x + Math.cos(a) * k, y + Math.sin(a) * k, 3, true)) { len = k; break; }
+      this.effects.drawJet(ctx, x + Math.cos(a) * 16, y - 34, a, len, now);
+    }
     if (fr.glow && alpha > 0.3) glows.push({ img: fr.glow, x: dx, y: dy, w, h, flip, a: Math.min(1, alpha + tier * 0.1) });
 
     // ---- delante del personaje
@@ -802,15 +847,15 @@ export class Game {
     const id = e.c === 'bat' ? `bat${Math.floor(now / 90) % 2}` : e.c === 'scarab' ? `scarab${Math.floor(now / 60) % 2}` : e.c;
     const img = getItem(id);
     const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
-    const py = e.c === 'scarab' ? e.ry - 8 : e.ry - 40;
+    const py = e.ry - 40; // a la altura de las manos (también los escarabajos de Ramsés)
     ctx.save();
     ctx.translate(e.rx, py);
     if (e.c === 'bat') { if ((e.r ?? 0) > Math.PI / 2 || (e.r ?? 0) < -Math.PI / 2) ctx.scale(-1, 1); }
-    else ctx.rotate(e.c === 'bandage' ? now / 60 : e.r ?? 0);
+    else ctx.rotate(e.c === 'bandage' || e.c === 'holy' ? now / 60 : e.r ?? 0);
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
-    if (img.glow && (e.c === 'bat' || e.c === 'scarab')) glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : '#d8b870', size: 3, grav: 0 });
+    if (img.glow && (e.c === 'bat' || e.c === 'scarab' || e.c === 'holy')) glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -846,11 +891,14 @@ export class Game {
       ctx.fillStyle = me ? '#ffe080' : '#ffffff'; ctx.fillText(label, x, top - 8);
       if (e.fl & Flag.Bounty) { ctx.font = '16px serif'; ctx.fillText('👑', x, top - 26); }
       this.bar(ctx, x, top - 3, 46, e.h ?? 100, me ? '#40e060' : '#e03040');
-    } else if (e.k === Kind.Helsing) {
+    } else if (e.k === Kind.Hunter) {
+      const info = HUNTER_LABEL[e.c] ?? HUNTER_LABEL.cazador;
+      const ty = top - (e.c === 'heraldo' ? 28 : 0);
       ctx.font = '9px "Press Start 2P", monospace';
-      ctx.fillStyle = '#000'; ctx.fillText('HELSING', x + 1, top - 1);
-      ctx.fillStyle = '#ff9070'; ctx.fillText('HELSING', x, top - 2);
-      if (e.h !== undefined) this.bar(ctx, x, top + 2, 40, e.h, '#ff8030');
+      ctx.fillStyle = '#000'; ctx.fillText(info.name, x + 1, ty - 1);
+      ctx.fillStyle = info.color; ctx.fillText(info.name, x, ty - 2);
+      if (e.h !== undefined) this.bar(ctx, x, ty + 2, e.c === 'heraldo' ? 60 : 40, e.h, info.color);
+      if (e.fl & Flag.Ritual) { ctx.font = '8px "Press Start 2P", monospace'; ctx.fillStyle = '#ff4060'; ctx.fillText('¡RITUAL!', x, ty - 14 + (Math.floor(now / 200) % 2) * 2); }
     } else if (e.k === Kind.Minion) {
       if (e.h !== undefined && e.h < 100) this.bar(ctx, x, top + 8, 26, e.h, e.o === this.youId ? '#80ff60' : '#c06040');
     } else if (e.h !== undefined) {
@@ -903,7 +951,7 @@ export class Game {
       c.fillRect(o.x * s, o.y * s, Math.max(1, o.w * s), Math.max(1, o.h * s));
     }
     for (const e of this.ents.values()) {
-      if (e.k === Kind.Helsing) { c.fillStyle = '#ff8030'; c.fillRect(e.rx * s - 2, e.ry * s - 2, 4, 4); }
+      if (e.k === Kind.Hunter) { const big = e.c === 'heraldo'; c.fillStyle = (HUNTER_LABEL[e.c] ?? HUNTER_LABEL.cazador).color; c.fillRect(e.rx * s - (big ? 3 : 2), e.ry * s - (big ? 3 : 2), big ? 6 : 4, big ? 6 : 4); }
       else if (e.k === Kind.Player && e.id !== this.youId) { c.fillStyle = '#ff3050'; c.fillRect(e.rx * s - 2, e.ry * s - 2, 4, 4); }
       else if (e.k === Kind.Minion && e.o === this.youId) { c.fillStyle = '#80ff60'; c.fillRect(e.rx * s - 1, e.ry * s - 1, 2, 2); }
     }
@@ -917,6 +965,14 @@ export class Game {
 }
 
 const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0' };
+
+const HUNTER_LABEL: Record<string, { name: string; color: string }> = {
+  cazador: { name: 'CAZADOR', color: '#ff9070' },
+  inquisidor: { name: 'INQUISIDOR', color: '#ff4040' },
+  exorcista: { name: 'EXORCISTA', color: '#80c8ff' },
+  sectario: { name: 'SECTARIO', color: '#c060ff' },
+  heraldo: { name: 'HERALDO', color: '#fff0a0' },
+};
 
 const TAUNTS: Record<CharacterId, string> = {
   vampire: '¡Bleh, bleh!',

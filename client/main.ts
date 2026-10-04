@@ -1,5 +1,5 @@
 // Punto de entrada del cliente: menús, HUD y bucle de render.
-import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, type CharacterId, type UpgradeId } from '../shared/characters';
+import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, upgradeMax, type CharacterId, type UpgradeId } from '../shared/characters';
 import { CHARACTER_UNLOCK, hasCharacter, hasSkin, MEDALS, MEDAL_BY_ID, type Profile } from '../shared/catalog';
 import { THEMES, type MapThemeId } from '../shared/maps';
 import { Anim, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
@@ -220,7 +220,7 @@ function buildAbilities() {
     { key: 'E', name: d.abilities[1].name },
     { key: 'R', name: d.ult.name },
   ];
-  $('abilities').innerHTML = items.map((a, i) => `<div class="ab${i === 3 ? ' ult' : ''}" id="ab${i}"><span class="key">${a.key}</span>${a.name}<div class="cdov"></div><div class="cdt"></div>${i === 3 ? '<div class="charge"><div></div></div>' : ''}</div>`).join('');
+  $('abilities').innerHTML = items.map((a, i) => `<div class="ab${i === 3 ? ' ult' : ''}" id="ab${i}"><span class="key">${a.key}</span><span class="nm">${a.name}</span><div class="cdov"></div><div class="cdt"></div>${i === 3 ? '<div class="charge"><div></div></div>' : ''}</div>`).join('');
 }
 
 let lastUpKey = '';
@@ -240,7 +240,7 @@ function updateHud() {
     (el.querySelector('.cdov') as HTMLElement).style.height = `${(r / m) * 100}%`;
     (el.querySelector('.cdt') as HTMLElement).textContent = r > 0.05 && i > 0 ? r.toFixed(1) : '';
     el.classList.toggle('ready', r <= 0);
-    if (i === 1 && y.qcm) (el.querySelector('.cdt') as HTMLElement).textContent = `${y.qc}/${y.qcm}${r > 0.05 && (y.qc ?? 0) < y.qcm ? ' ' + r.toFixed(0) : ''}`;
+    if (i === 1 && y.qcm) (el.querySelector('.cdt') as HTMLElement).textContent = `${y.qc}/${y.qcm}${r > 0.05 && (y.qc ?? 0) < y.qcm ? ' · ' + r.toFixed(0) : ''}`;
   }
   // definitiva: bloqueada hasta nivel 10 y se carga con bajas
   const ultEl = document.getElementById('ab3');
@@ -256,14 +256,15 @@ function updateHud() {
   $('lvl').classList.toggle('t1', y.tier === 1); $('lvl').classList.toggle('t2', y.tier === 2); $('lvl').classList.toggle('t3', y.tier >= 3);
   const BUFF_NAMES: Record<string, string> = { speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', invisAuto: '👻Presencia ausente', protect: '✨Protegido', slow: '🐌Lento', stun: '💫Aturdido', frenzy: '💨Frenesí', haste: '💨Sed', vuln: '💔Vulnerable', tomb: '⚱️Sarcófago', weak: '🤢Debilitado', dive: '🫧Sumergido', horde: '🧟Horda', deep: '🌊Abismo', puddle: '💧Charca' };
   $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${BUFF_NAMES[b.t] ?? b.t}${b.t === 'horde' ? ' ' + b.r : b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
-  const upKey = `${y.up}|${Object.values(y.ups).join(',')}`;
+  const upKey = `${y.up}|${Object.values(y.ups).join(',')}|${y.lvl >= 15}`;
   if (upKey !== lastUpKey) {
     lastUpKey = upKey;
     const box = $('upgrades');
     box.hidden = y.up <= 0;
     box.innerHTML = `<div class="up-title">¡${y.up} mejora${y.up > 1 ? 's' : ''} disponible${y.up > 1 ? 's' : ''}! (1-4)</div>` + UPGRADES.map((u) => {
       const lv = y.ups[u.id];
-      return `<div class="up${lv >= u.max ? ' maxed' : ''}" data-u="${u.id}"><b>${u.key}·${u.name}</b>${u.desc}<br><small>${lv}/${u.max}</small></div>`;
+      const mx = upgradeMax(u, y.lvl);
+      return `<div class="up${lv >= mx ? ' maxed' : ''}" data-u="${u.id}"><b>${u.key}·${u.name}</b>${u.desc}<br><small>${lv}/${mx}</small></div>`;
     }).join('');
     box.querySelectorAll<HTMLElement>('.up').forEach((el) => { el.onclick = () => net.send({ t: 'upgrade', u: el.dataset.u as UpgradeId }); });
   }
@@ -288,7 +289,7 @@ function onGameEvent(ev: GameEvent) {
   }
   if (ev.e === 'kill') {
     const d = document.createElement('div');
-    const icon = ev.vk === Kind.Helsing ? '🏹' : '💀';
+    const icon = ev.vk === Kind.Hunter ? '🏹' : '💀';
     d.innerHTML = `<span class="a">${escapeHtml(ev.a)}</span> ${icon} <span class="v">${escapeHtml(ev.v)}</span>`;
     const kf = $('killfeed');
     kf.prepend(d);
@@ -376,6 +377,7 @@ net.on((m: ServerMsg) => {
       setTimeout(() => { if (inGame && !game.alive) { showScreen('death'); buildChars($('death-chars'), true); } }, 1400);
       break;
     }
+    case 'toast': toast(escapeHtml(m.text)); break;
     case 'medal': {
       const md = MEDAL_BY_ID[m.id];
       if (md) toast(`${md.icon} ¡Medalla desbloqueada!<br>${md.name}<br><span style="color:var(--gold)">+${md.coins} monedas</span>`);

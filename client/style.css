@@ -113,10 +113,12 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
 .stats { font-family: var(--px); font-size: 9px; text-align: right; line-height: 1.8; white-space: nowrap; }
 .stats #gcoins { color: var(--gold); }
 #abilities { display: flex; gap: 8px; }
-.ab { position: relative; width: 64px; height: 58px; background: rgba(20, 10, 30, 0.9); border: 2px solid var(--line); display: grid; place-items: center; text-align: center; font-size: 15px; line-height: 0.95; overflow: hidden; padding: 12px 2px 2px; word-break: break-word; }
-.ab .key { position: absolute; left: 3px; top: 3px; font-family: var(--px); font-size: 8px; color: var(--gold); }
-.ab .cdov { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); }
-.ab .cdt { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--px); font-size: 12px; }
+.ab { position: relative; width: 78px; height: 66px; background: rgba(20, 10, 30, 0.9); border: 2px solid var(--line); display: grid; place-items: center; text-align: center; font-size: 14px; line-height: 0.9; overflow: hidden; padding: 15px 3px 4px; }
+.ab .nm { overflow-wrap: anywhere; text-shadow: 1px 1px 0 #000; }
+.ab .key { position: absolute; left: 3px; top: 3px; font-family: var(--px); font-size: 8px; color: var(--gold); z-index: 2; }
+.ab .cdov { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.62); }
+.ab .cdt { position: absolute; right: 2px; top: 2px; font-family: var(--px); font-size: 7px; line-height: 1; padding: 2px 3px; background: rgba(0, 0, 0, 0.75); color: #fff; z-index: 2; white-space: nowrap; }
+.ab .cdt:empty { display: none; }
 .ab.ready { border-color: #8050c0; }
 #buffs { display: flex; gap: 4px; }
 .buff { font-family: var(--px); font-size: 8px; background: rgba(10, 5, 18, 0.85); border: 2px solid var(--line); padding: 3px 5px; }
@@ -152,7 +154,7 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
   #killfeed { display: none; }
   #minimap { width: 100px; height: 100px; }
   #bottom { width: calc(100vw - 24px); }
-  .ab { width: 48px; height: 48px; font-size: 12px; }
+  .ab { width: 62px; height: 54px; font-size: 12px; padding-top: 13px; }
 }
 
 /* ---------- Evolución y definitiva ---------- */
@@ -167,4 +169,5 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
 .lvl.t1 { border-color: #c0a0ff; }
 .lvl.t2 { border-color: #ff70c0; box-shadow: 0 0 8px #ff70c0; }
 .lvl.t3 { border-color: #ffd040; box-shadow: 0 0 12px #ffd040; color: #fff; }
-.ab.ult .cdt { font-size: 9px; align-items: end; padding-bottom: 10px; text-shadow: 1px 1px 0 #000; }
+.ab.ult { padding-bottom: 12px; }
+.ab.ult .cdt { color: #ffb0e0; }
