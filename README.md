@@ -24,7 +24,15 @@ npm run bots -- 8 ws://localhost:3000/ws ABCD   # a una sala concreta
 
 Visor de sprites (todas las animaciones y skins): <http://localhost:5173/#sprites>
 
-Producción local: `npm run build && npm start` → <http://localhost:3000>
+Producción local / demo: `npm run demo` (compila y arranca) → <http://localhost:3000>
+
+### Demo multijugador en un solo PC
+
+1. `npm run demo` y abre <http://localhost:3000> en **dos ventanas** del navegador, una al lado de la otra (o una normal y otra de incógnito).
+2. Pon un nombre distinto en cada una y pulsa **Jugar**: las dos entran a la misma sala pública. También puedes crear sala en una y unirte con el código en la otra.
+3. Lo que hagas en una ventana se ve en la otra: movimiento, ataques, saludo (G), taunt (T), ranking y killfeed.
+
+Nota: el navegador ralentiza las pestañas que no están visibles, así que usa ventanas separadas para ver las dos a la vez.
 
 ## Controles
 

@@ -65,13 +65,13 @@ wss.on('connection', (ws: WebSocket) => {
       if (conn) {
         // ya identificado: solo actualiza el nombre (se aplica en la próxima aparición)
         const n = cleanName(msg.name);
-        if (String(msg.name ?? '').trim()) conn.profile.name = n;
+        if (String(msg.name ?? '').trim()) { conn.name = n; conn.profile.name = n; }
         store.touch();
         send({ t: 'profile', profile: conn.profile });
         return;
       }
       const profile = store.getOrCreate(typeof msg.token === 'string' ? msg.token : undefined, cleanName(msg.name));
-      conn = { id: nextConnId++, profile, send, roomCode: null };
+      conn = { id: nextConnId++, profile, name: profile.name, send, roomCode: null };
       send({ t: 'welcome', profile });
       return;
     }

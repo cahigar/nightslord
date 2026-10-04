@@ -12,10 +12,13 @@
     "build:client": "vite build",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/server.mjs --packages=external",
     "start": "node dist/server.mjs",
+    "demo": "npm run build && npm start",
     "typecheck": "tsc --noEmit",
     "bots": "tsx tools/bots.ts"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "ws": "^8.18.0"
   },

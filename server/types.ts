@@ -5,6 +5,8 @@ import type { ServerMsg } from '../shared/protocol';
 export interface Conn {
   id: number;
   profile: Profile;
+  /** Nombre en esta conexión (cada pestaña puede usar uno distinto aunque compartan perfil). */
+  name: string;
   send(msg: ServerMsg): void;
   roomCode: string | null;
 }

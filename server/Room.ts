@@ -212,7 +212,7 @@ export class Room {
       id: this.nextId++, kind: Kind.Player, x: pos.x, y: pos.y, r: PLAYER_RADIUS, facing: 1,
       hp: def.hp, maxHp: def.hp, anim: Anim.Idle, animSeq: 0, animUntil: 0, moving: false,
       stunT: 0, slowT: 0, fearT: 0, knock: null, dead: false,
-      conn, name: conn.profile.name, char, skin, def,
+      conn, name: conn.name, char, skin, def,
       level: 1, xp: 0, totalXp: 0,
       points: prev ? Math.floor(prev.points * RESPAWN_POINT_KEEP) : 0,
       coinsEarned: 0,
