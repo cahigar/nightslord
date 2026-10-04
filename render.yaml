@@ -1,0 +1,12 @@
+# Despliegue en Render (plan gratuito: se duerme tras 15 min sin tráfico).
+services:
+  - type: web
+    name: nightslord
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

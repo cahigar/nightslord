@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>El Señor de la Noche .io</title>
+  <meta name="description" content="Juego multijugador gratuito tipo .io: sé el monstruo, caza humanos, esquiva a los Helsing y conviértete en el Señor de la Noche." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2310061a'/><path d='M2 6l3 2 3-4 3 4 3-2-2 6H4z' fill='%23b0182a'/></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- MENÚ -->
+  <div id="menu" class="screen">
+    <div class="menu-inner">
+      <header class="logo">
+        <div class="logo-moon"></div>
+        <h1>El Señor<br />de la Noche</h1>
+        <span class="io">.io</span>
+      </header>
+
+      <div class="panel">
+        <div class="row between">
+          <input id="name" maxlength="14" placeholder="Tu nombre" autocomplete="off" />
+          <div class="coins" title="Monedas">🪙 <span id="coins">0</span></div>
+        </div>
+
+        <h3>Elige tu monstruo</h3>
+        <div id="chars" class="chars"></div>
+        <div id="charinfo" class="charinfo"></div>
+        <h3>Skin</h3>
+        <div id="skins" class="skins"></div>
+
+        <button id="play" class="btn big">🦇 Jugar</button>
+        <div class="row">
+          <input id="code" class="code" maxlength="4" placeholder="CÓDIGO" autocomplete="off" />
+          <button id="join" class="btn">Unirse</button>
+        </div>
+        <div class="row">
+          <select id="theme">
+            <option value="">Mapa aleatorio</option>
+            <option value="elm">Calle del Olmo</option>
+            <option value="transylvania">Transilvania</option>
+            <option value="camp">Campamento Lago Sereno</option>
+          </select>
+          <label class="check"><input type="checkbox" id="priv" /> Privada</label>
+          <button id="create" class="btn">Crear sala</button>
+        </div>
+        <div id="rooms" class="rooms"></div>
+        <details>
+          <summary>🏅 Medallas <span id="medal-count"></span></summary>
+          <div id="medals" class="medals"></div>
+        </details>
+        <div id="menu-error" class="error"></div>
+      </div>
+
+      <p class="help">
+        <b>WASD</b> moverse · <b>Ratón</b> apuntar · <b>Clic / Espacio</b> atacar · <b>Q / clic dcho.</b> y <b>E</b> habilidades<br />
+        <b>1-4</b> mejoras al subir nivel · <b>G</b> saludar · <b>T</b> taunt · <b>M</b> silenciar
+      </p>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" hidden>
+    <div id="topleft">
+      <div id="roominfo"></div>
+      <div id="ping"></div>
+      <button id="mute" class="btn tiny">🔊</button>
+      <button id="exit" class="btn tiny">Salir</button>
+    </div>
+    <div id="rank"></div>
+    <div id="killfeed"></div>
+    <canvas id="minimap" width="160" height="160"></canvas>
+    <div id="upgrades" hidden></div>
+    <div id="bottom">
+      <div id="buffs"></div>
+      <div class="bars">
+        <div class="lvl" id="lvl">1</div>
+        <div class="barstack">
+          <div class="bar hp"><div id="hpfill"></div><span id="hptext"></span></div>
+          <div class="bar xp"><div id="xpfill"></div></div>
+        </div>
+        <div class="stats"><div id="pts">0 pts</div><div id="gcoins">🪙 0</div></div>
+      </div>
+      <div id="abilities"></div>
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <!-- MUERTE -->
+  <div id="death" class="screen" hidden>
+    <div class="panel death">
+      <h2>Has caído</h2>
+      <p id="death-by"></p>
+      <div id="death-stats" class="death-stats"></div>
+      <h3>¿Volver con otro monstruo?</h3>
+      <div id="death-chars" class="chars small"></div>
+      <div class="row center">
+        <button id="respawn" class="btn big">Volver a la noche</button>
+        <button id="tomenu" class="btn">Menú</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TÁCTIL -->
+  <div id="touch" hidden>
+    <div id="stick"><div id="knob"></div></div>
+    <div id="tbuttons">
+      <button id="tb-q">Q</button>
+      <button id="tb-e">E</button>
+      <button id="tb-atk">⚔</button>
+      <button id="tb-emote">😜</button>
+    </div>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

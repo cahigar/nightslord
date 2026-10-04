@@ -1,0 +1,31 @@
+{
+  "name": "nightslord",
+  "version": "0.1.0",
+  "private": true,
+  "description": "El Señor de la Noche — juego multijugador tipo .io de monstruos clásicos en pixel art",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "vite",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/server.mjs --packages=external",
+    "start": "node dist/server.mjs",
+    "typecheck": "tsc --noEmit",
+    "bots": "tsx tools/bots.ts"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.12",
+    "concurrently": "^9.0.0",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0"
+  }
+}
