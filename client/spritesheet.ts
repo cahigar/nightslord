@@ -9,8 +9,11 @@ const ANIM_NAMES: [Anim, string][] = [
 
 export function showSpriteSheet() {
   const S = 3;
-  const rows: { label: string; kind: 'monster' | 'npc' | 'helsing'; variant: string; skin: string; seed?: number }[] = [];
-  for (const c of CHARACTER_IDS) for (const s of SKINS[c]) rows.push({ label: `${c}/${s.id}`, kind: 'monster', variant: c, skin: s.id });
+  const rows: { label: string; kind: 'monster' | 'npc' | 'helsing'; variant: string; skin: string; seed?: number; tier?: number }[] = [];
+  for (const c of CHARACTER_IDS) {
+    for (const s of SKINS[c]) rows.push({ label: `${c}/${s.id}`, kind: 'monster', variant: c, skin: s.id });
+    for (const t of [1, 2, 3]) rows.push({ label: `${c} nv${[5, 10, 15][t - 1]}`, kind: 'monster', variant: c, skin: 'classic', tier: t });
+  }
   rows.push({ label: 'helsing', kind: 'helsing', variant: 'helsing', skin: '' });
   for (const [i, v] of ['teen', 'teen', 'neighbor', 'jock', 'nerd', 'villager', 'villager', 'priest', 'maid', 'camper', 'camper', 'counselor'].entries()) rows.push({ label: v, kind: 'npc', variant: v, skin: '', seed: i * 13 + 5 });
   const cols = ANIM_NAMES.reduce((a, [an]) => a + ANIMS[an].frames.length, 0);
@@ -33,7 +36,7 @@ export function showSpriteSheet() {
     c.fillStyle = '#fff'; c.fillText(r.label, 6, y + ch / 2);
     let col = 0;
     for (const [an] of ANIM_NAMES) for (let f = 0; f < ANIMS[an].frames.length; f++) {
-      const fr = getFrame(r.kind, r.variant, r.skin, an, f, r.seed ?? 0);
+      const fr = getFrame(r.kind, r.variant, r.skin, an, f, r.seed ?? 0, r.tier ?? 0);
       c.drawImage(fr.base, 140 + col * cw, y, SW * S, SH * S);
       if (fr.glow) { c.globalCompositeOperation = 'lighter'; c.drawImage(fr.glow, 140 + col * cw, y, SW * S, SH * S); c.globalCompositeOperation = 'source-over'; }
       col++;
@@ -47,13 +50,14 @@ export function showSpriteSheet() {
 export async function showMapPreview(spec: string) {
   const { generateMap, THEME_IDS } = await import('../shared/maps');
   const { Terrain } = await import('./terrain');
-  const { renderObstacle, renderDecor } = await import('./tiles');
+  const { renderObstacle, renderDecor, renderTV } = await import('./tiles');
   const { MAP_SIZE, PIXEL } = await import('../shared/constants');
   const [t, sd] = spec.split(':');
   const theme = (THEME_IDS as string[]).includes(t) ? (t as (typeof THEME_IDS)[number]) : 'elm';
   const map = generateMap(theme, Number(sd) || 1234);
   const cv = document.createElement('canvas');
-  const S = MAP_SIZE / PIXEL;
+  const M = 300; // margen exterior visible
+  const S = (MAP_SIZE + 2 * M) / PIXEL;
   cv.width = S; cv.height = S;
   Object.assign(cv.style, { imageRendering: 'pixelated' });
   const wrap = document.createElement('div');
@@ -63,10 +67,13 @@ export async function showMapPreview(spec: string) {
   const c = cv.getContext('2d')!;
   c.imageSmoothingEnabled = false;
   c.scale(1 / PIXEL, 1 / PIXEL);
+  c.translate(M, M);
   const terrain = new Terrain(map);
-  terrain.draw(c, 0, 0, MAP_SIZE, MAP_SIZE, 9999);
+  terrain.draw(c, -M, -M, MAP_SIZE + M, MAP_SIZE + M, 9999);
   for (const d of map.decor) { const a = renderDecor(d); c.drawImage(a.base, d.x, d.y, a.base.width * PIXEL, a.base.height * PIXEL); }
-  const obs = map.obstacles.filter((o) => o.type !== 'water').sort((a, b) => a.y + a.h - (b.y + b.h));
+  const obs = [...map.obstacles, ...map.border.filter((o) => o.x > -M - 100 && o.y > -M - 100 && o.x < MAP_SIZE + M && o.y < MAP_SIZE + M)].filter((o) => o.type !== 'water').sort((a, b) => a.y + a.h - (b.y + b.h));
   for (const o of obs) { const a = renderObstacle(o, theme); c.drawImage(a.base, o.x + a.ox, o.y + a.oy, a.base.width * PIXEL, a.base.height * PIXEL); }
+  for (const tv of map.tvs) { const a = renderTV(tv, 0); c.drawImage(a.base, tv.x - PIXEL, tv.y - PIXEL - (tv.kind === 'outdoor' ? 12 : 0), a.base.width * PIXEL, a.base.height * PIXEL); }
+  c.strokeStyle = 'rgba(255,0,0,0.6)'; c.lineWidth = 6; c.strokeRect(0, 0, MAP_SIZE, MAP_SIZE); // límite jugable
   document.title = 'mapa listo';
 }

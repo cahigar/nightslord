@@ -25,6 +25,7 @@ export const NAME_MAX = 14;
 export const BTN_ATTACK = 1;
 export const BTN_Q = 2;
 export const BTN_E = 4;
+export const BTN_R = 8;
 
 // Escala de render del pixel art (1 pixel de sprite = N pixeles de mundo)
 export const PIXEL = 3;

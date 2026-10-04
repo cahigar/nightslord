@@ -127,8 +127,9 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
 .up.maxed { opacity: 0.4; border-color: var(--line); }
 .up-title { position: absolute; top: -22px; left: 0; right: 0; text-align: center; font-family: var(--px); font-size: 9px; color: var(--gold); text-shadow: 1px 1px 0 #000; animation: pulse 1s infinite; }
 @keyframes pulse { 50% { opacity: 0.5; } }
-#toast { position: absolute; left: 50%; top: 70px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; }
-.toast { background: #2a1640; border: 3px solid var(--gold); padding: 10px 16px; font-family: var(--px); font-size: 10px; box-shadow: 4px 4px 0 #000; animation: fade 4.5s forwards; text-align: center; line-height: 1.6; }
+#toast { position: absolute; left: 50%; top: 56px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; align-items: center; max-width: min(520px, 70vw); }
+.toast { background: rgba(42, 22, 64, 0.92); border: 2px solid var(--gold); padding: 6px 12px; font-family: var(--px); font-size: 9px; box-shadow: 3px 3px 0 #000; animation: fade 4.5s forwards; text-align: center; line-height: 1.6; }
+.toast span { font-size: 16px !important; }
 
 .death { max-width: 560px; width: 100%; margin-top: 8vh; text-align: center; }
 .death h2 { font-family: var(--px); color: var(--blood); font-size: 24px; text-shadow: 3px 3px 0 #000; margin: 6px 0; }
@@ -140,7 +141,7 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
 #stick { position: absolute; left: 30px; bottom: 30px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.2); pointer-events: auto; display: grid; place-items: center; }
 #knob { width: 54px; height: 54px; border-radius: 50%; background: rgba(255, 255, 255, 0.25); }
-#tbuttons { position: absolute; right: 24px; bottom: 30px; display: grid; grid-template-columns: repeat(2, 64px); gap: 10px; pointer-events: auto; }
+#tbuttons { position: absolute; right: 24px; bottom: 30px; display: grid; grid-template-columns: repeat(3, 64px); gap: 10px; pointer-events: auto; }
 #tbuttons button { width: 64px; height: 64px; border-radius: 50%; background: rgba(60, 20, 80, 0.6); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 18px; }
 @media (pointer: coarse) { #minimap { display: none; } #bottom { bottom: 175px; } #upgrades { bottom: 290px; } }
 
@@ -152,3 +153,17 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
   #bottom { width: calc(100vw - 24px); }
   .ab { width: 48px; height: 48px; font-size: 12px; }
 }
+
+/* ---------- Evolución y definitiva ---------- */
+.charinfo .evo { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.charinfo .evo span { background: #1a1028; border: 1px solid var(--line); padding: 1px 6px; font-size: 16px; }
+.ab.ult { border-color: #6a3a8a; }
+.ab.ult .charge { position: absolute; left: 3px; right: 3px; bottom: 3px; height: 5px; background: #200a30; border: 1px solid #000; }
+.ab.ult .charge div { height: 100%; width: 0; background: linear-gradient(90deg, #8040ff, #ff40a0); transition: width 0.2s; }
+.ab.ult.locked { opacity: 0.45; filter: grayscale(1); }
+.ab.ult.ready { border-color: #ff60c0; box-shadow: 0 0 12px #ff40a0; animation: pulse 0.8s infinite; }
+.ab.ult.active { border-color: #ffd040; box-shadow: 0 0 14px #ffd040; }
+.lvl.t1 { border-color: #c0a0ff; }
+.lvl.t2 { border-color: #ff70c0; box-shadow: 0 0 8px #ff70c0; }
+.lvl.t3 { border-color: #ffd040; box-shadow: 0 0 12px #ffd040; color: #fff; }
+.ab.ult .cdt { font-size: 9px; align-items: end; padding-bottom: 10px; text-shadow: 1px 1px 0 #000; }

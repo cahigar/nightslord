@@ -162,9 +162,9 @@ function texture(b: PB, x0: number, y0: number, w: number, h: number, c: string,
 // ---------------------------------------------------------------------------
 // Formas de monstruos
 // ---------------------------------------------------------------------------
-type FormFn = (b: PB, p: Pose, pal: Palette, anim: Anim) => void;
+type FormFn = (b: PB, p: Pose, pal: Palette, anim: Anim, tier: number) => void;
 
-const vampire: FormFn = (b, p, c) => {
+const vampire: FormFn = (b, p, c, _anim, tier) => {
   const by = p.by, sw = p.sway ?? 0;
   // capa por detrás (con forro y bajo festoneado)
   for (let y = 11; y <= 29; y++) {
@@ -183,6 +183,8 @@ const vampire: FormFn = (b, p, c) => {
   b.rect(13, 12 + by, 2, 6, '#e8e4f0'); b.set(14, 13 + by, '#ffffff', false, true); // camisa y chorrera
   b.rect(12, 12 + by, 1, 7, shade(c.cloth, -0.3)); // solapa
   b.set(13, 17 + by, c.accent, true); // medallón brillante
+  if (tier >= 2) { b.set(14, 17 + by, c.accent, true); b.set(13, 18 + by, shade(c.accent, 0.3), true); } // medallón mayor
+  if (tier >= 2) for (let y = 24; y <= 28; y += 2) b.set(8 - Math.floor((y - 11) / 2.6) - sw, y, shade(c.accent, 0.25), true); // forro encendido
   b.rect(8, 19 + by, 8, 1, shade(c.cloth, -0.35)); // faldón
   humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'slick', eyeGlow: true });
   const X = 7 + (p.lean ?? 0), Y = 2 + by;
@@ -191,10 +193,12 @@ const vampire: FormFn = (b, p, c) => {
   b.set(X + 6, Y + 6, shade(c.skin, -0.25)); // ojeras
   b.set(X + 8, Y + 9, '#ffffff', false, true); // colmillo
   if (p.mouth) b.set(X + 7, Y + 9, '#ffffff', false, true);
+  if (tier >= 1 && !p.blink) { b.set(X + 7, Y + 5, shade(c.eye, 0.35), true); b.set(X + 8, Y + 5, c.eye, true); } // mirada más intensa
+  if (tier >= 3) { b.set(5, 3 + by, c.accent, true); b.set(4, 3 + by, c.accent, true); } // puntas del cuello encendidas
   arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin);
 };
 
-const werewolf: FormFn = (b, p, c) => {
+const werewolf: FormFn = (b, p, c, _anim, tier) => {
   const by = p.by, sw = p.sway ?? 0;
   const fur = c.hair, furL = shade(c.hair, 0.22), furD = shade(c.hair, -0.3);
   // cola peluda
@@ -218,17 +222,20 @@ const werewolf: FormFn = (b, p, c) => {
   b.rect(X + 1, Y - 2, 2, 3, fur); b.set(X + 1, Y - 3, fur); b.set(X + 2, Y - 1, '#c08080'); // oreja trasera
   b.rect(X + 4, Y - 2, 2, 3, fur); b.set(X + 5, Y - 3, fur); b.set(X + 4, Y - 1, '#c08080'); // oreja
   b.rect(X + 5, Y + 3, 3, 1, furD); // ceño
-  if (!p.blink) { b.set(X + 6, Y + 4, c.eye, true); b.set(X + 7, Y + 4, shade(c.eye, 0.4), true); }
+  if (!p.blink) { b.set(X + 6, Y + 4, c.eye, true); b.set(X + 7, Y + 4, shade(c.eye, 0.4), true); if (tier >= 1) b.set(X + 5, Y + 4, shade(c.eye, -0.2), true); }
+  if (tier >= 3) { b.set(X + 1, Y - 4, fur); b.set(X + 4, Y - 4, fur); for (const [dx, dy] of [[-1, 6], [0, 9], [-1, 11]]) b.set(6 + dx, dy + by, '#c8e0ff', true); } // melena lunar
   b.rect(X + 8, Y + 8, 4, 1, '#3a0a10');
   b.set(X + 9, Y + 9, '#ffffff', false, true); b.set(X + 11, Y + 9, '#ffffff', false, true); b.set(X + 10, Y + 7, '#ffffff', false, true);
   if (p.mouth) { b.rect(X + 8, Y + 8, 4, 2, '#5a0a14'); b.set(X + 9, Y + 8, '#ffffff', false, true); b.set(X + 11, Y + 10, '#ffffff', false, true); }
   texture(b, X, Y, 10, 6, furD, 0.12, 9);
   arm(b, 13, 13 + by, p.ra, 8, fur, fur, 3);
   const hx = 13 + Math.sin(p.ra) * 9, hy = 13 + by + Math.cos(p.ra) * 9;
-  b.set(hx, hy, c.accent, false, true); b.set(hx + 1, hy, c.accent, false, true);
+  const clawGlow = tier >= 2;
+  b.set(hx, hy, clawGlow ? '#d8f0ff' : c.accent, clawGlow, true); b.set(hx + 1, hy, clawGlow ? '#d8f0ff' : c.accent, clawGlow, true);
+  if (clawGlow) b.set(10 + Math.sin(p.la) * 9, 13 + by + Math.cos(p.la) * 9, '#d8f0ff', true);
 };
 
-const mummy: FormFn = (b, p, c, anim) => {
+const mummy: FormFn = (b, p, c, anim, tier) => {
   // pose clásica de momia: brazos al frente al andar/parado
   if (anim === Anim.Idle || anim === Anim.Walk) p = { ...p, la: 1.45 + p.la * 0.15, ra: 1.5 + p.ra * 0.15 };
   const by = p.by, sw = p.sway ?? 0;
@@ -244,19 +251,21 @@ const mummy: FormFn = (b, p, c, anim) => {
   wrap(6, HIP, 14, 11);
   torso(b, by, c.cloth);
   wrap(8, 12 + by, 8, 10);
-  b.rect(12, 14 + by, 2, 2, c.accent); b.set(12, 14 + by, shade(c.accent, 0.4), false, true); // escarabajo
+  b.rect(12, 14 + by, 2, 2, c.accent, tier >= 2); b.set(12, 14 + by, shade(c.accent, 0.4), tier >= 2, true); // escarabajo
   const X = 7 + (p.lean ?? 0), Y = 2 + by;
   b.rect(X + 1, Y, 8, 10, c.cloth); b.rect(X, Y + 2, 10, 6, c.cloth); b.set(X + 10, Y + 5, c.cloth);
   wrap(X, Y, 11, 10);
   b.rect(X + 4, Y + 4, 6, 2, c.skin); // rendija oscura
-  if (!p.blink) { b.set(X + 7, Y + 4, c.eye, true); b.set(X + 7, Y + 5, shade(c.eye, -0.3), true); }
+  if (!p.blink) { b.set(X + 7, Y + 4, c.eye, true); b.set(X + 7, Y + 5, shade(c.eye, -0.3), true); if (tier >= 1) b.set(X + 8, Y + 4, shade(c.eye, 0.3), true); }
   if (p.mouth) b.rect(X + 6, Y + 8, 3, 1, c.skin);
+  if (tier >= 2) b.rect(X, Y + 1, 10, 1, '#d8b040'); // diadema de faraón
+  if (tier >= 3) for (const [gx, gy] of [[9, 13], [11, 16], [10, 19], [13, 11]]) b.set(gx, gy + by, '#ffd860', true); // jeroglíficos que brillan
   b.line(X + 1, Y + 1, X - 2, Y - 1 + sw, c.hair); // venda de la cabeza
   arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.cloth);
   wrap(12, 10, 12, 12);
 };
 
-const invisible: FormFn = (b, p, c) => {
+const invisible: FormFn = (b, p, c, _anim, tier) => {
   const by = p.by, sw = p.sway ?? 0;
   // bufanda ondeando
   b.line(9, 12 + by, 4 - sw, 14 + by + (sw > 1 ? 1 : 0), c.hair); b.line(9, 13 + by, 5 - sw, 16 + by, c.hair);
@@ -278,6 +287,9 @@ const invisible: FormFn = (b, p, c) => {
   b.rect(X + 1, Y - 1, 8, 3, c.cloth2); b.rect(X + 1, Y + 1, 8, 1, c.accent === '#202020' ? '#8a2a3a' : c.accent);
   b.rect(X + 4, Y + 6, 3, 2, '#0e0e18'); b.rect(X + 8, Y + 6, 3, 2, '#0e0e18'); b.set(X + 7, Y + 6, '#707080');
   b.set(X + 5, Y + 6, '#ffffff', true); b.set(X + 9, Y + 6, c.eye, true);
+  if (tier >= 1) { b.set(X + 8, Y + 6, '#ffffff', true); b.set(X + 4, Y + 6, c.eye, true); }
+  if (tier >= 2) b.rect(X + 1, Y + 1, 8, 1, shade(c.accent === '#202020' ? '#c03a50' : c.accent, 0.2), true);
+  if (tier >= 3) { b.set(12, 17 + by, '#ffe080', true); b.set(14, 14 + by, '#c0e0ff', true); b.set(14, 20 + by, '#c0e0ff', true); }
   if (p.mouth) b.rect(X + 7, Y + 9, 2, 1, '#d03050', true);
   arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin, 2, true);
 };
@@ -423,9 +435,9 @@ const cache = new Map<string, Baked>();
 
 export function frameCount(a: Anim) { return ANIMS[a].frames.length; }
 
-export function getFrame(kind: 'monster' | 'npc' | 'helsing', variant: string, skin: string, anim: Anim, frame: number, seed = 0): Baked {
+export function getFrame(kind: 'monster' | 'npc' | 'helsing', variant: string, skin: string, anim: Anim, frame: number, seed = 0, tier = 0): Baked {
   const sd = kind === 'npc' ? seed % 97 : 0;
-  const key = `${kind}|${variant}|${skin}|${anim}|${frame}|${sd}`;
+  const key = `${kind}|${variant}|${skin}|${anim}|${frame}|${sd}|${tier}`;
   let f = cache.get(key);
   if (f) return f;
   const def = ANIMS[anim] ?? ANIMS[Anim.Idle];
@@ -433,7 +445,7 @@ export function getFrame(kind: 'monster' | 'npc' | 'helsing', variant: string, s
   const b = new PB(SW, SH);
   if (kind === 'monster') {
     const ch = variant as CharacterId;
-    (FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim);
+    (FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim, tier);
   } else if (kind === 'helsing') drawHelsing(b, pose);
   else drawNpc(b, pose, variant, sd);
   f = b.finish({ outline: kind === 'monster' && variant === 'invisible' ? 'faint' : 'selout' });
@@ -455,6 +467,9 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   bat0: { art: ['k.........k', 'kk..kkk..kk', 'kkkkkkkkkkk', '.kkkkrkkkk.', '..k..k..k..'], pal: { k: '#2a1a3a', r: '#ff2040' }, glow: 'r' },
   bat1: { art: ['....kkk....', '...kkkkk...', '.kkkkrkkkk.', 'kkk..k..kkk', 'k.........k'], pal: { k: '#2a1a3a', r: '#ff2040' }, glow: 'r' },
   bandage: { art: ['.wwwwwwww.', 'wwcwwcwwcw', 'wcwwcwwcww', '.wwwwwwww.'], pal: { w: '#e8dcb0', c: '#b0a070' } },
+  scarab0: { art: ['.l.l.l..', '..gGGg..', '.gGYGGgh', '..gGGg..', '.l.l.l..'], pal: { g: '#1a4a3a', G: '#2a8a6a', Y: '#e0c040', h: '#0a1a14', l: '#0a1a14' }, glow: 'Y' },
+  scarab1: { art: ['l.l.l...', '..gGGg..', '.gGYGGgh', '..gGGg..', 'l.l.l...'], pal: { g: '#1a4a3a', G: '#2a8a6a', Y: '#e0c040', h: '#0a1a14', l: '#0a1a14' }, glow: 'Y' },
+  footprint: { art: ['.oo..', 'oooo.', '.oo..', '.....', '..oo.', '.oooo', '..oo.'], pal: { o: '#2a2230' } },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };
 
@@ -475,3 +490,47 @@ export function getItem(id: string): Baked {
 }
 
 export { mix };
+
+// ---------------------------------------------------------------------------
+// Sarcófago (Tormenta del Faraón) y montón de ropa (Desvestirse)
+// ---------------------------------------------------------------------------
+let sarcoCache: Baked | null = null;
+export function getSarcophagus(): Baked {
+  if (sarcoCache) return sarcoCache;
+  const b = new PB(SW, SH);
+  const gold = '#c89a30', teal = '#2a7a8a', dark = '#3a2a1a';
+  // silueta del sarcófago (más ancho en hombros)
+  for (let y = 2; y <= 31; y++) {
+    const w = y < 6 ? 6 + (y - 2) : y < 14 ? 10 : 10 - Math.floor((y - 14) / 4);
+    b.rect(12 - Math.ceil(w / 2), y, w, 1, y % 5 === 0 ? teal : gold);
+  }
+  // cara dorada con ojos pintados
+  b.rect(9, 4, 6, 7, '#e0b850'); b.set(10, 6, '#101018'); b.set(13, 6, '#101018'); b.set(11, 9, dark); b.set(12, 9, dark);
+  b.rect(8, 3, 8, 1, teal); b.rect(7, 4, 2, 8, teal); b.rect(15, 4, 2, 8, teal); // nemes
+  // brazos cruzados y jeroglíficos
+  b.line(8, 13, 15, 16, '#e0b850'); b.line(15, 13, 8, 16, '#e0b850');
+  for (const [x, y] of [[10, 19], [13, 20], [11, 23], [13, 25], [10, 27]]) b.set(x, y, '#5ae0e0', true);
+  b.set(11, 21, '#5ae0e0', true); b.set(12, 24, '#5ae0e0', true);
+  sarcoCache = b.finish({ outline: 'selout' });
+  return sarcoCache;
+}
+
+const clothesCache = new Map<string, Baked>();
+/** Ropa de la Dama tirada en el suelo (sombrero, abrigo, zapatos, gafas). */
+export function getClothesPile(skin: string): Baked {
+  let c = clothesCache.get(skin);
+  if (c) return c;
+  const pal = getSkin('invisible', skin).palette;
+  const b = new PB(24, 12);
+  b.ellipse(10, 7, 8, 3, pal.cloth); b.line(4, 6, 15, 8, shade(pal.cloth, -0.25)); // abrigo arrugado
+  b.set(9, 6, '#c0a040'); // hebilla
+  b.line(2, 9, 8, 8, pal.hair); b.line(2, 10, 6, 10, pal.hair); // bufanda
+  b.rect(15, 2, 7, 1, pal.cloth2); b.rect(16, 1, 5, 1, pal.cloth2); b.rect(16, 0, 5, 1, pal.cloth2); // sombrero
+  const shoe = pal.accent === '#202020' ? '#2a1a1a' : shade(pal.accent, -0.4);
+  b.rect(1, 3, 3, 2, shoe); b.rect(19, 9, 3, 2, shoe);
+  b.rect(12, 3, 2, 1, '#0e0e18'); b.rect(15, 4, 2, 1, '#0e0e18'); b.set(14, 3, '#707080'); // gafas
+  b.set(3, 6, pal.skin); b.set(17, 7, pal.skin); // guantes
+  c = b.finish({ outline: 'selout' });
+  clothesCache.set(skin, c);
+  return c;
+}

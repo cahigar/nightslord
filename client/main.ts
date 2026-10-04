@@ -12,6 +12,8 @@ import { ANIMS, getFrame, SH, SW } from './sprites';
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('game');
 const game = new Game(canvas);
+// acceso de depuración desde la consola (solo útil en modo desarrollo)
+(window as unknown as { __nl: unknown }).__nl = { game, net };
 
 const store = {
   get(k: string) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -23,6 +25,7 @@ let selChar = (store.get('nl_char') as CharacterId) || 'vampire';
 let selSkin = store.get('nl_skin') || 'classic';
 let inGame = false;
 let myId = -1;
+let devMode = false;
 
 // ---------------------------------------------------------------------------
 // Canvas y bucle
@@ -73,7 +76,7 @@ function buildChars(container: HTMLElement, small = false) {
   container.innerHTML = '';
   for (const id of CHARACTER_IDS) {
     const def = CHARACTERS[id];
-    const owned = profile ? hasCharacter(profile, id) : CHARACTER_UNLOCK[id].price === 0;
+    const owned = devMode || (profile ? hasCharacter(profile, id) : CHARACTER_UNLOCK[id].price === 0);
     const el = document.createElement('div');
     el.className = `char${selChar === id ? ' sel' : ''}${owned ? '' : ' locked'}`;
     const cv = document.createElement('canvas');
@@ -108,14 +111,17 @@ function buildCharInfo() {
     <div><b>${d.attackName}</b> · ${d.passive}</div>
     <div><b>Q ${d.abilities[0].name}</b> · ${d.abilities[0].desc}</div>
     <div><b>E ${d.abilities[1].name}</b> · ${d.abilities[1].desc}</div>
+    <div><b>R ${d.ult.name}</b> · ${d.ult.desc}</div>
+    <div class="evo">${d.evolution.map((ev) => `<span><b>Nv ${ev.lvl}</b> ${ev.name}</span>`).join('')}</div>
     <div class="stats">Vida ${d.hp} · Velocidad ${d.speed} · Daño ${d.damage}${d.armor ? ` · Armadura ${Math.round(d.armor * 100)}%` : ''}</div>`;
+  $('charinfo').title = d.evolution.map((ev) => `Nivel ${ev.lvl} · ${ev.name}: ${ev.desc}`).join('\n');
 }
 
 function buildSkins() {
   const box = $('skins');
   box.innerHTML = '';
   for (const s of SKINS[selChar]) {
-    const owned = profile ? hasSkin(profile, selChar, s) : s.price === 0 && !s.medal;
+    const owned = devMode || (profile ? hasSkin(profile, selChar, s) : s.price === 0 && !s.medal);
     const el = document.createElement('div');
     el.className = `skin${selSkin === s.id ? ' sel' : ''}${owned ? '' : ' locked'}`;
     const medal = s.medal ? MEDAL_BY_ID[s.medal] : null;
@@ -144,8 +150,8 @@ function buildMedals() {
 
 function refreshMenu() {
   previews.length = 0;
-  if (profile && !hasCharacter(profile, selChar)) { selChar = 'vampire'; selSkin = 'classic'; }
-  if (profile) {
+  if (profile && !devMode && !hasCharacter(profile, selChar)) { selChar = 'vampire'; selSkin = 'classic'; }
+  if (profile && !devMode) {
     const sk = SKINS[selChar].find((s) => s.id === selSkin);
     if (!sk || !hasSkin(profile, selChar, sk)) selSkin = 'classic';
   }
@@ -167,7 +173,9 @@ function toast(html: string) {
   const t = document.createElement('div');
   t.className = 'toast';
   t.innerHTML = html;
-  $('toast').appendChild(t);
+  const box = $('toast');
+  box.appendChild(t);
+  while (box.children.length > 3) box.firstChild?.remove();
   setTimeout(() => t.remove(), 4600);
 }
 
@@ -210,8 +218,9 @@ function buildAbilities() {
     { key: '🖱', name: d.attackName },
     { key: 'Q', name: d.abilities[0].name },
     { key: 'E', name: d.abilities[1].name },
+    { key: 'R', name: d.ult.name },
   ];
-  $('abilities').innerHTML = items.map((a, i) => `<div class="ab" id="ab${i}"><span class="key">${a.key}</span>${a.name}<div class="cdov"></div><div class="cdt"></div></div>`).join('');
+  $('abilities').innerHTML = items.map((a, i) => `<div class="ab${i === 3 ? ' ult' : ''}" id="ab${i}"><span class="key">${a.key}</span>${a.name}<div class="cdov"></div><div class="cdt"></div>${i === 3 ? '<div class="charge"><div></div></div>' : ''}</div>`).join('');
 }
 
 let lastUpKey = '';
@@ -231,9 +240,22 @@ function updateHud() {
     (el.querySelector('.cdov') as HTMLElement).style.height = `${(r / m) * 100}%`;
     (el.querySelector('.cdt') as HTMLElement).textContent = r > 0.05 && i > 0 ? r.toFixed(1) : '';
     el.classList.toggle('ready', r <= 0);
+    if (i === 1 && y.qcm) (el.querySelector('.cdt') as HTMLElement).textContent = `${y.qc}/${y.qcm}${r > 0.05 && (y.qc ?? 0) < y.qcm ? ' ' + r.toFixed(0) : ''}`;
   }
-  const BUFF_NAMES: Record<string, string> = { speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', protect: '✨Protegido', slow: '🐌Lento', stun: '💫Aturdido' };
-  $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${BUFF_NAMES[b.t] ?? b.t} ${Math.ceil(b.r)}</span>`).join('');
+  // definitiva: bloqueada hasta nivel 10 y se carga con bajas
+  const ultEl = document.getElementById('ab3');
+  if (ultEl) {
+    const locked = y.tier < 2;
+    ultEl.classList.toggle('locked', locked);
+    ultEl.classList.toggle('ready', !locked && y.ult >= 100 && y.ultOn <= 0);
+    ultEl.classList.toggle('active', y.ultOn > 0);
+    (ultEl.querySelector('.charge div') as HTMLElement).style.width = `${locked ? 0 : y.ult}%`;
+    (ultEl.querySelector('.cdov') as HTMLElement).style.height = '0%';
+    (ultEl.querySelector('.cdt') as HTMLElement).textContent = locked ? 'Nv 10' : y.ultOn > 0 ? y.ultOn.toFixed(0) : y.ult >= 100 ? '¡R!' : `${y.ult}%`;
+  }
+  $('lvl').classList.toggle('t1', y.tier === 1); $('lvl').classList.toggle('t2', y.tier === 2); $('lvl').classList.toggle('t3', y.tier >= 3);
+  const BUFF_NAMES: Record<string, string> = { speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', invisAuto: '👻Presencia ausente', protect: '✨Protegido', slow: '🐌Lento', stun: '💫Aturdido', frenzy: '💨Frenesí', haste: '💨Sed', vuln: '💔Vulnerable', tomb: '⚱️Sarcófago' };
+  $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${BUFF_NAMES[b.t] ?? b.t}${b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
   const upKey = `${y.up}|${Object.values(y.ups).join(',')}`;
   if (upKey !== lastUpKey) {
     lastUpKey = upKey;
@@ -258,6 +280,12 @@ function escapeHtml(s: string) {
 }
 
 function onGameEvent(ev: GameEvent) {
+  if (ev.e === 'fx' && ev.f === 'evolve' && ev.o === myId && (ev.n ?? 0) > 0) {
+    const ch = (ev.c ?? selChar) as CharacterId;
+    const m = CHARACTERS[ch]?.evolution[(ev.n ?? 1) - 1];
+    if (m) toast(`✨ Nivel ${m.lvl}: <b>${m.name}</b><br><span style="font-family:var(--vt);font-size:18px">${m.desc}</span>`);
+    return;
+  }
   if (ev.e === 'kill') {
     const d = document.createElement('div');
     const icon = ev.vk === Kind.Helsing ? '🏹' : '💀';
@@ -273,6 +301,10 @@ game.onEvent = onGameEvent;
 input.onKey = (code) => {
   if (code === 'KeyM') { $('mute').textContent = toggleMute() ? '🔇' : '🔊'; return; }
   if (!inGame) return;
+  if (devMode && input.keys.has('ShiftLeft') || devMode && input.keys.has('ShiftRight')) {
+    if (code === 'KeyL') { const lv = game.you?.lvl ?? 1; net.send({ t: 'cheat', lvl: lv < 5 ? 5 : lv < 10 ? 10 : lv < 15 ? 15 : lv + 1 }); return; }
+    if (code === 'KeyU') { net.send({ t: 'cheat', ult: true }); return; }
+  }
   if (code === 'KeyG') net.send({ t: 'emote', e: 'wave' });
   if (code === 'KeyT') net.send({ t: 'emote', e: 'taunt' });
   const up = UPGRADES.find((u) => `Digit${u.key}` === code || `Numpad${u.key}` === code);
@@ -303,6 +335,8 @@ $('tomenu').onclick = () => net.send({ t: 'leave' });
 net.on((m: ServerMsg) => {
   switch (m.t) {
     case 'welcome':
+      devMode = !!m.dev;
+    // falls through
     case 'profile':
       profile = m.profile;
       store.set('nl_token', m.profile.token);

@@ -9,10 +9,17 @@ export enum Anim { Idle = 0, Walk = 1, Attack = 2, Cast = 3, Wave = 4, Taunt = 5
 
 export enum Flag {
   Invisible = 1, Shield = 2, Stunned = 4, Slowed = 8, Buffed = 16, Protected = 32, Feared = 64, Mist = 128, Bounty = 256,
+  Ult = 512, // definitiva activa
+  Vulnerable = 1024, // recibe daño extra
+  Prey = 2048, // marcado como Presa (Lobo nv. 15)
+  Cursed = 4096, // marca de maldición (Ramsés nv. 5)
+  Entombed = 8192, // encerrado en un sarcófago
+  Panic = 16384, // humano en pánico
+  Haste = 32768, // frenesí / acelerón
 }
 
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp';
-export type ProjectileType = 'bat' | 'bandage' | 'bolt';
+export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm';
 
 export interface EntSnap {
   i: number; // id
@@ -29,17 +36,24 @@ export interface EntSnap {
   l?: number; // nivel
   n?: string; // nombre
   r?: number; // ángulo (proyectiles)
+  o?: number; // murciélagos orbitales disponibles (Conde nv. 15)
 }
 
 export type GameEvent =
   | { e: 'hit'; x: number; y: number; d: number; t: number; crit?: boolean }
   | { e: 'die'; x: number; y: number; k: Kind; c: string }
   | { e: 'sfx'; s: SfxId; x: number; y: number }
-  | { e: 'fx'; f: 'mist' | 'howl' | 'curse' | 'push' | 'lvl' | 'swing' | 'dash' | 'vanish'; x: number; y: number; r?: number; o?: number }
+  | { e: 'fx'; f: FxId; x: number; y: number; r?: number; o?: number; tx?: number; ty?: number; n?: number; c?: string; s?: string; d?: number }
   | { e: 'kill'; a: string; v: string; ak: Kind; vk: Kind }
   | { e: 'pick'; x: number; y: number; p: PowerUpType };
 
-export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt';
+/** Efectos visuales. x,y origen; tx,ty destino; r ángulo o radio; o id del autor; n nivel/tier; c personaje; s skin; d duración. */
+export type FxId =
+  | 'mist' | 'howl' | 'curse' | 'push' | 'lvl' | 'swing' | 'dash' | 'vanish'
+  | 'drain' | 'ghosthit' | 'undress' | 'crimson' | 'moon' | 'storm' | 'entomb' | 'disguise' | 'surprise'
+  | 'mistTrail' | 'orbitBlock' | 'step' | 'prey' | 'curseMark' | 'evolve' | 'frenzy' | 'reveal';
+
+export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise';
 
 export interface YouState {
   id: number;
@@ -58,6 +72,11 @@ export interface YouState {
   coins: number; // monedas ganadas esta sesión
   cd: [number, number, number]; // enfriamiento restante: ataque, Q, E
   cdm: [number, number, number];
+  tier: number; // evolución 0..3 (niveles 5, 10, 15)
+  ult: number; // carga de la definitiva 0..100
+  ultOn: number; // segundos restantes de definitiva activa
+  qc?: number; // cargas de Q (si tiene más de una)
+  qcm?: number;
   up: number; // puntos de mejora disponibles
   ups: Record<UpgradeId, number>;
   kills: number;
@@ -73,6 +92,7 @@ export type ClientMsg =
   | { t: 'upgrade'; u: UpgradeId }
   | { t: 'respawn'; char?: CharacterId; skin?: string }
   | { t: 'leave' }
+  | { t: 'cheat'; lvl?: number; ult?: boolean; tp?: [number, number] } // solo en modo desarrollo
   | { t: 'buy'; item: string } // "char:<id>" o "skin:<char>:<id>"
   | { t: 'rooms' }
   | { t: 'ping'; c: number };
@@ -81,7 +101,7 @@ export type ClientMsg =
 export interface RoomInfo { code: string; players: number; max: number; theme: MapThemeId; priv: boolean }
 
 export type ServerMsg =
-  | { t: 'welcome'; profile: Profile }
+  | { t: 'welcome'; profile: Profile; dev?: boolean }
   | { t: 'profile'; profile: Profile }
   | { t: 'joined'; code: string; theme: MapThemeId; seed: number; priv: boolean; you: number }
   | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[] }

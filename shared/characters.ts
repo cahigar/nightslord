@@ -5,7 +5,7 @@
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible';
 
 export interface AbilityInfo {
-  key: 'Q' | 'E';
+  key: 'Q' | 'E' | 'R';
   name: string;
   desc: string;
   cooldown: number; // segundos
@@ -25,6 +25,12 @@ export interface CharacterDef {
   attackName: string;
   passive: string;
   abilities: [AbilityInfo, AbilityInfo];
+  /** Definitiva (R): se desbloquea al nivel 10 y se carga con bajas. */
+  ult: AbilityInfo;
+  /** Hitos de evolución (niveles 5, 10 y 15). */
+  evolution: { lvl: number; name: string; desc: string }[];
+  /** true si el ataque básico es a distancia (no usa range/arc). */
+  rangedBasic?: boolean;
 }
 
 export const CHARACTERS: Record<CharacterId, CharacterDef> = {
@@ -45,6 +51,12 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { key: 'Q', name: 'Murciélagos', desc: 'Lanza un abanico de 3 murciélagos.', cooldown: 6 },
       { key: 'E', name: 'Niebla', desc: 'Te teletransportas convertido en niebla, invulnerable 1 s.', cooldown: 9 },
     ],
+    ult: { key: 'R', name: 'Noche Carmesí', desc: '6 s de robo de vida extra, enfriamientos acelerados y pánico entre los humanos cercanos.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Sed de sangre', desc: 'El mordisco cura más y matar humanos te da un acelerón de 2 s.' },
+      { lvl: 10, name: 'Noche Carmesí', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Señor de los Murciélagos', desc: 'Q lanza 5 murciélagos, 2 murciélagos te orbitan bloqueando proyectiles y la Niebla deja una estela que ralentiza.' },
+    ],
   },
   werewolf: {
     id: 'werewolf',
@@ -63,6 +75,12 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { key: 'Q', name: 'Embestida', desc: 'Carga hacia delante dañando todo lo que tocas.', cooldown: 5 },
       { key: 'E', name: 'Aullido', desc: '+30 % daño y +20 % velocidad 5 s. Paraliza de miedo a los humanos.', cooldown: 12 },
     ],
+    ult: { key: 'R', name: 'Luna Llena', desc: '7 s en modo bestia: más grande, rápido y con más alcance. Cada baja alarga la luna 1 s.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Instinto depredador', desc: 'Las presas heridas (menos del 35 % de vida) dejan rastro y perseguirlas te acelera.' },
+      { lvl: 10, name: 'Luna Llena', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Bestia Alfa', desc: 'Embestida con 2 cargas y el Aullido marca a sus víctimas como Presa: tu primer zarpazo les hace daño extra.' },
+    ],
   },
   mummy: {
     id: 'mummy',
@@ -73,13 +91,20 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     damage: 20,
     range: 52,
     arc: Math.PI / 2,
-    attackCd: 0.55,
+    attackCd: 0.5,
     armor: 0.15,
-    attackName: 'Golpe vendado',
-    passive: 'Vendajes: 15 % menos de daño recibido.',
+    attackName: 'Escarabajos',
+    passive: 'Vendajes: 15 % menos de daño recibido. Sus escarabajos ralentizan.',
+    rangedBasic: true,
     abilities: [
       { key: 'Q', name: 'Vendas', desc: 'Lanza vendas que inmovilizan al objetivo 1,2 s.', cooldown: 6 },
       { key: 'E', name: 'Maldición', desc: 'Área de maldición: daño y ralentización 3 s.', cooldown: 11 },
+    ],
+    ult: { key: 'R', name: 'Tormenta del Faraón', desc: 'Tormenta de arena en línea recta que encierra a los enemigos en sarcófagos. Golpearlos te cura.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Maldición del faraón', desc: 'Cada 4.º escarabajo sobre un objetivo lo maldice: tu siguiente golpe lo ralentiza mucho más.' },
+      { lvl: 10, name: 'Tormenta del Faraón', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Faraón Despierto', desc: 'Las vendas rebotan a un segundo objetivo y la Maldición abarca más área.' },
     ],
   },
   invisible: {
@@ -94,10 +119,16 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackCd: 0.4,
     armor: 0,
     attackName: 'Puñetazo fantasma',
-    passive: 'El primer golpe tras desvanecerte hace daño doble.',
+    passive: 'El primer golpe desde la invisibilidad hace daño doble. Recibir daño o atacar te hace visible.',
     abilities: [
-      { key: 'Q', name: 'Desvanecer', desc: 'Invisible 4 s (solo te ven muy de cerca).', cooldown: 10 },
-      { key: 'E', name: 'Empujón', desc: 'Onda que aturde y empuja a todos los cercanos.', cooldown: 7 },
+      { key: 'Q', name: 'Desvestirse', desc: 'Tu ropa cae al suelo y quedas totalmente invisible 4 s.', cooldown: 10 },
+      { key: 'E', name: 'Frenesí invisible', desc: 'Más velocidad de movimiento y de ataque 4 s. No rompe la invisibilidad.', cooldown: 9 },
+    ],
+    ult: { key: 'R', name: 'Todos somos la Dama', desc: '15 s: los humanos cercanos se visten como tú. Quien mate a uno se lleva una sorpresa (aturdido y vulnerable).', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Presencia Ausente', desc: 'Tras 10 s sin atacar ni recibir daño te vuelves invisible sin límite de tiempo.' },
+      { lvl: 10, name: 'Todos somos la Dama', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Desaparición Perfecta', desc: 'Cada baja te vuelve invisible (si ya lo eras, reapareces 1 s y vuelves a esfumarte).' },
     ],
   },
 };

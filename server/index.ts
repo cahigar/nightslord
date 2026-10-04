@@ -12,6 +12,8 @@ import { store } from './store';
 import type { Conn } from './types';
 
 const PORT = Number(process.env.PORT ?? 3000);
+/** Modo desarrollo: permite trucos para probar (subir nivel, llenar la R). */
+const DEV = process.argv.includes('--dev') || process.env.NL_DEV === '1';
 const STATIC_DIR = resolve(process.env.STATIC_DIR ?? 'dist/client');
 
 const MIME: Record<string, string> = {
@@ -72,7 +74,7 @@ wss.on('connection', (ws: WebSocket) => {
       }
       const profile = store.getOrCreate(typeof msg.token === 'string' ? msg.token : undefined, cleanName(msg.name));
       conn = { id: nextConnId++, profile, name: profile.name, send, roomCode: null };
-      send({ t: 'welcome', profile });
+      send({ t: 'welcome', profile, dev: DEV });
       return;
     }
     if (msg.t === 'ping') { send({ t: 'pong', c: msg.c }); return; }
@@ -121,6 +123,9 @@ wss.on('connection', (ws: WebSocket) => {
         send({ t: 'left' });
         send({ t: 'profile', profile: c.profile });
         break;
+      case 'cheat':
+        if (DEV) room?.onCheat(c, typeof msg.lvl === 'number' ? msg.lvl : undefined, !!msg.ult, Array.isArray(msg.tp) ? msg.tp : undefined);
+        break;
       case 'buy':
         buy(c, String(msg.item ?? ''));
         break;
@@ -136,9 +141,9 @@ wss.on('connection', (ws: WebSocket) => {
 
 function validChoice(c: Conn, char: unknown, skin: unknown): { char: CharacterId; skin: string } {
   let ch = (CHARACTER_IDS.includes(char as CharacterId) ? char : 'vampire') as CharacterId;
-  if (!hasCharacter(c.profile, ch)) ch = 'vampire';
+  if (!DEV && !hasCharacter(c.profile, ch)) ch = 'vampire';
   const sk = SKINS[ch].find((s) => s.id === skin);
-  return { char: ch, skin: sk && hasSkin(c.profile, ch, sk) ? sk.id : SKINS[ch][0].id };
+  return { char: ch, skin: sk && (DEV || hasSkin(c.profile, ch, sk)) ? sk.id : SKINS[ch][0].id };
 }
 
 function buy(c: Conn, item: string) {
@@ -164,7 +169,7 @@ function buy(c: Conn, item: string) {
   c.send({ t: 'profile', profile: p });
 }
 
-server.listen(PORT, () => console.log(`🦇 El Señor de la Noche escuchando en http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`🦇 El Señor de la Noche escuchando en http://localhost:${PORT}${DEV ? ' (modo desarrollo: Mayús+L sube nivel, Mayús+U carga la R)' : ''}`));
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => { store.flush(); process.exit(0); });

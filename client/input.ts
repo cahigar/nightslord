@@ -1,8 +1,9 @@
 // Teclado + ratón + controles táctiles (joystick virtual) para móvil.
-import { BTN_ATTACK, BTN_E, BTN_Q } from '../shared/constants';
+import { BTN_ATTACK, BTN_E, BTN_Q, BTN_R } from '../shared/constants';
 
 export const input = {
   keys: new Set<string>(),
+  pulses: new Set<string>(), // pulsaciones rápidas que no deben perderse entre envíos de input
   mouseX: 0,
   mouseY: 0,
   mouseDown: false,
@@ -13,7 +14,7 @@ export const input = {
 export function setupInput(canvas: HTMLCanvasElement) {
   window.addEventListener('keydown', (e) => {
     if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
-    if (!input.keys.has(e.code)) input.onKey?.(e.code);
+    if (!input.keys.has(e.code)) { input.onKey?.(e.code); input.pulses.add(e.code); }
     input.keys.add(e.code);
     if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
   });
@@ -21,8 +22,8 @@ export function setupInput(canvas: HTMLCanvasElement) {
   window.addEventListener('blur', () => { input.keys.clear(); input.mouseDown = false; });
   canvas.addEventListener('mousemove', (e) => { input.mouseX = e.clientX; input.mouseY = e.clientY; });
   canvas.addEventListener('mousedown', (e) => {
-    if (e.button === 0) input.mouseDown = true;
-    if (e.button === 2) input.keys.add('KeyQ');
+    if (e.button === 0) { input.mouseDown = true; input.pulses.add('Mouse0'); }
+    if (e.button === 2) { input.keys.add('KeyQ'); input.pulses.add('KeyQ'); }
   });
   window.addEventListener('mouseup', (e) => {
     if (e.button === 0) input.mouseDown = false;
@@ -69,7 +70,7 @@ function setupTouch() {
     el.addEventListener('touchstart', (e) => { input.touch.buttons |= bit; e.preventDefault(); }, { passive: false });
     el.addEventListener('touchend', () => { input.touch.buttons &= ~bit; });
   };
-  bind('tb-atk', BTN_ATTACK); bind('tb-q', BTN_Q); bind('tb-e', BTN_E);
+  bind('tb-atk', BTN_ATTACK); bind('tb-q', BTN_Q); bind('tb-e', BTN_E); bind('tb-r', BTN_R);
   document.getElementById('tb-emote')!.addEventListener('touchstart', () => input.onKey?.('KeyT'));
 }
 
@@ -87,8 +88,11 @@ export function readMove(): { mx: number; my: number } {
 
 export function readButtons(): number {
   let b = input.touch.buttons;
-  if (input.mouseDown || input.keys.has('Space')) b |= BTN_ATTACK;
-  if (input.keys.has('KeyQ')) b |= BTN_Q;
-  if (input.keys.has('KeyE')) b |= BTN_E;
+  const k = (c: string) => input.keys.has(c) || input.pulses.has(c);
+  if (input.mouseDown || input.pulses.has('Mouse0') || k('Space')) b |= BTN_ATTACK;
+  if (k('KeyQ')) b |= BTN_Q;
+  if (k('KeyE')) b |= BTN_E;
+  if (k('KeyR')) b |= BTN_R;
+  input.pulses.clear();
   return b;
 }

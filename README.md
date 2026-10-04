@@ -39,6 +39,14 @@ Producción local / demo: `npm run demo` (compila y arranca) → <http://localho
 
 Nota: el navegador ralentiza las pestañas que no están visibles, así que usa ventanas separadas para ver las dos a la vez.
 
+### Modo desarrollo (trucos para probar)
+
+`npm run dev` y `npm run demo` arrancan el servidor con `--dev`: todos los monstruos y skins quedan desbloqueados y puedes usar
+**Mayús+L** (subir al siguiente hito de nivel: 5 → 10 → 15) y **Mayús+U** (llenar la carga de la R).
+Para producción usa `npm start` (sin trucos).
+
+Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.ts` sube cada monstruo a nivel 15 y usa todo su kit.
+
 ## Controles
 
 | Acción | Teclado/ratón | Móvil |
@@ -47,22 +55,37 @@ Nota: el navegador ralentiza las pestañas que no están visibles, así que usa 
 | Apuntar | ratón | dirección del joystick |
 | Ataque básico | clic izq. / Espacio | ⚔ |
 | Habilidades | Q (o clic dcho.) / E | Q / E |
+| Definitiva (desde nivel 10) | R | R |
 | Mejoras al subir de nivel | 1 · 2 · 3 · 4 | tocar la tarjeta |
 | Saludar / Taunt | G / T | 😜 |
 | Silenciar | M | |
 
-## Contenido actual (prototipo v0.1)
+## Contenido actual (v0.3)
 
 **Monstruos**
 
-| | Ataque | Q | E | Desbloqueo |
-|---|---|---|---|---|
-| 🧛 El Conde (vampiro) | Mordisco con robo de vida | Murciélagos (abanico) | Niebla (teletransporte invulnerable) | gratis |
-| 🐺 Lobo de Luna | Zarpazo amplio | Embestida | Aullido (buff + miedo) | gratis |
-| 🧟 Ramsés (momia) | Golpe, 15 % armadura | Vendas (inmoviliza) | Maldición (área + ralentiza) | 250 🪙 o medalla 🏹 |
-| 👻 La Dama Velada | Puñetazo | Desvanecer (invisible, golpe x2) | Empujón (aturde) | 400 🪙 o medalla 💀 |
+| | Ataque | Q | E | R (nv. 10) | Desbloqueo |
+|---|---|---|---|---|---|
+| 🧛 El Conde | Mordisco con robo de vida | Murciélagos | Niebla | Noche Carmesí | gratis |
+| 🐺 Lobo de Luna | Zarpazo amplio | Embestida | Aullido | Luna Llena | gratis |
+| 🧟 Ramsés | Escarabajos a distancia que ralentizan | Vendas | Maldición | Tormenta del Faraón | 250 🪙 o medalla 🏹 |
+| 👻 La Dama Velada | Puñetazo fantasma | Desvestirse | Frenesí invisible | Todos somos la Dama | 400 🪙 o medalla 💀 |
+
+**Evolución por niveles** (cada monstruo conserva su identidad):
+
+| Nivel | Qué cambia |
+|---|---|
+| 5 | Mejora de la pasiva (Sed de sangre · Instinto depredador · Maldición del faraón · Presencia Ausente). Ojos más intensos. |
+| 10 | Se desbloquea la **R**. Aura de partículas y detalles que brillan. |
+| 15 | Mejora de Q/E (Señor de los Murciélagos · Bestia Alfa · Faraón Despierto · Desaparición Perfecta). El Conde y la Dama levitan; Lobo y Ramsés irradian luz. |
+| 15+ | Solo estadísticas, como antes. |
+
+**La R se carga con bajas**, no con el tiempo: humano +4 %, otro monstruo +25 %, Helsing +40 % (al llegar al nivel 10 empieza con un 30 %). Todos los números están en `shared/balance.ts`.
 
 **Mapas** (procedurales con semilla): Calle del Olmo, Transilvania, Campamento Lago Sereno.
+- **Agua en todos**: estanque y piscinas (Olmo), río con puentes (Transilvania), lago (Campamento). Se consulta con `map.water`, `waterAt(map, x, y)` y `obstacle.body`.
+- **Televisiones** como entidades localizables (`map.tvs`): en ventanas de casas y cabañas, en escaparates de tiendas de electrodomésticos y abandonadas a la intemperie.
+- **Bordes temáticos**: el mundo continúa fuera del área jugable (bosque denso, agua profunda, acantilados, vallas, muros, casas, cementerios) y se pierde en una niebla espesa.
 
 **Entidades**: humanos que huyen y gritan (variantes por mapa), Helsing con ballesta y estaca que te persiguen, 6 power-ups (sangre, rapidez, furia, escudo, monedas, XP).
 
@@ -73,10 +96,10 @@ Nota: el navegador ralentiza las pestañas que no están visibles, así que usa 
 ## Arquitectura
 
 ```
-shared/   tipos y lógica común: protocolo, personajes, skins, catálogo, mapas, colisiones
-server/   Node + ws: RoomManager, Room (simulación 20 Hz), store (perfiles JSON)
-client/   Canvas 2D: game (predicción + interpolación + render), sprites, tiles, audio, input, UI
-tools/    bots de carga
+shared/   tipos y lógica común: protocolo, personajes, balance, skins, catálogo, mapas, ruido, colisiones
+server/   Node + ws: RoomManager, Room (simulación 20 Hz, estados genéricos), kits/ (habilidades por monstruo), store
+client/   Canvas 2D: game (predicción + interpolación + render), effects (efectos temáticos), sprites, tiles, terrain, ambient, audio, input, UI
+tools/    bots de carga y simtest (prueba de kits sin red)
 ```
 
 - **Servidor autoritativo** a 20 ticks/s; snapshots a 10 Hz con *interest management* (solo entidades en un radio de ~1150 px) → ~20-25 KB/s por jugador.
@@ -87,7 +110,13 @@ tools/    bots de carga
 ### Cómo añadir contenido sin coste de arte
 
 - **Skin nueva**: añade una entrada con una paleta en `SKINS` (`shared/characters.ts`). Nada más.
-- **Monstruo nuevo**: stats + habilidades en `CHARACTERS`, una función "forma" en `client/sprites.ts` (cabeza, ropa y extras sobre el esqueleto común) y su `case` de habilidades en `server/Room.ts`. Todas las animaciones (idle, andar, ataque, cast, saludo, taunt, daño) se heredan automáticamente porque todos comparten las mismas poses.
+- **Monstruo nuevo**:
+  1. Textos, stats, R y hitos en `CHARACTERS` (`shared/characters.ts`) y sus números en `shared/balance.ts`.
+  2. Un kit en `server/kits/` (ataque, Q, E, R y ganchos como `onKill`, `speedMul`, `onProjectileHit`…) registrado en `kits/index.ts`.
+  3. Una función "forma" en `client/sprites.ts` (cabeza, ropa y extras sobre el esqueleto común) que recibe el tier de evolución.
+  4. Sus efectos en `client/effects.ts`.
+
+  Todas las animaciones (idle, andar, ataque, cast, saludo, taunt, daño) se heredan automáticamente, y los estados genéricos de la sala (vulnerable, presa, marca, sarcófago, pánico, ralentización con intensidad) se pueden reutilizar.
 - **Mapa nuevo**: un tema en `THEMES` + su rama de generación en `generateMap` (`shared/maps.ts`) y el arte de sus obstáculos en `client/tiles.ts`.
 
 ## Despliegue (bajo coste / gratis)

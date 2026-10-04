@@ -9,15 +9,30 @@ export type MapThemeId = 'elm' | 'transylvania' | 'camp';
 export type ObstacleType =
   | 'house' | 'fence' | 'tree' | 'car' | 'hedge' | 'lamp' | 'mailbox'
   | 'wall' | 'tomb' | 'crypt' | 'deadtree' | 'tower' | 'brazier' | 'well' | 'statue'
-  | 'cabin' | 'pine' | 'water' | 'canoe' | 'rock' | 'firepit' | 'log';
+  | 'cabin' | 'pine' | 'water' | 'canoe' | 'rock' | 'firepit' | 'log'
+  | 'shop' | 'barricade';
 
 export type DecorType =
   | 'bones' | 'pumpkin' | 'candle' | 'skull' | 'tricycle' | 'cross' | 'mushroom' | 'stump' | 'lantern' | 'sign';
 
-export interface Obstacle { x: number; y: number; w: number; h: number; type: ObstacleType; v: number }
+export interface Obstacle { x: number; y: number; w: number; h: number; type: ObstacleType; v: number; body?: number }
 export interface Decor { x: number; y: number; type: DecorType; v: number }
 export interface Trail { pts: [number, number][]; w: number; kind: 'road' | 'dirt' | 'cobble' }
 export interface Lake { cx: number; cy: number; rx: number; ry: number; seed: number }
+
+/** Agua: tipo de terreno identificable para futuros personajes (nadar, aparecer, etc.). */
+export type WaterKind = 'lake' | 'pond' | 'pool' | 'river';
+export interface WaterBody { id: number; kind: WaterKind; x: number; y: number; w: number; h: number }
+export interface River { pts: [number, number][]; w: number; seed: number; bridges: { x: number; y: number }[] }
+export interface Pool { x: number; y: number; w: number; h: number }
+
+/** Televisión: entidad localizable para futuros teletransportes. host = índice del obstáculo que la contiene (-1 si está al aire libre). */
+export interface TV { id: number; x: number; y: number; w: number; h: number; kind: 'window' | 'shop' | 'outdoor'; host: number }
+
+/** Cómo se ve cada borde del mapa (el mundo continúa más allá, pero no se puede pasar). */
+export type EdgeKind = 'forest' | 'water' | 'cliff' | 'fence' | 'wall' | 'houses' | 'hedge' | 'graves';
+export type Side = 'n' | 's' | 'e' | 'w';
+export const BORDER_DEPTH = 720; // franja visual fuera del área jugable
 
 export interface MapTheme {
   id: MapThemeId;
@@ -45,6 +60,15 @@ export interface GameMap {
   lakes: Lake[];
   /** Zonas especiales para el terreno (patio del castillo, claro del campamento...). */
   plazas: { x: number; y: number; w: number; h: number; kind: 'stone' | 'dirt' }[];
+  rivers: River[];
+  pools: Pool[];
+  /** Todas las masas de agua jugables (lago, estanque, piscina, río). */
+  water: WaterBody[];
+  /** Todas las televisiones del mapa. */
+  tvs: TV[];
+  edges: Record<Side, EdgeKind>;
+  /** Obstáculos decorativos fuera del área jugable (solo visuales). */
+  border: Obstacle[];
 }
 
 // ---------------------------------------------------------------------------
@@ -70,12 +94,28 @@ export function lakeValue(l: Lake, x: number, y: number) {
   return 1 - d + (fbm(x, y, l.seed, 260, 3) - 0.5) * 0.7;
 }
 
+/** Valor >0 dentro del río. */
+export function riverValue(r: River, x: number, y: number) {
+  let d = Infinity;
+  for (let i = 1; i < r.pts.length; i++) d = Math.min(d, distToSegment(x, y, r.pts[i - 1][0], r.pts[i - 1][1], r.pts[i][0], r.pts[i][1]));
+  return r.w / 2 - d + (fbm(x, y, r.seed, 120, 2) - 0.5) * 22;
+}
+
+export function onBridge(r: River, x: number, y: number) {
+  for (const b of r.bridges) if (Math.abs(x - b.x) < 46 && Math.abs(y - b.y) < r.w) return true;
+  return false;
+}
+
+/** ¿Hay agua jugable en este punto? (lagos, estanques, ríos, piscinas) */
 export function waterAt(map: GameMap, x: number, y: number) {
   for (const l of map.lakes) if (lakeValue(l, x, y) > 0) return true;
+  for (const r of map.rivers) if (riverValue(r, x, y) > 0 && !onBridge(r, x, y)) return true;
+  for (const p of map.pools) if (x > p.x && x < p.x + p.w && y > p.y && y < p.y + p.h) return true;
   return false;
 }
 
 const MARGIN = 100;
+const hashTV = (o: Obstacle) => { const n = Math.sin(o.x * 12.9898 + o.y * 78.233) * 43758.5453; return n - Math.floor(n); };
 
 class Placer {
   obs: Obstacle[] = [];
@@ -152,6 +192,140 @@ function lakeObstacles(l: Lake): Obstacle[] {
   return out;
 }
 
+/** Río serpenteante: rectángulos de colisión (sin cubrir los puentes). */
+function riverObstacles(r: River): Obstacle[] {
+  const C = 40, out: Obstacle[] = [];
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of r.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  x0 = Math.max(0, Math.floor((x0 - r.w) / C) * C); y0 = Math.max(0, Math.floor((y0 - r.w) / C) * C);
+  x1 = Math.min(MAP_SIZE, x1 + r.w); y1 = Math.min(MAP_SIZE, y1 + r.w);
+  for (let y = y0; y < y1; y += C) {
+    let run = -1;
+    for (let x = x0; x <= x1 + C; x += C) {
+      const cx = x + C / 2, cy = y + C / 2;
+      const inside = x <= x1 && riverValue(r, cx, cy) > 6 && !r.bridges.some((b) => Math.abs(cx - b.x) < 70 && Math.abs(cy - b.y) < r.w + 20);
+      if (inside && run < 0) run = x;
+      if (!inside && run >= 0) { out.push({ x: run, y, w: x - run, h: C, type: 'water', v: 0 }); run = -1; }
+    }
+  }
+  return out;
+}
+
+/** Puentes donde los caminos cruzan el río. */
+function findBridges(r: River, trails: Trail[]) {
+  for (const t of trails) {
+    for (let i = 1; i < t.pts.length; i++) {
+      const [ax, ay] = t.pts[i - 1], [bx, by] = t.pts[i];
+      const n = Math.ceil(Math.hypot(bx - ax, by - ay) / 12);
+      let best: { x: number; y: number; v: number } | null = null;
+      for (let k = 0; k <= n; k++) {
+        const x = ax + ((bx - ax) * k) / n, y = ay + ((by - ay) * k) / n;
+        const v = riverValue(r, x, y);
+        if (v > -10 && (!best || v > best.v)) best = { x, y, v };
+        else if (best && v < -40) { if (!r.bridges.some((b) => Math.hypot(b.x - best!.x, b.y - best!.y) < 150)) r.bridges.push({ x: best.x, y: best.y }); best = null; }
+      }
+      if (best && !r.bridges.some((b) => Math.hypot(b.x - best!.x, b.y - best!.y) < 150)) r.bridges.push({ x: best.x, y: best.y });
+    }
+  }
+}
+
+/** Ventanas de las fachadas (coinciden con el arte de client/tiles.ts, en píxeles de arte de 3 px). */
+export const FACADE = {
+  house: { F: 18, winY: 4, winW: 6, winH: 7, firstX: 4, stepX: 13 },
+  cabin: { winX: 5, winYFromBase: 12, winW: 7, winH: 6 },
+  shop: { F: 26, winX: 4, winY: 5, winRight: 20, winH: 13 },
+};
+
+function houseTV(o: Obstacle, idx: number, id: number): TV | null {
+  const W = Math.ceil(o.w / 3), H = Math.ceil(o.h / 3), f = FACADE.house;
+  for (let wx = f.firstX; wx < W - 10; wx += f.stepX) {
+    if (Math.abs(wx + 3 - W / 2) < 7) continue;
+    return { id, x: o.x + wx * 3, y: o.y + (H - f.F + f.winY) * 3, w: f.winW * 3, h: f.winH * 3, kind: 'window', host: idx };
+  }
+  return null;
+}
+
+/** Franja exterior temática: el mundo continúa, pero se entiende que no se puede pasar. */
+function buildBorder(r: Rng, theme: MapThemeId, edges: Record<Side, EdgeKind>, trails: Trail[]): Obstacle[] {
+  const S = MAP_SIZE, D = BORDER_DEPTH, out: Obstacle[] = [];
+  const treeType: ObstacleType = theme === 'elm' ? 'tree' : theme === 'transylvania' ? 'deadtree' : 'pine';
+  const nearRoad = (x: number, y: number, pad: number) => trails.some((t) => t.kind === 'road' && distToTrail(t, x, y) < t.w / 2 + pad);
+  const add = (type: ObstacleType, x: number, y: number, w: number, h: number, v = rint(r, 0, 3)) => {
+    if (nearRoad(x + w / 2, y + h / 2, Math.max(w, h) / 2 + 6)) return;
+    out.push({ x: Math.round(x), y: Math.round(y), w, h, type, v });
+  };
+  // cada lado: recorre su longitud; 'dOut' = distancia hacia fuera del mapa
+  const sides: Side[] = ['n', 's', 'w', 'e'];
+  for (const side of sides) {
+    const kind = edges[side];
+    const horiz = side === 'n' || side === 's';
+    const len0 = horiz ? -D : 0, len1 = horiz ? S + D : S;
+    const at = (l: number, dOut: number, w: number, h: number): [number, number] => {
+      switch (side) {
+        case 'n': return [l, -dOut - h];
+        case 's': return [l, S + dOut];
+        case 'w': return [-dOut - w, l];
+        default: return [S + dOut, l];
+      }
+    };
+    const line = (type: ObstacleType, segW: number, thick: number, dOut: number, v = 1) => {
+      for (let l = len0; l < len1; l += segW) {
+        const [x, y] = at(l, dOut, horiz ? segW : thick, horiz ? thick : segW);
+        add(type, x, y, horiz ? segW : thick, horiz ? thick : segW, v);
+      }
+    };
+    const fill = (type: ObstacleType, w: number, h: number, step: number, from: number, to: number, density = 1) => {
+      for (let l = len0; l < len1; l += step) for (let d = from; d < to; d += step) {
+        if (r() > density) continue;
+        const [x, y] = at(l + rrange(r, -step * 0.35, step * 0.35), d + rrange(r, -step * 0.3, step * 0.3), w, h);
+        add(type, x, y, w, h);
+      }
+    };
+    switch (kind) {
+      case 'forest':
+        fill(treeType, 52, 52, 46, 8, 160, 1); // barrera densa
+        fill(treeType, 52, 52, 70, 160, D, 0.85);
+        break;
+      case 'hedge':
+        line('hedge', 160, 26, 14);
+        fill('tree', 56, 56, 110, 120, D, 0.6);
+        break;
+      case 'fence':
+        line('fence', 200, 22, 18, theme === 'elm' ? 0 : 1);
+        fill(treeType, 52, 52, 120, 140, D, 0.55);
+        break;
+      case 'wall':
+        line('wall', 200, 40, 10, 0);
+        fill(treeType, 50, 50, 100, 120, D, 0.6);
+        break;
+      case 'houses':
+        line('fence', 200, 22, 18, 0);
+        for (let l = len0 + 40; l < len1; l += rint(r, 250, 300)) { const [x, y] = at(l, 230, 200, 150); add('house', x, y, 200, 150); }
+        fill('tree', 56, 56, 140, 420, D, 0.5);
+        break;
+      case 'graves':
+        line('fence', 200, 20, 16, 1);
+        fill('tomb', 28, 34, 64, 90, 480, 0.75);
+        fill('deadtree', 50, 50, 120, 480, D, 0.6);
+        break;
+      case 'cliff':
+        for (let l = len0; l < len1; l += rint(r, 50, 80)) { const [x, y] = at(l, rrange(r, 0, 26), 46, 36); add('rock', x, y, 46, 36); }
+        break;
+      case 'water':
+        for (let l = len0; l < len1; l += rint(r, 160, 320)) { const [x, y] = at(l, rrange(r, 4, 20), 44, 34); add('rock', x, y, 44, 34); }
+        break;
+    }
+  }
+  // vallas de obra donde las calles salen del mapa
+  for (const t of trails) {
+    if (t.kind !== 'road') continue;
+    const [ax, ay] = t.pts[0], [bx, by] = t.pts[t.pts.length - 1];
+    if (ax === bx) { out.push({ x: ax - 60, y: -40, w: 120, h: 20, type: 'barricade', v: 0 }); out.push({ x: ax - 60, y: S + 20, w: 120, h: 20, type: 'barricade', v: 0 }); }
+    if (ay === by) { out.push({ x: -40, y: ay - 60, w: 20, h: 120, type: 'barricade', v: 1 }); out.push({ x: S + 20, y: ay - 60, w: 20, h: 120, type: 'barricade', v: 1 }); }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 export function generateMap(theme: MapThemeId, seed: number): GameMap {
   const r = mulberry32(seed);
@@ -160,14 +334,20 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
   const lakes: Lake[] = [];
   const plazas: GameMap['plazas'] = [];
   const decor: Decor[] = [];
+  const rivers: River[] = [];
+  const pools: Pool[] = [];
+  const tvs: TV[] = [];
+  const shops: Obstacle[] = [];
   let P: Placer;
 
   if (theme === 'elm') {
     // Cuadrícula de calles con desplazamientos por semilla
     const xs = [1, 2, 3].map((i) => i * 800 + rint(r, -90, 90));
     const ys = [1, 2, 3].map((i) => i * 800 + rint(r, -90, 90));
-    for (const x of xs) trails.push({ pts: [[x, 40], [x, S - 40]], w: 110, kind: 'road' });
-    for (const y of ys) trails.push({ pts: [[40, y], [S - 40, y]], w: 110, kind: 'road' });
+    // las calles siguen más allá del borde del mapa (el barrio continúa)
+    for (const x of xs) trails.push({ pts: [[x, -BORDER_DEPTH], [x, S + BORDER_DEPTH]], w: 110, kind: 'road' });
+    for (const y of ys) trails.push({ pts: [[-BORDER_DEPTH, y], [S + BORDER_DEPTH, y]], w: 110, kind: 'road' });
+    const shopLots = new Set([rint(r, 0, 15), rint(r, 0, 15)]);
     // Un parque con estanque en una manzana aleatoria
     const parkBx = rint(r, 0, 3), parkBy = rint(r, 0, 3);
     const bxEdges = [0, ...xs, S], byEdges = [0, ...ys, S];
@@ -185,12 +365,25 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
       }
       const lots: [number, number][] = [[x0, y0], [(x0 + x1) / 2, y0], [x0, (y0 + y1) / 2], [(x0 + x1) / 2, (y0 + y1) / 2]];
       const lw = (x1 - x0) / 2, lh = (y1 - y0) / 2;
+      let lotN = 0;
       for (const [lx, ly] of lots) {
+        // tienda de electrodomésticos con televisiones en el escaparate
+        if (lotN++ === 0 && shopLots.has(bx * 4 + by)) {
+          const sw = 210, sh = 132;
+          const o = P.tryAdd('shop', lx + (lw - sw) / 2, ly + (lh - sh) / 2, sw, sh, 30);
+          if (o) { shops.push(o); continue; }
+        }
         if (r() < 0.18) { P.scatter('tree', 3, 60, 60, 30, [lx, ly, lw, lh]); continue; }
         const hw = rint(r, 170, 220), hh = rint(r, 130, 160);
         const hx = lx + (lw - hw) / 2 + rint(r, -20, 20), hy = ly + (lh - hh) / 2 + rint(r, -15, 15);
         if (!P.tryAdd('house', hx, hy, hw, hh, 30)) continue;
         if (r() < 0.5) P.tryAdd('car', hx + hw + 20, hy + hh - 90, 50, 90, 10);
+        // piscina en el patio trasero
+        if (r() < 0.22) {
+          const pw = rint(r, 100, 130), ph = rint(r, 56, 70);
+          const pool = P.tryAdd('water', hx + hw / 2 - pw / 2, hy - ph - 34, pw, ph, 14, 10);
+          if (pool) pools.push({ x: pool.x, y: pool.y, w: pool.w, h: pool.h });
+        }
         if (r() < 0.6) P.tryAdd('hedge', hx - 10, hy + hh + 30, rint(r, 90, 150), 26, 10);
         if (r() < 0.5) P.tryAdd('fence', lx + 10, ly + lh - 30, lw - 40, 22, 10);
         P.tryAdd('mailbox', hx + hw / 2 - 60, hy + hh + 40, 14, 14, 10);
@@ -211,7 +404,21 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     trails.push(windingTrail(r, gate, [rrange(r, 300, S - 300), S - 40], 90, 'cobble'));
     trails.push(windingTrail(r, gate, [40, rrange(r, 600, S - 600)], 80, 'cobble'));
     trails.push(windingTrail(r, gate, [S - 40, rrange(r, 600, S - 600)], 80, 'cobble'));
-    P = new Placer(r, trails, (x, y) => x > cx - 60 && x < cx + 860 && y > cy - 60 && y < cy + 700);
+    // río que cruza el valle por debajo del castillo (con puentes donde pasan los caminos)
+    const ry = Math.min(S - 260, cy + 640 + rrange(r, 200, 380));
+    const river: River = { ...windingTrail(r, [-BORDER_DEPTH, ry + rrange(r, -150, 150)], [S + BORDER_DEPTH, ry + rrange(r, -150, 150)], 0, 'dirt', 260), w: 96, seed: seed + 21, bridges: [] };
+    for (const pt of river.pts) pt[1] = Math.max(cy + 790, Math.min(S - 160, pt[1])); // siempre por debajo del castillo
+    findBridges(river, trails);
+    // al menos tres pasos (puentes de madera) repartidos a lo ancho
+    for (const fx of [0.16, 0.5, 0.84].map((f) => f * S)) {
+      if (river.bridges.some((b) => Math.abs(b.x - fx) < 380)) continue;
+      let best = { y: 0, v: -Infinity };
+      for (let y = cy + 700; y < S - 60; y += 8) { const v = riverValue(river, fx, y); if (v > best.v) best = { y, v }; }
+      if (best.v > 0) river.bridges.push({ x: fx, y: best.y });
+    }
+    rivers.push(river);
+    P = new Placer(r, trails, (x, y) => (x > cx - 60 && x < cx + 860 && y > cy - 60 && y < cy + 700) || riverValue(river, x, y) > -40);
+    P.obs.push(...riverObstacles(river));
     // Castillo
     const t = 40;
     P.add('wall', cx, cy, 800, t, 0);
@@ -301,7 +508,70 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
   }
 
   const obstacles = P.obs;
+
+  // ---- masas de agua (identificables para futuros personajes)
+  const water: WaterBody[] = [];
+  let wid = 1;
+  for (const l of lakes) water.push({ id: wid++, kind: theme === 'elm' ? 'pond' : 'lake', x: Math.round(l.cx - l.rx * 1.3), y: Math.round(l.cy - l.ry * 1.3), w: Math.round(l.rx * 2.6), h: Math.round(l.ry * 2.6) });
+  for (const p of pools) water.push({ id: wid++, kind: 'pool', ...p });
+  for (const rv of rivers) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of rv.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    water.push({ id: wid++, kind: 'river', x: Math.max(0, Math.round(x0)), y: Math.round(y0 - rv.w), w: Math.round(Math.min(S, x1) - Math.max(0, x0)), h: Math.round(y1 - y0 + rv.w * 2) });
+  }
+  for (const o of obstacles) if (o.type === 'water') {
+    const b = water.find((w) => o.x + o.w / 2 >= w.x && o.x + o.w / 2 <= w.x + w.w && o.y + o.h / 2 >= w.y && o.y + o.h / 2 <= w.y + w.h);
+    if (b) o.body = b.id;
+  }
+
+  // ---- televisiones (entidades localizables)
+  let tid = 1;
+  obstacles.forEach((o, i) => {
+    if (o.type === 'shop') {
+      const W = Math.ceil(o.w / 3), H = Math.ceil(o.h / 3), f = FACADE.shop;
+      const winW = W - f.winX - f.winRight;
+      const n = 3;
+      for (let k = 0; k < n; k++) {
+        const ax = f.winX + 1 + Math.floor((winW / n) * k) + 1, ay = H - f.F + f.winY + 3;
+        tvs.push({ id: tid++, x: o.x + ax * 3, y: o.y + ay * 3, w: 8 * 3, h: 7 * 3, kind: 'shop', host: i });
+      }
+    } else if (o.type === 'house' && theme === 'elm' && hashTV(o) < 0.16) {
+      const tv = houseTV(o, i, tid);
+      if (tv) { tvs.push(tv); tid++; }
+    } else if (o.type === 'cabin' && hashTV(o) < 0.3) {
+      const H = Math.ceil(o.h / 3), f = FACADE.cabin;
+      tvs.push({ id: tid++, x: o.x + f.winX * 3, y: o.y + (H - f.winYFromBase) * 3, w: f.winW * 3, h: f.winH * 3, kind: 'window', host: i });
+    }
+  });
+  // televisores abandonados a la intemperie (inquietantes)
+  const outdoor = theme === 'transylvania' ? 3 : theme === 'camp' ? 2 : 1;
+  for (let k = 0, tries = 0; k < outdoor && tries < 80; tries++) {
+    const x = rrange(r, 200, S - 200), y = rrange(r, 200, S - 200);
+    if (!P.free(x - 20, y - 20, 40, 34, 20)) continue;
+    if (lakes.some((l) => lakeValue(l, x, y) > -0.2) || rivers.some((rv) => riverValue(rv, x, y) > -40)) continue;
+    tvs.push({ id: tid++, x: Math.round(x - 15), y: Math.round(y - 30), w: 30, h: 30, kind: 'outdoor', host: -1 });
+    k++;
+  }
+
+  // ---- bordes temáticos
+  const EDGE_OPTS: Record<MapThemeId, EdgeKind[]> = {
+    elm: ['houses', 'hedge', 'fence', 'houses', 'water'],
+    transylvania: ['cliff', 'forest', 'wall', 'graves'],
+    camp: ['forest', 'forest', 'water', 'cliff'],
+  };
+  const edges = {} as Record<Side, EdgeKind>;
+  let usedWater = false, usedCliff = false;
+  for (const side of ['n', 'e', 's', 'w'] as Side[]) {
+    let k = rpick(r, EDGE_OPTS[theme]);
+    if ((k === 'water' && usedWater) || (k === 'cliff' && usedCliff)) k = EDGE_OPTS[theme][0] === 'cliff' ? 'forest' : EDGE_OPTS[theme][0];
+    if (k === 'water') usedWater = true;
+    if (k === 'cliff') usedCliff = true;
+    edges[side] = k;
+  }
+  const border = buildBorder(r, theme, edges, trails);
+
   // Quitar decoración que caiga sobre obstáculos
   const clean = decor.filter((d) => !obstacles.some((o) => d.x > o.x - 20 && d.x < o.x + o.w + 20 && d.y > o.y - 20 && d.y < o.y + o.h + 20));
-  return { theme, seed, size: S, obstacles, decor: clean, trails, lakes, plazas };
+  void shops;
+  return { theme, seed, size: S, obstacles, decor: clean, trails, lakes, plazas, rivers, pools, water, tvs, edges, border };
 }

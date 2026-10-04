@@ -1,7 +1,7 @@
 // Arte procedural de obstáculos y decoración (pixel art a escala PIXEL), con sombreado automático,
 // contorno coloreado y ventanas/fuegos emisivos que brillan en la oscuridad.
 import { PIXEL } from '../shared/constants';
-import type { Decor, GameMap, Obstacle } from '../shared/maps';
+import { FACADE, type Decor, type GameMap, type Obstacle, type TV } from '../shared/maps';
 import { hashAt } from '../shared/noise';
 import { mulberry32, type Rng } from '../shared/rng';
 import { PB, shade, type Baked } from './pixel';
@@ -329,7 +329,48 @@ const log_: Draw = (b, W, H, up, o) => {
   if (o.v) b.set(W / 2, up, '#3a6a2a');
 };
 
+const shop: Draw = (b, W, H, up, o) => {
+  const f = FACADE.shop;
+  const base = up + H, top = base - f.F;
+  const brick = ['#6a3a32', '#4a4a5a', '#5a4a3a'][o.v % 3];
+  // tejado plano con máquinas de aire acondicionado
+  b.rect(0, 2, W, top - 2, '#2e2a34');
+  for (let y = 4; y < top - 1; y += 4) b.rect(1, y, W - 2, 1, '#26222c');
+  b.rect(6, 5, 8, 5, '#5a5a66'); b.rect(7, 6, 6, 1, '#3a3a44'); b.rect(W - 18, 6, 6, 4, '#5a5a66');
+  b.rect(0, top - 2, W, 2, '#1a1820');
+  // fachada de ladrillo
+  b.rect(0, top, W, f.F, brick);
+  for (let y = top + 1; y < base; y += 3) for (let x = (Math.floor(y / 3) % 2) * 3; x < W; x += 6) b.set(x, y, shade(brick, -0.25));
+  // rótulo luminoso
+  const sx = 4, sy = top + 1;
+  b.rect(sx, sy, W - 24, 3, '#1a1018');
+  const letters = 'TV-RADIO';
+  for (let i = 0; i < letters.length; i++) { b.set(sx + 2 + i * 3, sy + 1, '#60e0ff', true); b.set(sx + 3 + i * 3, sy + 1, '#60e0ff', true); }
+  // toldo a rayas
+  for (let x = 2; x < W - 18; x++) b.set(x, top + f.winY - 1, (x >> 1) % 2 ? '#c03030' : '#e8e0d0');
+  // escaparate (las televisiones son entidades que se dibujan encima)
+  const wx = f.winX, wy = top + f.winY, ww = W - f.winX - f.winRight, wh = f.winH;
+  b.rect(wx - 1, wy - 1, ww + 2, wh + 2, '#c8c0b0');
+  b.rect(wx, wy, ww, wh, '#141a2a');
+  b.rect(wx, wy + wh - 3, ww, 3, '#3a3040'); // estante
+  // puerta
+  b.rect(W - 15, base - 15, 9, 15, '#c8c0b0'); b.rect(W - 14, base - 14, 7, 14, '#2a3a4a'); b.set(W - 9, base - 7, '#e0c040', false, true);
+  b.rect(0, base - 1, W, 1, '#3a3438');
+};
+
+const barricade: Draw = (b, W, H, up, o) => {
+  const vertical = o.v === 1;
+  const len = vertical ? H : W;
+  for (let i = 0; i < len; i++) {
+    const c = Math.floor(i / 3) % 2 ? '#e07010' : '#f0f0f0';
+    if (vertical) b.rect(Math.floor(W / 2) - 1, up + i, 3, 1, c); else b.rect(i, up - 3, 1, 3, c);
+  }
+  if (vertical) { b.rect(Math.floor(W / 2) - 3, up, 7, 1, '#3a3a40'); b.rect(Math.floor(W / 2) - 3, up + H - 1, 7, 1, '#3a3a40'); b.set(Math.floor(W / 2), up - 2, '#ffb020', true); }
+  else { b.rect(1, up, 1, H, '#3a3a40'); b.rect(W - 2, up, 1, H, '#3a3a40'); b.set(2, up - 5, '#ffb020', true); b.set(W - 3, up - 5, '#ffb020', true); }
+};
+
 const DRAWS: Partial<Record<Obstacle['type'], { up: number; draw: Draw; pad?: number }>> = {
+  shop: { up: 12, draw: shop }, barricade: { up: 8, draw: barricade },
   house: { up: 16, draw: house }, cabin: { up: 14, draw: cabin },
   tree: { up: 20, draw: tree, pad: 8 }, pine: { up: 30, draw: pine, pad: 8 }, deadtree: { up: 26, draw: deadtree, pad: 8 },
   hedge: { up: 5, draw: hedge }, fence: { up: 7, draw: fence }, car: { up: 2, draw: car },
@@ -354,6 +395,41 @@ export function renderObstacle(o: Obstacle, theme: string): Prerendered {
   d.draw(b, W, H, d.up, o, r, theme);
   const baked: Baked = b.finish({ outline: 'selout' });
   return { base: baked.base, glow: baked.glow, ox: -(pad + 1) * PIXEL, oy: -(d.up + 1) * PIXEL };
+}
+
+// ---------------------------------------------------------------------------
+// Televisiones (entidades del mapa): 4 frames de imagen parpadeante
+// ---------------------------------------------------------------------------
+const tvCache = new Map<string, Baked>();
+export function renderTV(tv: TV, frame: number): Baked {
+  const key = `${tv.kind}|${tv.w}x${tv.h}|${frame}|${tv.id % 3}`;
+  let c = tvCache.get(key);
+  if (c) return c;
+  const W = Math.round(tv.w / PIXEL), H = Math.round(tv.h / PIXEL);
+  const outdoor = tv.kind === 'outdoor';
+  const b = new PB(W + 2, H + (outdoor ? 6 : 2));
+  const SCREENS = [['#3a6aff', '#80a0ff'], ['#e0e0f0', '#808090'], ['#40ff90', '#109050'], ['#ff4080', '#a01040']];
+  const [s1, s2] = SCREENS[(frame + tv.id) % SCREENS.length];
+  const by = outdoor ? 4 : 0;
+  if (tv.kind === 'window') b.rect(0, 0, W, H, '#2a2018'); // interior de la casa
+  // carcasa
+  const tw = Math.min(W, outdoor ? W : W - 1), th = Math.min(H - 1, outdoor ? H - 2 : Math.round(H * 0.75));
+  const tx = Math.floor((W - tw) / 2), ty = by + (outdoor ? 0 : H - th - 1);
+  b.rect(tx, ty, tw, th, '#3a3438');
+  b.rect(tx + 1, ty + 1, tw - 3, th - 2, s1, true);
+  // estática / imagen
+  for (let i = 0; i < tw * th * 0.4; i++) {
+    const n = Math.sin((i + 1) * 12.9898 * (frame + 1) + tv.id) * 43758.5453;
+    const r = n - Math.floor(n);
+    const px = tx + 1 + Math.floor(r * (tw - 3)), py = ty + 1 + Math.floor(((r * 7) % 1) * (th - 2));
+    b.set(px, py, (i + frame) % 3 ? s2 : '#ffffff', true);
+  }
+  b.set(tx + tw - 2, ty + 1, '#c04040'); b.set(tx + tw - 2, ty + 3, '#808088');
+  if (outdoor) { b.line(tx + 2, ty, tx, ty - 4, '#9090a0'); b.line(tx + tw - 4, ty, tx + tw - 1, ty - 4, '#9090a0'); b.rect(tx + 1, ty + th, 2, 2, '#2a2428'); b.rect(tx + tw - 3, ty + th, 2, 2, '#2a2428'); }
+  else b.rect(tx + Math.floor(tw / 2) - 1, ty + th, 3, 1, '#2a2428');
+  c = b.finish({ outline: tv.kind === 'window' || tv.kind === 'shop' ? 'none' : 'selout', autoShade: false });
+  tvCache.set(key, c);
+  return c;
 }
 
 // ---------------------------------------------------------------------------
@@ -414,5 +490,8 @@ export function lightsFor(map: GameMap): Light[] {
     }
   }
   for (const l of map.lakes) lights.push({ x: l.cx, y: l.cy, r: Math.max(l.rx, l.ry) * 1.1, c: 'cold' });
+  for (const tv of map.tvs) lights.push({ x: tv.x + tv.w / 2, y: tv.y + tv.h + (tv.kind === 'outdoor' ? 0 : 20), r: tv.kind === 'shop' ? 110 : tv.kind === 'outdoor' ? 130 : 90, c: 'cold', flicker: true });
+  for (const o of map.obstacles) if (o.type === 'shop') lights.push({ x: o.x + o.w / 2, y: o.y + o.h + 20, r: 180, c: 'cold' });
+  for (const o of map.border) if (o.type === 'barricade') lights.push({ x: o.x + o.w / 2, y: o.y, r: 60, c: 'warm', flicker: true });
   return lights;
 }

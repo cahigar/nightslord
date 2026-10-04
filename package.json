@@ -6,13 +6,13 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,client -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:server": "tsx watch server/index.ts",
+    "dev:server": "tsx watch server/index.ts --dev",
     "dev:client": "vite",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/server.mjs --packages=external",
     "start": "node dist/server.mjs",
-    "demo": "npm run build && npm start",
+    "demo": "npm run build && node dist/server.mjs --dev",
     "typecheck": "tsc --noEmit",
     "bots": "tsx tools/bots.ts"
   },

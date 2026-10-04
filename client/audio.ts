@@ -80,6 +80,12 @@ const SFX: Record<SfxId, (v: number) => void> = {
   dash: (v) => { noise(0.25, 1200, 0.3 * v, 0, 'bandpass', 300); },
   wave: (v) => { tone('square', 660, 880, 0.08, 0.12 * v); tone('square', 880, 660, 0.08, 0.12 * v, 0.1); },
   taunt: (v) => { [392, 330, 392, 330, 523].forEach((f, i) => tone('square', f, f, 0.08, 0.13 * v, i * 0.09)); },
+  ult: (v) => { [220, 277, 330, 440, 554].forEach((f, i) => tone('sawtooth', f, f * 1.01, 0.18, 0.12 * v, i * 0.06)); noise(0.6, 500, 0.25 * v, 0, 'lowpass', 3000); },
+  scarab: (v) => { noise(0.05, 3500, 0.18 * v, 0, 'highpass'); tone('square', 900, 1300, 0.04, 0.06 * v, 0.02); },
+  sand: (v) => { noise(1.2, 900, 0.45 * v, 0, 'bandpass', 300); tone('sawtooth', 70, 50, 1, 0.2 * v); },
+  tomb: (v) => { tone('square', 140, 60, 0.25, 0.3 * v); noise(0.15, 300, 0.4 * v, 0.1); },
+  evolve: (v) => { [262, 330, 392, 523, 659, 784].forEach((f, i) => tone('square', f, f, 0.12, 0.15 * v, i * 0.07)); },
+  surprise: (v) => { tone('square', 300, 900, 0.12, 0.2 * v); tone('square', 900, 200, 0.25, 0.18 * v, 0.14); },
 };
 
 let lastPlayed: Record<string, number> = {};

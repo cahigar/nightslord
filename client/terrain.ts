@@ -1,7 +1,7 @@
 // Terreno procedural en pixel art, generado por trozos (chunks) bajo demanda.
 // Cada píxel de arte (PIXEL px de mundo) se decide con ruido fBm + tramado Bayer, caminos, agua y sombras.
 import { MAP_SIZE, PIXEL } from '../shared/constants';
-import { lakeValue, type GameMap, type Obstacle, type Trail } from '../shared/maps';
+import { BORDER_DEPTH, lakeValue, onBridge, riverValue, type GameMap, type Obstacle, type Side, type Trail } from '../shared/maps';
 import { fbm, hashAt } from '../shared/noise';
 
 export const CHUNK = 96; // píxeles de arte por chunk
@@ -33,6 +33,11 @@ const M = {
   flagstone: ramp('#2a2830', '#33313a', '#3e3c46', '#4a4852'),
   water: ramp('#06101c', '#0a1828', '#0e2236', '#143048'),
   foam: ramp('#2a4a66', '#3a5e7e', '#4e7494', '#6a8eaa'),
+  pool: ramp('#1a5a7a', '#226a8a', '#2a7a9a', '#3a8aaa'),
+  poolrim: ramp('#6a6a78', '#80808c', '#9898a4', '#b0b0bc'),
+  plank: ramp('#2e1e12', '#3e2a18', '#4e3820', '#5e4628'),
+  abyss: ramp('#020104', '#05030a', '#0a0612', '#100a1a'),
+  cliff: ramp('#1a1618', '#262024', '#322a2e', '#3e363a'),
 };
 type Mat = keyof typeof M;
 
@@ -47,6 +52,7 @@ export class Terrain {
   private chunks = new Map<number, HTMLCanvasElement>();
   private queue: number[] = [];
   private nx = Math.ceil(MAP_SIZE / CW);
+  private ext = Math.ceil(BORDER_DEPTH / CW) + 1; // chunks extra fuera del mapa (el mundo continúa)
   waterGlints: { x: number; y: number; ph: number }[] = [];
 
   constructor(private map: GameMap) {
@@ -60,14 +66,21 @@ export class Terrain {
       }
       s++;
     }
+    for (const r of map.rivers) for (let i = 0; i < 160; i++) {
+      const seg = r.pts[Math.floor(hashAt(i, 3, map.seed) * (r.pts.length - 1))];
+      const x = seg[0] + (hashAt(i, 5, map.seed) - 0.5) * 260, y = seg[1] + (hashAt(5, i, map.seed) - 0.5) * 80;
+      if (riverValue(r, x, y) > 8 && !onBridge(r, x, y)) this.waterGlints.push({ x, y, ph: hashAt(i, 9, map.seed) * 6.28 });
+    }
+    for (const p of map.pools) for (let i = 0; i < 6; i++) this.waterGlints.push({ x: p.x + 10 + hashAt(i, p.x, 1) * (p.w - 30), y: p.y + 8 + hashAt(p.y, i, 2) * (p.h - 16), ph: i });
   }
 
   /** Dibuja el suelo visible. Genera como mucho `budget` chunks nuevos por frame. */
   draw(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, budget = 3) {
-    const cx0 = Math.max(0, Math.floor(x0 / CW)), cy0 = Math.max(0, Math.floor(y0 / CW));
-    const cx1 = Math.min(this.nx - 1, Math.floor(x1 / CW)), cy1 = Math.min(this.nx - 1, Math.floor(y1 / CW));
+    const E = this.ext;
+    const cx0 = Math.max(-E, Math.floor(x0 / CW)), cy0 = Math.max(-E, Math.floor(y0 / CW));
+    const cx1 = Math.min(this.nx - 1 + E, Math.floor(x1 / CW)), cy1 = Math.min(this.nx - 1 + E, Math.floor(y1 / CW));
     for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
-      const key = cy * this.nx + cx;
+      const key = (cy + E) * 1000 + (cx + E);
       let c = this.chunks.get(key);
       if (!c && budget > 0) { c = this.build(cx, cy); this.chunks.set(key, c); budget--; }
       if (c) ctx.drawImage(c, cx * CW, cy * CW, CW, CW);
@@ -80,7 +93,7 @@ export class Terrain {
     const cx0 = Math.max(0, Math.floor((x - radius) / CW)), cy0 = Math.max(0, Math.floor((y - radius) / CW));
     const cx1 = Math.min(this.nx - 1, Math.floor((x + radius) / CW)), cy1 = Math.min(this.nx - 1, Math.floor((y + radius) / CW));
     for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
-      const key = cy * this.nx + cx;
+      const key = (cy + this.ext) * 1000 + (cx + this.ext);
       if (!this.chunks.has(key)) this.chunks.set(key, this.build(cx, cy));
     }
   }
@@ -110,6 +123,11 @@ export class Terrain {
     }
     const lakes = map.lakes.filter((l) => l.cx + l.rx * 1.6 > wx0 && l.cx - l.rx * 1.6 < wx0 + CW && l.cy + l.ry * 1.6 > wy0 && l.cy - l.ry * 1.6 < wy0 + CW);
     const plazas = map.plazas.filter((p) => p.x < wx0 + CW && p.x + p.w > wx0 && p.y < wy0 + CW && p.y + p.h > wy0);
+    const rivers = map.rivers.filter((r) => r.pts.some(([x, y], i) => {
+      const [nx2, ny2] = r.pts[Math.min(i + 1, r.pts.length - 1)];
+      return Math.max(x, nx2) + r.w + 40 > wx0 && Math.min(x, nx2) - r.w - 40 < wx0 + CW && Math.max(y, ny2) + r.w + 40 > wy0 && Math.min(y, ny2) - r.w - 40 < wy0 + CW;
+    }));
+    const pools = map.pools.filter((p) => p.x - 12 < wx0 + CW && p.x + p.w + 12 > wx0 && p.y - 12 < wy0 + CW && p.y + p.h + 12 > wy0);
 
     for (let py = 0; py < CHUNK; py++) for (let px = 0; px < CHUNK; px++) {
       const gx = cx * CHUNK + px, gy = cy * CHUNK + py; // coordenadas globales de arte
@@ -180,6 +198,43 @@ export class Terrain {
         else if (v > -0.13 && b > (v + 0.13) * 6 - 0.5) mat = 'mud';
       }
 
+      // ríos y puentes
+      for (const r of rivers) {
+        const v = riverValue(r, x, y);
+        if (v > -16 && onBridge(r, x, y)) {
+          mat = 'plank';
+          tone = (Math.floor(x / 12) % 2 ? 0.55 : 0.75) + b * 0.15;
+          if (Math.abs(x - r.bridges.reduce((a, bb) => (Math.abs(bb.x - x) < Math.abs(a - x) ? bb.x : a), -9999)) > 40) tone = 0.15; // barandilla
+        } else if (v > 4) { mat = 'water'; tone = Math.max(0, Math.min(0.99, 0.7 - (v / r.w) * 1.2 + b * 0.12 + (d - 0.5) * 0.3)); }
+        else if (v > 0) { mat = 'foam'; tone = 0.4 + b; }
+        else if (v > -14) { mat = 'mud'; tone = 0.5 + v / 40 + b * 0.3; }
+      }
+      // piscinas con borde de baldosas
+      for (const pl of pools) {
+        const inside = x > pl.x && x < pl.x + pl.w && y > pl.y && y < pl.y + pl.h;
+        const rim = x > pl.x - 9 && x < pl.x + pl.w + 9 && y > pl.y - 9 && y < pl.y + pl.h + 9;
+        if (inside) { mat = 'pool'; tone = 0.45 + Math.sin((x + y) / 14) * 0.2 + b * 0.2; if ((x - pl.x) % 30 < 2 || (y - pl.y) % 30 < 2) tone -= 0.25; }
+        else if (rim) { mat = 'poolrim'; tone = ((Math.floor(x / 9) + Math.floor(y / 9)) % 2 ? 0.7 : 0.5) + b * 0.1; }
+      }
+      // fuera del mapa: el escenario continúa (agua profunda, acantilado...)
+      const outs: [Side, number][] = [['n', -y], ['s', y - MAP_SIZE], ['w', -x], ['e', x - MAP_SIZE]];
+      let side: Side | null = null, dOut = -Infinity;
+      for (const [sd, dd] of outs) if (dd > dOut) { dOut = dd; side = sd; }
+      if (side) {
+        const kind = map.edges[side];
+        if (kind === 'water') {
+          const wob = (fbm(x, y, seed + 31, 80, 2) - 0.5) * 30;
+          if (dOut > 18 + wob) { mat = 'water'; tone = Math.max(0, 0.6 - (dOut - 18) / 400 + b * 0.12); }
+          else if (dOut > 4 + wob) { mat = 'foam'; tone = 0.4 + b; }
+          else if (dOut > -26 + wob) { mat = map.theme === 'transylvania' ? 'mud' : 'sand'; tone = 0.45 + b * 0.3; }
+        } else if (kind === 'cliff') {
+          const wob = (fbm(x, y, seed + 37, 60, 2) - 0.5) * 26;
+          if (dOut > 40 + wob) { mat = 'abyss'; tone = Math.max(0, 0.8 - (dOut - 40) / 120 + b * 0.2); }
+          else if (dOut > 12 + wob) { mat = 'cliff'; tone = 0.35 + ((Math.floor(x / 6) + Math.floor(y / 9)) % 3) * 0.2 + b * 0.15; }
+          else if (dOut > -6 + wob) { mat = 'gravel'; tone = 0.5 + b * 0.3; }
+        }
+      }
+
       mats[py * CHUNK + px] = mat;
       const r = M[mat];
       const c = r[Math.max(0, Math.min(r.length - 1, Math.floor(tone * r.length)))];
@@ -221,14 +276,14 @@ export class Terrain {
 
     // sombras de obstáculos (luz de luna desde arriba-izquierda)
     const shadowOf = (o: Obstacle) => {
-      const tall = ['house', 'cabin', 'crypt', 'wall', 'tower'].includes(o.type);
+      const tall = ['house', 'cabin', 'crypt', 'wall', 'tower', 'shop'].includes(o.type);
       const round = ['tree', 'pine', 'deadtree', 'rock', 'well', 'statue', 'brazier', 'lamp', 'firepit', 'mailbox', 'tomb'].includes(o.type);
       if (o.type === 'water') return null;
       if (tall) return { kind: 'rect' as const, x: o.x + 10, y: o.y + 8, w: o.w + 14, h: o.h + 10 };
       if (round) return { kind: 'ell' as const, x: o.x + o.w / 2 + 8, y: o.y + o.h - 2, rx: o.w * 0.75 + 6, ry: Math.max(10, o.h * 0.4) };
       return { kind: 'rect' as const, x: o.x + 4, y: o.y + 6, w: o.w + 6, h: o.h + 4 };
     };
-    for (const o of map.obstacles) {
+    for (const o of [...map.obstacles, ...map.border]) {
       if (o.x > wx0 + CW + 60 || o.x + o.w < wx0 - 60 || o.y > wy0 + CW + 60 || o.y + o.h < wy0 - 60) continue;
       const s = shadowOf(o);
       if (!s) continue;
