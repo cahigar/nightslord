@@ -6,7 +6,10 @@ Juego multijugador gratuito tipo **.io** en pixel art 2D. Eres un monstruo clás
 - **Ranking de sala** por puntos en tiempo real (el líder lleva 👑 y los Helsing le ven desde más lejos).
 - **Progresión persistente**: monedas, medallas, personajes y skins desbloqueables.
 - Todo en **TypeScript**: servidor autoritativo en Node + cliente Canvas 2D sin motor.
-- **Sprites, mapas y sonido 100 % procedurales** (no hay ficheros de imagen ni audio).
+- **Sprites, mapas y sonido 100 % procedurales** (no hay ficheros de imagen ni audio):
+  - Personajes de 24×32 con sombreado automático, contorno coloreado y ojos/fuegos que brillan en la oscuridad.
+  - Terreno por ruido con tramado, caminos serpenteantes, lagos irregulares, bosques agrupados y sombras.
+  - Iluminación nocturna: farolas, braseros, ventanas, antorchas y linternas de los NPC, farol de los Helsing, niebla, luciérnagas y ascuas.
 
 ## Arrancar en local
 
@@ -22,7 +25,9 @@ npm run bots -- 8                         # 8 bots a una sala aleatoria
 npm run bots -- 8 ws://localhost:3000/ws ABCD   # a una sala concreta
 ```
 
-Visor de sprites (todas las animaciones y skins): <http://localhost:5173/#sprites>
+Visores para diseñar:
+- Sprites (todas las animaciones y skins): <http://localhost:5173/#sprites>
+- Mapas completos sin oscuridad: <http://localhost:5173/#mapa=camp:1234> (tema `elm`, `transylvania` o `camp` y la semilla que quieras)
 
 Producción local / demo: `npm run demo` (compila y arranca) → <http://localhost:3000>
 

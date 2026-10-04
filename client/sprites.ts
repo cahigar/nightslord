@@ -1,65 +1,16 @@
-// Generador procedural de sprites pixel art.
+// Generador procedural de sprites pixel art (24x32).
 // Todos los personajes comparten el MISMO esqueleto y las MISMAS poses de animación;
-// cada monstruo/NPC es una "forma" (cabeza, ropa, extras) + una paleta. Nuevas skins = nueva paleta.
+// cada monstruo/NPC es una "forma" (cabeza, ropa, extras) + una paleta. Nueva skin = nueva paleta.
+// El post-proceso (pixel.ts) añade sombreado, contorno coloreado y brillos emisivos.
 import { getSkin, type CharacterId, type Palette } from '../shared/characters';
 import { Anim } from '../shared/protocol';
+import { PB, shade, mix, type Baked } from './pixel';
 
-export const SW = 22; // ancho del sprite (incluye 1px de margen para el contorno)
-export const SH = 26;
-const OUTLINE = '#0b0710';
-
-// ---------------------------------------------------------------------------
-// Buffer de píxeles
-// ---------------------------------------------------------------------------
-class PB {
-  px: (string | null)[] = new Array(SW * SH).fill(null);
-  set(x: number, y: number, c: string | null) {
-    x = Math.round(x) + 1; y = Math.round(y) + 1;
-    if (x < 0 || y < 0 || x >= SW || y >= SH || c === null) return;
-    this.px[y * SW + x] = c;
-  }
-  clear(x: number, y: number) {
-    x = Math.round(x) + 1; y = Math.round(y) + 1;
-    if (x < 0 || y < 0 || x >= SW || y >= SH) return;
-    this.px[y * SW + x] = null;
-  }
-  get(x: number, y: number) {
-    x = Math.round(x) + 1; y = Math.round(y) + 1;
-    if (x < 0 || y < 0 || x >= SW || y >= SH) return null;
-    return this.px[y * SW + x];
-  }
-  rect(x: number, y: number, w: number, h: number, c: string) {
-    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.set(x + i, y + j, c);
-  }
-  outline(color = OUTLINE) {
-    const src = this.px.slice();
-    for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
-      if (src[y * SW + x]) continue;
-      const n = (xx: number, yy: number) => xx >= 0 && yy >= 0 && xx < SW && yy < SH && !!src[yy * SW + xx] && src[yy * SW + xx] !== 'GHOST';
-      if (n(x - 1, y) || n(x + 1, y) || n(x, y - 1) || n(x, y + 1)) this.px[y * SW + x] = color;
-    }
-  }
-  toCanvas(alphaMap?: Record<string, number>): HTMLCanvasElement {
-    const cv = document.createElement('canvas');
-    cv.width = SW; cv.height = SH;
-    const ctx = cv.getContext('2d')!;
-    for (let i = 0; i < this.px.length; i++) {
-      const c = this.px[i];
-      if (!c || c === 'GHOST') continue;
-      ctx.globalAlpha = alphaMap?.[c] ?? 1;
-      ctx.fillStyle = c;
-      ctx.fillRect(i % SW, Math.floor(i / SW), 1, 1);
-    }
-    return cv;
-  }
-}
-
-export function shade(hex: string, f: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  if (f < 0) { r *= 1 + f; g *= 1 + f; b *= 1 + f; } else { r += (255 - r) * f; g += (255 - g) * f; b += (255 - b) * f; }
-  return '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
-}
+export const IW = 24; // tamaño interno del personaje
+export const IH = 32;
+export const SW = IW + 2; // con margen de 1 px para el contorno
+export const SH = IH + 2;
+export { shade };
 
 // ---------------------------------------------------------------------------
 // Poses (esqueleto común)
@@ -70,195 +21,265 @@ export interface Pose {
   ra: number; // ángulo brazo delantero
   ll: [number, number]; // pierna trasera [dx, levantar]
   rl: [number, number]; // pierna delantera
-  lean?: number; // inclinación de cabeza
+  lean?: number; // inclinación de la cabeza
   mouth?: boolean; // boca abierta
-  sway?: number; // para capas, colas...
+  sway?: number; // para capas, colas, bufandas...
+  blink?: boolean;
 }
 
-const P = (by: number, la: number, ra: number, ll: [number, number], rl: [number, number], lean = 0, mouth = false, sway = 0): Pose =>
-  ({ by, la, ra, ll, rl, lean, mouth, sway });
+const P = (by: number, la: number, ra: number, ll: [number, number], rl: [number, number], lean = 0, mouth = false, sway = 0, blink = false): Pose =>
+  ({ by, la, ra, ll, rl, lean, mouth, sway, blink });
 
 export interface AnimDef { frames: Pose[]; dur: number; loop: boolean }
 
 export const ANIMS: Record<Anim, AnimDef> = {
-  [Anim.Idle]: { dur: 0.45, loop: true, frames: [P(0, 0.1, -0.1, [0, 0], [0, 0]), P(1, 0.15, -0.05, [0, 0], [0, 0], 0, false, 1)] },
+  [Anim.Idle]: {
+    dur: 0.38, loop: true, frames: [
+      P(0, 0.12, -0.08, [0, 0], [0, 0], 0, false, 0), P(0, 0.14, -0.06, [0, 0], [0, 0], 0, false, 1),
+      P(1, 0.18, -0.02, [0, 0], [0, 0], 0, false, 1), P(1, 0.16, -0.04, [0, 0], [0, 0], 0, false, 0),
+      P(0, 0.12, -0.08, [0, 0], [0, 0], 0, false, 0), P(0, 0.12, -0.08, [0, 0], [0, 0], 0, false, 1, true),
+    ],
+  },
   [Anim.Walk]: {
-    dur: 0.11, loop: true, frames: [
-      P(0, -0.5, 0.5, [2, 0], [-2, 0], 0, false, 1), P(-1, -0.1, 0.1, [1, 1], [-1, 0], 0, false, 2),
-      P(0, 0.5, -0.5, [-2, 0], [2, 0], 0, false, 1), P(-1, 0.1, -0.1, [-1, 0], [1, 1], 0, false, 2),
+    dur: 0.1, loop: true, frames: [
+      P(0, -0.55, 0.55, [3, 0], [-3, 0], 0, false, 1), P(-1, -0.25, 0.25, [1, 1], [-1, 0], 0, false, 2),
+      P(-1, 0.1, -0.1, [-1, 2], [1, 0], 0, false, 2), P(0, 0.55, -0.55, [-3, 0], [3, 0], 0, false, 1),
+      P(-1, 0.25, -0.25, [-1, 0], [1, 1], 0, false, 2), P(-1, -0.1, 0.1, [1, 0], [-1, 2], 0, false, 2),
     ],
   },
   [Anim.Attack]: {
-    dur: 0.08, loop: false, frames: [
-      P(0, -0.3, -1.0, [-1, 0], [1, 0], -1), P(0, 0.3, 1.7, [-2, 0], [2, 0], 1, true, 2), P(0, 0.3, 1.4, [-2, 0], [2, 0], 1, true, 2), P(0, 0.2, 0.9, [-1, 0], [1, 0]),
+    dur: 0.07, loop: false, frames: [
+      P(0, -0.3, -1.1, [-1, 0], [1, 0], -1), P(0, 0.2, -1.6, [-1, 0], [1, 0], -1, true),
+      P(0, 0.4, 1.8, [-3, 0], [3, 0], 1, true, 2), P(0, 0.4, 1.6, [-3, 0], [3, 0], 1, true, 2), P(0, 0.3, 1.0, [-1, 0], [1, 0]),
     ],
   },
   [Anim.Cast]: {
-    dur: 0.12, loop: false, frames: [P(0, 1.2, 1.2, [0, 0], [0, 0]), P(-1, 2.7, 2.7, [-1, 0], [1, 0], 0, true, 2), P(-1, 2.9, 2.9, [-1, 0], [1, 0], 0, true, 2), P(0, 2.4, 2.4, [0, 0], [0, 0])],
+    dur: 0.1, loop: false, frames: [P(0, 1.2, 1.2, [0, 0], [0, 0]), P(-1, 2.6, 2.6, [-1, 0], [1, 0], 0, true, 2), P(-2, 2.95, 2.95, [-1, 1], [1, 1], 0, true, 2), P(-1, 2.8, 2.8, [-1, 0], [1, 0], 0, true, 1), P(0, 2.2, 2.2, [0, 0], [0, 0])],
   },
   [Anim.Wave]: {
-    dur: 0.15, loop: true, frames: [P(0, 0.1, 2.8, [0, 0], [0, 0], 0, true), P(0, 0.1, 2.3, [0, 0], [0, 0], 0, true), P(0, 0.1, 2.8, [0, 0], [0, 0], 0, true), P(0, 0.1, 2.3, [0, 0], [0, 0])],
+    dur: 0.14, loop: true, frames: [P(0, 0.1, 2.9, [0, 0], [0, 0], 0, true), P(0, 0.1, 2.4, [0, 0], [0, 0], 0, true), P(0, 0.1, 2.9, [0, 0], [0, 0], 0, true), P(0, 0.1, 2.4, [0, 0], [0, 0])],
   },
   [Anim.Taunt]: {
-    // un bailecito ridículo: salto, señalar, reírse
-    dur: 0.13, loop: true, frames: [
-      P(-2, 2.8, 2.8, [1, 2], [-1, 2], 0, true, 2), P(0, 0.4, -0.4, [0, 0], [0, 0]), P(-2, -0.6, 2.8, [2, 2], [-2, 0], 1, true, 1),
-      P(0, 0.3, 1.6, [0, 0], [0, 0], 1), P(-1, 1.6, 1.6, [-2, 0], [2, 1], -1, true, 2), P(0, 0.6, 0.6, [0, 0], [0, 0], -1, true),
+    // bailecito: salto, señalar, reírse, contonearse
+    dur: 0.12, loop: true, frames: [
+      P(-3, 2.9, 2.9, [1, 3], [-1, 3], 0, true, 2), P(0, 0.5, -0.5, [0, 0], [0, 0]), P(-2, -0.7, 2.9, [3, 2], [-3, 0], 1, true, 1),
+      P(0, 0.3, 1.7, [0, 0], [0, 0], 1), P(-1, 1.7, 1.7, [-3, 0], [3, 2], -1, true, 2), P(0, 0.7, 0.7, [0, 0], [0, 0], -1, true),
+      P(-1, 2.2, -0.4, [2, 0], [-2, 1], 1, true, 1), P(0, -0.4, 2.2, [-2, 1], [2, 0], -1, true, 2),
     ],
   },
-  [Anim.Hurt]: { dur: 0.1, loop: false, frames: [P(0, -0.8, -0.6, [1, 0], [-1, 0], -1, true)] },
-  [Anim.Dead]: { dur: 1, loop: false, frames: [P(0, 0.4, 0.4, [0, 0], [0, 0], 0, true)] },
+  [Anim.Hurt]: { dur: 0.1, loop: false, frames: [P(0, -0.9, -0.7, [1, 0], [-1, 0], -1, true)] },
+  [Anim.Dead]: { dur: 1, loop: false, frames: [P(0, 0.5, 0.5, [0, 0], [0, 0], 0, true, 0, true)] },
 };
 
 // ---------------------------------------------------------------------------
-// Partes del cuerpo comunes
+// Partes del cuerpo comunes (coordenadas internas, mirando a la derecha)
 // ---------------------------------------------------------------------------
-function arm(b: PB, sx: number, sy: number, ang: number, len: number, color: string, hand: string) {
+const FLOOR = 31;
+const HIP = 21;
+
+function arm(b: PB, sx: number, sy: number, ang: number, len: number, sleeve: string, hand: string, handLen = 2, glove = false) {
   const dx = Math.sin(ang), dy = Math.cos(ang);
+  const thickX = Math.abs(dy) > 0.5;
   for (let i = 0; i <= len; i++) {
     const x = sx + dx * i, y = sy + dy * i;
-    const c = i >= len - 1 ? hand : color;
-    b.set(x, y, c); b.set(x + 1, y, c);
+    const c = i > len - handLen ? hand : sleeve;
+    b.set(x, y, c); b.set(thickX ? x + 1 : x, thickX ? y : y + 1, c);
   }
+  if (glove) b.set(sx + dx * (len + 1), sy + dy * (len + 1), hand);
 }
 
-function legs(b: PB, p: Pose, back: string, front: string, shoe: string, top = 17) {
+function legs(b: PB, p: Pose, back: string, front: string, shoe: string, opts: { width?: number; top?: number; boots?: string } = {}) {
+  const w = opts.width ?? 3, top = opts.top ?? HIP;
   const leg = (x: number, [dx, lift]: [number, number], c: string) => {
-    for (let y = top; y < top + 3; y++) b.rect(x, y, 2, 1, c);
-    for (let y = top + 3; y < 22 - lift; y++) b.rect(x + dx, y, 2, 1, c);
-    b.rect(x + dx, 22 - lift, 3, 1, shoe);
+    const knee = top + 4;
+    for (let y = top; y < knee; y++) b.rect(x + Math.round(dx / 3), y, w, 1, c);
+    for (let y = knee; y < FLOOR - 1 - lift; y++) b.rect(x + dx, y, w, 1, opts.boots && y > FLOOR - 5 ? opts.boots : c);
+    b.rect(x + dx, FLOOR - 1 - lift, w + 1, 2, shoe);
+    b.set(x + dx + w, FLOOR - 1 - lift, shade(shoe, 0.3), false, true); // brillo puntera
   };
-  leg(8, p.ll, back);
-  leg(10, p.rl, front);
+  leg(9, p.ll, back);
+  leg(12, p.rl, front);
 }
 
-function torso(b: PB, by: number, main: string, dark: string, top = 10, bottom = 17) {
-  b.rect(7, top + by, 6, bottom - top, main);
-  b.rect(7, top + by, 1, bottom - top, dark);
+function torso(b: PB, by: number, main: string, opts: { top?: number; bottom?: number; x?: number; w?: number } = {}) {
+  const top = opts.top ?? 12, bottom = opts.bottom ?? HIP, x = opts.x ?? 8, w = opts.w ?? 8;
+  b.rect(x, top + by, w, bottom - top + (by < 0 ? -by : 0), main);
+  b.clear(x, top + by); b.clear(x + w - 1, top + by); // hombros redondeados
 }
 
-interface HeadOpts { skin: string; hair: string; eye: string; style: 'short' | 'long' | 'bald' | 'cap' | 'bun' | 'spiky'; glasses?: string; cap?: string }
+type HairStyle = 'short' | 'long' | 'bald' | 'cap' | 'bun' | 'spiky' | 'ponytail' | 'afro' | 'mohawk' | 'beanie' | 'pigtails' | 'slick';
 
+interface HeadOpts { skin: string; hair: string; eye: string; style: HairStyle; glasses?: string; cap?: string; eyeGlow?: boolean; beard?: string }
+
+/** Cabeza humana (10x10) en x 7..16, y 2..11. */
 function humanHead(b: PB, p: Pose, o: HeadOpts) {
-  const by = p.by, lx = p.lean ?? 0;
-  const X = 6 + lx, Y = 2 + by;
-  b.rect(X, Y + 1, 7, 7, o.skin); // cara
-  b.set(X + 7, Y + 4, o.skin); // nariz
-  b.rect(X, Y + 1, 1, 7, shade(o.skin, -0.18));
+  const X = 7 + (p.lean ?? 0), Y = 2 + p.by;
+  // cráneo con esquinas redondeadas
+  b.rect(X + 1, Y + 1, 8, 9, o.skin);
+  b.rect(X, Y + 2, 10, 6, o.skin);
+  b.rect(X + 2, Y + 10, 6, 1, o.skin); // barbilla
+  b.set(X + 10, Y + 5, o.skin); b.set(X + 10, Y + 6, o.skin); // nariz
+  // oreja
+  b.rect(X + 3, Y + 5, 2, 2, shade(o.skin, -0.15)); b.set(X + 3, Y + 6, shade(o.skin, -0.3));
   // ojo y ceja
-  b.set(X + 5, Y + 3, o.eye);
-  b.set(X + 5, Y + 2, shade(o.hair, -0.1));
-  // boca
-  if (p.mouth) { b.set(X + 5, Y + 6, '#5a0a10'); b.set(X + 6, Y + 6, '#5a0a10'); }
-  else b.set(X + 5, Y + 6, shade(o.skin, -0.3));
-  switch (o.style) {
-    case 'short': b.rect(X, Y, 7, 2, o.hair); b.rect(X, Y + 2, 2, 3, o.hair); break;
-    case 'spiky': b.rect(X, Y, 7, 2, o.hair); b.set(X + 1, Y - 1, o.hair); b.set(X + 3, Y - 1, o.hair); b.set(X + 5, Y - 1, o.hair); b.rect(X, Y + 2, 2, 2, o.hair); break;
-    case 'long': b.rect(X, Y, 7, 2, o.hair); b.rect(X - 1, Y + 1, 3, 8, o.hair); break;
-    case 'bun': b.rect(X, Y, 7, 2, o.hair); b.rect(X - 1, Y - 1, 3, 3, o.hair); b.rect(X, Y + 2, 2, 3, o.hair); break;
-    case 'cap': b.rect(X, Y, 7, 2, o.cap ?? '#c03030'); b.rect(X + 6, Y + 1, 3, 1, o.cap ?? '#c03030'); b.rect(X, Y + 2, 2, 2, o.hair); break;
-    case 'bald': b.rect(X, Y, 7, 1, shade(o.skin, -0.1)); b.rect(X, Y + 2, 1, 2, o.hair); break;
+  if (p.blink) b.rect(X + 6, Y + 5, 2, 1, shade(o.skin, -0.45));
+  else {
+    b.set(X + 6, Y + 5, o.eyeGlow ? o.eye : '#f4f0e8', !!o.eyeGlow, true);
+    b.set(X + 7, Y + 5, o.eyeGlow ? shade(o.eye, 0.3) : o.eye, !!o.eyeGlow, true);
   }
-  if (o.glasses) { b.set(X + 4, Y + 3, o.glasses); b.set(X + 6, Y + 3, o.glasses); b.set(X + 5, Y + 3, o.glasses); }
+  b.rect(X + 6, Y + 4, 3, 1, shade(o.hair, -0.15));
+  // boca
+  if (p.mouth) { b.rect(X + 7, Y + 8, 2, 1, '#4a0a12'); b.set(X + 8, Y + 9, '#4a0a12'); }
+  else b.rect(X + 7, Y + 8, 2, 1, shade(o.skin, -0.35));
+  b.set(X + 9, Y + 4, shade(o.skin, 0.2), false, true); // brillo frente
+  const H = o.hair, H2 = shade(o.hair, 0.25);
+  switch (o.style) {
+    case 'short': b.rect(X + 1, Y, 8, 2, H); b.rect(X, Y + 1, 3, 4, H); b.rect(X + 1, Y + 2, 6, 1, H); b.set(X + 4, Y, H2); break;
+    case 'slick': b.rect(X + 1, Y, 8, 2, H); b.rect(X, Y + 1, 4, 6, H); b.rect(X + 1, Y + 2, 5, 1, H); b.set(X + 6, Y + 2, H); b.set(X + 6, Y + 3, H); b.line(X + 2, Y, X + 6, Y, H2); break;
+    case 'spiky': b.rect(X + 1, Y, 8, 2, H); for (const sx of [1, 3, 5, 7]) b.set(X + sx, Y - 1, H); b.rect(X, Y + 1, 3, 4, H); b.set(X + 3, Y - 1, H2); break;
+    case 'long': b.rect(X + 1, Y, 8, 2, H); b.rect(X - 1, Y + 1, 4, 11, H); b.rect(X + 1, Y + 2, 6, 1, H); b.line(X, Y + 3, X, Y + 10, H2); break;
+    case 'ponytail': b.rect(X + 1, Y, 8, 2, H); b.rect(X, Y + 1, 3, 4, H); b.rect(X - 2, Y + 3, 2, 6, H); b.set(X - 1, Y + 2, '#c03050'); break;
+    case 'pigtails': b.rect(X + 1, Y, 8, 2, H); b.rect(X, Y + 1, 3, 4, H); b.rect(X - 2, Y + 5, 2, 4, H); b.rect(X + 5, Y + 9, 2, 3, H); break;
+    case 'bun': b.rect(X + 1, Y, 8, 2, H); b.rect(X - 1, Y - 2, 4, 4, H); b.rect(X, Y + 2, 3, 4, H); b.set(X, Y - 1, H2); break;
+    case 'afro': b.ellipse(X + 4, Y + 2, 6, 4, H); b.rect(X - 1, Y + 2, 4, 5, H); b.set(X + 2, Y - 1, H2); b.set(X + 6, Y, H2); break;
+    case 'mohawk': b.rect(X + 2, Y - 2, 5, 3, H); b.rect(X, Y + 2, 2, 3, shade(H, -0.4)); b.set(X + 3, Y - 2, H2); break;
+    case 'beanie': b.rect(X, Y - 1, 10, 4, o.cap ?? '#3a5aa0'); b.rect(X, Y + 2, 10, 1, shade(o.cap ?? '#3a5aa0', 0.2)); b.set(X + 4, Y - 2, '#f0f0f0'); b.rect(X, Y + 3, 3, 2, H); break;
+    case 'cap': b.rect(X, Y - 1, 9, 3, o.cap ?? '#c03030'); b.rect(X + 8, Y + 1, 4, 1, shade(o.cap ?? '#c03030', -0.2)); b.rect(X, Y + 2, 3, 3, H); break;
+    case 'bald': b.rect(X + 1, Y + 3, 3, 3, H); b.set(X + 6, Y + 1, shade(o.skin, 0.3), false, true); break;
+  }
+  if (o.beard) { b.rect(X + 3, Y + 7, 6, 3, o.beard); b.rect(X + 4, Y + 10, 4, 1, o.beard); b.set(X + 8, Y + 8, '#4a0a12'); }
+  if (o.glasses) { b.rect(X + 5, Y + 5, 3, 1, o.glasses); b.set(X + 6, Y + 5, '#c0e0ff', false, true); b.rect(X + 3, Y + 5, 2, 1, o.glasses); }
+}
+
+/** Textura de pelaje/ruido sobre una zona ya pintada. */
+function texture(b: PB, x0: number, y0: number, w: number, h: number, c: string, density: number, seed: number) {
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+    const n = Math.sin(x * 12.9898 + y * 78.233 + seed) * 43758.5453;
+    if (n - Math.floor(n) < density && b.get(x, y)) b.set(x, y, c);
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Formas de monstruos
 // ---------------------------------------------------------------------------
-type FormFn = (b: PB, p: Pose, pal: Palette) => void;
+type FormFn = (b: PB, p: Pose, pal: Palette, anim: Anim) => void;
 
 const vampire: FormFn = (b, p, c) => {
   const by = p.by, sw = p.sway ?? 0;
-  // capa por detrás
-  for (let y = 9; y <= 21; y++) {
-    const spread = Math.floor((y - 9) / 3);
-    const back = 6 - spread - (y > 14 ? sw : 0);
-    b.rect(back, y + (y < 17 ? by : 0), 13 - back - 1, 1, c.cloth2);
-    b.set(back, y + (y < 17 ? by : 0), c.accent);
+  // capa por detrás (con forro y bajo festoneado)
+  for (let y = 11; y <= 29; y++) {
+    const yy = y + (y < HIP ? by : 0);
+    const back = 8 - Math.floor((y - 11) / 2.6) - (y > 18 ? sw : 0);
+    const front = 15;
+    if (y === 29 && (back + y) % 3 === 0) continue;
+    b.rect(back, yy, front - back, 1, c.cloth2);
+    b.set(back, yy, c.accent); b.set(back + 1, yy, shade(c.accent, -0.3));
   }
-  // cuello alto de la capa
-  b.rect(5, 6 + by, 2, 5, c.accent); b.rect(5, 5 + by, 1, 2, c.cloth2);
-  arm(b, 8, 11 + by, p.la, 5, shade(c.cloth, -0.3), c.skin);
-  legs(b, p, shade(c.cloth, -0.35), c.cloth2, '#0a0a0a');
-  torso(b, by, c.cloth, c.cloth2);
-  b.rect(10, 10 + by, 2, 3, '#e8e8f0'); // camisa
-  b.set(10, 13 + by, c.accent); // medallón
-  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'short' });
-  const X = 6 + (p.lean ?? 0), Y = 2 + by;
-  b.set(X + 3, Y + 1, c.hair); b.set(X + 4, Y + 1, c.hair); // pico de viuda
-  b.set(X + 5, Y + 7, '#ffffff'); // colmillo
-  if (p.mouth) b.set(X + 6, Y + 7, '#ffffff');
-  arm(b, 11, 11 + by, p.ra, 5, c.cloth, c.skin);
+  // cuello alto
+  b.rect(5, 5 + by, 2, 8, c.cloth2); b.rect(7, 6 + by, 1, 7, c.accent); b.set(5, 4 + by, c.cloth2); b.set(4, 4 + by, c.cloth2);
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.25), c.skin);
+  legs(b, p, shade(c.cloth2, -0.2), c.cloth2, '#0c0a10');
+  torso(b, by, c.cloth);
+  b.rect(13, 12 + by, 2, 6, '#e8e4f0'); b.set(14, 13 + by, '#ffffff', false, true); // camisa y chorrera
+  b.rect(12, 12 + by, 1, 7, shade(c.cloth, -0.3)); // solapa
+  b.set(13, 17 + by, c.accent, true); // medallón brillante
+  b.rect(8, 19 + by, 8, 1, shade(c.cloth, -0.35)); // faldón
+  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'slick', eyeGlow: true });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.set(X + 6, Y + 2, c.hair); b.set(X + 6, Y + 3, c.hair); // pico de viuda
+  b.set(X + 3, Y + 4, c.skin); b.set(X + 3, Y + 3, c.skin); // oreja puntiaguda
+  b.set(X + 6, Y + 6, shade(c.skin, -0.25)); // ojeras
+  b.set(X + 8, Y + 9, '#ffffff', false, true); // colmillo
+  if (p.mouth) b.set(X + 7, Y + 9, '#ffffff', false, true);
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin);
 };
 
 const werewolf: FormFn = (b, p, c) => {
   const by = p.by, sw = p.sway ?? 0;
-  // cola
-  b.rect(4 - (sw > 1 ? 1 : 0), 14 + by, 3, 2, c.hair); b.rect(3 - sw, 13 + by, 2, 2, shade(c.hair, 0.15));
-  arm(b, 8, 11 + by, p.la, 6, shade(c.hair, -0.25), c.accent);
-  legs(b, p, shade(c.cloth2, -0.2), c.cloth2, c.hair);
-  b.rect(7, 10 + by, 7, 7, c.cloth); b.rect(7, 10 + by, 1, 7, shade(c.cloth, -0.3));
-  b.rect(10, 10 + by, 3, 4, c.hair); // pecho peludo
-  b.clear(13, 15 + by); b.clear(7, 16 + by); // camisa rota
-  b.set(12, 16 + by, c.hair);
-  const X = 6 + (p.lean ?? 0), Y = 2 + by;
-  b.rect(X, Y + 1, 7, 7, c.hair);
-  b.rect(X, Y + 1, 1, 7, shade(c.hair, -0.25));
-  b.rect(X + 5, Y + 4, 4, 3, shade(c.hair, 0.15)); // hocico
-  b.set(X + 8, Y + 4, '#141014'); // nariz
-  b.set(X + 4, Y + 3, c.eye); b.set(X + 5, Y + 2, shade(c.hair, -0.4));
-  b.set(X + 1, Y - 1, c.hair); b.set(X + 1, Y, c.hair); b.set(X + 2, Y, c.hair); // oreja
-  b.set(X + 4, Y - 1, c.hair); b.set(X + 4, Y, c.hair); b.set(X + 3, Y, c.hair);
-  b.set(X + 6, Y + 7, '#ffffff'); b.set(X + 8, Y + 7, '#ffffff');
-  if (p.mouth) { b.rect(X + 6, Y + 6, 3, 1, '#5a0a10'); b.set(X + 7, Y + 7, '#ffffff'); }
-  arm(b, 11, 11 + by, p.ra, 6, c.hair, c.accent);
+  const fur = c.hair, furL = shade(c.hair, 0.22), furD = shade(c.hair, -0.3);
+  // cola peluda
+  b.ellipse(6 - sw, 20 + by, 2, 2, fur); b.rect(3 - sw, 18 + by, 3, 3, fur); b.set(2 - sw * 2, 17 + by, furL); b.set(3 - sw, 18 + by, furL);
+  arm(b, 10, 13 + by, p.la, 8, furD, furD, 3);
+  b.set(10 + Math.sin(p.la) * 9, 13 + by + Math.cos(p.la) * 9, c.accent, false, true);
+  // piernas: pantalón roto + patas
+  legs(b, p, shade(c.cloth2, -0.2), c.cloth2, fur, { boots: fur });
+  // torso ancho, camisa abierta, pecho peludo
+  torso(b, by, c.cloth, { x: 7, w: 10 });
+  b.rect(11, 12 + by, 4, 7, furL); b.rect(12, 18 + by, 2, 2, furL);
+  texture(b, 7, 12 + by, 10, 9, furD, 0.1, 3);
+  b.clear(16, 19 + by); b.clear(7, 20 + by); b.set(16, 20 + by, fur);
+  // melena
+  b.rect(6, 7 + by, 4, 7, furD);
+  // cabeza de lobo
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 1, Y + 1, 8, 9, fur); b.rect(X, Y + 2, 10, 6, fur);
+  b.rect(X + 7, Y + 5, 5, 4, furL); b.rect(X + 8, Y + 9, 3, 1, furL); // hocico
+  b.set(X + 12, Y + 5, '#141014', false, true); b.set(X + 11, Y + 5, '#141014'); // nariz
+  b.rect(X + 1, Y - 2, 2, 3, fur); b.set(X + 1, Y - 3, fur); b.set(X + 2, Y - 1, '#c08080'); // oreja trasera
+  b.rect(X + 4, Y - 2, 2, 3, fur); b.set(X + 5, Y - 3, fur); b.set(X + 4, Y - 1, '#c08080'); // oreja
+  b.rect(X + 5, Y + 3, 3, 1, furD); // ceño
+  if (!p.blink) { b.set(X + 6, Y + 4, c.eye, true); b.set(X + 7, Y + 4, shade(c.eye, 0.4), true); }
+  b.rect(X + 8, Y + 8, 4, 1, '#3a0a10');
+  b.set(X + 9, Y + 9, '#ffffff', false, true); b.set(X + 11, Y + 9, '#ffffff', false, true); b.set(X + 10, Y + 7, '#ffffff', false, true);
+  if (p.mouth) { b.rect(X + 8, Y + 8, 4, 2, '#5a0a14'); b.set(X + 9, Y + 8, '#ffffff', false, true); b.set(X + 11, Y + 10, '#ffffff', false, true); }
+  texture(b, X, Y, 10, 6, furD, 0.12, 9);
+  arm(b, 13, 13 + by, p.ra, 8, fur, fur, 3);
+  const hx = 13 + Math.sin(p.ra) * 9, hy = 13 + by + Math.cos(p.ra) * 9;
+  b.set(hx, hy, c.accent, false, true); b.set(hx + 1, hy, c.accent, false, true);
 };
 
-const mummy: FormFn = (b, p, c) => {
+const mummy: FormFn = (b, p, c, anim) => {
+  // pose clásica de momia: brazos al frente al andar/parado
+  if (anim === Anim.Idle || anim === Anim.Walk) p = { ...p, la: 1.45 + p.la * 0.15, ra: 1.5 + p.ra * 0.15 };
   const by = p.by, sw = p.sway ?? 0;
-  const band = (y: number) => (y % 2 === 0 ? c.cloth : c.cloth2);
-  // venda suelta
-  for (let i = 0; i < 4; i++) b.set(6 - i - sw, 13 + by + (i % 2), c.hair);
-  arm(b, 8, 11 + by, p.la, 5, c.cloth2, c.cloth2);
-  // piernas vendadas
-  const leg = (x: number, [dx, lift]: [number, number]) => {
-    for (let y = 17; y < 22 - lift; y++) b.rect(x + (y >= 20 ? dx : 0), y, 2, 1, band(y));
-    b.rect(x + dx, 22 - lift, 2, 1, c.cloth2);
+  const band = (x: number, y: number) => (((x + y * 2) % 5) < 2 ? c.cloth2 : c.cloth);
+  const wrap = (x0: number, y0: number, w: number, h: number) => {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (b.get(x, y)) b.set(x, y, band(x, y));
   };
-  leg(8, p.ll); leg(10, p.rl);
-  for (let y = 10; y < 17; y++) b.rect(7, y + by, 6, 1, band(y));
-  b.set(8, 12 + by, c.accent); b.set(11, 14 + by, c.accent); // amuletos
-  const X = 6 + (p.lean ?? 0), Y = 2 + by;
-  for (let y = 0; y < 8; y++) b.rect(X, Y + y, 7, 1, band(y));
-  b.set(X + 7, Y + 4, c.cloth);
-  b.rect(X + 3, Y + 3, 4, 1, c.skin); // rendija de los ojos
-  b.set(X + 5, Y + 3, c.eye);
-  if (p.mouth) b.rect(X + 4, Y + 6, 3, 1, c.skin);
-  arm(b, 11, 11 + by, p.ra, 5, c.cloth, c.cloth);
+  // vendas sueltas
+  b.line(8, 16 + by, 4 - sw, 19 + by + sw, c.hair); b.line(9, 21, 6 - sw, 26, c.hair);
+  arm(b, 10, 13 + by, p.la, 7, c.cloth, c.cloth);
+  wrap(4, 10, 20, 12);
+  legs(b, p, c.cloth2, c.cloth, c.cloth2);
+  wrap(6, HIP, 14, 11);
+  torso(b, by, c.cloth);
+  wrap(8, 12 + by, 8, 10);
+  b.rect(12, 14 + by, 2, 2, c.accent); b.set(12, 14 + by, shade(c.accent, 0.4), false, true); // escarabajo
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 1, Y, 8, 10, c.cloth); b.rect(X, Y + 2, 10, 6, c.cloth); b.set(X + 10, Y + 5, c.cloth);
+  wrap(X, Y, 11, 10);
+  b.rect(X + 4, Y + 4, 6, 2, c.skin); // rendija oscura
+  if (!p.blink) { b.set(X + 7, Y + 4, c.eye, true); b.set(X + 7, Y + 5, shade(c.eye, -0.3), true); }
+  if (p.mouth) b.rect(X + 6, Y + 8, 3, 1, c.skin);
+  b.line(X + 1, Y + 1, X - 2, Y - 1 + sw, c.hair); // venda de la cabeza
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.cloth);
+  wrap(12, 10, 12, 12);
 };
 
 const invisible: FormFn = (b, p, c) => {
-  const by = p.by;
-  // sin cuerpo: solo ropa flotante. 'GHOST' marca huecos que no dibujan contorno.
-  arm(b, 8, 11 + by, p.la, 5, shade(c.cloth, -0.3), c.skin);
-  const shoe = c.accent;
-  b.rect(8 + p.ll[0], 22 - p.ll[1], 3, 1, shoe);
-  b.rect(10 + p.rl[0], 22 - p.rl[1], 3, 1, shoe);
-  // abrigo largo con falda
-  b.rect(7, 10 + by, 6, 7, c.cloth); b.rect(7, 10 + by, 1, 7, c.cloth2);
-  b.rect(6, 17, 8, 3, c.cloth); b.rect(6, 17, 1, 3, c.cloth2);
-  b.rect(8, 10 + by, 4, 2, c.hair); // bufanda
-  b.set(12, 12 + by, c.hair); b.set(13, 13 + by, c.hair);
-  const X = 6 + (p.lean ?? 0), Y = 2 + by;
-  // sombrero de ala ancha + velo
-  b.rect(X - 1, Y + 1, 10, 1, c.cloth2);
-  b.rect(X + 1, Y - 1, 6, 2, c.cloth2);
-  b.rect(X + 1, Y, 6, 1, c.accent === '#202020' ? '#8a2a3a' : c.accent); // cinta
-  // gafas flotando
-  b.rect(X + 3, Y + 4, 2, 1, '#101018'); b.rect(X + 6, Y + 4, 2, 1, '#101018'); b.set(X + 5, Y + 4, '#606070');
-  b.set(X + 4, Y + 4, c.eye);
-  if (p.mouth) b.rect(X + 5, Y + 6, 2, 1, '#c03050'); // carmín
-  arm(b, 11, 11 + by, p.ra, 5, c.cloth, c.skin);
+  const by = p.by, sw = p.sway ?? 0;
+  // bufanda ondeando
+  b.line(9, 12 + by, 4 - sw, 14 + by + (sw > 1 ? 1 : 0), c.hair); b.line(9, 13 + by, 5 - sw, 16 + by, c.hair);
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin, 2, true);
+  // zapatos flotando (sin piernas)
+  const shoe = c.accent === '#202020' ? '#2a1a1a' : shade(c.accent, -0.4);
+  b.rect(9 + p.ll[0], FLOOR - 1 - p.ll[1], 4, 2, shoe);
+  b.rect(12 + p.rl[0], FLOOR - 1 - p.rl[1], 4, 2, shoe);
+  // gabardina larga
+  torso(b, by, c.cloth, { bottom: 26 });
+  b.rect(7, HIP + 1, 10, 5, c.cloth); b.rect(7, 26, 2, 1, c.cloth); b.rect(15, 26, 2, 1, c.cloth);
+  b.rect(8, 17 + by, 8, 1, c.cloth2); b.set(12, 17 + by, '#c0a040', false, true); // cinturón y hebilla
+  b.set(14, 14 + by, c.cloth2); b.set(14, 20 + by, c.cloth2); b.set(14, 23, c.cloth2); // botones
+  b.line(12, 18 + by, 12, 26, shade(c.cloth, -0.25)); // abertura
+  b.rect(9, 11 + by, 6, 2, c.hair); // bufanda al cuello
+  // sombrero de ala ancha y gafas flotando
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X - 2, Y + 2, 14, 1, c.cloth2); b.rect(X - 1, Y + 3, 12, 1, shade(c.cloth2, -0.2));
+  b.rect(X + 1, Y - 1, 8, 3, c.cloth2); b.rect(X + 1, Y + 1, 8, 1, c.accent === '#202020' ? '#8a2a3a' : c.accent);
+  b.rect(X + 4, Y + 6, 3, 2, '#0e0e18'); b.rect(X + 8, Y + 6, 3, 2, '#0e0e18'); b.set(X + 7, Y + 6, '#707080');
+  b.set(X + 5, Y + 6, '#ffffff', true); b.set(X + 9, Y + 6, c.eye, true);
+  if (p.mouth) b.rect(X + 7, Y + 9, 2, 1, '#d03050', true);
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin, 2, true);
 };
 
 export const FORMS: Record<CharacterId, FormFn> = { vampire, werewolf, mummy, invisible };
@@ -266,117 +287,191 @@ export const FORMS: Record<CharacterId, FormFn> = { vampire, werewolf, mummy, in
 // ---------------------------------------------------------------------------
 // Humanos y Helsing
 // ---------------------------------------------------------------------------
-const SKIN_TONES = ['#f2c8a0', '#d9a07a', '#a8704a', '#6e4630', '#e8b890'];
-const HAIR = ['#2a1a10', '#6a3a1a', '#d8b050', '#1a1a1a', '#a03a20', '#808080'];
+const SKIN_TONES = ['#f2c8a0', '#e0a882', '#c08560', '#8d5a3c', '#5e3a26', '#f5d5b8'];
+const HAIR = ['#2a1a10', '#5a3418', '#d8b050', '#141414', '#9a3a1a', '#8a8a8a', '#e8d8a0', '#3a2a50'];
 
-interface NpcLook { top: string; top2: string; legs: string; shoe: string; style: HeadOpts['style']; glasses?: string; cap?: string; extra?: (b: PB, p: Pose) => void }
+export type Held = 'none' | 'flashlight' | 'torch' | 'cross' | 'candle' | 'pitchfork' | 'lantern';
+
+interface NpcLook {
+  top: string; top2: string; legs: string; shoe: string;
+  styles: HairStyle[];
+  kind: 'tshirt' | 'jacket' | 'sweater' | 'dress' | 'robe' | 'apron' | 'overalls' | 'uniform' | 'tunic';
+  held: Held[];
+  glasses?: number; // probabilidad
+  cap?: string;
+}
 
 const NPC_LOOKS: Record<string, NpcLook[]> = {
-  teen: [{ top: '#c03040', top2: '#f0f0f0', legs: '#3050a0', shoe: '#f0f0f0', style: 'long' }, { top: '#e0a020', top2: '#804010', legs: '#3a3a50', shoe: '#202020', style: 'spiky' }],
-  neighbor: [{ top: '#a0c0e0', top2: '#7090b0', legs: '#a0c0e0', shoe: '#c08080', style: 'bun' }, { top: '#8a6a4a', top2: '#5a4a3a', legs: '#404040', shoe: '#202020', style: 'bald' }],
-  jock: [{ top: '#20a040', top2: '#f0f0f0', legs: '#e0e0e0', shoe: '#f0f0f0', style: 'short' }, { top: '#3040c0', top2: '#e0c020', legs: '#303030', shoe: '#e0e0e0', style: 'cap', cap: '#3040c0' }],
-  nerd: [{ top: '#6a8a3a', top2: '#f0e8d0', legs: '#6a5a40', shoe: '#3a2a1a', style: 'short', glasses: '#202020' }],
-  villager: [{ top: '#7a5a3a', top2: '#c0a070', legs: '#4a3a2a', shoe: '#2a1a10', style: 'short' }, { top: '#8a3030', top2: '#e0d0b0', legs: '#4a3a2a', shoe: '#2a1a10', style: 'long' }],
-  priest: [{ top: '#18181e', top2: '#ffffff', legs: '#18181e', shoe: '#101010', style: 'bald' }],
-  maid: [{ top: '#202030', top2: '#f0f0f0', legs: '#202030', shoe: '#101010', style: 'bun' }],
-  camper: [{ top: '#e07020', top2: '#ffffff', legs: '#5a7a3a', shoe: '#6a4a2a', style: 'cap', cap: '#2a5a2a' }, { top: '#e07020', top2: '#ffffff', legs: '#3a5a8a', shoe: '#f0f0f0', style: 'long' }],
-  counselor: [{ top: '#c02020', top2: '#ffffff', legs: '#e0d0a0', shoe: '#f0f0f0', style: 'short' }],
+  teen: [
+    { top: '#c03040', top2: '#f0f0f0', legs: '#3050a0', shoe: '#f0f0f0', styles: ['long', 'ponytail', 'short'], kind: 'jacket', held: ['flashlight', 'none', 'none'] },
+    { top: '#e0a020', top2: '#804010', legs: '#3a3a50', shoe: '#202020', styles: ['spiky', 'mohawk', 'short'], kind: 'tshirt', held: ['none', 'none', 'flashlight'] },
+    { top: '#8040a0', top2: '#f0d0f0', legs: '#202030', shoe: '#e04080', styles: ['pigtails', 'bun', 'long'], kind: 'dress', held: ['none'] },
+  ],
+  neighbor: [
+    { top: '#a0c0e0', top2: '#7090b0', legs: '#a0c0e0', shoe: '#c08080', styles: ['bun', 'short'], kind: 'robe', held: ['none', 'candle'] },
+    { top: '#8a6a4a', top2: '#5a4a3a', legs: '#404040', shoe: '#202020', styles: ['bald', 'short'], kind: 'sweater', held: ['none', 'flashlight', 'none'] },
+  ],
+  jock: [
+    { top: '#20a040', top2: '#f0f0f0', legs: '#e0e0e0', shoe: '#f0f0f0', styles: ['short', 'spiky'], kind: 'uniform', held: ['none'] },
+    { top: '#3040c0', top2: '#e0c020', legs: '#303030', shoe: '#e0e0e0', styles: ['cap'], kind: 'jacket', held: ['none', 'none', 'flashlight'], cap: '#3040c0' },
+  ],
+  nerd: [
+    { top: '#6a8a3a', top2: '#f0e8d0', legs: '#6a5a40', shoe: '#3a2a1a', styles: ['short', 'afro'], kind: 'sweater', held: ['flashlight', 'none'], glasses: 1 },
+    { top: '#d0d0e0', top2: '#3050a0', legs: '#3a3a50', shoe: '#3a2a1a', styles: ['bun', 'ponytail'], kind: 'tshirt', held: ['none', 'none', 'flashlight'], glasses: 0.7 },
+  ],
+  villager: [
+    { top: '#7a5a3a', top2: '#c0a070', legs: '#4a3a2a', shoe: '#2a1a10', styles: ['short', 'bald'], kind: 'tunic', held: ['torch', 'pitchfork', 'none'] },
+    { top: '#8a3030', top2: '#e0d0b0', legs: '#4a3a2a', shoe: '#2a1a10', styles: ['long', 'bun'], kind: 'dress', held: ['torch', 'none'] },
+    { top: '#4a5a3a', top2: '#c0a070', legs: '#3a2a20', shoe: '#2a1a10', styles: ['beanie', 'short'], kind: 'tunic', held: ['pitchfork', 'torch'], cap: '#6a3a2a' },
+  ],
+  priest: [{ top: '#18181e', top2: '#ffffff', legs: '#18181e', shoe: '#101010', styles: ['bald', 'short'], kind: 'robe', held: ['cross'] }],
+  maid: [{ top: '#202030', top2: '#f0f0f0', legs: '#202030', shoe: '#101010', styles: ['bun', 'ponytail'], kind: 'apron', held: ['candle'] }],
+  camper: [
+    { top: '#e07020', top2: '#ffffff', legs: '#5a7a3a', shoe: '#6a4a2a', styles: ['cap', 'short'], kind: 'tshirt', held: ['flashlight', 'lantern', 'none'], cap: '#2a5a2a' },
+    { top: '#e07020', top2: '#ffffff', legs: '#3a5a8a', shoe: '#f0f0f0', styles: ['long', 'ponytail', 'pigtails'], kind: 'tshirt', held: ['none', 'none', 'flashlight'] },
+    { top: '#3a6a9a', top2: '#c0d0e0', legs: '#6a5a3a', shoe: '#4a3020', styles: ['beanie', 'afro'], kind: 'overalls', held: ['lantern', 'flashlight'], cap: '#a03030' },
+  ],
+  counselor: [{ top: '#c02020', top2: '#ffffff', legs: '#e0d0a0', shoe: '#f0f0f0', styles: ['short', 'ponytail', 'cap'], kind: 'uniform', held: ['flashlight', 'none'], cap: '#c02020' }],
 };
 
-function drawNpc(b: PB, p: Pose, variant: string, seed: number) {
+/** Aspecto determinista de un NPC (lo usa también el juego para saber qué luz lleva). */
+export function npcLook(variant: string, seed: number) {
   const looks = NPC_LOOKS[variant] ?? NPC_LOOKS.teen;
-  const L = looks[seed % looks.length];
-  const skin = SKIN_TONES[seed % SKIN_TONES.length];
-  const hair = HAIR[(seed >> 3) % HAIR.length];
-  const by = p.by;
-  arm(b, 8, 11 + by, p.la, 4, shade(L.top, -0.3), skin);
-  legs(b, p, shade(L.legs, -0.25), L.legs, L.shoe);
-  torso(b, by, L.top, shade(L.top, -0.3));
-  if (variant === 'priest') b.set(11, 10 + by, '#ffffff');
-  else if (variant === 'maid') b.rect(9, 12 + by, 3, 5, L.top2);
-  else if (variant === 'counselor') { b.set(11, 12 + by, '#e0e0e0'); b.set(11, 11 + by, '#909090'); }
-  else b.rect(10, 12 + by, 2, 1, L.top2);
-  humanHead(b, p, { skin, hair, eye: '#1a1a1a', style: L.style, glasses: L.glasses, cap: L.cap });
-  arm(b, 11, 11 + by, p.ra, 4, L.top, skin);
+  const r = (k: number) => { const n = Math.sin(seed * 9.13 + k * 47.7) * 43758.5453; return n - Math.floor(n); };
+  const L = looks[Math.floor(r(1) * looks.length)];
+  return {
+    L,
+    skin: SKIN_TONES[Math.floor(r(2) * SKIN_TONES.length)],
+    hair: HAIR[Math.floor(r(3) * HAIR.length)],
+    style: L.styles[Math.floor(r(4) * L.styles.length)],
+    held: L.held[Math.floor(r(5) * L.held.length)],
+    glasses: r(6) < (L.glasses ?? 0.1),
+    stout: r(7) < 0.3,
+  };
+}
+
+function heldItem(b: PB, held: Held, hx: number, hy: number) {
+  switch (held) {
+    case 'flashlight': b.rect(hx, hy, 3, 2, '#3a3a44'); b.set(hx + 3, hy, '#fff6c0', true); b.set(hx + 3, hy + 1, '#fff6c0', true); break;
+    case 'torch': b.line(hx, hy + 3, hx + 1, hy - 3, '#6a4020'); b.rect(hx, hy - 6, 2, 3, '#ff9020', true); b.set(hx + 1, hy - 7, '#ffe060', true); b.set(hx, hy - 4, '#ff5010', true); break;
+    case 'pitchfork': b.line(hx - 1, hy + 4, hx + 2, hy - 7, '#7a5030'); b.rect(hx, hy - 9, 5, 1, '#9090a0'); for (const dx of [0, 2, 4]) b.set(hx + dx, hy - 10, '#b0b0c0'); break;
+    case 'cross': b.rect(hx + 1, hy - 4, 1, 6, '#e0c040', true); b.rect(hx, hy - 3, 3, 1, '#e0c040', true); break;
+    case 'candle': b.rect(hx, hy - 3, 2, 3, '#f0e8d0'); b.set(hx, hy - 4, '#ffd040', true); b.set(hx, hy - 5, '#fff0a0', true); break;
+    case 'lantern': b.rect(hx, hy + 1, 3, 4, '#3a3020'); b.set(hx + 1, hy + 2, '#ffc040', true); b.set(hx + 1, hy + 3, '#ffe080', true); b.set(hx + 1, hy, '#3a3020'); break;
+  }
+}
+
+function drawNpc(b: PB, p: Pose, variant: string, seed: number) {
+  const n = npcLook(variant, seed);
+  const L = n.L, skin = n.skin, by = p.by;
+  const tw = n.stout ? 9 : 8;
+  arm(b, 10, 13 + by, p.la, 7, shade(L.top, -0.25), skin);
+  const longSkirt = L.kind === 'dress' || L.kind === 'robe' || L.kind === 'apron';
+  legs(b, p, shade(L.legs, -0.2), L.legs, L.shoe, { top: longSkirt ? 24 : HIP });
+  torso(b, by, L.top, { w: tw, bottom: longSkirt ? 26 : HIP });
+  if (longSkirt) { b.rect(7, 22, tw + 2, 4, L.top); b.rect(7, 25, tw + 2, 1, shade(L.top, -0.2)); }
+  switch (L.kind) {
+    case 'tshirt': b.rect(11, 15 + by, 3, 2, L.top2); b.rect(8, HIP - 1, tw, 1, L.legs); break;
+    case 'jacket': b.rect(12, 12 + by, 3, 8, L.top2); b.line(11, 12 + by, 11, 20 + by, shade(L.top, -0.3)); break;
+    case 'sweater': for (let y = 14; y < HIP; y += 3) b.rect(8, y + by, tw, 1, L.top2); break;
+    case 'dress': b.rect(8, 18 + by, tw, 1, L.top2); break;
+    case 'robe': b.set(13, 12 + by, L.top2); b.set(12, 12 + by, L.top2); b.line(12, 13 + by, 12, 25, shade(L.top, -0.25)); break;
+    case 'apron': b.rect(10, 15 + by, 5, 11, L.top2); b.rect(11, 12 + by, 3, 1, L.top2); break;
+    case 'overalls': b.rect(9, 16 + by, tw - 2, 5, L.legs); b.set(10, 13 + by, L.legs); b.set(14, 13 + by, L.legs); b.set(12, 17 + by, '#e0c040', false, true); break;
+    case 'uniform': b.rect(13, 12 + by, 1, 6, L.top2); b.set(13, 14 + by, '#c0c0c0', false, true); b.line(13, 12 + by, 15, 15 + by, '#e0e0e0'); break;
+    case 'tunic': b.rect(8, 18 + by, tw, 1, '#4a2a1a'); b.set(13, 18 + by, '#c0a040'); break;
+  }
+  humanHead(b, p, { skin, hair: n.hair, eye: '#1a1a24', style: n.style, glasses: n.glasses ? '#202024' : undefined, cap: L.cap });
+  arm(b, 13, 13 + by, p.ra, 7, L.top, skin);
+  const hx = 13 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
+  heldItem(b, n.held, hx, hy);
 }
 
 function drawHelsing(b: PB, p: Pose) {
-  const by = p.by;
-  const coat = '#5a4030', coat2 = '#3a2a20', skin = '#d8a880', hat = '#2a2020';
-  arm(b, 8, 11 + by, p.la, 5, shade(coat, -0.3), '#3a2a20');
-  legs(b, p, '#2a2a30', '#34343c', '#141414', 18);
+  const by = p.by, sw = p.sway ?? 0;
+  const coat = '#5a3e2c', coat2 = '#3a281c', skin = '#d8a880', hat = '#26201e';
+  // faldones del abrigo y bufanda
+  b.rect(6 - sw, 20, 3, 8, coat2); b.line(9, 12 + by, 5 - sw, 15 + by, '#8a1a1a'); b.line(9, 13 + by, 6 - sw, 16 + by, '#6a1010');
+  arm(b, 10, 13 + by, p.la, 7, shade(coat, -0.25), '#3a2a20');
+  legs(b, p, '#26262e', '#30303a', '#141414', { boots: '#2a1e18' });
+  // farol al cinto (brilla)
+  b.rect(7, 18 + by, 2, 3, '#3a3020'); b.set(7, 19 + by, '#ffc040', true); b.set(7, 20 + by, '#ffe080', true);
   // abrigo largo
-  b.rect(6, 10 + by, 8, 9, coat); b.rect(6, 10 + by, 1, 9, coat2);
-  b.rect(6, 19, 3, 1, coat2); b.rect(11, 19, 3, 1, coat2);
-  b.rect(9, 10 + by, 2, 7, '#c8b8a0'); // camisa
-  b.rect(7, 14 + by, 7, 1, '#2a1a10'); b.set(10, 14 + by, '#c0c0c0'); // cinturón
-  b.set(8, 12 + by, '#d0d0d0'); b.set(8, 11 + by, '#d0d0d0'); b.set(7, 12 + by, '#d0d0d0'); b.set(9, 12 + by, '#d0d0d0'); // cruz
-  humanHead(b, p, { skin, hair: '#4a3020', eye: '#1a1a1a', style: 'short' });
-  const X = 6 + (p.lean ?? 0), Y = 2 + by;
-  b.rect(X + 2, Y + 5, 5, 3, '#4a3020'); b.set(X + 5, Y + 6, '#6a2020'); // barba
-  b.rect(X - 2, Y + 1, 12, 1, hat); b.rect(X, Y - 2, 7, 3, hat); b.rect(X, Y, 7, 1, '#6a1a1a');
-  // ballesta en la mano delantera
+  torso(b, by, coat, { x: 7, w: 9, bottom: 27 });
+  b.rect(7, HIP, 9, 6, coat); b.line(12, 18 + by, 12, 26, coat2);
+  b.rect(11, 12 + by, 3, 6, '#c8b8a0'); // camisa
+  b.line(9, 12 + by, 15, 19 + by, '#4a2a18'); // bandolera
+  for (const k of [0, 2, 4]) b.set(10 + k, 13 + by + k, '#d8c8a0', false, true); // estacas
+  b.rect(7, 18 + by, 9, 1, '#2a1a10'); b.set(13, 18 + by, '#c0c0d0', false, true);
+  b.set(9, 14 + by, '#e0e0e8', false, true); // cruz de plata
+  humanHead(b, p, { skin, hair: '#4a3020', eye: '#1a1a1a', style: 'short', beard: '#4a3020' });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X - 3, Y + 2, 16, 1, hat); b.rect(X - 2, Y + 3, 14, 1, shade(hat, -0.3));
+  b.rect(X + 1, Y - 2, 8, 4, hat); b.rect(X + 1, Y + 1, 8, 1, '#6a1a1a');
+  // ballesta
   const dx = Math.sin(p.ra), dy = Math.cos(p.ra);
-  const hx = 11 + dx * 5, hy = 11 + by + dy * 5;
-  arm(b, 11, 11 + by, p.ra, 5, coat, '#3a2a20');
-  b.rect(hx, hy - 1, 5, 1, '#6a4020'); b.set(hx + 5, hy - 1, '#c0c0d0');
-  b.rect(hx + 2, hy - 3, 1, 5, '#3a2a1a');
+  const hx = 13 + dx * 6, hy = 13 + by + dy * 6;
+  arm(b, 13, 13 + by, p.ra, 6, coat, '#3a2a20');
+  b.rect(hx, hy - 1, 7, 2, '#6a4020'); b.set(hx + 7, hy - 1, '#d0d0e0', false, true);
+  b.line(hx + 4, hy - 5, hx + 4, hy + 3, '#3a2a1a'); b.line(hx + 4, hy - 5, hx + 1, hy - 1, '#c0b090'); b.line(hx + 4, hy + 3, hx + 1, hy, '#c0b090');
 }
 
 // ---------------------------------------------------------------------------
 // Caché de frames
 // ---------------------------------------------------------------------------
-const cache = new Map<string, HTMLCanvasElement>();
+const cache = new Map<string, Baked>();
 
 export function frameCount(a: Anim) { return ANIMS[a].frames.length; }
 
-export function getFrame(kind: 'monster' | 'npc' | 'helsing', variant: string, skin: string, anim: Anim, frame: number, seed = 0): HTMLCanvasElement {
-  const key = `${kind}|${variant}|${skin}|${anim}|${frame}|${kind === 'npc' ? seed % 60 : 0}`;
-  let cv = cache.get(key);
-  if (cv) return cv;
-  const pose = ANIMS[anim].frames[frame % ANIMS[anim].frames.length];
-  const b = new PB();
+export function getFrame(kind: 'monster' | 'npc' | 'helsing', variant: string, skin: string, anim: Anim, frame: number, seed = 0): Baked {
+  const sd = kind === 'npc' ? seed % 97 : 0;
+  const key = `${kind}|${variant}|${skin}|${anim}|${frame}|${sd}`;
+  let f = cache.get(key);
+  if (f) return f;
+  const def = ANIMS[anim] ?? ANIMS[Anim.Idle];
+  const pose = def.frames[frame % def.frames.length];
+  const b = new PB(SW, SH);
   if (kind === 'monster') {
     const ch = variant as CharacterId;
-    FORMS[ch](b, pose, getSkin(ch, skin).palette);
+    (FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim);
   } else if (kind === 'helsing') drawHelsing(b, pose);
-  else drawNpc(b, pose, variant, seed % 60);
-  b.outline(kind === 'monster' && variant === 'invisible' ? 'rgba(10,7,16,0.55)' : OUTLINE);
-  cv = b.toCanvas();
-  cache.set(key, cv);
-  return cv;
+  else drawNpc(b, pose, variant, sd);
+  f = b.finish({ outline: kind === 'monster' && variant === 'invisible' ? 'faint' : 'selout' });
+  cache.set(key, f);
+  return f;
 }
 
 // ---------------------------------------------------------------------------
 // Objetos pequeños: power-ups, proyectiles
 // ---------------------------------------------------------------------------
 type Art = string[];
-const ITEM_ART: Record<string, { art: Art; pal: Record<string, string> }> = {
-  blood: { art: ['....oo....', '....ww....', '...owwo...', '..orrrro..', '.orrRrrro.', '.orRRrrro.', '.orrrrrro.', '..orrrro..', '...oooo...'], pal: { o: OUTLINE, w: '#d0d0e0', r: '#c01020', R: '#ff5060' } },
-  speed: { art: ['.....oo...', '....oyo...', '...oyyo...', '..oyyyooo.', '.oyyyyyyo.', '.ooooyyo..', '....oyo...', '...oyo....', '...oo.....'], pal: { o: OUTLINE, y: '#ffe040' } },
-  fury: { art: ['..oooooo..', '.orrrrrro.', 'orrrrrrrro', 'orkkrrkkro', 'orkkrrkkro', 'orrrrrrrro', '.orrkkrro.', '..orrrro..', '..owowwo..'], pal: { o: OUTLINE, r: '#e03020', k: '#200808', w: '#f0f0f0' } },
-  shield: { art: ['.oooooooo.', 'obbbwwbbbo', 'obbbwwbbbo', 'obwwwwwwbo', 'obbbwwbbbo', '.obbwwbbo.', '.obbbbbbo.', '..obbbbo..', '...oooo...'], pal: { o: OUTLINE, b: '#3060d0', w: '#f0f0f0' } },
-  coin: { art: ['...oooo...', '..oyyyyo..', '.oyYyyyyo.', '.oyYyooyo.', '.oyYyyyyo.', '.oyYyooyo.', '.oyyyyyyo.', '..oyyyyo..', '...oooo...'], pal: { o: OUTLINE, y: '#e0a020', Y: '#fff080' } },
-  xp: { art: ['....oo....', '...oppo...', '..oppPpo..', '.oppPPPpo.', '.opPPWPpo.', '.oppPPPpo.', '..opppPo..', '...oppo...', '....oo....'], pal: { o: OUTLINE, p: '#7030c0', P: '#b070ff', W: '#ffffff' } },
-  bat0: { art: ['o.......o', 'ko.ooo.ok', 'kkokkkokk', '.kkkrkkk.', '..o.k.o..'], pal: { o: OUTLINE, k: '#2a1a3a', r: '#ff2040' } },
-  bat1: { art: ['...ooo...', '..okkko..', '.kkkrkkk.', 'kko.k.okk', 'o.......o'], pal: { o: OUTLINE, k: '#2a1a3a', r: '#ff2040' } },
-  bandage: { art: ['.oooooo.', 'owwcwwco', 'ocwwcwwo', '.oooooo.'], pal: { o: OUTLINE, w: '#e8dcb0', c: '#b0a070' } },
-  bolt: { art: ['......o.', 'ooooooso', 'bbbbbbss', 'ooooooso', '......o.'], pal: { o: OUTLINE, b: '#8a5a2a', s: '#d8d8e8' } },
+const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: string }> = {
+  blood: { art: ['....dd....', '....ww....', '....ww....', '...wrrw...', '..wrRrrw..', '.wrRRrrrw.', '.wrRrrrrw.', '.wrrrrrrw.', '..wrrrrw..', '...wwww...'], pal: { d: '#6a4020', w: '#c8c8e0', r: '#b01020', R: '#ff5060' }, glow: 'R' },
+  speed: { art: ['......yy..', '.....yYy..', '....yYy...', '...yYyyyy.', '..yYYYYYy.', '.yyyyYYy..', '....yYy...', '...yYy....', '..yYy.....', '..yy......'], pal: { y: '#e0a020', Y: '#fff080' }, glow: 'Y' },
+  fury: { art: ['..r..r..r.', '.rRr.rRrr.', '.rRRrRRRr.', 'rRRRRRRRRr', 'rRkkRRkkRr', 'rRkkRRkkRr', 'rRRRkkRRRr', '.rRRRRRRr.', '..rwRwRw..', '...wwww...'], pal: { r: '#a01810', R: '#ff5020', k: '#200808', w: '#f0f0f0' }, glow: 'R' },
+  shield: { art: ['.bbbbbbbb.', 'bBBBwwBBBb', 'bBBBwwBBBb', 'bBwwwwwwBb', 'bBwwwwwwBb', 'bBBBwwBBBb', '.bBBwwBBb.', '.bBBBBBBb.', '..bBBBBb..', '...bbbb...'], pal: { b: '#203a90', B: '#4070e0', w: '#f0f0ff' }, glow: 'w' },
+  coin: { art: ['...yyyy...', '..yYYYYy..', '.yYWyyyYy.', '.yYWyooYy.', '.yYyyyyYy.', '.yYyooyYy.', '.yYyyyyYy.', '..yYYYYy..', '...yyyy...'], pal: { y: '#a06010', Y: '#f0b020', W: '#fff8c0', o: '#a06010' }, glow: 'W' },
+  xp: { art: ['....pp....', '...pPPp...', '..pPWWPp..', '.pPWWWWPp.', '.pPWWWWPp.', '.pPPWWPPp.', '..pPPPPp..', '...pPPp...', '....pp....'], pal: { p: '#5020a0', P: '#a060ff', W: '#f0e0ff' }, glow: 'W' },
+  bat0: { art: ['k.........k', 'kk..kkk..kk', 'kkkkkkkkkkk', '.kkkkrkkkk.', '..k..k..k..'], pal: { k: '#2a1a3a', r: '#ff2040' }, glow: 'r' },
+  bat1: { art: ['....kkk....', '...kkkkk...', '.kkkkrkkkk.', 'kkk..k..kkk', 'k.........k'], pal: { k: '#2a1a3a', r: '#ff2040' }, glow: 'r' },
+  bandage: { art: ['.wwwwwwww.', 'wwcwwcwwcw', 'wcwwcwwcww', '.wwwwwwww.'], pal: { w: '#e8dcb0', c: '#b0a070' } },
+  bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };
 
-const itemCache = new Map<string, HTMLCanvasElement>();
-export function getItem(id: string): HTMLCanvasElement {
-  let cv = itemCache.get(id);
-  if (cv) return cv;
+const itemCache = new Map<string, Baked>();
+export function getItem(id: string): Baked {
+  let f = itemCache.get(id);
+  if (f) return f;
   const def = ITEM_ART[id] ?? ITEM_ART.xp;
-  cv = document.createElement('canvas');
-  cv.width = def.art[0].length; cv.height = def.art.length;
-  const ctx = cv.getContext('2d')!;
+  const w = def.art[0].length, h = def.art.length;
+  const b = new PB(w + 2, h + 2);
   def.art.forEach((row, y) => [...row].forEach((ch, x) => {
     if (ch === '.') return;
-    ctx.fillStyle = def.pal[ch] ?? '#ff00ff';
-    ctx.fillRect(x, y, 1, 1);
+    b.set(x, y, def.pal[ch] ?? '#ff00ff', ch === def.glow, true);
   }));
-  itemCache.set(id, cv);
-  return cv;
+  f = b.finish({ outline: 'selout', autoShade: false });
+  itemCache.set(id, f);
+  return f;
 }
+
+export { mix };

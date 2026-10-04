@@ -48,8 +48,8 @@ input:focus, select:focus { border-color: #8050c0; }
 .chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .chars.small { grid-template-columns: repeat(4, 1fr); }
 .char { background: #0c0714; border: 3px solid var(--line); padding: 6px 4px; text-align: center; cursor: pointer; position: relative; }
-.char canvas { width: 66px; height: 78px; image-rendering: pixelated; display: block; margin: 0 auto; }
-.chars.small .char canvas { width: 44px; height: 52px; }
+.char canvas { width: 66px; height: 86px; image-rendering: pixelated; display: block; margin: 0 auto; }
+.chars.small .char canvas { width: 44px; height: 58px; }
 .char .cname { font-family: var(--px); font-size: 8px; margin-top: 4px; line-height: 1.4; }
 .char .ctitle { font-size: 16px; color: var(--muted); }
 .char.sel { border-color: var(--gold); background: #22162e; }

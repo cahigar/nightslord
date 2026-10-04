@@ -2,13 +2,15 @@
 import { CHARACTERS, type CharacterId } from '../shared/characters';
 import { MAP_SIZE, PIXEL, TICK_DT } from '../shared/constants';
 import { generateMap, THEMES, type GameMap, type MapThemeId, type Obstacle } from '../shared/maps';
+import { Ambient } from './ambient';
+import { Terrain } from './terrain';
 import { ObstacleGrid } from '../shared/physics';
 import { Anim, Flag, Kind, type EntSnap, type GameEvent, type ServerMsg, type YouState } from '../shared/protocol';
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
-import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
-import { groundPattern, LIGHT_COLORS, lightsFor, pathPattern, renderDecor, renderObstacle, type Light, type Prerendered } from './tiles';
+import { ANIMS, getFrame, getItem, npcLook, SH, SW } from './sprites';
+import { LIGHT_COLORS, lightsFor, renderDecor, renderObstacle, type Light, type Prerendered } from './tiles';
 
 const INTERP_MS = 120;
 
@@ -47,8 +49,11 @@ export class Game {
 
   // arte
   private art = new Map<Obstacle, Prerendered>();
-  private groundPat: CanvasPattern | null = null;
-  private pathPat: CanvasPattern | null = null;
+  private terrain!: Terrain;
+  private ambient!: Ambient;
+  private chunkBudget = 3;
+  private time = 0;
+  private decals: { x: number; y: number; c: string; life: number; pts: [number, number, number][] }[] = [];
   private lights: Light[] = [];
   private dark = document.createElement('canvas');
 
@@ -80,12 +85,12 @@ export class Game {
       this.map = generateMap(msg.theme, msg.seed);
       this.grid = new ObstacleGrid(this.map);
       this.art.clear();
-      const ctx = this.canvas.getContext('2d')!;
-      this.groundPat = ctx.createPattern(groundPattern(msg.theme, msg.seed), 'repeat');
-      this.pathPat = ctx.createPattern(pathPattern(msg.theme, msg.seed), 'repeat');
-      this.lights = lightsFor(this.map, this.map.obstacles);
+      this.terrain = new Terrain(this.map);
+      this.lights = lightsFor(this.map);
+      this.ambient = new Ambient(this.map, this.lights);
       this.ents.clear();
       this.corpses = [];
+      this.decals = [];
     }
     if (this.sendTimer === null) this.sendTimer = window.setInterval(() => this.sendInput(), TICK_DT * 1000);
   }
@@ -115,7 +120,7 @@ export class Game {
         x = r.x; y = r.y;
       }
     }
-    if (first) { this.pred = { x, y, px: x, py: y, t: now }; this.cam.x = x; this.cam.y = y; }
+    if (first) { this.pred = { x, y, px: x, py: y, t: now }; this.cam.x = x; this.cam.y = y; this.terrain.warm(x, y, 900); }
     else {
       this.corr.x += oldX - x; this.corr.y += oldY - y;
       if (Math.hypot(this.corr.x, this.corr.y) > 160) this.corr = { x: 0, y: 0 };
@@ -149,7 +154,7 @@ export class Game {
       if (input.touch.aim !== null) this.aim = input.touch.aim;
     } else {
       const sx = this.canvas.width / 2 + (this.renderPos().x - this.cam.x) * this.cam.zoom;
-      const sy = this.canvas.height / 2 + (this.renderPos().y - this.cam.y - 30) * this.cam.zoom;
+      const sy = this.canvas.height / 2 + (this.renderPos().y - this.cam.y - 45) * this.cam.zoom;
       this.aim = Math.atan2(input.mouseY * devicePixelRatio - sy, input.mouseX * devicePixelRatio - sx);
     }
     const q = ++this.seq;
@@ -181,7 +186,8 @@ export class Game {
         if (ev.d > 0) {
           this.floaters.push({ x: ev.x + (Math.random() - 0.5) * 20, y: ev.y - 50, text: String(ev.d), color: mine ? '#ff4050' : ev.crit ? '#ffd040' : '#ffffff', life: 0.9, big: ev.crit });
           const col = target?.c === 'mummy' ? '#c8b888' : target?.c === 'invisible' ? '#a0d0ff' : '#b0101a';
-          this.burst(ev.x, ev.y - 20, 6, col, 140, 2);
+          this.burst(ev.x, ev.y - 40, 6, col, 140, 2);
+          if (col === '#b0101a') this.splat(ev.x, ev.y, 3 + Math.min(6, ev.d / 6));
         }
         if (mine) this.shake = Math.min(14, this.shake + 6);
         break;
@@ -192,7 +198,8 @@ export class Game {
           this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: ev.c, s: e?.s, f: e?.f ?? 1, life: 6, seed: e?.id ?? 0 });
           if (this.corpses.length > 60) this.corpses.shift();
         }
-        this.burst(ev.x, ev.y - 20, 18, ev.k === Kind.Player ? '#8040ff' : '#b0101a', 220, 3);
+        this.burst(ev.x, ev.y - 40, 18, ev.k === Kind.Player ? '#8040ff' : '#b0101a', 220, 3);
+        this.splat(ev.x, ev.y, 14);
         if (ev.k === Kind.Player) for (let i = 0; i < 10; i++) this.particles.push({ x: ev.x, y: ev.y - 20, vx: (Math.random() - 0.5) * 40, vy: -60 - Math.random() * 60, life: 1.6, max: 1.6, color: '#c0a0ff', size: 4, grav: -10 });
         break;
       }
@@ -207,7 +214,7 @@ export class Game {
 
   private fx(ev: Extract<GameEvent, { e: 'fx' }>) {
     switch (ev.f) {
-      case 'swing': this.swings.push({ x: ev.x, y: ev.y - 22, a: ev.r ?? 0, life: 0.15, color: '#ffffff' }); break;
+      case 'swing': this.swings.push({ x: ev.x, y: ev.y - 42, a: ev.r ?? 0, life: 0.15, color: '#ffffff' }); break;
       case 'mist': for (let i = 0; i < 24; i++) this.particles.push({ x: ev.x + (Math.random() - 0.5) * 40, y: ev.y - 20 + (Math.random() - 0.5) * 40, vx: (Math.random() - 0.5) * 60, vy: -20 - Math.random() * 30, life: 0.9, max: 0.9, color: Math.random() < 0.5 ? '#8060c0' : '#c0b0e0', size: 6, grav: 0 }); break;
       case 'howl': this.rings.push({ x: ev.x, y: ev.y, r: ev.r ?? 400, life: 0.7, max: 0.7, color: '#ffb040', width: 6 }); this.shake = 8; break;
       case 'curse':
@@ -224,6 +231,18 @@ export class Game {
     }
   }
 
+  /** Mancha de sangre persistente en el suelo (pixelada). */
+  private splat(x: number, y: number, size: number) {
+    const pts: [number, number, number][] = [];
+    const n = Math.round(size * 1.6);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, d = Math.random() * size * 3;
+      pts.push([Math.cos(a) * d, Math.sin(a) * d * 0.5, Math.random() < 0.3 ? 6 : 3]);
+    }
+    this.decals.push({ x, y: y + 2, c: Math.random() < 0.5 ? '#5a0610' : '#3e040a', life: 40, pts });
+    if (this.decals.length > 160) this.decals.shift();
+  }
+
   private burst(x: number, y: number, n: number, color: string, speed: number, size: number) {
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random() * 0.7);
@@ -238,6 +257,7 @@ export class Game {
     const W = cv.width, H = cv.height;
     if (!this.map) { ctx.fillStyle = '#05030a'; ctx.fillRect(0, 0, W, H); return; }
     const now = performance.now();
+    this.time += dt;
     this.corr.x *= Math.pow(0.002, dt); this.corr.y *= Math.pow(0.002, dt);
 
     // interpolación del resto de entidades
@@ -264,7 +284,7 @@ export class Game {
     // cámara
     const target = this.alive || !meEnt ? me : { x: meEnt.rx, y: meEnt.ry };
     this.cam.x += (target.x - this.cam.x) * Math.min(1, dt * 12);
-    this.cam.y += (target.y - 30 - this.cam.y) * Math.min(1, dt * 12);
+    this.cam.y += (target.y - 40 - this.cam.y) * Math.min(1, dt * 12);
     this.cam.zoom = Math.max(0.55, Math.min(1.6, Math.max(W / 1500, H / 950)));
     const z = this.cam.zoom;
     this.shake = Math.max(0, this.shake - dt * 40);
@@ -272,45 +292,62 @@ export class Game {
     const camX = this.cam.x - W / 2 / z + sx, camY = this.cam.y - H / 2 / z + sy;
     const vx0 = camX - 100, vy0 = camY - 200, vx1 = camX + W / z + 100, vy1 = camY + H / z + 150;
     const inView = (x: number, y: number) => x > vx0 && x < vx1 && y > vy0 && y < vy1;
+    const world = () => ctx.setTransform(z, 0, 0, z, Math.round(-camX * z), Math.round(-camY * z));
+    const glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[] = [];
+    const dyn: Light[] = []; // luces dinámicas (antorchas de NPC, farol de Helsing)
+    const cones: { x: number; y: number; a: number }[] = []; // linternas
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#020104'; // fuera del mapa
     ctx.fillRect(0, 0, W, H);
     ctx.imageSmoothingEnabled = false;
-    ctx.setTransform(z, 0, 0, z, Math.round(-camX * z), Math.round(-camY * z));
+    world();
 
-    // suelo
-    ctx.fillStyle = this.groundPat!;
-    ctx.fillRect(Math.max(0, vx0), Math.max(0, vy0), Math.min(MAP_SIZE, vx1) - Math.max(0, vx0), Math.min(MAP_SIZE, vy1) - Math.max(0, vy0));
-    ctx.fillStyle = this.pathPat!;
-    for (const p of this.map.paths) if (p.x < vx1 && p.x + p.w > vx0 && p.y < vy1 && p.y + p.h > vy0) ctx.fillRect(p.x, p.y, p.w, p.h);
-    // borde del mapa
+    // suelo procedural (por chunks) + bordes del mapa
+    this.terrain.draw(ctx, vx0, vy0, vx1, vy1, this.chunkBudget);
+    this.chunkBudget = 3;
     ctx.strokeStyle = '#000'; ctx.lineWidth = 12; ctx.strokeRect(0, 0, MAP_SIZE, MAP_SIZE);
-
-    const artOf = (o: Obstacle) => {
-      let a = this.art.get(o);
-      if (!a) { a = renderObstacle(o, this.theme); this.art.set(o, a); }
-      return a;
-    };
-    for (const o of this.map.obstacles) {
-      if (o.type !== 'water' || !(o.x < vx1 && o.x + o.w > vx0 && o.y < vy1 && o.y + o.h > vy0)) continue;
-      const a = artOf(o);
-      ctx.drawImage(a.cv, o.x + a.ox, o.y + a.oy);
+    // brillos del agua
+    ctx.fillStyle = '#7aa6d0';
+    for (const g of this.terrain.waterGlints) {
+      if (!inView(g.x, g.y)) continue;
+      const a = Math.pow(Math.max(0, Math.sin(this.time * 1.6 + g.ph)), 6);
+      if (a < 0.05) continue;
+      ctx.globalAlpha = a * 0.8;
+      ctx.fillRect(Math.round(g.x / 3) * 3, Math.round(g.y / 3) * 3, 9 + Math.round(a * 6), 3);
     }
-    for (const d of this.map.decor) if (inView(d.x, d.y)) ctx.drawImage(renderDecor(d), d.x, d.y);
+    ctx.globalAlpha = 1;
+
+    // manchas de sangre persistentes
+    for (const d of this.decals) {
+      d.life -= dt;
+      if (!inView(d.x, d.y)) continue;
+      ctx.globalAlpha = Math.min(0.85, d.life / 10);
+      ctx.fillStyle = d.c;
+      for (const [ox, oy, s] of d.pts) ctx.fillRect(Math.round((d.x + ox) / 3) * 3, Math.round((d.y + oy) / 3) * 3, s, s);
+    }
+    ctx.globalAlpha = 1;
+    this.decals = this.decals.filter((d) => d.life > 0);
+
+    // decoración del suelo
+    for (const d of this.map.decor) {
+      if (!inView(d.x, d.y)) continue;
+      const art = renderDecor(d);
+      const w = art.base.width * PIXEL, h = art.base.height * PIXEL;
+      ctx.drawImage(art.base, d.x, d.y, w, h);
+      if (art.glow) glows.push({ img: art.glow, x: d.x, y: d.y, w, h, flip: false, a: 1 });
+    }
 
     // cadáveres
     for (const c of this.corpses) {
       c.life -= dt;
       if (!inView(c.x, c.y)) continue;
       ctx.globalAlpha = Math.min(1, c.life / 1.5);
-      ctx.fillStyle = '#3a0408';
-      ctx.beginPath(); ctx.ellipse(c.x, c.y + 4, 26, 10, 0, 0, Math.PI * 2); ctx.fill();
       const kind = c.k === Kind.Player ? 'monster' : c.k === Kind.Helsing ? 'helsing' : 'npc';
       if (c.c) {
-        const fr = getFrame(kind, c.c, c.s ?? 'classic', Anim.Dead, 0, c.seed);
-        ctx.save(); ctx.translate(c.x, c.y - 4); ctx.rotate((Math.PI / 2) * c.f); ctx.scale(c.f, 1);
-        ctx.drawImage(fr, (-SW * PIXEL) / 2, (-SH * PIXEL) / 2 - 10, SW * PIXEL, SH * PIXEL);
+        const fr = getFrame(kind, c.c, c.s ?? 'classic', Anim.Dead, 0, c.seed % 97).base;
+        ctx.save(); ctx.translate(c.x, c.y - 8); ctx.rotate((Math.PI / 2) * c.f); ctx.scale(c.f, 1);
+        ctx.drawImage(fr, (-SW * PIXEL) / 2, (-SH * PIXEL) / 2 - 12, SW * PIXEL, SH * PIXEL);
         ctx.restore();
       }
       ctx.globalAlpha = 1;
@@ -318,27 +355,49 @@ export class Game {
     this.corpses = this.corpses.filter((c) => c.life > 0);
 
     // objetos ordenados por profundidad
+    const artOf = (o: Obstacle) => {
+      let a = this.art.get(o);
+      if (!a) { a = renderObstacle(o, this.theme); this.art.set(o, a); }
+      return a;
+    };
     const draws: { y: number; fn: () => void }[] = [];
     for (const o of this.map.obstacles) {
       if (o.type === 'water') continue;
-      if (!(o.x - 40 < vx1 && o.x + o.w + 40 > vx0 && o.y - 150 < vy1 && o.y + o.h > vy0)) continue;
-      draws.push({ y: o.y + o.h, fn: () => { const a = artOf(o); ctx.drawImage(a.cv, o.x + a.ox, o.y + a.oy); } });
+      if (!(o.x - 60 < vx1 && o.x + o.w + 60 > vx0 && o.y - 160 < vy1 && o.y + o.h > vy0)) continue;
+      draws.push({
+        y: o.y + o.h, fn: () => {
+          const a = artOf(o);
+          const w = a.base.width * PIXEL, h = a.base.height * PIXEL;
+          ctx.drawImage(a.base, o.x + a.ox, o.y + a.oy, w, h);
+          if (a.glow) glows.push({ img: a.glow, x: o.x + a.ox, y: o.y + a.oy, w, h, flip: false, a: 1 });
+        },
+      });
     }
     for (const e of this.ents.values()) {
-      if (!inView(e.rx, e.ry)) continue;
-      if (e.k === Kind.Projectile) continue;
-      draws.push({ y: e.ry, fn: () => this.drawEnt(ctx, e, now) });
+      if (!inView(e.rx, e.ry) || e.k === Kind.Projectile) continue;
+      draws.push({ y: e.ry, fn: () => this.drawEnt(ctx, e, now, glows) });
+      if (e.k === Kind.Npc) {
+        const held = npcLook(e.c, e.id % 97).held;
+        if (held === 'flashlight') cones.push({ x: e.rx + e.f * 20, y: e.ry - 40, a: e.f === 1 ? 0 : Math.PI });
+        else if (held === 'torch') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 60, r: 200, c: 'warm', flicker: true });
+        else if (held === 'lantern' || held === 'candle') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 40, r: 130, c: 'warm', flicker: true });
+      } else if (e.k === Kind.Helsing) dyn.push({ x: e.rx - e.f * 12, y: e.ry - 40, r: 150, c: 'warm', flicker: true });
     }
     draws.sort((a, b) => a.y - b.y);
     for (const d of draws) d.fn();
+    cones.sort((a, b) => (a.x - me.x) ** 2 + (a.y - me.y) ** 2 - ((b.x - me.x) ** 2 + (b.y - me.y) ** 2));
+    cones.length = Math.min(cones.length, 5);
 
     // proyectiles y efectos
-    for (const e of this.ents.values()) if (e.k === Kind.Projectile && inView(e.rx, e.ry)) this.drawProjectile(ctx, e, now);
+    for (const e of this.ents.values()) if (e.k === Kind.Projectile && inView(e.rx, e.ry)) this.drawProjectile(ctx, e, now, glows);
     for (const s of this.swings) {
       s.life -= dt;
-      ctx.strokeStyle = `rgba(255,255,255,${Math.max(0, s.life / 0.15)})`;
+      const k = Math.max(0, s.life / 0.15);
+      ctx.strokeStyle = `rgba(255,255,255,${k})`;
       ctx.lineWidth = 6;
-      ctx.beginPath(); ctx.arc(s.x, s.y, 34, s.a - 0.9, s.a + 0.9); ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.x, s.y, 40, s.a - 0.9 * (1.4 - k), s.a + 0.9 * (1.4 - k)); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${k * 0.4})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(s.x, s.y, 50, s.a - 0.7, s.a + 0.7); ctx.stroke();
     }
     this.swings = this.swings.filter((s) => s.life > 0);
     for (const r of this.rings) {
@@ -359,11 +418,26 @@ export class Game {
     this.particles = this.particles.filter((p) => p.life > 0);
     if (this.particles.length > 900) this.particles.splice(0, this.particles.length - 900);
 
-    // iluminación
-    this.drawLighting(ctx, W, H, camX, camY, z, now, me);
+    // niebla (antes de oscurecer: solo se ve iluminada)
+    this.ambient.update(dt, camX, camY, W / z, H / z);
+    this.ambient.drawFog(ctx, vx0, vy0, vx1, vy1);
 
-    // capa de UI en coordenadas de mundo (nombres, vida, números)
-    ctx.setTransform(z, 0, 0, z, Math.round(-camX * z), Math.round(-camY * z));
+    // iluminación
+    this.drawLighting(ctx, W, H, camX, camY, z, now, me, dyn, cones);
+
+    // capa emisiva (ojos, ventanas, fuego...) por encima de la oscuridad
+    world();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const g of glows) {
+      ctx.globalAlpha = g.a;
+      if (g.flip) { ctx.save(); ctx.translate(g.x * 2 + g.w, 0); ctx.scale(-1, 1); ctx.drawImage(g.img, g.x, g.y, g.w, g.h); ctx.restore(); }
+      else ctx.drawImage(g.img, g.x, g.y, g.w, g.h);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    this.ambient.drawMotes(ctx);
+
+    // UI en coordenadas de mundo (nombres, vida, números)
     for (const e of this.ents.values()) if (inView(e.rx, e.ry)) this.drawOverlay(ctx, e, now);
     ctx.textAlign = 'center';
     for (const f of this.floaters) {
@@ -376,15 +450,17 @@ export class Game {
     ctx.globalAlpha = 1;
     this.floaters = this.floaters.filter((f) => f.life > 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ambient.drawVignette(ctx, W, H);
   }
 
-  private drawLighting(ctx: CanvasRenderingContext2D, W: number, H: number, camX: number, camY: number, z: number, now: number, me: { x: number; y: number }) {
+  private drawLighting(ctx: CanvasRenderingContext2D, W: number, H: number, camX: number, camY: number, z: number, now: number, me: { x: number; y: number }, dyn: Light[], cones: { x: number; y: number; a: number }[]) {
     const d = this.dark;
     if (d.width !== W || d.height !== H) { d.width = W; d.height = H; }
     const dc = d.getContext('2d')!;
     dc.globalCompositeOperation = 'source-over';
     dc.clearRect(0, 0, W, H);
-    dc.fillStyle = 'rgba(4,2,12,0.8)';
+    const amb = parseInt(THEMES[this.theme].ambient.slice(1), 16);
+    dc.fillStyle = `rgba(${(amb >> 16) & 255},${(amb >> 8) & 255},${amb & 255},0.84)`;
     dc.fillRect(0, 0, W, H);
     dc.globalCompositeOperation = 'destination-out';
     const hole = (x: number, y: number, r: number, strength = 1) => {
@@ -392,58 +468,78 @@ export class Game {
       if (px < -pr || py < -pr || px > W + pr || py > H + pr) return;
       const g = dc.createRadialGradient(px, py, 0, px, py, pr);
       g.addColorStop(0, `rgba(0,0,0,${strength})`);
-      g.addColorStop(0.6, `rgba(0,0,0,${strength * 0.6})`);
+      g.addColorStop(0.55, `rgba(0,0,0,${strength * 0.65})`);
       g.addColorStop(1, 'rgba(0,0,0,0)');
       dc.fillStyle = g;
       dc.fillRect(px - pr, py - pr, pr * 2, pr * 2);
     };
-    const flick = (l: Light) => (l.flicker ? 1 + Math.sin(now / 90 + l.x) * 0.06 + Math.random() * 0.04 : 1);
-    hole(me.x, me.y - 20, this.alive ? 340 : 260, 0.95);
-    for (const l of this.lights) hole(l.x, l.y, l.r * flick(l), 0.85);
+    const flick = (l: Light) => (l.flicker ? 1 + Math.sin(now / 90 + l.x) * 0.05 + Math.random() * 0.04 : 1);
+    hole(me.x, me.y - 30, this.alive ? 330 : 260, 0.92);
+    const all = this.lights.concat(dyn);
+    for (const l of all) hole(l.x, l.y, l.r * flick(l), 0.85);
     for (const e of this.ents.values()) {
-      if (e.k === Kind.PowerUp) hole(e.rx, e.ry, 60, 0.6);
-      else if (e.k === Kind.Player && e.id !== this.youId) hole(e.rx, e.ry - 20, 90, 0.5);
+      if (e.k === Kind.PowerUp) hole(e.rx, e.ry - 20, 70, 0.6);
+      else if (e.k === Kind.Player && e.id !== this.youId && !(e.fl & Flag.Invisible)) hole(e.rx, e.ry - 30, 80, 0.45);
+    }
+    // conos de linterna
+    for (const c of cones) {
+      const px = (c.x - camX) * z, py = (c.y - camY) * z, pr = 240 * z;
+      if (px < -pr || py < -pr || px > W + pr || py > H + pr) continue;
+      const g = dc.createRadialGradient(px, py, 0, px, py, pr);
+      g.addColorStop(0, 'rgba(0,0,0,0.75)'); g.addColorStop(0.6, 'rgba(0,0,0,0.3)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      dc.fillStyle = g;
+      dc.beginPath(); dc.moveTo(px, py); dc.arc(px, py, pr, c.a - 0.3, c.a + 0.3); dc.closePath(); dc.fill();
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.drawImage(d, 0, 0);
-    // brillo cálido aditivo
+    // brillo de color aditivo
     ctx.globalCompositeOperation = 'lighter';
-    for (const l of this.lights) {
+    for (const l of all) {
       const px = (l.x - camX) * z, py = (l.y - camY) * z, pr = l.r * z * 0.8 * flick(l);
       if (px < -pr || py < -pr || px > W + pr || py > H + pr) continue;
       const g = ctx.createRadialGradient(px, py, 0, px, py, pr);
-      g.addColorStop(0, LIGHT_COLORS[l.c] + '0.16)');
+      g.addColorStop(0, LIGHT_COLORS[l.c] + (l.c === 'cold' ? '0.08)' : '0.2)'));
       g.addColorStop(1, LIGHT_COLORS[l.c] + '0)');
       ctx.fillStyle = g;
       ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+    }
+    for (const c of cones) {
+      const px = (c.x - camX) * z, py = (c.y - camY) * z, pr = 240 * z;
+      if (px < -pr || py < -pr || px > W + pr || py > H + pr) continue;
+      const g = ctx.createRadialGradient(px, py, 0, px, py, pr);
+      g.addColorStop(0, 'rgba(255,250,200,0.12)'); g.addColorStop(1, 'rgba(255,250,200,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.arc(px, py, pr, c.a - 0.3, c.a + 0.3); ctx.closePath(); ctx.fill();
     }
     ctx.globalCompositeOperation = 'source-over';
   }
 
   private frameFor(e: CEnt, now: number) {
     const def = ANIMS[e.a] ?? ANIMS[Anim.Idle];
-    const t = (now - e.animStart) / 1000;
+    const t = (now - e.animStart) / 1000 + (e.a === Anim.Idle ? (e.id % 7) * 0.31 : 0);
     let f = Math.floor(t / def.dur);
     f = def.loop ? f % def.frames.length : Math.min(def.frames.length - 1, f);
     return f;
   }
 
-  private drawEnt(ctx: CanvasRenderingContext2D, e: CEnt, now: number) {
+  private drawEnt(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     const x = e.rx, y = e.ry;
     if (e.k === Kind.PowerUp) {
       const img = getItem(e.c);
       const bob = Math.sin(now / 250 + e.id) * 4;
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.beginPath(); ctx.ellipse(x, y + 8, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.drawImage(img, x - (img.width * PIXEL) / 2, y - img.height * PIXEL - 2 + bob, img.width * PIXEL, img.height * PIXEL);
+      const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
+      ctx.drawImage(img.base, x - w / 2, y - h - 2 + bob, w, h);
+      if (img.glow) glows.push({ img: img.glow, x: x - w / 2, y: y - h - 2 + bob, w, h, flip: false, a: 0.6 + Math.sin(now / 200 + e.id) * 0.3 });
       return;
     }
     // sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.ellipse(x, y + 4, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.ellipse(x + 3, y + 3, 20, 7, 0, 0, Math.PI * 2); ctx.fill();
 
     const kind = e.k === Kind.Player ? 'monster' : e.k === Kind.Helsing ? 'helsing' : 'npc';
-    const fr = getFrame(kind, e.c, e.s ?? 'classic', e.a, this.frameFor(e, now), e.id);
+    const fr = getFrame(kind, e.c, e.s ?? 'classic', e.a, this.frameFor(e, now), e.id % 97);
     let alpha = 1;
     if (e.k === Kind.Player && e.c === 'invisible') alpha = 0.92;
     if (e.fl & Flag.Invisible) alpha = e.id === this.youId ? 0.35 : 0.18 + Math.sin(now / 80) * 0.08;
@@ -452,43 +548,49 @@ export class Game {
     ctx.globalAlpha = alpha;
     const w = SW * PIXEL, h = SH * PIXEL;
     const dx = x - w / 2, dy = y - h + 9;
-    if (e.f === -1) {
-      ctx.save(); ctx.translate(x * 2, 0); ctx.scale(-1, 1);
-      ctx.drawImage(fr, dx, dy, w, h);
-      ctx.restore();
-    } else ctx.drawImage(fr, dx, dy, w, h);
+    const flip = e.f === -1;
+    const blit = (img: HTMLCanvasElement) => {
+      if (flip) { ctx.save(); ctx.translate(x * 2, 0); ctx.scale(-1, 1); ctx.drawImage(img, dx, dy, w, h); ctx.restore(); }
+      else ctx.drawImage(img, dx, dy, w, h);
+    };
+    blit(fr.base);
     if (now - e.flash < 90) {
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.7;
-      if (e.f === -1) { ctx.save(); ctx.translate(x * 2, 0); ctx.scale(-1, 1); ctx.drawImage(fr, dx, dy, w, h); ctx.restore(); }
-      else ctx.drawImage(fr, dx, dy, w, h);
+      ctx.globalAlpha = 0.75;
+      blit(fr.base);
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.globalAlpha = 1;
+    if (fr.glow && alpha > 0.3) glows.push({ img: fr.glow, x: dx, y: dy, w, h, flip, a: alpha });
     if (e.fl & Flag.Shield) {
       ctx.strokeStyle = `rgba(100,160,255,${0.5 + Math.sin(now / 150) * 0.2})`;
       ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.ellipse(x, y - 30, 30, 40, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(x, y - 45, 36, 54, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    if (e.fl & Flag.Buffed && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 30, y: y - Math.random() * 50, vx: 0, vy: -50, life: 0.5, max: 0.5, color: '#ff4020', size: 3, grav: 0 });
-    if (e.fl & Flag.Slowed && Math.random() < 0.15) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 30, vx: 0, vy: 30, life: 0.5, max: 0.5, color: '#40c060', size: 3, grav: 100 });
+    if (e.fl & Flag.Buffed && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 34, y: y - Math.random() * 80, vx: 0, vy: -50, life: 0.5, max: 0.5, color: '#ff4020', size: 3, grav: 0 });
+    if (e.fl & Flag.Slowed && Math.random() < 0.15) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 50, vx: 0, vy: 30, life: 0.5, max: 0.5, color: '#40c060', size: 3, grav: 100 });
+    // polvo al andar
+    if (e.a === Anim.Walk && Math.random() < 0.08) this.particles.push({ x: x + (Math.random() - 0.5) * 16, y: y + 2, vx: -e.f * 20, vy: -10, life: 0.4, max: 0.4, color: '#5a5048', size: 3, grav: 0 });
   }
 
-  private drawProjectile(ctx: CanvasRenderingContext2D, e: CEnt, now: number) {
+  private drawProjectile(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     const id = e.c === 'bat' ? `bat${Math.floor(now / 90) % 2}` : e.c;
     const img = getItem(id);
+    const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
     ctx.save();
-    ctx.translate(e.rx, e.ry - 24);
+    ctx.translate(e.rx, e.ry - 40);
     if (e.c === 'bat') { if ((e.r ?? 0) > Math.PI / 2 || (e.r ?? 0) < -Math.PI / 2) ctx.scale(-1, 1); }
     else ctx.rotate(e.c === 'bandage' ? now / 60 : e.r ?? 0);
-    ctx.drawImage(img, (-img.width * PIXEL) / 2, (-img.height * PIXEL) / 2, img.width * PIXEL, img.height * PIXEL);
+    ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
+    if (img.glow && e.c === 'bat') glows.push({ img: img.glow, x: e.rx - w / 2, y: e.ry - 40 - h / 2, w, h, flip: false, a: 1 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: e.ry - 40, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : '#d0c090', size: 3, grav: 0 });
   }
 
   private drawOverlay(ctx: CanvasRenderingContext2D, e: CEnt, now: number) {
     if (e.k === Kind.PowerUp || e.k === Kind.Projectile) return;
     if (e.fl & Flag.Invisible && e.id !== this.youId) return;
-    const x = e.rx, top = e.ry - SH * PIXEL + 6;
+    const x = e.rx, top = e.ry - SH * PIXEL + 8;
     ctx.textAlign = 'center';
     if (e.k === Kind.Player) {
       const me = e.id === this.youId;

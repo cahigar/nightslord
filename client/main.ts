@@ -7,7 +7,7 @@ import { initAudio, isMuted, startMusic, toggleMute } from './audio';
 import { Game } from './game';
 import { input, setupInput } from './input';
 import { net } from './net';
-import { ANIMS, getFrame } from './sprites';
+import { ANIMS, getFrame, SH, SW } from './sprites';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('game');
@@ -60,7 +60,9 @@ function animatePreviews(now: number) {
     const c = p.cv.getContext('2d')!;
     c.imageSmoothingEnabled = false;
     c.clearRect(0, 0, p.cv.width, p.cv.height);
-    c.drawImage(getFrame('monster', p.char, p.skin(), p.anim, f), 0, 0, p.cv.width, p.cv.height);
+    const fr = getFrame('monster', p.char, p.skin(), p.anim, f);
+    c.drawImage(fr.base, 0, 0, p.cv.width, p.cv.height);
+    if (fr.glow) { c.globalCompositeOperation = 'lighter'; c.drawImage(fr.glow, 0, 0, p.cv.width, p.cv.height); c.globalCompositeOperation = 'source-over'; }
   }
 }
 
@@ -75,7 +77,7 @@ function buildChars(container: HTMLElement, small = false) {
     const el = document.createElement('div');
     el.className = `char${selChar === id ? ' sel' : ''}${owned ? '' : ' locked'}`;
     const cv = document.createElement('canvas');
-    cv.width = 22 * 3; cv.height = 26 * 3;
+    cv.width = SW * 3; cv.height = SH * 3;
     previews.push({ cv, char: id, skin: () => (selChar === id ? selSkin : 'classic'), anim: selChar === id ? Anim.Taunt : Anim.Idle });
     el.appendChild(cv);
     el.insertAdjacentHTML('beforeend', `<div class="cname">${def.name}</div>${small ? '' : `<div class="ctitle">${def.title}</div>`}`);
@@ -389,4 +391,6 @@ boot();
 // ---------------------------------------------------------------------------
 if (location.hash === '#sprites') {
   import('./spritesheet').then((m) => m.showSpriteSheet());
+} else if (location.hash.startsWith('#mapa')) {
+  import('./spritesheet').then((m) => m.showMapPreview(location.hash.slice(6)));
 }
