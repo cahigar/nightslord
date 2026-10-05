@@ -5,6 +5,10 @@ import { Room } from './Room';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_ROOMS = Number(process.env.MAX_ROOMS ?? 20);
+/** Letra de este proceso cuando hay varios (A, B, C...): los códigos de sala empiezan por ella. */
+/** Salas públicas que se mantienen siempre abiertas (aunque estén vacías) para que siempre haya dónde entrar. */
+const MIN_ROOMS = Number(process.env.MIN_ROOMS ?? 1);
+export const SHARD = (process.env.SHARD ?? '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
 
 export class RoomManager {
   rooms = new Map<string, Room>();
@@ -13,20 +17,25 @@ export class RoomManager {
     // Limpieza de salas vacías
     setInterval(() => {
       const now = Date.now();
+      let publicOpen = [...this.rooms.values()].filter((r) => !r.priv).length;
       for (const [code, room] of this.rooms) {
+        if (!room.priv && publicOpen <= MIN_ROOMS) continue; // se queda abierta, lista para el siguiente
         if (room.playerCount === 0 && now - room.emptySince > ROOM_IDLE_CLOSE_MS) {
+          if (!room.priv) publicOpen--;
           room.destroy();
           this.rooms.delete(code);
           console.log(`[rooms] sala ${code} cerrada (vacía)`);
         }
       }
+      while ([...this.rooms.values()].filter((r) => !r.priv).length < MIN_ROOMS && this.rooms.size < MAX_ROOMS) this.create(false);
     }, 10_000).unref();
+    for (let i = 0; i < MIN_ROOMS; i++) this.create(false);
   }
 
   private newCode(): string {
     for (;;) {
-      let c = '';
-      for (let i = 0; i < 4; i++) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+      let c = SHARD;
+      while (c.length < 4) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
       if (!this.rooms.has(c)) return c;
     }
   }

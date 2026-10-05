@@ -1,4 +1,8 @@
 node_modules
 dist
-data/*.json
+data/
 .DS_Store
+deploy/.env
+deploy/data/
+deploy/caddy_data/
+deploy/caddy_config/

@@ -182,11 +182,15 @@ function toast(html: string) {
 const nameInput = $<HTMLInputElement>('name');
 nameInput.value = store.get('nl_name') ?? '';
 
-function join(mode: 'random' | 'code' | 'create', code?: string) {
+async function join(mode: 'random' | 'code' | 'create', code?: string) {
   initAudio();
   startMusic();
   const name = nameInput.value.trim();
   store.set('nl_name', name);
+  // con varios servidores, la sala vive en el suyo (su código empieza por esa letra)
+  if (mode === 'code' && code && net.shardOfCode(code) !== net.shard) {
+    try { await net.switchTo(net.shardOfCode(code)); } catch { showError('No se pudo conectar con el servidor de esa sala.'); return; }
+  }
   // re-hello por si cambió el nombre
   net.send({ t: 'hello', token: store.get('nl_token') ?? undefined, name });
   net.send({
@@ -413,7 +417,8 @@ async function boot() {
   showScreen('menu');
   refreshMenu();
   try {
-    await net.connect();
+    const linkCode = new URLSearchParams(location.search).get('sala');
+    await net.connect(linkCode ? net.shardOfCode(linkCode) || await net.pickShard() : await net.pickShard());
     net.send({ t: 'hello', token: store.get('nl_token') ?? undefined, name: nameInput.value.trim() });
     net.send({ t: 'rooms' });
     setInterval(() => { if (!inGame) net.send({ t: 'rooms' }); }, 5000);

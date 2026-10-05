@@ -1,0 +1,41 @@
+# Producción en UN servidor (VPS): N procesos de juego ("shards") + Caddy (HTTPS automático).
+# Cada shard usa ~1 núcleo y aguanta ~200 jugadores a la vez. Para añadir más: copia un bloque game-X,
+# cambia la letra, añádela a VITE_SHARDS y al Caddyfile, y vuelve a ejecutar:  docker compose up -d --build
+x-game: &game
+  image: nightslord:latest
+  pull_policy: never
+  restart: unless-stopped
+  volumes:
+    - ./data:/app/data            # perfiles (SQLite compartido por todos los shards)
+  environment: &env
+    MAX_CONNECTIONS: "200"        # tope de jugadores por shard: el "freno" de CPU y de tráfico
+    MAX_ROOMS: "14"
+    MIN_ROOMS: "1"                # siempre al menos una sala pública abierta
+  cpus: "1.0"
+  mem_limit: 512m
+  logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
+services:
+  game-a:
+    <<: *game
+    build:
+      context: ..
+      args:
+        VITE_SHARDS: "A,B"          # ← letras de TODOS los shards
+    environment: { <<: *env, SHARD: "A" }
+  game-b:
+    <<: *game
+    depends_on: [game-a]
+    environment: { <<: *env, SHARD: "B" }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:-:80}        # pon tu dominio en deploy/.env (DOMAIN=juego.midominio.com)
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy_data:/data
+      - ./caddy_config:/config
+    depends_on: [game-a, game-b]

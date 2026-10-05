@@ -1,0 +1,14 @@
+# Caddy: HTTPS automático (Let's Encrypt) y reparto por ruta: /A/... → shard A, /B/... → shard B.
+{$DOMAIN} {
+	encode zstd gzip
+	handle_path /A/* {
+		reverse_proxy game-a:3000
+	}
+	handle_path /B/* {
+		reverse_proxy game-b:3000
+	}
+	# la web (cliente) la sirve cualquier shard
+	handle {
+		reverse_proxy game-a:3000
+	}
+}

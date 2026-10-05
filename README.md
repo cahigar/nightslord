@@ -153,20 +153,21 @@ tools/    bots de carga y simtest (prueba de kits sin red)
   Todas las animaciones (idle, andar, ataque, cast, saludo, taunt, daño) se heredan automáticamente, y los estados genéricos de la sala (vulnerable, presa, marca, sarcófago, pánico, ralentización con intensidad) se pueden reutilizar.
 - **Mapa nuevo**: un tema en `THEMES` + su rama de generación en `generateMap` (`shared/maps.ts`) y el arte de sus obstáculos en `client/tiles.ts`.
 
-## Despliegue (bajo coste / gratis)
+## Despliegue (barato y con el gasto bajo control)
 
-El juego necesita un **proceso Node siempre encendido con WebSockets**, por eso:
+El juego necesita **procesos Node siempre encendidos con WebSockets** (Vercel o un hosting compartido no sirven para el servidor).
 
-- **Vercel**: no mantiene WebSockets persistentes → sirve solo para el **cliente** estático.
-- **Hostinger hosting compartido**: no permite procesos Node permanentes → no vale para el servidor. Un **VPS de Hostinger** sí.
+**Producción recomendada**: un VPS de precio fijo (p. ej. Hetzner) con la carpeta `deploy/`:
 
-| Opción | Coste | Notas |
-|---|---|---|
-| **Render** (`render.yaml` incluido) | gratis | Se duerme tras 15 min sin tráfico y tarda ~1 min en despertar. Ideal para enseñar el prototipo. Disco efímero: los perfiles se pierden al reiniciar. |
-| **Oracle Cloud Always Free** (VM ARM) | gratis | Servidor permanente de verdad. Pide tarjeta y a veces no hay capacidad en la región. `docker build` + `docker run -p 80:3000 -v $PWD/data:/app/data`. |
-| **VPS barato** (Hostinger KVM 1, Hetzner…) | ~4-6 €/mes | La opción más estable. Mismo Dockerfile. |
+- `deploy/instalar.sh tu.dominio.com` prepara un Ubuntu 24.04 limpio (Docker, cortafuegos, HTTPS automático con Caddy, copia diaria de perfiles).
+- `deploy/docker-compose.yml`: varios procesos de juego (**shards** A, B…) en la misma máquina, cada uno con su tope `MAX_CONNECTIONS`. Las salas se crean y cierran solas según haga falta (`MIN_ROOMS` mantiene siempre alguna abierta) y su código empieza por la letra del shard.
+- `deploy/actualizar.sh`: `git pull` y reconstruye sin perder perfiles.
+- Perfiles en **SQLite** (`data/profiles.db`), compartido por todos los shards; el antiguo `profiles.json` se importa solo.
+- Tráfico comprimido (permessage-deflate): ~3-4 KB/s por jugador. `/health` (o `/A/health`) muestra jugadores, conexiones y KB/s enviados.
 
-**Cliente en Vercel + servidor en otro sitio**: en Vercel define `VITE_SERVER_URL=https://tu-servidor` y usa `npm run build:client` con salida `dist/client`.
+Variables: `SHARD`, `MAX_CONNECTIONS` (200), `MAX_ROOMS` (20), `MIN_ROOMS` (1), `WS_DEFLATE` (1), `DB_FILE`, `PORT`; en el cliente, `VITE_SHARDS` (p. ej. `A,B`) y `VITE_SERVER_URL` si el cliente se aloja aparte.
+
+Para enseñar el prototipo gratis sigue valiendo **Render** (`render.yaml`, se duerme tras 15 min sin tráfico).
 
 ## Próximos pasos sugeridos
 

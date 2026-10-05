@@ -7,7 +7,7 @@ import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, type CharacterId } from '..
 import { CHARACTER_UNLOCK, hasCharacter, hasSkin } from '../shared/catalog';
 import { NAME_MAX } from '../shared/constants';
 import type { ClientMsg, ServerMsg } from '../shared/protocol';
-import { RoomManager } from './RoomManager';
+import { RoomManager, SHARD } from './RoomManager';
 import { store } from './store';
 import type { Conn } from './types';
 
@@ -23,11 +23,28 @@ const MIME: Record<string, string> = {
 
 const rooms = new RoomManager();
 
+/** Límite de conexiones por proceso: por encima, se rechaza con un aviso (protege CPU y ancho de banda). */
+const MAX_CONNECTIONS = Number(process.env.MAX_CONNECTIONS ?? 400);
+/** Compresión WebSocket (permessage-deflate): ~3-4x menos tráfico a cambio de algo de CPU. WS_DEFLATE=0 la desactiva. */
+const DEFLATE = process.env.WS_DEFLATE !== '0';
+/** Bytes enviados (para vigilar el consumo de tráfico, que es lo que más cuesta). */
+const traffic = { sent: 0, since: Date.now() };
+let trafficRate = 0;
+setInterval(() => {
+  const s = (Date.now() - traffic.since) / 1000;
+  trafficRate = traffic.sent / Math.max(1, s);
+  traffic.sent = 0; traffic.since = Date.now();
+}, 10_000).unref();
+
 const server = createServer((req, res) => {
   const url = (req.url ?? '/').split('?')[0];
   if (url === '/health') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, rooms: rooms.rooms.size, players: [...rooms.rooms.values()].reduce((a, r) => a + r.playerCount, 0) }));
+    res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'cache-control': 'no-store' });
+    const players = [...rooms.rooms.values()].reduce((a, r) => a + r.playerCount, 0);
+    res.end(JSON.stringify({
+      ok: true, shard: SHARD, rooms: rooms.rooms.size, players, connections: wss.clients.size, maxConnections: MAX_CONNECTIONS,
+      full: wss.clients.size >= MAX_CONNECTIONS, kbps: Math.round(trafficRate / 1024), deflate: DEFLATE,
+    }));
     return;
   }
   let file = normalize(join(STATIC_DIR, url === '/' ? 'index.html' : url));
@@ -38,11 +55,16 @@ const server = createServer((req, res) => {
     res.end('Servidor de El Señor de la Noche activo. En desarrollo abre el cliente en http://localhost:5173');
     return;
   }
-  res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream' });
+  // los ficheros de /assets llevan hash en el nombre: se pueden cachear para siempre (CDN y navegador)
+  const cache = url.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache';
+  res.writeHead(200, { 'content-type': MIME[extname(file)] ?? 'application/octet-stream', 'cache-control': cache });
   createReadStream(file).pipe(res);
 });
 
-const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
+const wss = new WebSocketServer({
+  server, path: '/ws', maxPayload: 4096,
+  perMessageDeflate: DEFLATE ? { zlibDeflateOptions: { level: 3, memLevel: 7 }, threshold: 256, concurrencyLimit: 4, serverNoContextTakeover: false, clientNoContextTakeover: true } : false,
+});
 let nextConnId = 1;
 
 function cleanName(n: unknown): string {
@@ -50,9 +72,20 @@ function cleanName(n: unknown): string {
   return s || `Criatura${Math.floor(Math.random() * 900 + 100)}`;
 }
 
-wss.on('connection', (ws: WebSocket) => {
+wss.on('connection', (ws: WebSocket, req) => {
+  if (wss.clients.size > MAX_CONNECTIONS) {
+    ws.send(JSON.stringify({ t: 'error', msg: 'El servidor está lleno ahora mismo. Prueba en un momento.' } satisfies ServerMsg));
+    ws.close(1013, 'lleno');
+    return;
+  }
+  void req;
   let conn: Conn | null = null;
-  const send = (m: ServerMsg) => { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(m)); };
+  const sock = (ws as unknown as { _socket?: { bytesWritten: number } })._socket;
+  let lastBytes = sock?.bytesWritten ?? 0;
+  const send = (m: ServerMsg) => {
+    if (ws.readyState !== ws.OPEN) return;
+    ws.send(JSON.stringify(m), () => { if (sock) { traffic.sent += sock.bytesWritten - lastBytes; lastBytes = sock.bytesWritten; } });
+  };
   // limitador simple de mensajes
   let budget = 80;
   const refill = setInterval(() => { budget = Math.min(80, budget + 40); }, 1000);
