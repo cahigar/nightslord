@@ -40,6 +40,7 @@ export const CHARACTER_UNLOCK: Record<CharacterId, { price: number; medal?: stri
   poltergeist: { price: 400, medal: 'survivor' },
   tree: { price: 450, medal: 'hunter' },
   pirate: { price: 450 },
+  spider: { price: 400, medal: 'predator' },
 };
 
 // ---------- Perfil persistente ----------

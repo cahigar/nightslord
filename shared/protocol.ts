@@ -46,7 +46,7 @@ export enum Flag2 {
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp' | 'spirits' | 'boots' | 'shovel';
 export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy'
   | 'nail' | 'nailback' | 'boulder' | 'potion0' | 'potion1' | 'potion2' | 'bigpotion0' | 'bigpotion1' | 'bigpotion2'
-  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon';
+  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon' | 'web';
 
 export interface EntSnap {
   i: number; // id
@@ -66,6 +66,7 @@ export interface EntSnap {
   r?: number; // ángulo (proyectiles)
   o?: number; // murciélagos orbitales (Conde nv. 15) · id del dueño (esbirros)
   rr?: number; // radio (zonas)
+  bx?: number; by?: number; // segundo extremo (zonas alargadas, como los hilos de telaraña)
   z?: number; // somnolencia 0..100
   g?: string; // (solo tu entidad) disfraz actual: 'prop:pine', 'npc:teen', 'char:werewolf'...
 }
@@ -88,7 +89,7 @@ export type FxId =
   | 'sleep' | 'lullaby' | 'prop' | 'ambush' | 'dreamwalk' | 'shards' | 'mirror' | 'mirrorBoom' | 'maryOut'
   | 'slam' | 'spark' | 'lightning' | 'storm' | 'faceSteal' | 'charm' | 'mimic' | 'potion' | 'broom' | 'rage'
   | 'hexed' | 'hexzone' | 'wings' | 'thrall' | 'heartHit' | 'phase' | 'objSpawn' | 'drainBeam'
-  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock';
+  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand';
 
 export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
 

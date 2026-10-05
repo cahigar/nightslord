@@ -3,7 +3,7 @@
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
-  | 'pirate';
+  | 'pirate' | 'spider';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -406,6 +406,30 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Lobo de mar', desc: 'El garfio le impulsa hacia lo que engancha (enemigos u obstáculos) y los barriles tienen más área.' },
     ],
   },
+  spider: {
+    id: 'spider',
+    name: 'Aracne',
+    title: 'Mujer araña',
+    hp: 100,
+    speed: 220,
+    damage: 15,
+    range: 50,
+    arc: Math.PI / 2,
+    attackCd: 0.45,
+    armor: 0,
+    attackName: 'Mordisco venenoso',
+    passive: 'Sus mordiscos envenenan (quitan vida durante unos segundos).',
+    abilities: [
+      { key: 'Q', name: 'Telaraña', desc: 'Proyectil que ralentiza y se queda en el suelo 45 s ralentizando (máximo 4). 2 cargas.', cooldown: 6 },
+      { key: 'E', name: 'Salto arácnido', desc: 'Salta rápidamente a un punto cercano por encima de cualquier obstáculo.', cooldown: 8 },
+    ],
+    ult: { key: 'R', name: 'Gran telaraña', desc: 'Cubre la zona de telarañas y une con hilos las del suelo: los enemigos quedan muy lentos, ella corre más y salen arañitas venenosas.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Veneno', desc: 'Los mordiscos seguidos al mismo enemigo acumulan veneno (hasta ×2,5).' },
+      { lvl: 10, name: 'Gran telaraña', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Reina de la colmena', desc: 'El salto tiene 2 cargas y al caer aterroriza a los enemigos cercanos, que huyen.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -508,6 +532,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Ahogado', price: 0, palette: { skin: '#8ac0c0', hair: '#2a3a40', cloth: '#1e2a48', cloth2: '#141a2e', accent: '#d8b040', eye: '#a0fff0' } },
     { id: 'coral', name: 'Arrecife', price: 200, palette: { skin: '#a0c8b0', hair: '#5a2a2a', cloth: '#6a1a24', cloth2: '#3a0e14', accent: '#ff9070', eye: '#ffe080' } },
     { id: 'abyss', name: 'Abismal', price: 350, palette: { skin: '#6a7ab0', hair: '#1a1a2a', cloth: '#1a1a24', cloth2: '#0a0a12', accent: '#60e0a0', eye: '#60ff90' } },
+  ],
+  spider: [
+    { id: 'classic', name: 'Viuda negra', price: 0, palette: { skin: '#d8ccd8', hair: '#140c18', cloth: '#1e1424', cloth2: '#0e0812', accent: '#e01830', eye: '#ff2040' } },
+    { id: 'tarantula', name: 'Tarántula', price: 200, palette: { skin: '#c8a888', hair: '#3a2010', cloth: '#4a2a18', cloth2: '#2a160a', accent: '#ff8020', eye: '#ffb030' } },
+    { id: 'cave', name: 'De las cuevas', price: 350, palette: { skin: '#b8e0d0', hair: '#e8f0f0', cloth: '#2a3a3a', cloth2: '#16201f', accent: '#60ffd0', eye: '#a0fff0' } },
   ],
 };
 

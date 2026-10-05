@@ -1863,6 +1863,7 @@ export class Room {
           this.root(m, ITEMS.boots.nature.root);
           z.until = Math.min(z.until, this.time + 0.4);
         }
+        else if (z.kind === 'web' || z.kind === 'bigweb' || z.kind === 'thread') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, z.kind === 'web' ? BAL.spider.web.slowMul : BAL.spider.ult.slowMul); }
         else if (z.kind === 'thorns' || z.kind === 'forest') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, z.kind === 'thorns' ? TR.bramble.slowMul : TR.ult.slowMul); }
         else if (z.kind === 'storm' || z.kind === 'fire') {
           if (!owner || !this.isEnemyOf(owner, m) || (m.kind === Kind.Player && (m as Player).submergeT > 0)) continue;
@@ -2106,7 +2107,9 @@ export class Room {
       for (const z of this.zones) {
         if (z.kind === 'mistTrail' || !inView(z.ax, z.ay)) continue;
         const life = Math.max(0, (z.until - this.time) / Math.max(0.1, z.until - z.born));
-        ents.push({ i: z.id, k: Kind.Zone, x: Math.round(z.ax), y: Math.round(z.ay), f: 1, a: Anim.Idle, q: 0, c: z.kind, rr: Math.round(z.w / 2), h: Math.round(life * 100), o: z.owner });
+        const zs: EntSnap = { i: z.id, k: Kind.Zone, x: Math.round(z.ax), y: Math.round(z.ay), f: 1, a: Anim.Idle, q: 0, c: z.kind, rr: Math.round(z.w / 2), h: Math.round(life * 100), o: z.owner };
+        if (z.bx !== z.ax || z.by !== z.ay) { zs.bx = Math.round(z.bx); zs.by = Math.round(z.by); }
+        ents.push(zs);
       }
       for (const u of this.powerups.values()) if (inView(u.x, u.y)) ents.push({ i: u.id, k: Kind.PowerUp, x: Math.round(u.x), y: Math.round(u.y), f: 1, a: Anim.Idle, q: 0, c: u.type });
       for (const pr of this.projectiles.values()) {

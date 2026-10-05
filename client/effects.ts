@@ -250,6 +250,7 @@ export class Effects {
       case 'rooted': this.rootedFx(ev); break;
       case 'treeFire': this.burst(x, y - 20, 30, ['#ff6020', '#ffd040', '#c02010', '#3a3430'], 220, 4, -60, 0.9, true); this.ripple(x, y, '#ff8020', 0.5, (ev.r ?? 30) + 30); break;
       case 'shock': this.shockFx(ev); break;
+      case 'leapLand': this.burst(x, y, 16, this.terrainColors(x, y), 180, 3, 400, 0.5); this.ripple(x, y, '#e8e8f0', 0.4, ev.r ?? 120); break;
       case 'sprout': this.burst(x, y - 10, 22, ['#5a4632', '#2e4a24', '#a0e040', '#4a7a34'], 200, 3, 400, 0.6); this.ripple(x, y, '#a0e040', 0.5, 40); break;
       case 'bramble': this.brambleFx(ev); break;
       case 'forest': this.burst(x, y - 30, 50, ['#2e4a24', '#4a7a34', '#a0e040', '#5a4632'], 420, 4, 200, 1, false); this.ripple(x, y, '#a0e040', 0.9, ev.r ?? 320); break;
@@ -940,6 +941,7 @@ export class Effects {
   /** Zarzas: raíces con espinas que revientan del suelo. */
   private brambleFx(ev: FxEv) {
     const R = ev.r ?? 110;
+    if (ev.c === 'web') { this.burst(ev.x, ev.y - 20, 40, ['#e8e8f0', '#ffffff', '#a0a0b0'], R * 2, 3, 200, 0.8); this.ripple(ev.x, ev.y, '#e8e8f0', 0.8, R); return; } // Gran telaraña
     this.burst(ev.x, ev.y, 26, this.terrainColors(ev.x, ev.y).concat(['#5a4632', '#2e4a24']), R * 2, 3, 500, 0.6);
     const spikes = Array.from({ length: 14 }, (_, i) => ({ a: i * 2.4, d: R * (0.2 + ((i * 37) % 10) / 12), h: 20 + ((i * 13) % 4) * 8 }));
     this.add(0.7, 'top', (ctx, k) => {
@@ -1115,7 +1117,7 @@ export class Effects {
   }
 
   /** Zonas dinámicas: charcas (agua poco profunda), contaminación y carne. */
-  drawZone(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, r: number, life: number, now: number, seed: number) {
+  drawZone(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number, r: number, life: number, now: number, seed: number, bx?: number, by?: number) {
     const fade = Math.min(1, life * 4);
     if (kind === 'puddle') {
       const rq = Math.max(12, Math.round(r / 4) * 4);
@@ -1159,6 +1161,33 @@ export class Effects {
         pixelGlyph(ctx, GLYPHS[i % GLYPHS.length], x + Math.cos(a) * r * 0.9 - 4, y + Math.sin(a) * r * 0.9 * 0.62 - 4, 1.5);
       }
       pixelEllipse(ctx, x, y, r, r * 0.62, '#c060ff');
+      ctx.globalAlpha = 1;
+    } else if (kind === 'web' || kind === 'bigweb') {
+      // telaraña: radios y anillos (la grande, tenue y enorme)
+      const big = kind === 'bigweb';
+      ctx.globalAlpha = (big ? 0.45 : 0.8) * fade;
+      ctx.fillStyle = '#e8e8f0';
+      const spokes = big ? 16 : 8, rings = big ? 7 : 4;
+      for (let i = 0; i < spokes; i++) {
+        const a = (i / spokes) * Math.PI * 2 + seed;
+        for (let d = 0; d < r; d += PIXEL * 2) ctx.fillRect(snap(x + Math.cos(a) * d), snap(y + Math.sin(a) * d * 0.62), PIXEL, PIXEL);
+      }
+      for (let k = 1; k <= rings; k++) {
+        const rr = (r * k) / rings;
+        for (let i = 0; i < spokes; i++) {
+          const a0 = (i / spokes) * Math.PI * 2 + seed, a1 = ((i + 1) / spokes) * Math.PI * 2 + seed;
+          const x0 = x + Math.cos(a0) * rr, y0 = y + Math.sin(a0) * rr * 0.62, x1 = x + Math.cos(a1) * rr, y1 = y + Math.sin(a1) * rr * 0.62;
+          const n = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / (PIXEL * 2)));
+          for (let j = 0; j <= n; j++) { const t = j / n, sag = Math.sin(t * Math.PI) * rr * 0.04; ctx.fillRect(snap(x0 + (x1 - x0) * t - (x0 + x1 - 2 * x) / rr * sag), snap(y0 + (y1 - y0) * t - (y0 + y1 - 2 * y) / rr * sag), PIXEL, PIXEL); }
+        }
+      }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'thread' && bx !== undefined && by !== undefined) {
+      // hilo de seda entre dos telarañas
+      ctx.globalAlpha = 0.85 * fade;
+      ctx.fillStyle = '#f0f0f8';
+      const n = Math.ceil(Math.hypot(bx - x, by - y) / PIXEL);
+      for (let j = 0; j <= n; j++) { const t = j / n; ctx.fillRect(snap(x + (bx - x) * t), snap(y + (by - y) * t + Math.sin(t * Math.PI) * 6), PIXEL, PIXEL); if (j % 6 === 0) ctx.fillRect(snap(x + (bx - x) * t), snap(y + (by - y) * t + Math.sin(t * Math.PI) * 6) + PIXEL * 2, PIXEL, PIXEL); }
       ctx.globalAlpha = 1;
     } else if (kind === 'snare') {
       // trampa de raíces de las botas de naturaleza

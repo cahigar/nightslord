@@ -11,7 +11,7 @@ import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, 
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
-import { ANIMS, getCritter, getFrame, getItem, getPlant, getSarcophagus, npcLook, SH, SW } from './sprites';
+import { ANIMS, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSpiderling, npcLook, SH, SW } from './sprites';
 import { LIGHT_COLORS, lightsFor, renderDecor, renderObstacle, renderTV, type Light, type Prerendered } from './tiles';
 
 const INTERP_MS = 120;
@@ -20,7 +20,7 @@ interface Sample { t: number; x: number; y: number }
 interface CEnt {
   id: number; k: Kind; c: string; s?: string; n?: string; l?: number; h?: number; fl: number; f: 1 | -1; a: Anim; q: number; r?: number;
   animStart: number; samples: Sample[]; seen: number; flash: number; rx: number; ry: number;
-  f2: number; o?: number; rr?: number; z?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
+  f2: number; o?: number; rr?: number; bx?: number; by?: number; z?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
 }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number }
 interface Floater { x: number; y: number; text: string; color: string; life: number; big?: boolean }
@@ -147,7 +147,7 @@ export class Game {
       if (e.a !== s.a || e.q !== s.q) { e.animStart = now; e.a = s.a; e.q = s.q; }
       const fl = s.fl ?? 0;
       if (fl & Flag.Entombed && !(e.fl & Flag.Entombed)) e.tombAt = now;
-      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f2 = s.f2 ?? 0; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.z = s.z; e.g = s.g; e.seen = now;
+      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f2 = s.f2 ?? 0; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.bx = s.bx; e.by = s.by; e.z = s.z; e.g = s.g; e.seen = now;
       e.samples.push({ t: now, x: s.x, y: s.y });
       if (e.samples.length > 6) e.samples.shift();
     }
@@ -365,7 +365,7 @@ export class Game {
     this.decals = this.decals.filter((d) => d.life > 0);
     this.effects.update(dt);
     this.effects.draw(ctx, 'ground', now);
-    for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) this.effects.drawZone(ctx, e.c, e.rx, e.ry, e.rr ?? 60, (e.h ?? 100) / 100, now, e.id % 97);
+    for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) this.effects.drawZone(ctx, e.c, e.rx, e.ry, e.rr ?? 60, (e.h ?? 100) / 100, now, e.id % 97, e.bx, e.by);
     this.drawScentTrails(ctx, now);
 
     // decoración del suelo
@@ -918,6 +918,16 @@ export class Game {
       if (variant === 'flower' && Math.random() < 0.08) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 40, vx: 0, vy: -20, life: 0.8, max: 0.8, color: '#a0ff80', size: 3, grav: 0 });
       return;
     }
+    if (variant === 'spiderling') {
+      const sp = getSpiderling(Math.floor(now / 90 + e.id) % 2);
+      const w = sp.base.width * PIXEL, h = sp.base.height * PIXEL;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y + 2, 10, 3, 0, 0, Math.PI * 2); ctx.fill();
+      if (e.f === -1) { ctx.save(); ctx.translate(x * 2, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(sp.base, x - w / 2, y - h + 3, w, h);
+      if (e.f === -1) ctx.restore();
+      if (sp.glow) glows.push({ img: sp.glow, x: x - w / 2, y: y - h + 3, w, h, flip: e.f === -1, a: 1 });
+      return;
+    }
     if (variant === 'barrel') {
       const it = getItem('barrel');
       const w = it.base.width * PIXEL * 1.3, h = it.base.height * PIXEL * 1.3;
@@ -1104,7 +1114,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1233,7 +1243,7 @@ const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
 const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1265,6 +1275,7 @@ const TAUNTS: Record<CharacterId, string> = {
   poltergeist: '¡BUUU!',
   tree: '¡Yo soy... madera!',
   pirate: '¡Arrr, marinero!',
+  spider: 'Ven a mi tela...',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;
