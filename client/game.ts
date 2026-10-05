@@ -230,7 +230,8 @@ export class Game {
       case 'die': {
         if (ev.k !== Kind.Player || ev.c) {
           const e = [...this.ents.values()].find((x) => Math.abs(x.rx - ev.x) < 30 && Math.abs(x.ry - ev.y) < 30 && x.k === ev.k);
-          if (ev.k === Kind.Minion) { if (e?.c !== 'clone') this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 }); }
+          if (ev.k === Kind.Minion && e?.c === 'thrall') this.corpses.push({ x: ev.x, y: ev.y, k: Kind.Npc, c: e.s ?? ev.c, f: e.f ?? 1, life: 6, seed: e.l ?? 0 });
+          else if (ev.k === Kind.Minion) { if (e?.c !== 'clone') this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 }); }
           else this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: ev.c, s: e?.s, f: e?.f ?? 1, life: 6, seed: e?.id ?? 0 });
           if (this.corpses.length > 60) this.corpses.shift();
         }
@@ -694,8 +695,10 @@ export class Game {
       this.effects.particles.push({ x: x + (Math.random() - 0.5) * 30, y: y - 10 - Math.random() * 70, vx: (Math.random() - 0.5) * 10, vy: -30 - Math.random() * 30, life: 0.8, max: 0.8, color: col, size: 3, grav: 0, glow: true });
     }
 
-    const flyingBroom = isMonster && !!(e.fl & Flag.Flying);
-    if (flyingBroom) lift += 26 + Math.sin(now / 200 + e.id) * 3;
+    const flying = isMonster && !!(e.fl & Flag.Flying);
+    const flyingBroom = flying && e.c !== 'succubus'; // la súcubo vuela con sus alas
+    if (flying) lift += 26 + Math.sin(now / 200 + e.id) * 3;
+    if (flying && !flyingBroom && Math.random() < 0.35) this.effects.particles.push({ x: x - e.f * 20, y: y - lift - 30, vx: -e.f * 40, vy: -10, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#ff4a8a' : '#ffd0e0', size: 3, grav: 0, glow: true });
     // sombra
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath(); ctx.ellipse(x + 3, y + 3, Math.max(8, 20 * scale - lift * 0.4), 7 * scale, 0, 0, Math.PI * 2); ctx.fill();
@@ -823,6 +826,21 @@ export class Game {
   private drawMinion(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     const x = e.rx, y = e.ry;
     const variant = e.c;
+    if (variant === 'thrall') {
+      // humano enamorado de la súcubo: su aspecto de siempre, aro rosa y un corazón que late sobre la cabeza
+      const fr = getFrame('npc', e.s ?? 'teen', '', e.a, this.frameFor(e, now), e.l ?? e.id);
+      ctx.strokeStyle = e.o === this.youId ? 'rgba(255,90,150,0.8)' : 'rgba(255,110,140,0.55)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 18, 6, 0, 0, Math.PI * 2); ctx.stroke();
+      this.blitFrame(ctx, fr.base, x, y, e.f === -1, 1, 1);
+      if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, fr.base, x, y, e.f === -1, 1, 0.75); ctx.globalCompositeOperation = 'source-over'; }
+      if (fr.glow) glows.push({ img: fr.glow, x: x - (SW * PIXEL) / 2, y: y - SH * PIXEL + 9, w: SW * PIXEL, h: SH * PIXEL, flip: e.f === -1, a: 0.8 });
+      const beat = Math.floor(now / 300 + e.id) % 3 === 0 ? 1 : 0;
+      const hx = Math.round(x / 3) * 3, hy = Math.round((y - SH * PIXEL - 4 + Math.sin(now / 200 + e.id) * 3) / 3) * 3;
+      ctx.fillStyle = '#ff4a8a';
+      ctx.fillRect(hx - 6 - beat * 3, hy, 6 + beat * 3, 3); ctx.fillRect(hx + 3, hy, 6 + beat * 3, 3);
+      ctx.fillRect(hx - 6 - beat * 3, hy + 3, 15 + beat * 6, 3); ctx.fillRect(hx - 3 - beat * 3, hy + 6, 9 + beat * 6, 3); ctx.fillRect(hx, hy + 9, 3, 3);
+      return;
+    }
     if (variant === 'clone') {
       // copia de espejo: el monstruo de su dueño, rojizo y algo translúcido
       const [ch, sk] = (e.s ?? 'bloodymary:classic').split(':');
@@ -954,11 +972,11 @@ export class Game {
     ctx.save();
     ctx.translate(e.rx, py);
     if (e.c === 'bat') { if ((e.r ?? 0) > Math.PI / 2 || (e.r ?? 0) < -Math.PI / 2) ctx.scale(-1, 1); }
-    else ctx.rotate(spin ? now / 60 : e.r ?? 0);
+    else ctx.rotate(spin ? now / 60 : e.c === 'heart' ? 0 : e.r ?? 0);
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'heart' ? '#ff80b0' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1081,7 +1099,7 @@ export class Game {
   get lastSnap() { return this.lastSnapAt; }
 }
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1109,6 +1127,7 @@ const TAUNTS: Record<CharacterId, string> = {
   reanimated: '¡ESTÁ VIVO!',
   doppy: '¿Quién es quién?',
   witch: '¡Jijijiji!',
+  succubus: 'Mua ♥',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

@@ -481,6 +481,49 @@ const witchForm: FormFn = (b, p, c, _anim, tier) => {
   b.rect(hx, hy - 2, 2, 3, ['#ff6020', '#a0ff40', '#e02010'][Math.floor(sw) % 3], true); b.set(hx, hy - 3, '#d0d0d0'); // frasco en la mano
 };
 
+const succubusForm: FormFn = (b, p, c, anim, tier) => {
+  // Lilith: alas de murciélago a la espalda, cuernos, corpiño, botas altas y cola acabada en corazón
+  const by = p.by, sw = p.sway ?? 0;
+  const flap = anim === Anim.Walk || anim === Anim.Cast ? sw : 0;
+  const memb = c.cloth2, bone = shade(c.cloth2, -0.35);
+  // ala (detrás): huesos en abanico y membrana con bordes festoneados
+  const root: [number, number] = [8, 12 + by];
+  const tips: [number, number][] = [[1, 3 + by - flap], [0, 9 + by - flap], [2, 15 + by], [5, 19 + by]];
+  for (let i = 0; i < tips.length - 1; i++) {
+    const [ax, ay] = tips[i], [bx, by2] = tips[i + 1];
+    for (let t = 0; t <= 1; t += 0.08) {
+      const ex = ax + (bx - ax) * t, ey = ay + (by2 - ay) * t + (t > 0.2 && t < 0.8 ? 1 : 0); // festón
+      b.line(root[0], root[1], ex, ey, memb);
+    }
+  }
+  for (const [tx, ty] of tips) b.line(root[0], root[1], tx, ty, bone);
+  b.set(tips[0][0], tips[0][1] - 1, bone); // garra del ala
+  // cola con punta de corazón
+  b.line(9, 20, 5 - sw, 24, c.cloth2); b.line(5 - sw, 24, 3 - sw, 27, c.cloth2);
+  for (const [hx, hy] of [[1, 26], [3, 26], [1, 27], [2, 27], [3, 27], [2, 28]]) b.set(hx - sw, hy, hy === 28 ? shade(c.accent, -0.2) : c.accent, true);
+  arm(b, 10, 13 + by, p.la, 7, c.skin, c.skin);
+  legs(b, p, shade(c.skin, -0.12), c.skin, '#140a10', { boots: c.cloth2 });
+  for (const [x, l] of [[9, p.ll], [12, p.rl]] as [number, [number, number]][]) b.rect(x + l[0], 25 - Math.min(1, l[1]), 3, 1, c.cloth2); // caña de las botas
+  torso(b, by, c.skin, { bottom: HIP });
+  b.rect(8, 15 + by, 8, 5, c.cloth); b.rect(9, 14 + by, 2, 1, c.cloth); b.rect(13, 14 + by, 2, 1, c.cloth); // corpiño
+  b.line(9, 16 + by, 15, 19 + by, shade(c.cloth, -0.3)); b.line(15, 16 + by, 9, 19 + by, shade(c.cloth, -0.3)); // cordones
+  b.rect(8, 20, 8, 2, c.cloth2); // falda corta
+  b.set(12, 14 + by, c.accent, true); // colgante de corazón
+  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'long', eyeGlow: true });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  // cuernos curvos
+  const horn = tier >= 2 ? c.accent : '#2a1a1a';
+  b.rect(X + 3, Y - 1, 2, 1, '#2a1a1a'); b.set(X + 3, Y - 2, '#3a2a2a'); b.set(X + 2, Y - 3, '#3a2a2a'); b.set(X + 2, Y - 4, horn, tier >= 2);
+  b.rect(X + 7, Y - 1, 2, 1, '#2a1a1a'); b.set(X + 8, Y - 2, '#3a2a2a'); b.set(X + 9, Y - 3, '#3a2a2a'); b.set(X + 9, Y - 4, horn, tier >= 2);
+  b.rect(X + 7, Y + 8, 2, 1, c.accent); if (p.mouth) b.set(X + 8, Y + 9, shade(c.accent, -0.3)); // labios
+  b.set(X + 8, Y + 4, shade(c.hair, -0.2)); // pestañas
+  if (tier >= 1 && !p.blink) b.set(X + 8, Y + 5, shade(c.eye, 0.3), true);
+  if (tier >= 3) for (const [x, y] of [[19, 6], [21, 12], [18, 1]]) { b.set(x, y + by, c.accent, true); b.set(x + 1, y + by, c.accent, true); b.set(x, y + 1 + by, shade(c.accent, -0.2), true); } // corazones flotando
+  arm(b, 13, 13 + by, p.ra, 7, c.skin, c.skin);
+  const hx = 13 + Math.sin(p.ra) * 8, hy = 13 + by + Math.cos(p.ra) * 8;
+  b.set(hx, hy, shade(c.accent, -0.1)); // uñas pintadas
+};
+
 /** Animalillo (maleficio de la bruja): un sapo que da saltitos. */
 const critterCache: Baked[] = [];
 export function getCritter(frame: number): Baked {
@@ -504,6 +547,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
+  succubus: succubusForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -823,6 +867,7 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   potion0: { art: ['..cc..', '..ww..', '.wFFw.', 'wFYFFw', 'wFFFFw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', F: '#ff6020', Y: '#ffe060' }, glow: 'Y' },
   potion1: { art: ['..cc..', '..ww..', '.wAAw.', 'wAYAAw', 'wAAAAw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', A: '#80e020', Y: '#e0ff80' }, glow: 'Y' },
   potion2: { art: ['..cc..', '..ww..', '.wHHw.', 'wHYHHw', 'wHHHHw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', H: '#e02010', Y: '#ffb060' }, glow: 'Y' }, // rabia
+  heart: { art: ['.RR.RR.', 'RWRRRRR', 'RRRRRRR', '.RRRRR.', '..RRR..', '...R...'], pal: { R: '#ff3a7a', W: '#ffd0e0' }, glow: 'R' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

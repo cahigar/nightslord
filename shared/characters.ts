@@ -2,7 +2,7 @@
 // Para añadir un monstruo nuevo: añade una entrada en CHARACTERS (stats + habilidades),
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
-export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch';
+export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -303,6 +303,30 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Gran alquimista', desc: 'Las pociones salpican un área mayor, los power-ups le duran más y puede lanzar pociones desde la escoba, que vuela más tiempo.' },
     ],
   },
+  succubus: {
+    id: 'succubus',
+    name: 'Lilith',
+    title: 'Súcubo',
+    hp: 100,
+    speed: 215,
+    damage: 17,
+    range: 54,
+    arc: Math.PI / 2,
+    attackCd: 0.5,
+    armor: 0.05,
+    attackName: 'Beso robado',
+    passive: 'Roba vida con cada golpe. Los humanos que golpea no mueren: se enamoran y luchan por ella contra cazadores y monstruos.',
+    abilities: [
+      { key: 'Q', name: 'Flechazo', desc: 'Lanza un corazón que daña, atrae al objetivo hacia ella y lo deja embobado un instante. Si alcanza a un humano, lo enamora.', cooldown: 5 },
+      { key: 'E', name: 'Alas', desc: 'Vuela unos segundos por encima de los obstáculos, más rápida.', cooldown: 10 },
+    ],
+    ult: { key: 'R', name: 'Pasión desatada', desc: 'En un área grande todos atacan a lo más cercano, pero nunca a ella. Las bajas cuentan para ella.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Devoción', desc: 'Roba más vida y puede tener 5 enamorados (en vez de 3), que le duran más.' },
+      { lvl: 10, name: 'Pasión desatada', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Corazón roto', desc: 'Flechazo con 2 cargas que atraviesa enemigos y vuela más tiempo.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -385,6 +409,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Del pantano', price: 0, palette: { skin: '#8aa060', hair: '#3a2a3a', cloth: '#2a3a24', cloth2: '#1a2414', accent: '#a0ff40', eye: '#ffe040' } },
     { id: 'night', name: 'Medianoche', price: 200, palette: { skin: '#d8c8e0', hair: '#1a1020', cloth: '#2a1a40', cloth2: '#180e28', accent: '#c060ff', eye: '#ff60c0' } },
     { id: 'pumpkin', name: 'Calabaza', price: 300, palette: { skin: '#e0b090', hair: '#c04010', cloth: '#3a2010', cloth2: '#241408', accent: '#ff9020', eye: '#40ff60' } },
+  ],
+  succubus: [
+    { id: 'classic', name: 'Carmesí', price: 0, palette: { skin: '#e8b8c0', hair: '#2a0e1a', cloth: '#8a1838', cloth2: '#4a0a20', accent: '#ff4a8a', eye: '#ffd040' } },
+    { id: 'night', name: 'Medianoche', price: 200, palette: { skin: '#b8b0e0', hair: '#e8e0f0', cloth: '#2a1a4a', cloth2: '#180e2e', accent: '#c080ff', eye: '#80f0ff' } },
+    { id: 'infernal', name: 'Infernal', price: 350, palette: { skin: '#d06048', hair: '#1a0a0a', cloth: '#2a0a0a', cloth2: '#140404', accent: '#ffb030', eye: '#ffe060' } },
   ],
 };
 

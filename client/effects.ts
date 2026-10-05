@@ -240,6 +240,9 @@ export class Effects {
       case 'potion': this.potionSplash(ev); break;
       case 'broom': this.burst(x, y - 20, 14, ['#a0ff40', '#c060ff', '#ffe060', '#6a4a28'], 140, 3, 100, 0.6, true); break;
       case 'rage': this.rageFx(ev); break;
+      case 'wings': this.burst(x, y - 30, 16, ['#ff4a8a', '#ffd0e0', '#4a0a20'], 150, 3, ev.n ? -60 : 120, 0.6, true); this.ripple(x, y - 10, '#ff80b0', 0.4, 40); break;
+      case 'thrall': this.thrallFx(ev); break;
+      case 'heartHit': this.burst(x, y - 40, 12, ['#ff4a8a', '#ffd0e0', '#ffffff'], 140, 3, 0, 0.6, true); break;
       case 'hexed': this.burst(x, y - 20, 18, ['#c060ff', '#80e020', '#ffffff'], 140, 3, 100, 0.6, true); this.ripple(x, y - 10, '#c060ff', 0.4, 30); break;
       case 'hexzone': this.burst(x, y, 40, ['#c060ff', '#5a2a8a', '#80e020'], 300, 4, 300, 0.8, true); this.ripple(x, y, '#c060ff', 0.7, ev.r ?? 250); break;
       case 'summon': this.lightPillar(x, y, ev.n ? 1 : 0.8, ev.n ? '#ff4060' : '#c060ff'); this.burst(x, y - 30, 24, ['#c060ff', '#ff4060', '#2e1a3a'], 200, 3, 0, 0.8, true); break;
@@ -880,14 +883,27 @@ export class Effects {
     });
   }
 
-  /** Poción de rabia: estallido rojo enorme. */
+  /** Un humano cae enamorado (vuela un corazón de la súcubo hacia él) o vuelve en sí (n = -1). */
+  private thrallFx(ev: FxEv) {
+    if (ev.n === -1) { this.burst(ev.x, ev.y - 45, 10, ['#ffd0e0', '#a0a0a0'], 100, 3, 200, 0.6); return; }
+    this.burst(ev.x, ev.y - 45, 14, ['#ff4a8a', '#ffd0e0'], 120, 3, -40, 0.9, true);
+    const sx = ev.tx ?? ev.x, sy = (ev.ty ?? ev.y) - 45;
+    this.add(0.4, 'glow', (ctx, k) => {
+      const px = snap(sx + (ev.x - sx) * k), py = snap(sy + (ev.y - 45 - sy) * k - Math.sin(k * Math.PI) * 20);
+      ctx.fillStyle = '#ff4a8a';
+      ctx.fillRect(px - 6, py, 6, 3); ctx.fillRect(px + 3, py, 6, 3); ctx.fillRect(px - 6, py + 3, 15, 3); ctx.fillRect(px - 3, py + 6, 9, 3); ctx.fillRect(px, py + 9, 3, 3);
+    });
+  }
+
+  /** Poción de rabia (rojo) o Pasión desatada de la súcubo (rosa, c = 'love'): estallido enorme. */
   private rageFx(ev: FxEv) {
     const R = ev.r ?? 230;
-    this.burst(ev.x, ev.y - 20, 40, ['#ff2010', '#ff8020', '#5a0a0a', '#ffd060'], 360, 4, 300, 0.8);
+    const love = ev.c === 'love';
+    this.burst(ev.x, ev.y - 20, 40, love ? ['#ff4a8a', '#ffd0e0', '#8a1838', '#ffffff'] : ['#ff2010', '#ff8020', '#5a0a0a', '#ffd060'], 360, 4, 300, 0.8, love);
     this.add(1, 'glow', (ctx, k) => {
       ctx.globalAlpha = 0.8 * (1 - k);
-      pixelEllipse(ctx, ev.x, ev.y, R * Math.min(1, k * 2.5), R * Math.min(1, k * 2.5) * 0.62, '#ff3020', 2);
-      ctx.fillStyle = '#ff6030';
+      pixelEllipse(ctx, ev.x, ev.y, R * Math.min(1, k * 2.5), R * Math.min(1, k * 2.5) * 0.62, love ? '#ff4a8a' : '#ff3020', 2);
+      ctx.fillStyle = love ? '#ffd0e0' : '#ff6030';
       for (let i = 0; i < 12; i++) {
         const aa = (i / 12) * Math.PI * 2, rr = R * Math.min(1, k * 2.5);
         ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y + Math.sin(aa) * rr * 0.62) - PIXEL * 4, PIXEL, PIXEL * 4);

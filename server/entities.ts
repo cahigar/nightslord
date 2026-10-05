@@ -148,7 +148,7 @@ export interface Hunter extends Mob {
 }
 
 /** Esbirro (zombi de Paciente Cero). Reutilizable para futuros invocadores. */
-export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat' | 'clone';
+export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat' | 'clone' | 'thrall'; // thrall: humano engatusado por la súcubo
 export interface Minion extends Mob {
   kind: Kind.Minion;
   owner: number; // id del jugador dueño

@@ -132,6 +132,14 @@ export const BAL = {
     powerupTimeT3: 1.5, // nivel 15: los power-ups le duran más
     ult: { range: 420, r: 250, zoneT: 4, tPlayer: 3, tOther: 5 }, // Maleficio: animalillo
   },
+  succubus: {
+    lifesteal: 0.25, lifestealT1: 0.35, // pasiva: roba vida con cada golpe
+    thrall: { hp: 40, speed: 190, dmg: 0.5, cd: 0.8 }, // humanos engatusados que luchan por ella
+    thrallCap: 3, thrallCapT1: 5, thrallLife: 20, thrallLifeT1: 30,
+    heart: { speed: 560, life: 0.65, dmg: 0.7, pull: 150, charmT: 0.6 }, heartChargesT3: 2, // Q: corazón que atrae
+    wings: { t: 2.5, tT3: 3.5, speedMul: 1.3 }, // E: alas
+    ult: { range: 420, r: 230, tPlayer: 3, tOther: 5 }, // R: Pasión desatada (rabia que nunca va contra ella)
+  },
 
 };
 

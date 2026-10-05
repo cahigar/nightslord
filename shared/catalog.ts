@@ -36,6 +36,7 @@ export const CHARACTER_UNLOCK: Record<CharacterId, { price: number; medal?: stri
   reanimated: { price: 350, medal: 'slayer' },
   doppy: { price: 500 },
   witch: { price: 450 },
+  succubus: { price: 450, medal: 'social' },
 };
 
 // ---------- Perfil persistente ----------

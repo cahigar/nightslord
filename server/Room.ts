@@ -24,7 +24,7 @@ const NPC_VARIANTS: Record<MapThemeId, string[]> = {
   camp: ['camper', 'counselor', 'jock', 'nerd'],
 };
 
-const MINION_STATS: Record<MinionVariant, { hp: number; speed: number; dmg: number; cd: number }> = { ...BAL.zombie.minion, clone: STATUS.clone };
+const MINION_STATS: Record<MinionVariant, { hp: number; speed: number; dmg: number; cd: number }> = { ...BAL.zombie.minion, clone: STATUS.clone, thrall: BAL.succubus.thrall };
 
 const POWERUP_WEIGHTS: [PowerUpType, number][] = [
   ['blood', 30], ['xp', 25], ['coin', 18], ['speed', 10], ['fury', 9], ['shield', 8],
@@ -379,10 +379,24 @@ export class Room {
     return m;
   }
 
-  /** El dueño se ha ido: sus esbirros se desmoronan. */
+  /** El dueño se ha ido: sus esbirros se desmoronan (los humanos engatusados vuelven en sí). */
   private releaseMinions(ownerId: number) {
-    for (const m of this.minions.values()) if (m.owner === ownerId) { this.fx('infect', m.x, m.y, { o: m.id, n: -1 }); this.minions.delete(m.id); }
+    for (const m of this.minions.values()) {
+      if (m.owner !== ownerId) continue;
+      if (m.variant === 'thrall') this.freeThrall(m);
+      else { this.fx('infect', m.x, m.y, { o: m.id, n: -1 }); this.minions.delete(m.id); }
+    }
     this.zones = this.zones.filter((z) => z.owner !== ownerId);
+  }
+
+  /** Un humano engatusado vuelve en sí: deja de ser esbirro y sigue con su vida (asustado). */
+  freeThrall(m: Minion) {
+    this.minions.delete(m.id);
+    m.dead = true;
+    const n = this.spawnNpc({ x: m.x, y: m.y }, m.look);
+    n.hp = Math.max(1, Math.min(n.maxHp, (m.hp / m.maxHp) * n.maxHp));
+    n.panicT = 2;
+    this.fx('thrall', n.x, n.y, { o: n.id, n: -1 });
   }
 
   /** ¿Es m enemigo del jugador p? (no lo es él mismo ni sus esbirros) */
@@ -504,9 +518,9 @@ export class Room {
     }
   }
 
-  private spawnNpc() {
-    const pos = this.findSpawn(500, NPC_RADIUS + 2);
-    const variants = NPC_VARIANTS[this.theme];
+  private spawnNpc(at?: { x: number; y: number }, variant?: string) {
+    const pos = at ?? this.findSpawn(500, NPC_RADIUS + 2);
+    const variants = variant ? [variant] : NPC_VARIANTS[this.theme];
     const n: Npc = {
       ...mobStatus(),
       id: this.nextId++, kind: Kind.Npc, x: pos.x, y: pos.y, r: NPC_RADIUS, facing: 1, hp: 30, maxHp: 30,
@@ -515,6 +529,7 @@ export class Room {
       disguiseBy: -1, disguiseT: 0, infectT: 0, infectBy: -1,
     };
     this.npcs.set(n.id, n);
+    return n;
   }
 
   private spawnHunter(type: HunterType = 'cazador') {
@@ -725,7 +740,7 @@ export class Room {
       if (p.flyT <= 0) {
         p.flyT = 0;
         if (this.grid.blocked(p.x, p.y, p.r, !!p.def.aquatic)) { const f = this.findFreeSpot(p.x, p.y, p.r); p.x = f.x; p.y = f.y; }
-        this.fx('broom', p.x, p.y, { o: p.id, n: 0 });
+        this.fx(p.def.id === 'succubus' ? 'wings' : 'broom', p.x, p.y, { o: p.id, n: 0 });
       }
     } else if (!locked) {
       const sp = this.calcSpeed(p);
@@ -939,7 +954,7 @@ export class Room {
     this.sfx('surprise', m.x, m.y);
   }
 
-  private chargeUlt(p: Player, amount: number) {
+  chargeUlt(p: Player, amount: number) {
     if (p.tier < 2 || p.ultT > 0) return;
     p.ult = Math.min(ULT.max, p.ult + amount);
   }
@@ -949,7 +964,7 @@ export class Room {
     if (p.points > st.bestScore) { st.bestScore = Math.round(p.points); store.touch(); }
   }
 
-  private reward(p: Player, xp: number, pts: number, coins: number) {
+  reward(p: Player, xp: number, pts: number, coins: number) {
     xp = Math.round(xp); pts = Math.round(pts);
     p.points += pts;
     p.coinsEarned += coins;
@@ -1410,6 +1425,7 @@ export class Room {
     m.life -= dt;
     m.atkCd = Math.max(0, m.atkCd - dt);
     const owner = this.findPlayerById(m.owner);
+    if (m.variant === 'thrall' && owner && !owner.dead && m.life <= 0) { this.freeThrall(m); return; } // se le pasa el enamoramiento
     if (!owner || owner.dead || m.life <= 0) { this.kill(m, { name: '', kind: Kind.Minion }); return; }
     if (this.applyStatus(m, dt)) return;
     if (m.stunT > 0 || m.fearT > 0) { m.moving = false; return; }
@@ -1434,6 +1450,7 @@ export class Room {
       const consider = (t: Mob) => {
         if (t.dead || t.entombT > 0 || !this.isEnemyOf(owner, t)) return;
         if (t.kind === Kind.Npc && (t as Npc).infectT > 0) return; // ya es de la horda
+        if (m.variant === 'thrall' && t.kind === Kind.Npc && (t as Npc).disguiseT <= 0) return; // los siervos de la súcubo van a por cazadores y monstruos
         if (m.variant === 'fat' && t.kind !== Kind.Player && t.kind !== Kind.Hunter) return;
         const d = dist2(cx, cy, t.x, t.y);
         if (d < R * R && d < bd && (meat || dist2(owner.x, owner.y, t.x, t.y) < leash2)) { bd = d; best = t; }
@@ -1468,7 +1485,7 @@ export class Room {
           m.atkCd = MINION_STATS[m.variant].cd;
           this.setAnim(m, Anim.Attack, 0.3);
           this.damage(t, this.calcDamage(owner, MINION_STATS[m.variant].dmg), { player: owner, minion: m, name: owner.name, kind: Kind.Player });
-          this.sfx(m.variant === 'clone' ? 'glass' : 'bite', m.x, m.y);
+          this.sfx(m.variant === 'clone' ? 'glass' : m.variant === 'thrall' ? 'punch' : 'bite', m.x, m.y);
           if (m.variant === 'clone') this.fx('shards', t.x, t.y, { n: 4 });
         }
         return;
@@ -1868,6 +1885,7 @@ export class Room {
       if (me.char === 'mary') { const n = this.zones.filter((z) => z.kind === 'mirror' && z.owner === me.id).length; if (n) buffs.push({ t: 'mirrors', r: n }); }
       if (me.char === 'nightmare' && me.guise?.startsWith('prop')) addB('ambush', Math.min(100, ((me.k.still ?? 0) / (me.tier >= 3 ? BAL.nightmare.stalk.chargeTT3 : BAL.nightmare.stalk.chargeT)) * 100));
       if (me.char === 'zombie') { const n = this.minionsOf(me.id).length; if (n) buffs.push({ t: 'horde', r: n }); }
+      if (me.char === 'succubus') { const n = this.minionsOf(me.id).filter((m) => m.variant === 'thrall').length; if (n) buffs.push({ t: 'thralls', r: n }); }
       if (me.def.aquatic) { const w = this.waterAt(me.x, me.y); if (w) buffs.push({ t: w === 'deep' ? 'deep' : 'puddle', r: 999 }); }
 
       const qMax = this.qChargesMax(me);
