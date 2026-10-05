@@ -45,6 +45,7 @@ export const CHARACTER_UNLOCK: Record<CharacterId, { price: number; medal?: stri
   demon: { price: 450, medal: 'slayer' },
   slime: { price: 350, medal: 'glutton' },
   alien: { price: 500, medal: 'lord' },
+  static: { price: 500 },
 };
 
 // ---------- Perfil persistente ----------

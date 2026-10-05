@@ -41,12 +41,13 @@ export enum Flag2 {
   Blind = 8, // cegado por los cuervos
   Leaping = 16, // en pleno salto
   Engulfed = 32, // atrapado dentro del slime
+  Hypnotized = 64, // hipnotizado: camina hacia la Interferencia o una tele
 }
 
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp' | 'spirits' | 'boots' | 'shovel';
 export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy'
   | 'nail' | 'nailback' | 'boulder' | 'potion0' | 'potion1' | 'potion2' | 'bigpotion0' | 'bigpotion1' | 'bigpotion2'
-  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon' | 'web' | 'crows' | 'crowsback' | 'fireball' | 'ember' | 'firewave' | 'bubble' | 'plasma';
+  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon' | 'web' | 'crows' | 'crowsback' | 'fireball' | 'ember' | 'firewave' | 'bubble' | 'plasma' | 'noise';
 
 export interface EntSnap {
   i: number; // id
@@ -68,6 +69,7 @@ export interface EntSnap {
   rr?: number; // radio (zonas)
   bx?: number; by?: number; // segundo extremo (zonas alargadas, como los hilos de telaraña)
   z?: number; // somnolencia 0..100
+  hy?: number; // hipnosis 0..100
   g?: string; // (solo tu entidad) disfraz actual: 'prop:pine', 'npc:teen', 'char:werewolf'...
 }
 
@@ -89,7 +91,7 @@ export type FxId =
   | 'sleep' | 'lullaby' | 'prop' | 'ambush' | 'dreamwalk' | 'shards' | 'mirror' | 'mirrorBoom' | 'maryOut'
   | 'slam' | 'spark' | 'lightning' | 'storm' | 'faceSteal' | 'charm' | 'mimic' | 'potion' | 'broom' | 'rage'
   | 'hexed' | 'hexzone' | 'wings' | 'thrall' | 'heartHit' | 'phase' | 'objSpawn' | 'drainBeam'
-  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand' | 'scare' | 'fireBoom' | 'slimeSplit' | 'slimeBoom' | 'ufoBeam' | 'ufoRay';
+  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand' | 'scare' | 'fireBoom' | 'slimeSplit' | 'slimeBoom' | 'ufoBeam' | 'ufoRay' | 'hypno' | 'tvWave' | 'tvBeam';
 
 export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
 
@@ -139,6 +141,8 @@ export type ClientMsg =
   | { t: 'ping'; c: number };
 
 // ---------- Servidor -> Cliente ----------
+/** Teles del mapa (solo existen si hay una Interferencia en la sala): ids con Cambio de canal y color de la Emisión nacional. */
+export interface TvState { ch?: number[]; bc?: string }
 export interface RoomInfo { code: string; players: number; max: number; theme: MapThemeId; priv: boolean }
 
 export type ServerMsg =
@@ -146,7 +150,7 @@ export type ServerMsg =
   | { t: 'profile'; profile: Profile }
   | { t: 'toast'; text: string }
   | { t: 'joined'; code: string; theme: MapThemeId; seed: number; priv: boolean; you: number }
-  | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[]; burn?: [number, number, number][] } // burn: árboles del mapa [índice, s ardiendo, s quemado]
+  | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[]; burn?: [number, number, number][]; tv?: TvState } // burn: árboles del mapa [índice, s ardiendo, s quemado]
   | { t: 'rank'; list: [string, number, CharacterId, number][]; total: number } // nombre, puntos, personaje, id
   | { t: 'died'; by: string; pts: number; lvl: number; kills: number; time: number; coins: number }
   | { t: 'medal'; id: string }

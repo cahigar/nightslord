@@ -8,13 +8,14 @@ export const tierOf = (level: number) => (level >= 15 ? 3 : level >= 10 ? 2 : le
 /** Carga de la definitiva (R): se gana con bajas, no con el tiempo. */
 /** Estados genéricos nuevos (sueño, rabia, sangrado, engatusar). */
 export const STATUS = {
-  drowsyDecay: 14, drowsyHold: 2.5, // la somnolencia baja sola si no la alimentan
+  drowsyDecay: 8, drowsyHold: 4, // a los jugadores la somnolencia les baja sola si no la alimentan (a humanos y cazadores no)
   sleepPlayer: 1.6, sleepOther: 2.8, sleepMarkT: 8,
   rageNpcDmg: 8,
   hexSpeedMul: 0.7, // animalillo (maleficio): va dando saltitos
   treeBurnT: 15, treeFlameT: 8, treeFireDps: 10, treeFireR: 45, // árboles que arden: quemados 15 s, en llamas los 8 primeros
   shock: { r: 260, stun: 1.2, stunPlayer: 0.9, dmg: 8 }, // ataques eléctricos sobre el agua
   fleeSpeed: 150, // los aterrorizados huyen de lo que les asusta
+  hypno: { hold: 3, decay: 12, tPlayer: 1.6, tOther: 2.6, speed: 120, pullR: 900 }, // hipnosis (Interferencia): al llenarse caminan hacia ella o hacia una tele
   clone: { hp: 60, speed: 230, dmg: 0.55, cd: 0.6 },
 };
 
@@ -103,9 +104,9 @@ export const BAL = {
     ult: { speed: 360, life: 1.5, hitR: 84, dmg: 1.1, knock: 170, puddleEvery: 70, puddleR: 64 },
   },
   nightmare: {
-    basicDrowsy: 14, // somnolencia por golpe básico
+    basicDrowsy: 24, // somnolencia por golpe básico
     susceptMul: 1.45, susceptT: 8, // nv. 5: quien ya se durmió acumula más rápido
-    lullaby: { range: 210, rangeT3: 270, cone: 0.95, coneT3: 1.15, dmg: 0.45, drowsy: 48 },
+    lullaby: { range: 210, rangeT3: 270, cone: 0.95, coneT3: 1.15, dmg: 0.45, drowsy: 65 },
     stalk: { maxT: 10, chargeT: 3, chargeTT3: 1.6, bonusMax: 1.2, drowsyBonus: 35 }, // Acecho
     ult: { range: 1400, nextMul: 2.2, nextDrowsy: 40, buffT: 4 },
   },
@@ -205,6 +206,14 @@ export const BAL = {
     bubble: { speed: 460, life: 0.8, dmg: 0.9, r: 100, knock: 140, poisonT: 4, poisonDps: 5 }, // E: burbuja de ácido
     absorb: 0.15, // nv. 5: lo que recoge le cura
     ult: { t: 6, hpMul: 0.6, grabR: 70, dps: 10, boomR: 170, boomDmg: 1.4, boomKnock: 200 }, // R: masa crítica
+  },
+  static: {
+    noise: { speed: 620, life: 0.38, dmg: 0.8, hypno: 22 }, // básico: estática (Ruido)
+    tvR: 450, tvShotR: 200, tvShotRT3: 290, tvDmg: 0.5, tvMax: 4, // pasiva: las teles cercanas repiten sus ataques
+    wave: { r: 220, tvR: 150, tvRT3: 220, slowT: 1.5, slowMul: 0.6, hypno: 40 }, // Q: señal pirata
+    channel: { r: 520, t: 4, rate: 30, tvR: 160, tvRT3: 240 }, // E: cambio de canal
+    hypnoDmgMul: 1.5, // nv. 5: más daño a los hipnotizados
+    ult: { t: 6, every: 0.5, beamW: 30, dmg: 0.45, hypno: 20 }, // R: emisión nacional
   },
   alien: {
     plasma: { speed: 760, life: 0.5, dmg: 1.0 }, // básico

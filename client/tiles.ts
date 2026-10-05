@@ -490,7 +490,6 @@ export function lightsFor(map: GameMap): Light[] {
     }
   }
   for (const l of map.lakes) lights.push({ x: l.cx, y: l.cy, r: Math.max(l.rx, l.ry) * 1.1, c: 'cold' });
-  for (const tv of map.tvs) lights.push({ x: tv.x + tv.w / 2, y: tv.y + tv.h + (tv.kind === 'outdoor' ? 0 : 20), r: tv.kind === 'shop' ? 110 : tv.kind === 'outdoor' ? 130 : 90, c: 'cold', flicker: true });
   for (const o of map.obstacles) if (o.type === 'shop') lights.push({ x: o.x + o.w / 2, y: o.y + o.h + 20, r: 180, c: 'cold' });
   for (const o of map.border) if (o.type === 'barricade') lights.push({ x: o.x + o.w / 2, y: o.y, r: 60, c: 'warm', flicker: true });
   return lights;

@@ -823,6 +823,38 @@ export function getBeacon(frame: number): Baked {
   return beaconCache[f];
 }
 
+const staticForm: FormFn = (b, p, c, anim, tier) => {
+  // Interferencia: traje y corbata, y por cabeza una tele antigua con antena que emite estática
+  const by = p.by, sw = p.sway ?? 0;
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin, 2, true);
+  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, '#101014');
+  torso(b, by, c.cloth);
+  b.rect(11, 12 + by, 2, 7, '#e8e8e8'); b.rect(11, 13 + by, 2, 5, c.accent); // camisa y corbata
+  b.line(10, 12 + by, 10, 16 + by, shade(c.cloth, -0.3)); b.line(13, 12 + by, 13, 16 + by, shade(c.cloth, -0.3));
+  // cable que cuelga de la tele
+  b.line(8, 11 + by, 5 - sw, 17 + by, '#1a1a1a'); b.line(5 - sw, 17 + by, 6 - sw, 22, '#1a1a1a');
+  // tele por cabeza
+  const X = 5 + (p.lean ?? 0), Y = 1 + by;
+  b.rect(X, Y, 14, 11, '#4a3a2c'); b.rect(X, Y, 14, 1, shade('#4a3a2c', 0.2)); b.rect(X + 13, Y + 1, 1, 10, shade('#4a3a2c', -0.3)); // carcasa de madera
+  b.rect(X + 1, Y + 1, 10, 9, '#141414');
+  // pantalla: estática, ojo o espiral según el fotograma
+  const f = (sw + (anim === Anim.Attack || anim === Anim.Cast ? 1 : 0)) % 3;
+  for (let y = 0; y < 7; y++) for (let x = 0; x < 8; x++) {
+    const n = Math.sin((x + 1) * 12.99 + (y + 1) * 78.2 + f * 4.1) * 43758.5;
+    if (n - Math.floor(n) < 0.45) b.set(X + 2 + x, Y + 2 + y, (x + y + f) % 3 ? c.eye : '#9098a0', true);
+  }
+  if (!p.blink) { b.rect(X + 5, Y + 4, 3, 3, c.accent, true); b.set(X + 6, Y + 5, '#000000', true); } // ojo en la pantalla
+  b.set(X + 12, Y + 3, '#c04040'); b.set(X + 12, Y + 6, '#9090a0'); b.set(X + 12, Y + 8, '#9090a0'); // ruedas
+  // antena
+  b.line(X + 5, Y - 1, X + 2, Y - 4, '#a0a0b0'); b.line(X + 8, Y - 1, X + 11, Y - 4, '#a0a0b0');
+  if (tier >= 1) b.set(X + 2, Y - 4, c.accent, true);
+  if (tier >= 2) b.set(X + 11, Y - 4, c.accent, true);
+  if (tier >= 3) for (const [x, y] of [[3, 14], [20, 9], [19, 20]]) b.set(x, y + by, c.accent, true); // chispas de señal
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin, 2, true);
+  const hx = 13 + Math.sin(p.ra) * 8, hy = 13 + by + Math.cos(p.ra) * 8;
+  b.rect(hx, hy - 1, 2, 3, '#2a2a2a'); b.set(hx + 1, hy - 2, '#c04040', true); // mando a distancia
+};
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -889,7 +921,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
-  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm, slime: slimeForm, alien: alienForm,
+  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm, slime: slimeForm, alien: alienForm, static: staticForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -1232,6 +1264,7 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   bubble: { art: ['..www..', '.wGGGw.', 'wGWGGGw', 'wGGGGGw', 'wGGGGGw', '.wGGGw.', '..www..'], pal: { w: '#c0ff90', G: '#60d040', W: '#ffffff' }, glow: 'W' },
   plasma: { art: ['..ggg..', '.gWWWgg', 'gWWWWWg', '.gWWWgg', '..ggg..'], pal: { g: '#30c060', W: '#c0ffd0' }, glow: 'W' },
   ufo: { art: ['....ddd....', '...dCCCd...', '.mmmmmmmmm.', 'mMyMMyMMyMm', '.mmmmmmmmm.', '...g.g.g...'], pal: { d: '#4a5a6a', C: '#a0f0ff', m: '#6a7480', M: '#a8b0b8', y: '#ffe060', g: '#60ff90' }, glow: 'y' },
+  noise: { art: ['w.g.w', '.wgw.', 'gwWwg', '.wgw.', 'w.g.w'], pal: { w: '#e8f0f0', g: '#40ff90', W: '#ffffff' }, glow: 'W' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

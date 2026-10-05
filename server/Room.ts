@@ -8,10 +8,10 @@ import {
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
 } from '../shared/constants';
 import { CHARACTERS, MAX_LEVEL, UPGRADES, upgradeMax, xpForLevel, type CharacterId, type UpgradeId } from '../shared/characters';
-import { distToSegment, generateMap, type GameMap, type MapThemeId } from '../shared/maps';
+import { distToSegment, generateMap, tvLinks, tvSpot, type GameMap, type MapThemeId } from '../shared/maps';
 import { ObstacleGrid } from '../shared/physics';
 import {
-  Anim, Flag, Flag2, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type ServerMsg, type SfxId, type YouState,
+  Anim, Flag, Flag2, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type ServerMsg, type SfxId, type TvState, type YouState,
 } from '../shared/protocol';
 import { mobStatus, type Hunter, type Minion, type MinionVariant, type Mob, type Npc, type Player, type PowerUp, type Projectile, type Source, type Zone, type ZoneKind } from './entities';
 import { KITS } from './kits';
@@ -71,6 +71,13 @@ export class Room {
   zones: Zone[] = [];
   /** Árboles del mapa quemados: índice del obstáculo → hasta cuándo sigue quemado / ardiendo y quién lo prendió. */
   burning = new Map<number, { until: number; flame: number; by: number }>();
+  /** Teles (Interferencia): visibles si hay alguna en la sala, con Cambio de canal (id → hasta / dueño) y Emisión nacional. */
+  tvOn = false;
+  tvChannel = new Map<number, { until: number; owner: number }>();
+  broadcast: { until: number; owner: number; color: string } | null = null;
+  private tvLinksCache: [number, number][] | null = null;
+  get tvLinks() { return (this.tvLinksCache ??= tvLinks(this.map.tvs)); }
+  tvSpots() { return this.map.tvs.map(tvSpot); }
   conns = new Map<number, Conn>();
 
   private nextId = 1;
@@ -363,6 +370,34 @@ export class Room {
     p.dash = null; p.knock = null;
   }
 
+  /** Hipnosis: se acumula; al llenarse camina hacia la Interferencia o la tele encendida más cercana. */
+  addHypno(m: Mob, amount: number) {
+    if (m.dead || m.hypnoT > 0 || m.entombT > 0 || isStatic(m)) return;
+    if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).submergeT > 0 || (m as Player).phaseT > 0 || (m as Player).char === 'static')) return;
+    m.hypno += amount; m.hypnoHold = STATUS.hypno.hold;
+    if (m.hypno < 100) return;
+    m.hypno = 0;
+    let best: { x: number; y: number } | null = null, bd = STATUS.hypno.pullR ** 2;
+    const consider = (x: number, y: number) => { const d = (x - m.x) ** 2 + (y - m.y) ** 2; if (d < bd) { bd = d; best = { x, y }; } };
+    for (const p of this.players.values()) if (!p.dead && p.char === 'static' && p !== m) consider(p.x, p.y);
+    if (this.tvOn) for (const s of this.tvSpots()) consider(s.x, s.y);
+    if (!best) return;
+    const b = best as { x: number; y: number };
+    m.hypnoT = m.kind === Kind.Player ? STATUS.hypno.tPlayer : STATUS.hypno.tOther; m.hypnoX = b.x; m.hypnoY = b.y;
+    this.fx('hypno', m.x, m.y, { o: m.id, d: m.hypnoT });
+  }
+
+  /** Movimiento del hipnotizado hacia su punto. Devuelve true si se ha encargado. */
+  private hypnoWalk(m: Mob, dt: number): boolean {
+    if (m.hypnoT <= 0) return false;
+    const dx = m.hypnoX - m.x, dy = m.hypnoY - m.y, d = Math.hypot(dx, dy);
+    if (d > 30 && m.rootT <= 0) {
+      const res = this.grid.move(m.x, m.y, (dx / d) * STATUS.hypno.speed * dt, (dy / d) * STATUS.hypno.speed * dt, m.r, walksWater(m));
+      m.x = res.x; m.y = res.y; m.moving = true; m.facing = dx >= 0 ? 1 : -1;
+    } else m.moving = false;
+    return true;
+  }
+
   /** Suelta un objeto del mapa en un punto (botín). */
   dropPowerUp(x: number, y: number, type: PowerUpType) {
     const f = this.findFreeSpot(x, y, POWERUP_RADIUS);
@@ -587,6 +622,15 @@ export class Room {
     return best;
   }
 
+  /** Rompe los espejos (de Bloody Mary) de otros que haya en el círculo. */
+  breakMirrors(x: number, y: number, r: number, attacker: number) {
+    const hit = this.zones.filter((z) => z.kind === 'mirror' && z.owner !== attacker && (z.ax - x) ** 2 + (z.ay - y) ** 2 < (r + z.w / 2) ** 2);
+    if (!hit.length) return false;
+    this.zones = this.zones.filter((z) => !hit.includes(z));
+    for (const z of hit) { this.fx('shards', z.ax, z.ay, { n: 14 }); this.sfx('glass', z.ax, z.ay); }
+    return true;
+  }
+
   /** Golpe cuerpo a cuerpo en arco (reutilizable por cualquier monstruo). */
   meleeSwing(p: Player, a: number, o: { sfx: SfxId; rangeMul?: number; dmgFor?: (m: Mob) => number }) {
     const mult = this.breakStealth(p);
@@ -605,6 +649,7 @@ export class Room {
       hits.push({ m, dealt });
       if (m.kind !== Kind.Player) this.knockback(m, Math.cos(a), Math.sin(a), 120);
     });
+    this.breakMirrors(hx, hy, reach * 0.8, p.id);
     this.sfx(o.sfx, p.x, p.y);
     this.fx('swing', hx, hy, { r: +a.toFixed(2), o: p.id, c: p.char, n: p.tier, d: Math.round(reach) });
     return { total, hits, fromInvis: mult > 1 };
@@ -736,6 +781,9 @@ export class Room {
     this.time += dt;
     this.tick++;
 
+    this.tvOn = [...this.players.values()].some((p) => !p.dead && p.char === 'static');
+    if (this.broadcast && this.broadcast.until <= this.time) this.broadcast = null;
+    for (const [id, c] of this.tvChannel) if (c.until <= this.time) this.tvChannel.delete(id);
     for (const p of this.players.values()) if (!p.dead) this.updatePlayer(p, dt);
     for (const n of this.npcs.values()) this.updateNpc(n, dt);
     for (const h of this.hunters.values()) this.updateHunter(h, dt);
@@ -770,12 +818,14 @@ export class Room {
     // sueño, sangrado, rabia, engatusar
     m.sleepMarkT = Math.max(0, m.sleepMarkT - dt);
     if (m.sleepT > 0) { m.sleepT -= dt; m.stunT = Math.max(m.stunT, m.sleepT); }
-    if (m.drowsy > 0) { m.drowsyHold -= dt; if (m.drowsyHold <= 0) m.drowsy = Math.max(0, m.drowsy - STATUS.drowsyDecay * dt); }
+    if (m.drowsy > 0 && m.kind === Kind.Player) { m.drowsyHold -= dt; if (m.drowsyHold <= 0) m.drowsy = Math.max(0, m.drowsy - STATUS.drowsyDecay * dt); } // humanos y cazadores no se espabilan solos
     m.rageT = Math.max(0, m.rageT - dt);
     m.charmT = Math.max(0, m.charmT - dt);
     m.hexT = Math.max(0, m.hexT - dt);
     m.rootT = Math.max(0, m.rootT - dt);
     m.silenceT = Math.max(0, m.silenceT - dt);
+    if (m.hypnoT > 0) m.hypnoT = Math.max(0, m.hypnoT - dt);
+    if (m.hypno > 0) { m.hypnoHold -= dt; if (m.hypnoHold <= 0) m.hypno = Math.max(0, m.hypno - STATUS.hypno.decay * dt); }
     m.blindT = Math.max(0, m.blindT - dt);
     if (m.liftT > 0) { m.liftT -= dt; m.stunT = Math.max(m.stunT, m.liftT); }
     if (m.fearT <= 0) { m.fearX = NaN; m.fearY = NaN; }
@@ -873,6 +923,11 @@ export class Room {
       // aterrorizado: huye de lo que le asusta
       const dx = p.x - p.fearX, dy = p.y - p.fearY, d = Math.hypot(dx, dy) || 1;
       mx = dx / d; my = dy / d; a = Math.atan2(dy, dx); b = 0;
+    }
+    if (p.hypnoT > 0) {
+      // hipnotizado: camina hacia la Interferencia o la tele
+      const dx = p.hypnoX - p.x, dy = p.hypnoY - p.y, d = Math.hypot(dx, dy) || 1;
+      mx = d > 30 ? dx / d : 0; my = d > 30 ? dy / d : 0; a = Math.atan2(dy, dx); b = 0;
     }
     if (p.silenceT > 0) b &= BTN_ATTACK; // silenciado: solo el ataque básico
     if (p.hexT > 0) b = 0; // animalillo: ni ataca ni usa habilidades
@@ -1258,6 +1313,7 @@ export class Room {
     }
     if (n.disguiseT > 0) { n.disguiseT -= dt; if (n.disguiseT <= 0) { n.disguiseBy = -1; this.fx('disguise', n.x, n.y, { o: n.id, r: -1 }); } }
     if (this.applyStatus(n, dt)) return;
+    if (this.hypnoWalk(n, dt)) return;
     if (this.flee(n, STATUS.fleeSpeed, dt)) return;
     if (n.stunT > 0 || n.fearT > 0) { n.moving = false; return; }
     if (this.hexHop(n, dt)) return;
@@ -1373,6 +1429,7 @@ export class Room {
       if (h.stunT > ORDER.herald.stunMul * 2) h.stunT = ORDER.herald.stunMul * 2;
     }
     if (this.applyStatus(h, dt)) return;
+    if (h.stunT <= 0 && this.hypnoWalk(h, dt)) { h.lungeT = 0; return; }
     if (h.stunT <= 0 && this.flee(h, h.def.speed, dt)) { h.lungeT = 0; return; }
     if (h.stunT > 0 || h.fearT > 0) { h.moving = false; h.lungeT = 0; return; }
     if (this.hexHop(h, dt)) return;
@@ -1428,6 +1485,7 @@ export class Room {
         h.lungeT = 0;
         this.setAnim(h, Anim.Attack, 0.3);
         this.damage(t, D.melee, src);
+        this.breakMirrors(t.x, t.y, 40, -1);
         if (h.type === 'heraldo') { this.fx('smite', t.x, t.y, { o: h.id }); this.sfx('smite', t.x, t.y); this.knockback(t, ux, uy, 60); }
         else this.sfx(h.type === 'inquisidor' ? 'claw' : 'stake', h.x, h.y);
       } else if (h.type === 'cazador' && h.shootCd <= 0 && d < ORDER.shoot.range) {
@@ -1639,6 +1697,7 @@ export class Room {
     if (!owner || owner.dead || m.life <= 0) { this.kill(m, { name: '', kind: Kind.Minion }); return; }
     if (isStatic(m)) { m.knock = null; this.applyStatus(m, dt); m.moving = false; return; } // plantas: su kit decide qué hacen
     if (this.applyStatus(m, dt)) return;
+    if (m.stunT <= 0 && this.hypnoWalk(m, dt)) return;
     if (m.stunT <= 0 && this.flee(m, m.speed, dt)) return;
     if (m.stunT > 0 || m.fearT > 0) { m.moving = false; return; }
     if (m.anim === Anim.Cast && this.time < m.animUntil && m.swellT <= 0) { m.moving = false; return; } // saliendo de la tierra
@@ -1765,6 +1824,7 @@ export class Room {
         pr.x += (pr.vx * dt) / steps;
         pr.y += (pr.vy * dt) / steps;
         if (!pr.ghost && this.grid.blocked(pr.x, pr.y, 3, true)) { done = true; break; }
+        if (!pr.land && this.breakMirrors(pr.x, pr.y, 6, pr.owner)) { if (!pr.pierce) { done = true; break; } } // los espejos se rompen
         // bloqueos (murciélagos orbitales, etc.)
         for (const p of this.players.values()) {
           if (p.dead || p.id === pr.owner || dist2(pr.x, pr.y, p.x, p.y) > 80 * 80) continue;
@@ -2033,12 +2093,14 @@ export class Room {
     if (m.burnT > 0) f2 |= Flag2.Burning;
     if (m.silenceT > 0) f2 |= Flag2.Silenced;
     if (m.liftT > 0) f2 |= Flag2.Lifted;
+    if (m.hypnoT > 0) f2 |= Flag2.Hypnotized;
     if (m.blindT > 0) f2 |= Flag2.Blind;
     if (m.kind === Kind.Player && (m as Player).leap) f2 |= Flag2.Leaping;
     if (m.kind === Kind.Player && ((m as Player).k.engulfed ?? 0) > this.time) f2 |= Flag2.Engulfed;
     if (f2) s.f2 = f2;
     if (m.hp < m.maxHp) s.h = Math.max(1, Math.round((m.hp / m.maxHp) * 100));
     if (m.drowsy > 0) s.z = Math.round(m.drowsy);
+    if (m.hypno > 0) s.hy = Math.round(m.hypno);
     if (m.kind === Kind.Npc) {
       const n = m as Npc;
       s.c = n.variant;
@@ -2091,6 +2153,9 @@ export class Room {
     const events = this.events;
     this.events = [];
     let burn: [number, number, number][] | null = null;
+    const tv: TvState | null = this.tvOn ? {} : null;
+    if (tv && this.tvChannel.size) tv.ch = [...this.tvChannel.keys()];
+    if (tv && this.broadcast) tv.bc = this.broadcast.color;
     if (this.burning.size) burn = [...this.burning].map(([i, b]) => [i, +Math.max(0, b.flame - this.time).toFixed(1), +(b.until - this.time).toFixed(1)]);
     for (const conn of this.conns.values()) {
       const me = this.players.get(conn.id);
@@ -2148,7 +2213,7 @@ export class Room {
       const qMax = this.qChargesMax(me);
       const you: YouState = {
         id: me.id, alive: !me.dead, x: +me.x.toFixed(1), y: +me.y.toFixed(1), ack: me.ack,
-        spd: Math.round(this.calcSpeed(me)), st: me.stunT > 0 || !!me.knock || !!me.dash || me.entombT > 0 || me.rootT > 0 || !!me.leap || (me.fearT > 0 && !Number.isNaN(me.fearX)),
+        spd: Math.round(this.calcSpeed(me)), st: me.hypnoT > 0 || me.stunT > 0 || !!me.knock || !!me.dash || me.entombT > 0 || me.rootT > 0 || !!me.leap || (me.fearT > 0 && !Number.isNaN(me.fearX)),
         hp: Math.ceil(me.hp), mhp: me.maxHp, xp: Math.round(me.xp), xpn: xpForLevel(me.level), lvl: me.level,
         pts: Math.round(me.points), coins: me.coinsEarned,
         cd: [+me.cd[0].toFixed(2), +me.cd[1].toFixed(2), +me.cd[2].toFixed(2)],
@@ -2162,6 +2227,7 @@ export class Room {
       if (eMax > 1) { you.ec = me.k.ec ?? eMax; you.ecm = eMax; }
       const msg: Extract<ServerMsg, { t: 'snap' }> = { t: 'snap', tk: this.tick, you, ents, ev };
       if (burn) msg.burn = burn;
+      if (tv) msg.tv = tv;
       conn.send(msg);
     }
   }

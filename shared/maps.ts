@@ -28,6 +28,17 @@ export interface Pool { x: number; y: number; w: number; h: number }
 
 /** Televisión: entidad localizable para futuros teletransportes. host = índice del obstáculo que la contiene (-1 si está al aire libre). */
 export interface TV { id: number; x: number; y: number; w: number; h: number; kind: 'window' | 'shop' | 'outdoor'; host: number }
+/** Punto de la calle frente a una tele (desde donde emite la Interferencia). */
+export const tvSpot = (tv: TV) => ({ x: tv.x + tv.w / 2, y: tv.y + tv.h + (tv.kind === 'outdoor' ? 0 : 20) });
+/** Conexiones de la Emisión nacional: cada tele con sus 2 más cercanas (determinista, igual en servidor y cliente). */
+export function tvLinks(tvs: TV[]): [number, number][] {
+  const pts = tvs.map(tvSpot), out: [number, number][] = [], seen = new Set<string>();
+  pts.forEach((a, i) => {
+    const near = pts.map((b, j) => [j, (a.x - b.x) ** 2 + (a.y - b.y) ** 2] as [number, number]).filter(([j]) => j !== i).sort((x, y) => x[1] - y[1]).slice(0, 2);
+    for (const [j] of near) { const k = i < j ? `${i}-${j}` : `${j}-${i}`; if (!seen.has(k)) { seen.add(k); out.push([Math.min(i, j), Math.max(i, j)]); } }
+  });
+  return out;
+}
 
 /** Cómo se ve cada borde del mapa (el mundo continúa más allá, pero no se puede pasar). */
 export type EdgeKind = 'forest' | 'water' | 'cliff' | 'fence' | 'wall' | 'houses' | 'hedge' | 'graves';
@@ -544,7 +555,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     }
   });
   // televisores abandonados a la intemperie (inquietantes)
-  const outdoor = theme === 'transylvania' ? 3 : theme === 'camp' ? 2 : 1;
+  const outdoor = theme === 'transylvania' ? 9 : theme === 'camp' ? 8 : 4; // solo se ven si hay una Interferencia en la sala
   for (let k = 0, tries = 0; k < outdoor && tries < 80; tries++) {
     const x = rrange(r, 200, S - 200), y = rrange(r, 200, S - 200);
     if (!P.free(x - 20, y - 20, 40, 34, 20)) continue;

@@ -1,13 +1,13 @@
 // Estado de partida en el cliente: predicción del jugador local, interpolación del resto, efectos y render.
 import { CHARACTERS, type CharacterId } from '../shared/characters';
 import { MAP_SIZE, PIXEL, TICK_DT } from '../shared/constants';
-import { BORDER_DEPTH, generateMap, THEMES, type GameMap, type MapThemeId, type Obstacle } from '../shared/maps';
+import { BORDER_DEPTH, generateMap, THEMES, tvLinks, tvSpot, type GameMap, type MapThemeId, type Obstacle } from '../shared/maps';
 import { BAL, tierOf } from '../shared/balance';
 import { Ambient } from './ambient';
 import { Effects, pixelEllipse } from './effects';
 import { Terrain } from './terrain';
 import { ObstacleGrid } from '../shared/physics';
-import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, type YouState } from '../shared/protocol';
+import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, type TvState, type YouState } from '../shared/protocol';
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
@@ -20,7 +20,7 @@ interface Sample { t: number; x: number; y: number }
 interface CEnt {
   id: number; k: Kind; c: string; s?: string; n?: string; l?: number; h?: number; fl: number; f: 1 | -1; a: Anim; q: number; r?: number;
   animStart: number; samples: Sample[]; seen: number; flash: number; rx: number; ry: number;
-  f2: number; o?: number; rr?: number; bx?: number; by?: number; z?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
+  f2: number; hy?: number; o?: number; rr?: number; bx?: number; by?: number; z?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
 }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number }
 interface Floater { x: number; y: number; text: string; color: string; life: number; big?: boolean }
@@ -41,7 +41,10 @@ export class Game {
   alive = false;
   ents = new Map<number, CEnt>();
   /** Árboles del mapa quemados (índice → hasta cuándo arden y hasta cuándo siguen quemados, en ms). */
+  private tvLinkCache: [number, number][] | null = null;
   burnt = new Map<number, { flame: number; until: number }>();
+  /** Teles del mapa (solo si hay una Interferencia en la sala). */
+  tv: TvState | null = null;
 
   // predicción
   private seq = 0;
@@ -147,11 +150,12 @@ export class Game {
       if (e.a !== s.a || e.q !== s.q) { e.animStart = now; e.a = s.a; e.q = s.q; }
       const fl = s.fl ?? 0;
       if (fl & Flag.Entombed && !(e.fl & Flag.Entombed)) e.tombAt = now;
-      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f2 = s.f2 ?? 0; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.bx = s.bx; e.by = s.by; e.z = s.z; e.g = s.g; e.seen = now;
+      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f2 = s.f2 ?? 0; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.bx = s.bx; e.by = s.by; e.z = s.z; e.hy = s.hy; e.g = s.g; e.seen = now;
       e.samples.push({ t: now, x: s.x, y: s.y });
       if (e.samples.length > 6) e.samples.shift();
     }
     for (const [id, e] of this.ents) if (!seenIds.has(id) && now - e.seen > 250) this.ents.delete(id);
+    this.tv = m.tv ?? null;
     this.burnt.clear();
     for (const [i, flame, left] of m.burn ?? []) this.burnt.set(i, { flame: now + flame * 1000, until: now + left * 1000 });
     for (const ev of m.ev) this.handleEvent(ev);
@@ -425,8 +429,20 @@ export class Game {
     });
     // televisiones (entidades del mapa): encima de su edificio o en el suelo
     const tvFrame = Math.floor(now / 140);
-    for (const tv of this.map.tvs) {
+    const channel = new Set(this.tv?.ch ?? []);
+    for (const tv of this.tv ? this.map.tvs : []) {
       if (!inView(tv.x, tv.y)) continue;
+      const spot = tvSpot(tv);
+      dyn.push({ x: spot.x, y: spot.y, r: tv.kind === 'shop' ? 110 : 120, c: 'cold', flicker: true });
+      if (channel.has(tv.id) || this.tv?.bc) {
+        // señal perturbadora: espiral de colores frente a la tele
+        const col = this.tv?.bc ?? '#40ff90';
+        draws.push({ y: spot.y + 1, fn: () => {
+          ctx.globalAlpha = 0.5;
+          for (let k = 0; k < 3; k++) { const rr = ((now / 400 + k / 3) % 1) * (channel.has(tv.id) ? 160 : 60); pixelEllipse(ctx, spot.x, spot.y, rr, rr * 0.62, k % 2 ? col : '#ffffff'); }
+          ctx.globalAlpha = 1;
+        } });
+      }
       const host = tv.host >= 0 ? this.map.obstacles[tv.host] : null;
       draws.push({
         y: host ? host.y + host.h + 0.5 : tv.y + tv.h, fn: () => {
@@ -472,6 +488,20 @@ export class Game {
 
     // trigo alto de la Cosecha: tapa a quien esté dentro
     for (const e of this.ents.values()) if (e.k === Kind.Zone && e.c === 'wheat' && inView(e.rx, e.ry)) this.effects.drawWheat(ctx, e.rx, e.ry, e.rr ?? 300, (e.h ?? 100) / 100, now, e.id % 97);
+    // Emisión nacional: rayos de tele en tele por todo el mapa
+    if (this.tv?.bc) {
+      const spots = this.map.tvs.map(tvSpot);
+      if (!this.tvLinkCache) this.tvLinkCache = tvLinks(this.map.tvs);
+      ctx.fillStyle = this.tv.bc;
+      for (const [a, b] of this.tvLinkCache) {
+        const A = spots[a], B2 = spots[b];
+        if (!inView(A.x, A.y) && !inView(B2.x, B2.y)) continue;
+        const n = Math.ceil(Math.hypot(B2.x - A.x, B2.y - A.y) / 6);
+        for (let i = 0; i <= n; i++) { const t = i / n; const j = Math.sin(t * 40 + now / 40) * 4; ctx.globalAlpha = 0.6 + Math.random() * 0.4; ctx.fillRect(Math.round((A.x + (B2.x - A.x) * t) / 3) * 3, Math.round((A.y - 20 + (B2.y - A.y) * t + j) / 3) * 3, 6, 3); }
+        dyn.push({ x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2, r: 120, c: 'cold' });
+      }
+      ctx.globalAlpha = 1;
+    }
     // proyectiles y efectos
     this.effects.draw(ctx, 'top', now);
     for (const e of this.ents.values()) if (e.k === Kind.Projectile && inView(e.rx, e.ry)) this.drawProjectile(ctx, e, now, glows);
@@ -1169,7 +1199,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'noise' ? '#e8f0f0' : e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1220,6 +1250,8 @@ export class Game {
     }
     // somnolencia (barra violeta) y sueño
     if (e.z && !(e.fl & Flag.Asleep)) this.bar(ctx, x, top + (e.k === Kind.Player ? 5 : 14), 30, e.z, '#a070ff');
+    if (e.hy && !(e.f2 & Flag2.Hypnotized)) this.bar(ctx, x, top + (e.k === Kind.Player ? 9 : 18), 30, e.hy, '#40ff90');
+    if (e.f2 & Flag2.Hypnotized) { ctx.font = '14px serif'; ctx.fillText('🌀', x, top - 26 + Math.sin(now / 120) * 2); }
     if (e.fl & Flag.Asleep) {
       ctx.font = '12px "Press Start 2P", monospace';
       for (let i = 0; i < 3; i++) {
@@ -1298,7 +1330,7 @@ const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
 const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90', static: '#40ff90' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1335,6 +1367,7 @@ const TAUNTS: Record<CharacterId, string> = {
   demon: '¿Hace calor o soy yo?',
   slime: '*blub blub*',
   alien: 'Llévame con tu líder',
+  static: 'No toque su televisor...',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

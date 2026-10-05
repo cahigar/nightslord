@@ -254,6 +254,8 @@ export class Effects {
       case 'slimeSplit': this.burst(x, y - 20, ev.n === 2 ? 50 : 22, ['#60d040', '#a0ff70', '#e0ff90'], ev.n === 2 ? 320 : 160, 4, 400, 0.6); if (ev.n === 2) this.ripple(x, y, '#a0ff70', 0.6, 120); break;
       case 'slimeBoom': this.burst(x, y - 15, 30, ['#60d040', '#a0ff70', '#3a6a10', '#e0ff90'], (ev.r ?? 100) * 2.6, 4, 450, 0.6); this.ripple(x, y, '#a0ff70', 0.5, ev.r ?? 100); break;
       case 'ufoBeam': this.ufoBeam(ev); break;
+      case 'hypno': this.burst(x, y - 50, 14, ['#40ff90', '#ffffff', '#ff40c0'], 100, 3, -20, 0.8, true); this.ripple(x, y - 40, '#40ff90', 0.6, 40); break;
+      case 'tvWave': this.tvWave(ev); break;
       case 'ufoRay': this.ufoRay(ev); break;
       case 'scare': this.ripple(x, y - 20, '#ffb020', 0.6, ev.r ?? 200); this.burst(x, y - 50, 10, ['#141018', '#2a2030'], 200, 3, -40, 0.8); break;
       case 'leapLand': this.burst(x, y, 16, this.terrainColors(x, y), 180, 3, 400, 0.5); this.ripple(x, y, '#e8e8f0', 0.4, ev.r ?? 120); break;
@@ -943,6 +945,18 @@ export class Effects {
       ctx.globalAlpha = 1;
     });
     this.ripple(ev.x, ev.y, '#c8f0ff', 0.5, R * 0.6);
+  }
+
+  /** Onda de señal (Señal pirata) o aviso de Cambio de canal (n = 1): anillos de estática. */
+  private tvWave(ev: FxEv) {
+    const R = ev.r ?? 200, col = ev.c ?? '#40ff90';
+    this.add(ev.n ? 0.8 : 0.5, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 0.8 * (1 - k);
+      for (let i = 0; i < 2; i++) { const rr = R * Math.min(1, k * 1.4 + i * 0.15); pixelEllipse(ctx, ev.x, ev.y, rr, rr * 0.62, i ? '#ffffff' : col, 2); }
+      ctx.fillStyle = col;
+      for (let i = 0; i < 24; i++) { const a = Math.random() * Math.PI * 2, rr = R * k * (0.8 + Math.random() * 0.2); ctx.fillRect(snap(ev.x + Math.cos(a) * rr), snap(ev.y + Math.sin(a) * rr * 0.62), PIXEL, PIXEL); }
+      ctx.globalAlpha = 1;
+    });
   }
 
   /** OVNI que se queda sobre un punto con su haz de abducción. */

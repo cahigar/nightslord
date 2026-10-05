@@ -13,6 +13,7 @@ import { reanimatedKit } from './reanimated';
 import { scarecrowKit } from './scarecrow';
 import { slimeKit } from './slime';
 import { spiderKit } from './spider';
+import { staticKit } from './static';
 import { succubusKit } from './succubus';
 import { treeKit } from './tree';
 import type { Kit } from './types';
@@ -43,6 +44,7 @@ export const KITS: Record<CharacterId, Kit> = {
   demon: demonKit,
   slime: slimeKit,
   alien: alienKit,
+  static: staticKit,
 };
 setKits(KITS); // Doppy necesita los kits de los demás para imitarlos
 

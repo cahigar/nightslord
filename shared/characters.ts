@@ -3,7 +3,8 @@
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
-  | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime' | 'alien';
+  | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime' | 'alien'
+  | 'static';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -528,6 +529,31 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Nave nodriza', desc: 'La Abducción atrapa a todos los de la zona (más grande) y la baliza deja una zona irradiada.' },
     ],
   },
+  static: {
+    id: 'static',
+    name: 'Interferencia',
+    title: 'Señal maldita',
+    hp: 95,
+    speed: 210,
+    damage: 15,
+    range: 230,
+    arc: 0,
+    attackCd: 0.5,
+    armor: 0,
+    rangedBasic: true,
+    attackName: 'Estática',
+    passive: 'Con ella en la sala se encienden las teles del mapa. Las cercanas repiten sus ataques. Su Ruido hipnotiza: al llenarse, la víctima camina hacia ella o hacia una tele.',
+    abilities: [
+      { key: 'Q', name: 'Señal pirata', desc: 'Una onda que ralentiza e hipnotiza (también sale de las teles cercanas).', cooldown: 7 },
+      { key: 'E', name: 'Cambio de canal', desc: 'Las teles cercanas emiten una señal perturbadora 4 s: quien esté frente a ellas se hipnotiza muy rápido.', cooldown: 11 },
+    ],
+    ult: { key: 'R', name: 'Emisión nacional', desc: 'Se encienden todas las teles del mapa y un rayo de su color salta de una a otra quitando vida e hipnotizando.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Sintonía', desc: 'Hace un 50 % más de daño a quien esté hipnotizado o casi.' },
+      { lvl: 10, name: 'Emisión nacional', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Alta definición', desc: 'Los ataques de las teles tienen más radio.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -655,6 +681,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Gris', price: 0, palette: { skin: '#a8b0b8', hair: '#8890a0', cloth: '#c8d0d8', cloth2: '#7a8490', accent: '#60ff90', eye: '#06080a' } },
     { id: 'green', name: 'Marcianito', price: 200, palette: { skin: '#70c060', hair: '#50a040', cloth: '#40406a', cloth2: '#28284a', accent: '#ff60e0', eye: '#0a0a14' } },
     { id: 'void', name: 'Del vacío', price: 350, palette: { skin: '#2a2a3a', hair: '#1a1a28', cloth: '#14141e', cloth2: '#0a0a12', accent: '#a080ff', eye: '#c0a0ff' } },
+  ],
+  static: [
+    { id: 'classic', name: 'Sin señal', price: 0, palette: { skin: '#c8c0b0', hair: '#5a4a3a', cloth: '#3a3a4a', cloth2: '#22222e', accent: '#40ff90', eye: '#e8f0f0' } },
+    { id: 'retro', name: 'Retro', price: 200, palette: { skin: '#e0b090', hair: '#8a5a2a', cloth: '#7a4a28', cloth2: '#4a2a14', accent: '#ff8030', eye: '#ffe0a0' } },
+    { id: 'glitch', name: 'Glitch', price: 350, palette: { skin: '#e8e8f0', hair: '#202028', cloth: '#14141c', cloth2: '#0a0a10', accent: '#ff30c0', eye: '#30ffff' } },
   ],
 };
 
