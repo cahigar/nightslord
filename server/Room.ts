@@ -1863,6 +1863,8 @@ export class Room {
           this.root(m, ITEMS.boots.nature.root);
           z.until = Math.min(z.until, this.time + 0.4);
         }
+        else if (z.kind === 'goo') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, BAL.slime.goo.slowMul); }
+        else if (z.kind === 'venom') { if (owner && this.isEnemyOf(owner, m) && m.poisonT < 1) this.poison(m, BAL.slime.trail.poisonT, BAL.slime.trail.poisonDps, owner); }
         else if (z.kind === 'web' || z.kind === 'bigweb' || z.kind === 'thread') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, z.kind === 'web' ? BAL.spider.web.slowMul : BAL.spider.ult.slowMul); }
         else if (z.kind === 'thorns' || z.kind === 'forest') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, z.kind === 'thorns' ? TR.bramble.slowMul : TR.ult.slowMul); }
         else if (z.kind === 'storm' || z.kind === 'fire') {
@@ -2032,7 +2034,7 @@ export class Room {
     if (m.liftT > 0) f2 |= Flag2.Lifted;
     if (m.blindT > 0) f2 |= Flag2.Blind;
     if (m.kind === Kind.Player && (m as Player).leap) f2 |= Flag2.Leaping;
-    if (m.kind === Kind.Player && (m as Player).k.engulfed) f2 |= Flag2.Engulfed;
+    if (m.kind === Kind.Player && ((m as Player).k.engulfed ?? 0) > this.time) f2 |= Flag2.Engulfed;
     if (f2) s.f2 = f2;
     if (m.hp < m.maxHp) s.h = Math.max(1, Math.round((m.hp / m.maxHp) * 100));
     if (m.drowsy > 0) s.z = Math.round(m.drowsy);

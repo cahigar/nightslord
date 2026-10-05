@@ -3,7 +3,7 @@
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
-  | 'pirate' | 'spider' | 'scarecrow' | 'demon';
+  | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -479,6 +479,30 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Señor de las llamas', desc: 'La Bola infernal suelta llamas secundarias y el fuego le cura.' },
     ],
   },
+  slime: {
+    id: 'slime',
+    name: 'Baba',
+    title: 'Slime',
+    hp: 140,
+    speed: 195,
+    damage: 15,
+    range: 48,
+    arc: Math.PI * 0.7,
+    attackCd: 0.55,
+    armor: 0.05,
+    attackName: 'Salpicadura',
+    passive: 'Al perder cada 30 % de la vida se separa en 2 slimes pequeños unos segundos: recibe menos daño pero pega menos, y mientras quede alguno vivo se regenera. Sus golpes dejan manchas pegajosas.',
+    abilities: [
+      { key: 'Q', name: 'Rastro de veneno', desc: 'Él y sus copias corren más y dejan veneno a su paso unos segundos.', cooldown: 9 },
+      { key: 'E', name: 'Burbuja de ácido', desc: 'Lanza una burbuja que explota al chocar o al llegar al final: envenena y aparta.', cooldown: 7 },
+    ],
+    ult: { key: 'R', name: 'Masa crítica', desc: 'Se vuelve enorme 6 s con mucha más vida: atrapa y arrastra a los enemigos quitándoles vida y luego estalla.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Absorber', desc: 'Los objetos que recoge y sus víctimas le curan.' },
+      { lvl: 10, name: 'Masa crítica', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Reacción en cadena', desc: 'Sus mitades revientan en baba al reunirse y sus charcos duran el doble.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -596,6 +620,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Brasa', price: 0, palette: { skin: '#b02818', hair: '#ff8020', cloth: '#2a1010', cloth2: '#140808', accent: '#ffd040', eye: '#fff080' } },
     { id: 'blue', name: 'Llama azul', price: 200, palette: { skin: '#2a3a8a', hair: '#40c0ff', cloth: '#101830', cloth2: '#080c18', accent: '#a0f0ff', eye: '#e0ffff' } },
     { id: 'obsidian', name: 'Obsidiana', price: 350, palette: { skin: '#2a2028', hair: '#c040ff', cloth: '#140c14', cloth2: '#080408', accent: '#ff60e0', eye: '#ffa0ff' } },
+  ],
+  slime: [
+    { id: 'classic', name: 'Verde', price: 0, palette: { skin: '#60d040', hair: '#a0ff70', cloth: '#2a8a20', cloth2: '#185a12', accent: '#e0ff90', eye: '#141a10' } },
+    { id: 'grape', name: 'Uva', price: 200, palette: { skin: '#9050d0', hair: '#c090ff', cloth: '#5a2a8a', cloth2: '#3a1a5a', accent: '#f0d0ff', eye: '#140a1a' } },
+    { id: 'magma', name: 'Magma', price: 350, palette: { skin: '#e05020', hair: '#ffb040', cloth: '#8a2010', cloth2: '#4a1008', accent: '#ffe080', eye: '#1a0804' } },
   ],
 };
 

@@ -251,6 +251,8 @@ export class Effects {
       case 'treeFire': this.burst(x, y - 20, 30, ['#ff6020', '#ffd040', '#c02010', '#3a3430'], 220, 4, -60, 0.9, true); this.ripple(x, y, '#ff8020', 0.5, (ev.r ?? 30) + 30); break;
       case 'shock': this.shockFx(ev); break;
       case 'fireBoom': this.burst(x, y - 20, 40, ['#ff6020', '#ffd040', '#c02010', '#ffffff'], (ev.r ?? 90) * 3, 4, 250, 0.7, true); this.ripple(x, y, '#ff8020', 0.5, ev.r ?? 90); break;
+      case 'slimeSplit': this.burst(x, y - 20, ev.n === 2 ? 50 : 22, ['#60d040', '#a0ff70', '#e0ff90'], ev.n === 2 ? 320 : 160, 4, 400, 0.6); if (ev.n === 2) this.ripple(x, y, '#a0ff70', 0.6, 120); break;
+      case 'slimeBoom': this.burst(x, y - 15, 30, ['#60d040', '#a0ff70', '#3a6a10', '#e0ff90'], (ev.r ?? 100) * 2.6, 4, 450, 0.6); this.ripple(x, y, '#a0ff70', 0.5, ev.r ?? 100); break;
       case 'scare': this.ripple(x, y - 20, '#ffb020', 0.6, ev.r ?? 200); this.burst(x, y - 50, 10, ['#141018', '#2a2030'], 200, 3, -40, 0.8); break;
       case 'leapLand': this.burst(x, y, 16, this.terrainColors(x, y), 180, 3, 400, 0.5); this.ripple(x, y, '#e8e8f0', 0.4, ev.r ?? 120); break;
       case 'sprout': this.burst(x, y - 10, 22, ['#5a4632', '#2e4a24', '#a0e040', '#4a7a34'], 200, 3, 400, 0.6); this.ripple(x, y, '#a0e040', 0.5, 40); break;
@@ -1217,6 +1219,18 @@ export class Effects {
       ctx.globalAlpha = 0.55 * Math.min(1, life * 5);
       ctx.fillStyle = '#5a4a1a';
       ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (kind === 'goo' || kind === 'venom') {
+      // baba pegajosa (verde) o rastro de veneno (morado), con burbujas
+      const venom = kind === 'venom';
+      ctx.globalAlpha = (venom ? 0.45 : 0.6) * fade;
+      ctx.fillStyle = venom ? '#6a2a8a' : '#4aa030';
+      const ex = bx ?? x, ey = by ?? y;
+      const n = Math.max(1, Math.round(Math.hypot(ex - x, ey - y) / (r * 0.6)));
+      for (let i = 0; i <= n; i++) { const t = i / n; ctx.beginPath(); ctx.ellipse(x + (ex - x) * t, y + (ey - y) * t, r, r * 0.6, 0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.globalAlpha = 0.9 * fade;
+      ctx.fillStyle = venom ? '#c070ff' : '#a0ff70';
+      for (let i = 0; i < 4; i++) { const t = (now / 900 + i / 4 + seed * 0.1) % 1; ctx.fillRect(snap(x + Math.cos(i * 2.3 + seed) * r * 0.5), snap(y + Math.sin(i * 1.9 + seed) * r * 0.3 - t * 10), PIXEL, PIXEL); }
       ctx.globalAlpha = 1;
     } else if (kind === 'snare') {
       // trampa de raíces de las botas de naturaleza

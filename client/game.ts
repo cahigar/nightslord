@@ -699,6 +699,7 @@ export class Game {
 
     // ---- elementos detrás del personaje (definitivas)
     let scale = e.k === Kind.Hunter && e.c === 'heraldo' ? 1.35 : isMonster && e.c === 'reanimated' ? 1.18 : isMonster && e.c === 'tree' ? 1.22 : 1;
+    if (ult && e.c === 'slime') scale = 1.9 + Math.sin(now / 160) * 0.05; // Masa crítica
     let lift = 0;
     if (e.k === Kind.Hunter && e.c === 'heraldo') {
       lift = 6 + Math.sin(now / 400 + e.id) * 3 + (e.fl & Flag.Flying ? 34 : 0); // flota (y vuela por encima de obstáculos)
@@ -803,6 +804,7 @@ export class Game {
       ctx.filter = 'sepia(1) saturate(8) hue-rotate(-50deg)'; blit(fr.base); ctx.filter = 'none';
       ctx.globalCompositeOperation = 'source-over';
     }
+    if (e.f2 & Flag2.Engulfed) { ctx.globalAlpha = 0.45; ctx.fillStyle = '#60d040'; ctx.fillRect(dx, dy, w, h); ctx.globalAlpha = 1; }
     if (e.f2 & Flag2.Burning && Math.random() < 0.45) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y - 10 - Math.random() * 50, vx: 0, vy: -70, life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#ff6020' : '#ffd040', size: 3, grav: 0 });
     if (e.f2 & Flag2.Blind) for (let i = 0; i < 3; i++) { const a = now / 200 + i * 2.1; ctx.fillStyle = '#141018'; ctx.fillRect(Math.round((x + Math.cos(a) * 16) / 3) * 3, Math.round((y - h + 6 - lift + Math.sin(a) * 5) / 3) * 3, 6, 3); }
     if (e.fl & Flag.Poison && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: -20, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#80e020' : '#3a6a10', size: 3, grav: 0 });
@@ -918,6 +920,14 @@ export class Game {
       if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, pl.base, x, y, e.f === -1, sc, 0.7); ctx.globalCompositeOperation = 'source-over'; }
       if (pl.glow) glows.push({ img: pl.glow, x: x - (SW * PIXEL * sc) / 2, y: y - SH * PIXEL * sc + 9 * sc, w: SW * PIXEL * sc, h: SH * PIXEL * sc, flip: e.f === -1, a: 0.9 });
       if (variant === 'flower' && Math.random() < 0.08) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 40, vx: 0, vy: -20, life: 0.8, max: 0.8, color: '#a0ff80', size: 3, grav: 0 });
+      return;
+    }
+    if (variant === 'slimelet') {
+      // mitad del slime: él mismo, en pequeño
+      const fr = getFrame('monster', 'slime', e.s ?? 'classic', e.a, this.frameFor(e, now), 0, 0);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y + 2, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
+      this.blitFrame(ctx, fr.base, x, y, e.f === -1, 0.55, 0.92);
+      if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, fr.base, x, y, e.f === -1, 0.55, 0.6); ctx.globalCompositeOperation = 'source-over'; }
       return;
     }
     if (variant === 'spiderling') {
@@ -1140,7 +1150,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1269,7 +1279,7 @@ const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
 const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1304,6 +1314,7 @@ const TAUNTS: Record<CharacterId, string> = {
   spider: 'Ven a mi tela...',
   scarecrow: '¡Bu! ...¿Asustado?',
   demon: '¿Hace calor o soy yo?',
+  slime: '*blub blub*',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

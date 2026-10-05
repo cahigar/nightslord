@@ -754,6 +754,31 @@ const demonForm: FormFn = (b, p, c, anim, tier) => {
   void anim;
 };
 
+const slimeForm: FormFn = (b, p, c, anim, tier) => {
+  // Baba: gota gelatinosa que rebota; se aplasta al caer y se estira al saltar
+  const sw = p.sway ?? 0;
+  const squash = anim === Anim.Walk ? (p.by < 0 ? -2 : 1) : anim === Anim.Attack ? 1 : 0;
+  const top = 10 - squash * 2 + Math.max(0, -p.by), hw = 8 + squash;
+  for (let y = top; y <= FLOOR; y++) {
+    const t = (y - top) / (FLOOR - top);
+    const half = Math.round(hw * Math.sqrt(Math.min(1, 0.25 + t * 1.6)) * (t > 0.85 ? 1 - (t - 0.85) * 1.2 : 1));
+    b.rect(12 - half, y, half * 2, 1, t < 0.25 ? c.hair : t > 0.75 ? c.cloth : c.skin);
+  }
+  // brillos y burbujas dentro
+  b.rect(8, top + 2, 2, 2, '#ffffff', false); b.set(10, top + 1, c.accent, false, true);
+  for (const [x, y] of [[14, 22], [9, 25], [16, 27], [11, 19]]) b.set(x, y, c.accent, false, true);
+  // goterones en la base
+  b.set(4 - sw % 2, FLOOR, c.cloth); b.set(20 + sw % 2, FLOOR, c.cloth);
+  // cara
+  const ex = 13 + (p.lean ?? 0), ey = top + 7;
+  if (!p.blink) { b.rect(ex, ey, 2, 3, c.eye); b.rect(ex + 4, ey, 2, 3, c.eye); b.set(ex, ey, '#ffffff', false, true); b.set(ex + 4, ey, '#ffffff', false, true); }
+  else { b.rect(ex, ey + 1, 2, 1, c.eye); b.rect(ex + 4, ey + 1, 2, 1, c.eye); }
+  if (p.mouth) b.rect(ex + 1, ey + 5, 4, 2, c.eye); else b.rect(ex + 1, ey + 5, 4, 1, c.eye);
+  if (tier >= 1) b.set(ex + 5, ey, c.accent, true);
+  if (tier >= 2) for (const [x, y] of [[9, 25], [16, 27]]) b.set(x, y, c.accent, true); // núcleo que brilla
+  if (tier >= 3) { b.rect(10, top - 2, 1, 2, c.hair); b.set(10, top - 3, c.accent, true); b.rect(14, top - 1, 1, 1, c.hair); } // antenitas de baba
+};
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -820,7 +845,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
-  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm,
+  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm, slime: slimeForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -1160,6 +1185,7 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   crow1: { art: ['.......', '.kkkkk.', 'kkkkkkk', 'k.kRk.k', '...k...'], pal: { k: '#141018', R: '#ff3020' }, glow: 'R' },
   fireball: { art: ['..ooo..', '.oyyyo.', 'oyWWWyo', 'oyWWWyo', 'oyWWWyo', '.oyyyo.', '..ooo..'], pal: { o: '#c02010', y: '#ff8020', W: '#ffe060' }, glow: 'W' },
   ember: { art: ['.o.', 'oyo', '.o.'], pal: { o: '#ff6020', y: '#ffe060' }, glow: 'y' },
+  bubble: { art: ['..www..', '.wGGGw.', 'wGWGGGw', 'wGGGGGw', 'wGGGGGw', '.wGGGw.', '..www..'], pal: { w: '#c0ff90', G: '#60d040', W: '#ffffff' }, glow: 'W' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };
