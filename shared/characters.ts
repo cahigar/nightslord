@@ -291,16 +291,16 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     armor: 0,
     rangedBasic: true,
     attackName: 'Poción',
-    passive: 'Alquimista: cada poción tiene un efecto distinto (fuego, ácido, maleficio) y los power-ups le hacen más efecto.',
+    passive: 'Alquimista: lanza frascos al azar de ácido (envenena unos segundos) o fuego (el suelo arde).',
     abilities: [
-      { key: 'Q', name: 'Gran redoma', desc: 'Lanza un frasco enorme con la siguiente poción potenciada en un área grande.', cooldown: 8 },
+      { key: 'Q', name: 'Poción aleatoria', desc: 'Frasco grande al azar: ácido, fuego o rabia (todos atacan a lo más cercano, ella incluida). 3 cargas.', cooldown: 6 },
       { key: 'E', name: 'Escoba', desc: 'Vuela unos segundos por encima de los obstáculos (aterriza siempre en un sitio libre).', cooldown: 12 },
     ],
-    ult: { key: 'R', name: 'Poción de rabia', desc: 'En un área grande, todos atacan a lo más cercano (3 s jugadores, 5 s humanos y cazadores). Las bajas cuentan para ella.', cooldown: 0 },
+    ult: { key: 'R', name: 'Maleficio', desc: 'Un gran charco embrujado: quien lo pisa se convierte en animalillo unos segundos. Recarga al instante las 3 pociones.', cooldown: 0 },
     evolution: [
-      { lvl: 5, name: 'Caldero espeso', desc: 'Las pociones salpican más y sus efectos duran más.' },
-      { lvl: 10, name: 'Poción de rabia', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
-      { lvl: 15, name: 'Vuelo nocturno', desc: 'La escoba dura más y puede lanzar pociones mientras vuela.' },
+      { lvl: 5, name: 'Caldero espeso', desc: 'El veneno y el fuego duran más.' },
+      { lvl: 10, name: 'Maleficio', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Gran alquimista', desc: 'Las pociones salpican un área mayor, los power-ups le duran más y puede lanzar pociones desde la escoba, que vuela más tiempo.' },
     ],
   },
 };

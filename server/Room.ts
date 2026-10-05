@@ -288,14 +288,54 @@ export class Room {
     m.bleedT = Math.max(m.bleedT, t); m.bleedDps = Math.max(m.bleedT > t ? m.bleedDps : 0, dps); m.bleedBy = by.id;
   }
 
-  rage(m: Mob, t: number, by: Player) {
-    if (m.dead || m === by || m.entombT > 0) return;
-    m.rageT = Math.max(m.rageT, t); m.rageBy = by.id;
+  /** Rabia: ataca a lo más cercano. spare = nunca a quien la lanzó (la poción de la bruja sí puede volverse contra ella). */
+  rage(m: Mob, t: number, by: Player, spare = true) {
+    if (m.dead || m === by || m.entombT > 0 || m.hexT > 0) return;
+    m.rageT = Math.max(m.rageT, t); m.rageBy = by.id; m.rageSafe = spare;
     if (m.kind === Kind.Npc) { (m as Npc).fleeing = false; m.panicT = 0; m.fearT = 0; }
   }
 
+  poison(m: Mob, t: number, dps: number, by: Player) {
+    if (m.dead) return;
+    m.poisonDps = m.poisonT > 0 ? Math.max(m.poisonDps, dps) : dps;
+    m.poisonT = Math.max(m.poisonT, t); m.poisonBy = by.id;
+  }
+
+  /** Maleficio: convierte en animalillo (no ataca ni usa habilidades y va dando saltitos). */
+  hex(m: Mob, t: number) {
+    if (m.dead || m.entombT > 0) return;
+    if (m.kind === Kind.Player) {
+      const p = m as Player;
+      if (p.protectT > 0 || p.submergeT > 0 || p.flyT > 0) return;
+      p.dash = null; p.jetT = 0;
+      if (p.invisKind !== 'none') { p.invisT = 0; p.invisKind = 'none'; p.invisBonus = false; }
+    }
+    if (m.kind === Kind.Hunter) {
+      const h = m as Hunter;
+      if (h.flyT > 0) return;
+      if (h.type === 'heraldo') t *= 0.5;
+      if (h.ritualT > 0) { h.ritualT = 0; this.zones = this.zones.filter((z) => z.id !== h.ritualZone); }
+      h.lungeT = 0;
+    }
+    if (m.hexT <= 0) this.fx('hexed', m.x, m.y, { o: m.id });
+    m.hexT = Math.max(m.hexT, t);
+    m.rageT = 0; m.charmT = 0;
+  }
+
+  /** Saltitos del animalillo (criaturas que no maneja un jugador). Devuelve true si está hechizado. */
+  private hexHop(m: Mob, dt: number): boolean {
+    if (m.hexT <= 0) return false;
+    if (Math.random() < dt * 1.2 || (m.hexDx === 0 && m.hexDy === 0)) { const a = Math.random() * Math.PI * 2; m.hexDx = Math.cos(a); m.hexDy = Math.sin(a); }
+    const sp = 70 * (m.slowT > 0 ? m.slowMul : 1);
+    const res = this.grid.move(m.x, m.y, m.hexDx * sp * dt, m.hexDy * sp * dt, m.r);
+    if (res.hit) { m.hexDx = -m.hexDx; m.hexDy = -m.hexDy; }
+    m.x = res.x; m.y = res.y; m.moving = true;
+    m.facing = m.hexDx >= 0 ? 1 : -1;
+    return true;
+  }
+
   charm(m: Mob, t: number, by: Player) {
-    if (m.dead || m === by || m.entombT > 0) return;
+    if (m.dead || m === by || m.entombT > 0 || m.hexT > 0) return;
     m.charmT = Math.max(m.charmT, t); m.charmBy = by.id;
   }
 
@@ -518,6 +558,7 @@ export class Room {
     if (p.speedT > 0) s *= 1.4;
     if (p.howlT > 0) s *= BAL.werewolf.howlSpeedMul;
     if (p.slowT > 0) s *= p.slowMul;
+    if (p.hexT > 0) s *= STATUS.hexSpeedMul;
     s *= KITS[p.char].speedMul?.(this, p) ?? 1;
     if (p.def.aquatic) {
       const w = this.waterAt(p.x, p.y);
@@ -572,6 +613,13 @@ export class Room {
     if (m.drowsy > 0) { m.drowsyHold -= dt; if (m.drowsyHold <= 0) m.drowsy = Math.max(0, m.drowsy - STATUS.drowsyDecay * dt); }
     m.rageT = Math.max(0, m.rageT - dt);
     m.charmT = Math.max(0, m.charmT - dt);
+    m.hexT = Math.max(0, m.hexT - dt);
+    if (m.poisonT > 0) {
+      m.poisonT -= dt;
+      const by = this.findPlayerById(m.poisonBy);
+      this.damage(m, m.poisonDps * dt, by ? { ...this.src(by), raw: true } : { name: 'veneno', kind: Kind.Player, raw: true }, false, true);
+      if (m.dead) return true;
+    }
     if (m.bleedT > 0) {
       m.bleedT -= dt;
       const by = this.findPlayerById(m.bleedBy);
@@ -642,7 +690,7 @@ export class Room {
     let { mx, my, a, b } = p.input;
     // rabia: ataca a lo más cercano · engatusado: camina hacia quien lo engatusó
     if (p.rageT > 0 || p.charmT > 0) {
-      const t = p.charmT > 0 ? this.findPlayerById(p.charmBy) : this.nearestAny(p, 600, p.rageBy);
+      const t = p.charmT > 0 ? this.findPlayerById(p.charmBy) : this.nearestAny(p, 600, p.rageSafe ? p.rageBy : -1);
       if (t) {
         const dx = t.x - p.x, dy = t.y - p.y, d = Math.hypot(dx, dy) || 1;
         mx = dx / d; my = dy / d; a = Math.atan2(dy, dx);
@@ -650,6 +698,7 @@ export class Room {
         b = p.rageT > 0 && d < p.def.range + p.r + t.r + 30 ? BTN_ATTACK : 0;
       } else b = 0;
     }
+    if (p.hexT > 0) b = 0; // animalillo: ni ataca ni usa habilidades
     const locked = this.applyStatus(p, dt);
     if (p.entombT > 0) { p.dash = null; return; }
 
@@ -990,6 +1039,7 @@ export class Room {
     if (n.disguiseT > 0) { n.disguiseT -= dt; if (n.disguiseT <= 0) { n.disguiseBy = -1; this.fx('disguise', n.x, n.y, { o: n.id, r: -1 }); } }
     if (this.applyStatus(n, dt)) return;
     if (n.stunT > 0 || n.fearT > 0) { n.moving = false; return; }
+    if (this.hexHop(n, dt)) return;
     if (this.rageOrCharm(n, 150, STATUS.rageNpcDmg, 0.9, 22, dt)) return;
     n.thinkT -= dt;
     let speed = 55;
@@ -1102,6 +1152,7 @@ export class Room {
     }
     if (this.applyStatus(h, dt)) return;
     if (h.stunT > 0 || h.fearT > 0) { h.moving = false; h.lungeT = 0; return; }
+    if (this.hexHop(h, dt)) return;
     if (this.rageOrCharm(h, h.def.speed, Math.max(10, h.def.melee), h.def.meleeCd, h.def.reach, dt)) return;
     if (h.type === 'sectario') { this.updateCultist(h, dt); return; }
     const D = h.def;
@@ -1224,7 +1275,7 @@ export class Room {
     m.rageAtk = Math.max(0, m.rageAtk - dt);
     let t: Mob | null = null;
     if (m.charmT > 0) t = this.findPlayerById(m.charmBy);
-    else t = this.nearestAny(m, 520, m.rageBy);
+    else t = this.nearestAny(m, 520, m.rageSafe ? m.rageBy : -1);
     if (!t || t.dead) { m.moving = false; return true; }
     const dx = t.x - m.x, dy = t.y - m.y, d = Math.hypot(dx, dy) || 1;
     m.facing = dx >= 0 ? 1 : -1;
@@ -1363,6 +1414,7 @@ export class Room {
     if (this.applyStatus(m, dt)) return;
     if (m.stunT > 0 || m.fearT > 0) { m.moving = false; return; }
     if (m.anim === Anim.Cast && this.time < m.animUntil && m.swellT <= 0) { m.moving = false; return; } // saliendo de la tierra
+    if (this.hexHop(m, dt)) return;
     if (this.rageOrCharm(m, m.speed, this.calcDamage(owner, MINION_STATS[m.variant].dmg), MINION_STATS[m.variant].cd || 1, ZB.attackReach, dt)) return;
     // zombi gordo hinchándose: aviso antes de explotar
     if (m.swellT > 0) {
@@ -1563,6 +1615,14 @@ export class Room {
         if (z.kind === 'mistTrail') { if (m !== owner && this.isEnemyOf(owner, m)) this.slow(m, V.mistTrailSlowT, V.mistTrailSlow); }
         else if (z.kind === 'puddle') { if (!isAquatic(m)) this.slow(m, 0.35, KT.puddleSlowMul); } // el agua ralentiza a todos menos a los acuáticos
         else if (z.kind === 'toxic') { if (this.isEnemyOf(owner, m)) { this.slow(m, 0.4, ZB.toxicSlowMul); m.weakT = Math.max(m.weakT, 0.5); } }
+        else if (z.kind === 'hex') {
+          // charco embrujado: quien lo pisa se convierte en animalillo (una vez por charco)
+          if (!owner || !this.isEnemyOf(owner, m) || m.hexT > 0) continue;
+          if (!z.hit) z.hit = new Set();
+          if (z.hit.has(m.id)) continue;
+          z.hit.add(m.id);
+          this.hex(m, m.kind === Kind.Player ? BAL.witch.ult.tPlayer : BAL.witch.ult.tOther);
+        }
         else if (z.kind === 'glass') { if (this.isEnemyOf(owner, m)) this.slow(m, 0.3, BAL.mary.shardsSlow); }
         else if (z.kind === 'storm' || z.kind === 'fire') {
           if (!owner || !this.isEnemyOf(owner, m) || (m.kind === Kind.Player && (m as Player).submergeT > 0)) continue;
@@ -1590,12 +1650,13 @@ export class Room {
       for (const u of this.powerups.values()) {
         if (dist2(p.x, p.y, u.x, u.y) > (p.r + POWERUP_RADIUS) ** 2) continue;
         this.powerups.delete(u.id);
-        const pm = KITS[p.char].powerupMul?.(p) ?? 1; // la bruja les saca más partido
+        const pm = KITS[p.char].powerupMul?.(p) ?? 1;
+        const tm = KITS[p.char].powerupTimeMul?.(p) ?? 1; // la bruja (nv. 15) los alarga
         switch (u.type) {
           case 'blood': p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.4 * pm); break;
-          case 'speed': p.speedT = 6 * pm; break;
-          case 'fury': p.furyT = 8 * pm; break;
-          case 'shield': p.shieldHp = 50 * pm; p.shieldT = 10 * pm; break;
+          case 'speed': p.speedT = 6 * pm * tm; break;
+          case 'fury': p.furyT = 8 * pm * tm; break;
+          case 'shield': p.shieldHp = 50 * pm; p.shieldT = 10 * pm * tm; break;
           case 'coin': p.coinsEarned += 5; p.conn.profile.coins += 5; store.touch(); break;
           case 'xp': this.addXp(p, 30 * pm); break;
         }
@@ -1688,6 +1749,8 @@ export class Room {
     if (m.rageT > 0) f |= Flag.Raged;
     if (m.bleedT > 0) f |= Flag.Bleed;
     if (m.charmT > 0) f |= Flag.Charmed;
+    if (m.hexT > 0) f |= Flag.Hexed;
+    if (m.poisonT > 0) f |= Flag.Poison;
     if (m.kind === Kind.Player) {
       const p = m as Player;
       if (p.invisKind !== 'none') f |= Flag.Invisible;
@@ -1799,6 +1862,7 @@ export class Room {
       addB('protect', me.protectT); addB('slow', me.slowT); addB('stun', me.stunT);
       addB('frenzy', me.frenzyT); addB('haste', me.killSpeedT); addB('vuln', me.vulnT); addB('tomb', me.entombT);
       addB('weak', me.weakT); addB('dive', me.submergeT);
+      addB('hex', me.hexT); addB('poison', me.poisonT);
       addB('sleep', me.sleepT); addB('rage', me.rageT); addB('charm', me.charmT); addB('bleed', me.bleedT); addB('fly', me.flyT);
       if (me.guise) buffs.push({ t: me.guise.startsWith('prop') ? 'prop' : me.guise.startsWith('char') ? 'mimic' : 'guise', r: 999 });
       if (me.char === 'mary') { const n = this.zones.filter((z) => z.kind === 'mirror' && z.owner === me.id).length; if (n) buffs.push({ t: 'mirrors', r: n }); }

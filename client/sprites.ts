@@ -478,8 +478,28 @@ const witchForm: FormFn = (b, p, c, _anim, tier) => {
   if (tier >= 1 && !p.blink) b.set(X + 7, Y + 5, shade(c.eye, 0.3), true);
   arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin);
   const hx = 13 + Math.sin(p.ra) * 8, hy = 13 + by + Math.cos(p.ra) * 8;
-  b.rect(hx, hy - 2, 2, 3, ['#ff6020', '#a0ff40', '#c060ff'][Math.floor(sw) % 3], true); b.set(hx, hy - 3, '#d0d0d0'); // frasco en la mano
+  b.rect(hx, hy - 2, 2, 3, ['#ff6020', '#a0ff40', '#e02010'][Math.floor(sw) % 3], true); b.set(hx, hy - 3, '#d0d0d0'); // frasco en la mano
 };
+
+/** Animalillo (maleficio de la bruja): un sapo que da saltitos. */
+const critterCache: Baked[] = [];
+export function getCritter(frame: number): Baked {
+  const f = frame % 2;
+  if (critterCache[f]) return critterCache[f];
+  const b = new PB(SW, SH);
+  const y0 = f ? 22 : 25; // en el salto se eleva
+  b.ellipse(12, y0 + 3, 5, 3, '#4a8a3a');
+  b.ellipse(12, y0 + 4, 4, 2, '#a0c070'); // barriga
+  b.rect(8, y0, 3, 2, '#4a8a3a'); b.rect(14, y0, 3, 2, '#4a8a3a'); // ojos saltones
+  b.set(9, y0, '#ffe060', true); b.set(15, y0, '#ffe060', true);
+  b.set(9, y0 + 1, '#101010', false, true); b.set(15, y0 + 1, '#101010', false, true);
+  b.rect(10, y0 + 4, 5, 1, '#2a4a20'); // boca
+  b.rect(6, y0 + 6 - f, 3, 1, '#3a7a2a'); b.rect(16, y0 + 6 - f, 3, 1, '#3a7a2a'); // patas
+  if (f) { b.rect(7, y0 + 7, 2, 2, '#3a7a2a'); b.rect(16, y0 + 7, 2, 2, '#3a7a2a'); } // patas estiradas en el salto
+  b.set(13, y0 - 2, '#c060ff', true); // chispa del maleficio
+  critterCache[f] = b.finish({ outline: 'selout' });
+  return critterCache[f];
+}
 
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
@@ -802,7 +822,7 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   boulder2: { art: ['.bbbbbbbbbb.', 'bBBbbbbbbbbo', 'bbbbbbBbbbbO', '.bbbbbbbbbb.'], pal: { b: '#4a3020', B: '#6a4a30', o: '#8a6a40', O: '#a08050' } },
   potion0: { art: ['..cc..', '..ww..', '.wFFw.', 'wFYFFw', 'wFFFFw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', F: '#ff6020', Y: '#ffe060' }, glow: 'Y' },
   potion1: { art: ['..cc..', '..ww..', '.wAAw.', 'wAYAAw', 'wAAAAw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', A: '#80e020', Y: '#e0ff80' }, glow: 'Y' },
-  potion2: { art: ['..cc..', '..ww..', '.wHHw.', 'wHYHHw', 'wHHHHw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', H: '#a040e0', Y: '#f0c0ff' }, glow: 'Y' },
+  potion2: { art: ['..cc..', '..ww..', '.wHHw.', 'wHYHHw', 'wHHHHw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', H: '#e02010', Y: '#ffb060' }, glow: 'Y' }, // rabia
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

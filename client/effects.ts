@@ -240,6 +240,8 @@ export class Effects {
       case 'potion': this.potionSplash(ev); break;
       case 'broom': this.burst(x, y - 20, 14, ['#a0ff40', '#c060ff', '#ffe060', '#6a4a28'], 140, 3, 100, 0.6, true); break;
       case 'rage': this.rageFx(ev); break;
+      case 'hexed': this.burst(x, y - 20, 18, ['#c060ff', '#80e020', '#ffffff'], 140, 3, 100, 0.6, true); this.ripple(x, y - 10, '#c060ff', 0.4, 30); break;
+      case 'hexzone': this.burst(x, y, 40, ['#c060ff', '#5a2a8a', '#80e020'], 300, 4, 300, 0.8, true); this.ripple(x, y, '#c060ff', 0.7, ev.r ?? 250); break;
       case 'summon': this.lightPillar(x, y, ev.n ? 1 : 0.8, ev.n ? '#ff4060' : '#c060ff'); this.burst(x, y - 30, 24, ['#c060ff', '#ff4060', '#2e1a3a'], 200, 3, 0, 0.8, true); break;
     }
   }
@@ -1015,6 +1017,29 @@ export class Effects {
       const t = (now / 1800 + seed * 0.37) % 1;
       ctx.globalAlpha = 0.45 * (1 - t) * fade;
       pixelEllipse(ctx, x + Math.sin(seed) * rq * 0.25, y, rq * 0.15 + t * rq * 0.5, (rq * 0.15 + t * rq * 0.5) * 0.55, '#6a8eaa');
+      ctx.globalAlpha = 1;
+    } else if (kind === 'hex') {
+      // charco embrujado: violeta, con burbujas que suben y un anillo de runas
+      const rq = Math.max(12, Math.round(r / 4) * 4);
+      const img = bakePuddle(rq, (seed % 16) + 64);
+      ctx.globalAlpha = 0.75 * fade;
+      ctx.filter = 'hue-rotate(95deg) saturate(1.8) brightness(1.15)';
+      ctx.drawImage(img, snap(x - img.width * PIXEL / 2), snap(y - img.height * PIXEL / 2), img.width * PIXEL, img.height * PIXEL);
+      ctx.filter = 'none';
+      for (let i = 0; i < 14; i++) {
+        const t = (now / 800 + i / 14) % 1;
+        const bx = x + Math.cos(i * 2.4 + seed) * r * 0.75 * (((i * 7) % 10) / 10), by = y + Math.sin(i * 1.9 + seed) * r * 0.45 * (((i * 3) % 10) / 10);
+        ctx.globalAlpha = (1 - t) * fade;
+        ctx.fillStyle = i % 3 ? '#c060ff' : '#80e020';
+        ctx.fillRect(snap(bx), snap(by - t * 26), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 0.7 * fade;
+      ctx.fillStyle = '#e0a0ff';
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2 + now / 2500;
+        pixelGlyph(ctx, GLYPHS[i % GLYPHS.length], x + Math.cos(a) * r * 0.9 - 4, y + Math.sin(a) * r * 0.9 * 0.62 - 4, 1.5);
+      }
+      pixelEllipse(ctx, x, y, r, r * 0.62, '#c060ff');
       ctx.globalAlpha = 1;
     } else if (kind === 'mirror') {
       // espejo de pie, pequeño, con marco y reflejo que parpadea

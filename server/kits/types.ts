@@ -34,6 +34,8 @@ export interface Kit {
   eCharges?(p: Player): number;
   /** Multiplicador del efecto de los power-ups. */
   powerupMul?(p: Player): number;
+  /** Multiplicador de la duración de los power-ups (rapidez, furia, escudo). */
+  powerupTimeMul?(p: Player): number;
   /** Cuando duerme a alguien (somnolencia llena). */
   onSleep?(room: Room, p: Player, target: Mob): void;
   /** Al alcanzar un nuevo tier de evolución (1, 2 o 3). */

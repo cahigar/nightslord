@@ -11,7 +11,7 @@ import { Anim, Flag, Kind, type EntSnap, type GameEvent, type ServerMsg, type Yo
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
-import { ANIMS, getFrame, getItem, getSarcophagus, npcLook, SH, SW } from './sprites';
+import { ANIMS, getCritter, getFrame, getItem, getSarcophagus, npcLook, SH, SW } from './sprites';
 import { LIGHT_COLORS, lightsFor, renderDecor, renderObstacle, renderTV, type Light, type Prerendered } from './tiles';
 
 const INTERP_MS = 120;
@@ -445,6 +445,7 @@ export class Game {
     for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) {
       if (e.c === 'fire') dyn.push({ x: e.rx, y: e.ry - 10, r: (e.rr ?? 60) * 2, c: 'warm', flicker: true });
       else if (e.c === 'holy') dyn.push({ x: e.rx, y: e.ry, r: (e.rr ?? 60) * 1.5, c: 'cold' });
+      else if (e.c === 'hex') dyn.push({ x: e.rx, y: e.ry, r: (e.rr ?? 60) * 1.3, c: 'cold' });
       else if (e.c === 'ritual') dyn.push({ x: e.rx, y: e.ry, r: (e.rr ?? 60) * 1.8, c: 'warm', flicker: true });
     }
     draws.sort((a, b) => a.y - b.y);
@@ -639,6 +640,16 @@ export class Game {
       if (Math.random() < 0.25) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y - 2, vx: 0, vy: -30, life: 0.4, max: 0.4, color: '#a0e0d0', size: 3, grav: 0 });
       return;
     }
+    // ---- maleficio: cualquiera convertido en animalillo
+    if (e.fl & Flag.Hexed) {
+      const cr = getCritter(Math.floor(now / 220 + e.id) % 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.beginPath(); ctx.ellipse(x + 2, y + 2, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+      this.blitFrame(ctx, cr.base, x, y, e.f === -1, 1, 1);
+      if (cr.glow) glows.push({ img: cr.glow, x: x - (SW * PIXEL) / 2, y: y - SH * PIXEL + 9, w: SW * PIXEL, h: SH * PIXEL, flip: e.f === -1, a: 1 });
+      if (Math.random() < 0.15) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20, vx: 0, vy: -30, life: 0.5, max: 0.5, color: '#c060ff', size: 3, grav: 0 });
+      return;
+    }
     if (e.k === Kind.Minion) { this.drawMinion(ctx, e, now, glows); return; }
     const isMonster = e.k === Kind.Player;
     const tier = isMonster ? tierOf(e.l ?? 1) : 0;
@@ -745,6 +756,7 @@ export class Game {
       ctx.filter = 'sepia(1) saturate(8) hue-rotate(-50deg)'; blit(fr.base); ctx.filter = 'none';
       ctx.globalCompositeOperation = 'source-over';
     }
+    if (e.fl & Flag.Poison && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: -20, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#80e020' : '#3a6a10', size: 3, grav: 0 });
     if (e.fl & Flag.Bleed && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: 0, life: 0.5, max: 0.5, color: '#c01020', size: 3, grav: 300 });
     ctx.globalAlpha = 1;
     // criaturas acuáticas: salpicaduras en los pies al andar por el agua
@@ -946,7 +958,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#c060ff' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */

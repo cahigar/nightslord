@@ -42,6 +42,9 @@ export interface Mob {
   bleedT: number; bleedDps: number; bleedBy: number;
   charmT: number; charmBy: number; // engatusado: camina hacia quien lo engatusó
   rageAtk: number;
+  rageSafe: boolean; // la rabia no se vuelve contra quien la lanzó (true) o sí (poción de la bruja)
+  poisonT: number; poisonDps: number; poisonBy: number;
+  hexT: number; hexDx: number; hexDy: number; // convertido en animalillo (maleficio)
 }
 
 export type InvisKind = 'none' | 'timed' | 'auto' | 'full';
@@ -188,7 +191,7 @@ export interface Projectile {
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire';
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex';
 /** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
 export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number>; next?: number /* próximo evento (rayo del clavo) */; v?: number }
 
@@ -198,5 +201,5 @@ export type Source = { player?: Player; hunter?: Hunter; minion?: Minion; name: 
 export const mobStatus = () => ({
   stunT: 0, slowT: 0, slowMul: 1, fearT: 0, panicT: 0, vulnT: 0, vulnMul: 1, preyT: 0,
   curseMarkT: 0, curseBy: -1, entombT: 0, entombBy: -1, entombDot: 0, weakT: 0, knock: null, dead: false,
-  drowsy: 0, drowsyHold: 0, sleepT: 0, sleepMarkT: 0, rageT: 0, rageBy: -1, rageAtk: 0, bleedT: 0, bleedDps: 0, bleedBy: -1, charmT: 0, charmBy: -1,
+  drowsy: 0, drowsyHold: 0, sleepT: 0, sleepMarkT: 0, rageT: 0, rageBy: -1, rageAtk: 0, rageSafe: true, poisonT: 0, poisonDps: 0, poisonBy: -1, hexT: 0, hexDx: 0, hexDy: 0, bleedT: 0, bleedDps: 0, bleedBy: -1, charmT: 0, charmBy: -1,
 });

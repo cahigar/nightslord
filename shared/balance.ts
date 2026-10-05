@@ -11,6 +11,7 @@ export const STATUS = {
   drowsyDecay: 14, drowsyHold: 2.5, // la somnolencia baja sola si no la alimentan
   sleepPlayer: 1.6, sleepOther: 2.8, sleepMarkT: 8,
   rageNpcDmg: 8,
+  hexSpeedMul: 0.7, // animalillo (maleficio): va dando saltitos
   clone: { hp: 60, speed: 230, dmg: 0.55, cd: 0.6 },
 };
 
@@ -122,13 +123,16 @@ export const BAL = {
     ult: { range: 800, extra: 2 },
   },
   witch: {
-    potion: { range: 360, speed: 520, r: 64, rT1: 84 },
-    fire: { t: 3, tT1: 4.5, dps: 9 }, acid: { dmg: 1.0, slowT: 2, slowMul: 0.5 }, hex: { dmg: 0.6, weakT: 3, vulnT: 3, vulnMul: 1.25 },
-    big: { r: 140, mul: 1.8 },
+    potion: { range: 360, speed: 520, r: 58, rT3: 80 }, // básico: ácido o fuego al azar
+    acid: { dmg: 0.8, poisonT: 4, poisonTT1: 6, poisonDps: 5 }, // envenena unos segundos
+    fire: { t: 3, tT1: 4.5, dps: 9 }, // deja el suelo en llamas
+    rage: { tPlayer: 2.5, tOther: 4 }, // solo en la Q: atacan a lo más cercano, ella incluida
+    big: { r: 110, rT3: 140, mul: 1.5, charges: 3 }, // Q: poción aleatoria (ácido, fuego o rabia)
     broom: { t: 2.6, tT3: 4, speedMul: 1.35 },
-    powerupMul: 1.5, // los power-ups le hacen más efecto
-    ult: { range: 420, r: 230, tPlayer: 3, tOther: 5 },
+    powerupTimeT3: 1.5, // nivel 15: los power-ups le duran más
+    ult: { range: 420, r: 250, zoneT: 4, tPlayer: 3, tOther: 5 }, // Maleficio: animalillo
   },
+
 };
 
 // ---------------------------------------------------------------------------
