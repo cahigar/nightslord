@@ -5,6 +5,7 @@ import { kthulaKit } from './kthula';
 import { maryKit } from './mary';
 import { mummyKit } from './mummy';
 import { nightmareKit } from './nightmare';
+import { poltergeistKit } from './poltergeist';
 import { reanimatedKit } from './reanimated';
 import { succubusKit } from './succubus';
 import type { Kit } from './types';
@@ -27,6 +28,7 @@ export const KITS: Record<CharacterId, Kit> = {
   doppy: doppyKit,
   witch: witchKit,
   succubus: succubusKit,
+  poltergeist: poltergeistKit,
 };
 setKits(KITS); // Doppy necesita los kits de los demás para imitarlos
 

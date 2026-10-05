@@ -524,6 +524,35 @@ const succubusForm: FormFn = (b, p, c, anim, tier) => {
   b.set(hx, hy, shade(c.accent, -0.1)); // uñas pintadas
 };
 
+const poltergeistForm: FormFn = (b, p, c, anim, tier) => {
+  // Poltergeist: sábana flotante con agujeros por ojos; sin pies, el bajo ondea
+  const by = p.by - 1, sw = p.sway ?? 0;
+  const lift = anim === Anim.Walk ? 1 : 0;
+  const body = (y: number) => (y < 8 ? 2 + (y - 3) : y < 19 ? 7 : 7 + Math.floor((y - 19) / 3)); // media anchura
+  for (let y = 3; y <= 27; y++) {
+    const yy = y + by - lift, half = body(y);
+    b.rect(12 - half, yy, half * 2, 1, c.skin);
+    b.set(12 - half, yy, c.cloth); // sombra en el borde trasero
+  }
+  // bajo deshilachado que ondea
+  for (let i = 0; i < 7; i++) { const x = 5 + i * 2 - (sw % 2); b.rect(x, 28 + by - lift, 2, 1 + ((i + sw) % 2), i % 2 ? c.cloth : c.skin); }
+  // pliegues
+  b.line(8, 11 + by - lift, 7, 26 + by - lift, c.cloth); b.line(15, 13 + by - lift, 16, 26 + by - lift, shade(c.skin, -0.1)); b.line(11, 20 + by - lift, 11, 27 + by - lift, c.cloth);
+  // brazos: bultos bajo la sábana que se mueven con la pose
+  for (const [ang, x0] of [[p.la, 9], [p.ra, 14]] as [number, number][]) {
+    const ax = x0 + Math.sin(ang) * 6, ay = 14 + by - lift + Math.cos(ang) * 5;
+    b.ellipse(ax, ay, 2, 2, x0 === 9 ? c.cloth : c.skin);
+  }
+  // cara: dos agujeros y boca
+  const X = 7 + (p.lean ?? 0), Y = 2 + by - lift;
+  if (!p.blink) { b.rect(X + 5, Y + 5, 2, 3, c.eye); b.rect(X + 8, Y + 5, 2, 3, c.eye); }
+  else { b.rect(X + 5, Y + 6, 2, 1, c.eye); b.rect(X + 8, Y + 6, 2, 1, c.eye); }
+  b.rect(X + 6, Y + 10, 3, p.mouth ? 3 : 1, c.eye);
+  if (tier >= 1 && !p.blink) { b.set(X + 5, Y + 5, c.accent, true); b.set(X + 8, Y + 5, c.accent, true); } // brillo en los ojos
+  if (tier >= 2) for (const [x, y] of [[4, 14], [19, 18], [6, 24], [18, 8]]) b.set(x, y + by, c.accent, true); // ectoplasma
+  if (tier >= 3) { b.rect(X + 2, Y - 1, 7, 1, c.accent, true); b.set(X + 4, Y - 2, c.accent, true); } // halo espectral
+};
+
 /** Animalillo (maleficio de la bruja): un sapo que da saltitos. */
 const critterCache: Baked[] = [];
 export function getCritter(frame: number): Baked {
@@ -547,7 +576,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
-  succubus: succubusForm,
+  succubus: succubusForm, poltergeist: poltergeistForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -868,6 +897,10 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   potion1: { art: ['..cc..', '..ww..', '.wAAw.', 'wAYAAw', 'wAAAAw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', A: '#80e020', Y: '#e0ff80' }, glow: 'Y' },
   potion2: { art: ['..cc..', '..ww..', '.wHHw.', 'wHYHHw', 'wHHHHw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', H: '#e02010', Y: '#ffb060' }, glow: 'Y' }, // rabia
   heart: { art: ['.RR.RR.', 'RWRRRRR', 'RRRRRRR', '.RRRRR.', '..RRR..', '...R...'], pal: { R: '#ff3a7a', W: '#ffd0e0' }, glow: 'R' },
+  obj0: { art: ['b......', 'b......', 'b......', 'bsssss.', 'b.....b', 'b.....b'], pal: { b: '#6a4428', s: '#8a5a34' } }, // silla
+  obj1: { art: ['rrrrrr', 'rwwwwr', 'rwwwwr', 'rrrrrr'], pal: { r: '#7a1a20', w: '#e8e0c8' } }, // libro
+  obj2: { art: ['.wwwww.', 'wbbbbbw', '.wwwww.'], pal: { w: '#e8ecf0', b: '#5a7aa8' } }, // plato
+  obj3: { art: ['..f..', '..y..', '..c..', '..c..', '.ccc.', 'ccccc'], pal: { f: '#ffe060', y: '#ff9020', c: '#c8a040' }, glow: 'f' }, // candelabro
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

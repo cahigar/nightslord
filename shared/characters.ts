@@ -2,7 +2,7 @@
 // Para añadir un monstruo nuevo: añade una entrada en CHARACTERS (stats + habilidades),
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
-export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus';
+export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -33,6 +33,8 @@ export interface CharacterDef {
   rangedBasic?: boolean;
   /** Criatura acuática: camina sobre agua profunda y aprovecha cualquier agua (sea de quien sea). */
   aquatic?: boolean;
+  /** Levita: pasa por encima del agua profunda (sin las ventajas de los acuáticos). */
+  hover?: boolean;
 }
 
 export const CHARACTERS: Record<CharacterId, CharacterDef> = {
@@ -327,6 +329,32 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Corazón roto', desc: 'Flechazo con 2 cargas que atraviesa enemigos y vuela más tiempo.' },
     ],
   },
+  poltergeist: {
+    id: 'poltergeist',
+    name: 'Poltergeist',
+    title: 'Fantasma ruidoso',
+    hp: 95,
+    speed: 210,
+    damage: 16,
+    range: 420,
+    arc: 0,
+    attackCd: 0.7,
+    armor: 0,
+    rangedBasic: true,
+    hover: true,
+    attackName: 'Objeto volador',
+    passive: 'Levita: pasa por encima del agua. Sus ataques no salen de él: los objetos salen disparados desde cualquier punto de la zona hacia el enemigo.',
+    abilities: [
+      { key: 'Q', name: 'Revuelo', desc: 'Una lluvia de objetos sale de todas partes hacia los enemigos de la zona señalada.', cooldown: 7 },
+      { key: 'E', name: 'Intangible', desc: 'Atraviesa ataques y obstáculos; dentro de un obstáculo nadie lo ve. Atacar lo vuelve sólido.', cooldown: 9 },
+    ],
+    ult: { key: 'R', name: 'Drenaje', desc: 'Durante unos segundos drena la vida de los enemigos a su alrededor y se cura lo que drena.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Casa encantada', desc: 'Los objetos ralentizan un momento a quien golpean.' },
+      { lvl: 10, name: 'Drenaje', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Furia espectral', desc: 'Lanza dos objetos por ataque y es intangible más tiempo.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -414,6 +442,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Carmesí', price: 0, palette: { skin: '#e8b8c0', hair: '#2a0e1a', cloth: '#8a1838', cloth2: '#4a0a20', accent: '#ff4a8a', eye: '#ffd040' } },
     { id: 'night', name: 'Medianoche', price: 200, palette: { skin: '#b8b0e0', hair: '#e8e0f0', cloth: '#2a1a4a', cloth2: '#180e2e', accent: '#c080ff', eye: '#80f0ff' } },
     { id: 'infernal', name: 'Infernal', price: 350, palette: { skin: '#d06048', hair: '#1a0a0a', cloth: '#2a0a0a', cloth2: '#140404', accent: '#ffb030', eye: '#ffe060' } },
+  ],
+  poltergeist: [
+    { id: 'classic', name: 'Sábana', price: 0, palette: { skin: '#e8ecf4', hair: '#c8d0e0', cloth: '#b8c4d8', cloth2: '#8a98b0', accent: '#a0e8ff', eye: '#141020' } },
+    { id: 'grave', name: 'Sudario', price: 200, palette: { skin: '#d8ccb0', hair: '#b8aa88', cloth: '#a89a78', cloth2: '#7a6e54', accent: '#ffe080', eye: '#2a1a10' } },
+    { id: 'ecto', name: 'Ectoplasma', price: 350, palette: { skin: '#a8f0b8', hair: '#70d090', cloth: '#58c078', cloth2: '#348a50', accent: '#e0ff80', eye: '#0a2010' } },
   ],
 };
 

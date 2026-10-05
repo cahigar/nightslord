@@ -36,6 +36,8 @@ const DAMA = BAL.invisible;
 const ZB = BAL.zombie;
 const KT = BAL.kthula;
 const isAquatic = (m: Mob) => m.kind === Kind.Player && !!(m as Player).def.aquatic;
+/** Puede pisar agua profunda: los acuáticos y los que levitan (Poltergeist). */
+const walksWater = (m: Mob) => m.kind === Kind.Player && (!!(m as Player).def.aquatic || !!(m as Player).def.hover);
 
 // ---------------------------------------------------------------------------
 export class Room {
@@ -138,7 +140,7 @@ export class Room {
       protectT: SPAWN_PROTECTION, dash: null,
       ult: 0, ultT: 0, ultExt: 0, qCharges: 1, qLock: 0, orbit: [], lastCombatT: this.time, reinvisT: 0,
       frenzyT: 0, killSpeedT: 0, hits: new Map(), lastAtkFromInvis: false, stepT: 0,
-      submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999, guise: null, flyT: 0, k: {},
+      submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999, guise: null, flyT: 0, phaseT: 0, k: {},
       lifeStart: this.time, lifeKills: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
       lastAttacker: '',
     };
@@ -187,7 +189,7 @@ export class Room {
     const p = this.players.get(conn.id);
     if (!p || p.dead) return;
     if (heal) p.hp = p.maxHp;
-    if (tp && !this.grid.blocked(+tp[0], +tp[1], p.r, !!p.def.aquatic)) { p.x = +tp[0]; p.y = +tp[1]; }
+    if (tp && !this.grid.blocked(+tp[0], +tp[1], p.r, walksWater(p))) { p.x = +tp[0]; p.y = +tp[1]; }
     if (lvl) { let guard = 0; while (p.level < Math.min(MAX_LEVEL, lvl) && guard++ < 60) this.addXp(p, xpForLevel(p.level) - p.xp); }
     if (ult && p.tier >= 2) p.ult = ULT.max;
   }
@@ -268,7 +270,7 @@ export class Room {
   /** Suma somnolencia; al llenarse, el objetivo se duerme un rato. */
   addDrowsy(m: Mob, amount: number, by: Player, susceptMul = 1) {
     if (m.dead || m.sleepT > 0 || m.entombT > 0) return;
-    if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).submergeT > 0)) return;
+    if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).submergeT > 0 || (m as Player).phaseT > 0)) return;
     if (m.sleepMarkT > 0) amount *= susceptMul;
     m.drowsy += amount;
     m.drowsyHold = STATUS.drowsyHold;
@@ -306,7 +308,7 @@ export class Room {
     if (m.dead || m.entombT > 0) return;
     if (m.kind === Kind.Player) {
       const p = m as Player;
-      if (p.protectT > 0 || p.submergeT > 0 || p.flyT > 0) return;
+      if (p.protectT > 0 || p.submergeT > 0 || p.flyT > 0 || p.phaseT > 0) return;
       p.dash = null; p.jetT = 0;
       if (p.invisKind !== 'none') { p.invisT = 0; p.invisKind = 'none'; p.invisBonus = false; }
     }
@@ -344,7 +346,7 @@ export class Room {
     let best: Mob | null = null, bd = R * R;
     const consider = (t: Mob) => {
       if (t === m || t.dead || t.id === except || t.entombT > 0) return;
-      if (t.kind === Kind.Player && ((t as Player).submergeT > 0 || (t as Player).protectT > 0)) return;
+      if (t.kind === Kind.Player && ((t as Player).submergeT > 0 || (t as Player).protectT > 0 || (t as Player).phaseT > 0)) return;
       const d = dist2(m.x, m.y, t.x, t.y);
       if (d < bd) { bd = d; best = t; }
     };
@@ -425,7 +427,7 @@ export class Room {
     for (const n of this.npcs.values()) if (dist2(x, y, n.x, n.y) < (radius + n.r) ** 2) fn(n);
     for (const h of this.hunters.values()) if (dist2(x, y, h.x, h.y) < (radius + h.r) ** 2) fn(h);
     for (const o of this.players.values()) {
-      if (o === p || o.dead || o.protectT > 0 || o.mistT > 0 || o.submergeT > 0) continue;
+      if (o === p || o.dead || o.protectT > 0 || o.mistT > 0 || o.submergeT > 0 || o.phaseT > 0) continue;
       if (dist2(x, y, o.x, o.y) < (radius + o.r) ** 2) fn(o);
     }
     for (const m of this.minions.values()) {
@@ -655,7 +657,7 @@ export class Room {
       return true;
     }
     if (m.knock) {
-      const res = this.grid.move(m.x, m.y, m.knock.vx * dt, m.knock.vy * dt, m.r, isAquatic(m));
+      const res = this.grid.move(m.x, m.y, m.knock.vx * dt, m.knock.vy * dt, m.r, walksWater(m));
       m.x = res.x; m.y = res.y;
       m.knock.t -= dt;
       if (m.knock.t <= 0) m.knock = null;
@@ -718,7 +720,7 @@ export class Room {
     if (p.entombT > 0) { p.dash = null; return; }
 
     if (p.dash) {
-      const res = this.grid.move(p.x, p.y, p.dash.dx * p.dash.speed * dt, p.dash.dy * p.dash.speed * dt, p.r, !!p.def.aquatic);
+      const res = this.grid.move(p.x, p.y, p.dash.dx * p.dash.speed * dt, p.dash.dy * p.dash.speed * dt, p.r, walksWater(p));
       p.x = res.x; p.y = res.y;
       const dash = p.dash;
       this.forEachEnemyNear(p, p.x, p.y, p.r + 26, (m) => {
@@ -730,23 +732,24 @@ export class Room {
       dash.t -= dt;
       if (dash.t <= 0 || res.hit) p.dash = null;
       p.moving = true;
-    } else if (p.flyT > 0) {
-      // vuelo: atraviesa obstáculos; al terminar, aterriza siempre en un sitio libre
+    } else if (p.flyT > 0 || p.phaseT > 0) {
+      // vuelo / intangible: atraviesa obstáculos; al terminar, aterriza siempre en un sitio libre
       const sp = this.calcSpeed(p);
       p.moving = mx !== 0 || my !== 0;
       p.x = Math.max(p.r, Math.min(MAP_SIZE - p.r, p.x + mx * sp * dt));
       p.y = Math.max(p.r, Math.min(MAP_SIZE - p.r, p.y + my * sp * dt));
-      p.flyT -= dt;
-      if (p.flyT <= 0) {
-        p.flyT = 0;
-        if (this.grid.blocked(p.x, p.y, p.r, !!p.def.aquatic)) { const f = this.findFreeSpot(p.x, p.y, p.r); p.x = f.x; p.y = f.y; }
-        this.fx(p.def.id === 'succubus' ? 'wings' : 'broom', p.x, p.y, { o: p.id, n: 0 });
+      const phased = p.phaseT > 0;
+      if (phased) p.phaseT -= dt; else p.flyT -= dt;
+      if (p.flyT <= 0 && p.phaseT <= 0) {
+        p.flyT = 0; p.phaseT = 0;
+        if (this.grid.blocked(p.x, p.y, p.r, walksWater(p))) { const f = this.findFreeSpot(p.x, p.y, p.r); p.x = f.x; p.y = f.y; }
+        this.fx(phased ? 'phase' : p.def.id === 'succubus' ? 'wings' : 'broom', p.x, p.y, { o: p.id, n: 0 });
       }
     } else if (!locked) {
       const sp = this.calcSpeed(p);
       p.moving = (mx !== 0 || my !== 0) && sp > 0;
       if (p.moving) {
-        const res = this.grid.move(p.x, p.y, mx * sp * dt, my * sp * dt, p.r, !!p.def.aquatic);
+        const res = this.grid.move(p.x, p.y, mx * sp * dt, my * sp * dt, p.r, walksWater(p));
         p.x = res.x; p.y = res.y;
         if (p.anim === Anim.Wave || p.anim === Anim.Taunt) p.animUntil = 0;
       }
@@ -810,7 +813,7 @@ export class Room {
     if (m.vulnT > 0) amount *= m.vulnMul;
     if (m.kind === Kind.Player) {
       const p = m as Player;
-      if (p.protectT > 0 || p.mistT > 0 || p.submergeT > 0) return 0;
+      if (p.protectT > 0 || p.mistT > 0 || p.submergeT > 0 || p.phaseT > 0) return 0;
       amount *= 1 - p.def.armor;
       p.lastHurtT = this.time;
       if (p.shieldHp > 0) {
@@ -1123,7 +1126,7 @@ export class Room {
   }
 
   private hiddenPlayer(p: Player) {
-    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0 || this.isHiddenGuise(p);
+    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0 || p.phaseT > 0 || this.isHiddenGuise(p);
   }
 
   /** Elige objetivo. Los zombis cercanos van primero (si no, el Paciente Cero los farmea con su horda). */
@@ -1359,7 +1362,7 @@ export class Room {
         const v = list[Math.floor(Math.random() * list.length)];
         this.fx('summon', v.x, v.y, { o: v.id, n: 0 });
         let x = h.x + (Math.random() - 0.5) * 30, y = h.y + 10;
-        if (this.grid.blocked(x, y, v.r, !!v.def.aquatic)) { x = h.x; y = h.y; }
+        if (this.grid.blocked(x, y, v.r, walksWater(v))) { x = h.x; y = h.y; }
         v.x = x; v.y = y; v.dash = null; v.knock = null; v.submergeT = 0; v.jetT = 0;
         v.hp = Math.max(1, Math.ceil(v.hp / 2)); // llega con la mitad de su vida actual
         v.summonedAt = this.time;
@@ -1457,7 +1460,7 @@ export class Room {
       };
       for (const n of this.npcs.values()) consider(n);
       for (const h of this.hunters.values()) consider(h);
-      for (const p of this.players.values()) if (!p.dead && p.invisKind === 'none' && p.submergeT <= 0 && p.protectT <= 0 && p.mistT <= 0 && !this.isHiddenGuise(p)) consider(p);
+      for (const p of this.players.values()) if (!p.dead && p.invisKind === 'none' && p.submergeT <= 0 && p.protectT <= 0 && p.mistT <= 0 && p.phaseT <= 0 && !this.isHiddenGuise(p)) consider(p);
       for (const o of this.minions.values()) if (o.owner !== m.owner) consider(o);
       m.target = best ? (best as Mob).id : -1;
     }
@@ -1563,7 +1566,7 @@ export class Room {
           const src: Source = { hunter, name: hunter?.def.name ?? 'Cazador', kind: Kind.Hunter };
           if (pr.land) continue; // el frasco vuela por encima y revienta al final
           for (const p of this.players.values()) {
-            if (p.dead || p.submergeT > 0 || dist2(pr.x, pr.y, p.x, p.y) > (p.r + 6) ** 2) continue;
+            if (p.dead || p.submergeT > 0 || p.phaseT > 0 || dist2(pr.x, pr.y, p.x, p.y) > (p.r + 6) ** 2) continue;
             this.damage(p, pr.dmg, src);
             done = true;
             break;
@@ -1587,7 +1590,7 @@ export class Room {
           const tryHit = (m: Mob) => {
             if (done || m.dead || dist2(pr.x, pr.y, m.x, m.y) > (m.r + hitR) ** 2) return;
             if (pr.hitSet?.has(m.id)) return;
-            if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).mistT > 0 || (m as Player).submergeT > 0)) return;
+            if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).mistT > 0 || (m as Player).submergeT > 0 || (m as Player).phaseT > 0)) return;
             if (m.kind === Kind.Minion && (m as Minion).owner === pr.owner) return;
             const dealt = this.damage(m, pr.dmg, owner ? this.src(owner) : { name: '???', kind: Kind.Player });
             if (owner && !owner.dead) KITS[owner.char].onProjectileHit?.(this, owner, pr, m, dealt);
@@ -1630,7 +1633,7 @@ export class Room {
       for (const m of all) {
         if (!inside(m)) continue;
         if (z.kind === 'mistTrail') { if (m !== owner && this.isEnemyOf(owner, m)) this.slow(m, V.mistTrailSlowT, V.mistTrailSlow); }
-        else if (z.kind === 'puddle') { if (!isAquatic(m)) this.slow(m, 0.35, KT.puddleSlowMul); } // el agua ralentiza a todos menos a los acuáticos
+        else if (z.kind === 'puddle') { if (!walksWater(m)) this.slow(m, 0.35, KT.puddleSlowMul); } // el agua ralentiza a todos menos a los acuáticos
         else if (z.kind === 'toxic') { if (this.isEnemyOf(owner, m)) { this.slow(m, 0.4, ZB.toxicSlowMul); m.weakT = Math.max(m.weakT, 0.5); } }
         else if (z.kind === 'hex') {
           // charco embrujado: quien lo pisa se convierte en animalillo (una vez por charco)
@@ -1781,6 +1784,7 @@ export class Room {
       if (p.submergeT > 0) f |= Flag.Submerged;
       if (p.jetT > 0) f |= Flag.Jet;
       if (p.flyT > 0) f |= Flag.Flying;
+      if (p.phaseT > 0) f |= Flag.Phased;
     }
     return f;
   }
@@ -1850,6 +1854,7 @@ export class Room {
       const inView = (x: number, y: number) => dist2(cx, cy, x, y) < R2;
       for (const p of this.players.values()) {
         if (p.dead || !inView(p.x, p.y)) continue;
+        if (p !== me && p.phaseT > 0 && this.grid.blocked(p.x, p.y, p.r * 0.5, true)) continue; // intangible dentro de un obstáculo: nadie lo ve
         if (p !== me && p.invisKind !== 'none') {
           // desvestida: invisible del todo; en el resto se intuye solo muy de cerca
           if (p.invisKind === 'full' || dist2(cx, cy, p.x, p.y) > DAMA.revealR ** 2) continue;
@@ -1880,7 +1885,7 @@ export class Room {
       addB('frenzy', me.frenzyT); addB('haste', me.killSpeedT); addB('vuln', me.vulnT); addB('tomb', me.entombT);
       addB('weak', me.weakT); addB('dive', me.submergeT);
       addB('hex', me.hexT); addB('poison', me.poisonT);
-      addB('sleep', me.sleepT); addB('rage', me.rageT); addB('charm', me.charmT); addB('bleed', me.bleedT); addB('fly', me.flyT);
+      addB('sleep', me.sleepT); addB('rage', me.rageT); addB('charm', me.charmT); addB('bleed', me.bleedT); addB('fly', me.flyT); addB('phase', me.phaseT);
       if (me.guise) buffs.push({ t: me.guise.startsWith('prop') ? 'prop' : me.guise.startsWith('char') ? 'mimic' : 'guise', r: 999 });
       if (me.char === 'mary') { const n = this.zones.filter((z) => z.kind === 'mirror' && z.owner === me.id).length; if (n) buffs.push({ t: 'mirrors', r: n }); }
       if (me.char === 'nightmare' && me.guise?.startsWith('prop')) addB('ambush', Math.min(100, ((me.k.still ?? 0) / (me.tier >= 3 ? BAL.nightmare.stalk.chargeTT3 : BAL.nightmare.stalk.chargeT)) * 100));
@@ -1899,7 +1904,7 @@ export class Room {
         up: me.upPts, ups: me.ups, kills: me.lifeKills, buffs,
         tier: me.tier, ult: Math.round(me.ult), ultOn: +me.ultT.toFixed(1),
       };
-      if (me.flyT > 0) you.fly = true;
+      if (me.flyT > 0 || me.phaseT > 0) you.fly = true;
       if (qMax > 1) { you.qc = me.qCharges; you.qcm = qMax; }
       const eMax = KITS[me.char].eCharges?.(me) ?? 1;
       if (eMax > 1) { you.ec = me.k.ec ?? eMax; you.ecm = eMax; }

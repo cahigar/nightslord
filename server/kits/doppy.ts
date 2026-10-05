@@ -43,7 +43,7 @@ function endMimic(room: Room, p: Player) {
   p.cdMax = [p.def.attackCd, p.def.abilities[0].cooldown * (1 - 0.08 * p.ups.pow), p.def.abilities[1].cooldown * (1 - 0.08 * p.ups.pow)];
   p.qCharges = 1;
   p.cd[1] = Math.max(p.cd[1], 6); // Robar rostro vuelve a estar disponible poco después
-  p.jetT = 0; p.submergeT = 0; p.flyT = Math.min(p.flyT, 0.01);
+  p.jetT = 0; p.submergeT = 0; p.flyT = Math.min(p.flyT, 0.01); p.phaseT = Math.min(p.phaseT, 0.001);
   if (p.guise?.startsWith('char:')) p.guise = null;
   room.fx('mimic', p.x, p.y, { o: p.id, c: 'doppy' });
 }

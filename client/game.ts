@@ -201,7 +201,7 @@ export class Game {
   /** ¿Mi personaje cruza el agua profunda? (cualquier criatura acuática). */
   private aquatic() {
     const c = this.ents.get(this.youId)?.c as CharacterId | undefined;
-    return !!(c && CHARACTERS[c]?.aquatic);
+    return !!(c && (CHARACTERS[c]?.aquatic || CHARACTERS[c]?.hover)); // camina (o levita) sobre el agua
   }
 
   renderPos() {
@@ -696,8 +696,18 @@ export class Game {
     }
 
     const flying = isMonster && !!(e.fl & Flag.Flying);
-    const flyingBroom = flying && e.c !== 'succubus'; // la súcubo vuela con sus alas
+    const flyingBroom = flying && e.c !== 'succubus' && !(e.fl & Flag.Phased); // la súcubo vuela con sus alas; el fantasma no necesita escoba
     if (flying) lift += 26 + Math.sin(now / 200 + e.id) * 3;
+    if (isMonster && e.c === 'poltergeist') lift += 8 + Math.sin(now / 300 + e.id) * 4; // levita
+    // drenaje del Poltergeist: aura que tira de la vida de alrededor
+    if (ult && e.c === 'poltergeist') {
+      const R = BAL.poltergeist.ult.r, k = (now / 900) % 1;
+      ctx.globalAlpha = 0.45;
+      pixelEllipse(ctx, x, y, R, R * 0.62, '#80c8ff');
+      ctx.globalAlpha = 0.6 * (1 - k);
+      pixelEllipse(ctx, x, y, R * (1 - k), R * (1 - k) * 0.62, '#c0e8ff');
+      ctx.globalAlpha = 1;
+    }
     if (flying && !flyingBroom && Math.random() < 0.35) this.effects.particles.push({ x: x - e.f * 20, y: y - lift - 30, vx: -e.f * 40, vy: -10, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#ff4a8a' : '#ffd0e0', size: 3, grav: 0, glow: true });
     // sombra
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -714,6 +724,8 @@ export class Game {
     if (invis) alpha = e.id === this.youId ? 0.3 : 0.14 + Math.sin(now / 80) * 0.06;
     if (e.fl & Flag.Mist) alpha = 0.35;
     if (e.fl & Flag.Protected) alpha *= Math.floor(now / 120) % 2 ? 0.5 : 1;
+    if (isMonster && e.c === 'poltergeist') alpha *= 0.88;
+    if (e.fl & Flag.Phased) alpha = (e.id === this.youId ? 0.45 : 0.3) + Math.sin(now / 60) * 0.08;
     ctx.globalAlpha = alpha;
     const w = SW * PIXEL * scale, h = SH * PIXEL * scale;
     const dx = x - w / 2, dy = y - h + 9 * scale - lift;
@@ -962,7 +974,7 @@ export class Game {
     if (e.c === 'sandstorm') { this.effects.drawStorm(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     if (e.c === 'wave') { this.effects.drawWave(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     const big = e.c.startsWith('bigpotion');
-    const spin = e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion');
+    const spin = e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion') || e.c.startsWith('obj');
     const id = e.c === 'bat' ? `bat${Math.floor(now / 90) % 2}` : e.c === 'scarab' ? `scarab${Math.floor(now / 60) % 2}`
       : e.c === 'boulder' ? `boulder${({ elm: 0, transylvania: 1, camp: 2 } as Record<string, number>)[this.theme] ?? 0}` : big ? e.c.slice(3) : e.c;
     const img = getItem(id);
@@ -976,7 +988,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'heart' ? '#ff80b0' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1099,7 +1111,7 @@ export class Game {
   get lastSnap() { return this.lastSnapAt; }
 }
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1128,6 +1140,7 @@ const TAUNTS: Record<CharacterId, string> = {
   doppy: '¿Quién es quién?',
   witch: '¡Jijijiji!',
   succubus: 'Mua ♥',
+  poltergeist: '¡BUUU!',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

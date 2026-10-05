@@ -105,7 +105,8 @@ export interface Player extends Mob {
   growZone: number; // id de la charca que está creciendo
   summonedAt: number; // última vez que un sectario lo invocó
   guise: string | null; // disfraz visible para los demás: 'prop:pine', 'npc:teen:12', 'char:werewolf:classic:Nombre:7'
-  flyT: number; // volando (escoba): ignora obstáculos y aterriza en un sitio libre
+  flyT: number; // volando (escoba, alas): ignora obstáculos y aterriza en un sitio libre
+  phaseT: number; // intangible (Poltergeist): atraviesa ataques y obstáculos
   k: Record<string, number>; // estado numérico propio de cada kit
   // estadísticas de la vida actual
   lifeStart: number;

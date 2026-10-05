@@ -242,6 +242,9 @@ export class Effects {
       case 'rage': this.rageFx(ev); break;
       case 'wings': this.burst(x, y - 30, 16, ['#ff4a8a', '#ffd0e0', '#4a0a20'], 150, 3, ev.n ? -60 : 120, 0.6, true); this.ripple(x, y - 10, '#ff80b0', 0.4, 40); break;
       case 'thrall': this.thrallFx(ev); break;
+      case 'phase': this.burst(x, y - 40, 16, ['#e8ecf4', '#a0e8ff', '#8a98b0'], 120, 3, -40, 0.6, true); this.ripple(x, y - 30, '#c0e8ff', 0.5, 40); break;
+      case 'objSpawn': this.objSpawn(ev); break;
+      case 'drainBeam': this.drainBeam(ev); break;
       case 'heartHit': this.burst(x, y - 40, 12, ['#ff4a8a', '#ffd0e0', '#ffffff'], 140, 3, 0, 0.6, true); break;
       case 'hexed': this.burst(x, y - 20, 18, ['#c060ff', '#80e020', '#ffffff'], 140, 3, 100, 0.6, true); this.ripple(x, y - 10, '#c060ff', 0.4, 30); break;
       case 'hexzone': this.burst(x, y, 40, ['#c060ff', '#5a2a8a', '#80e020'], 300, 4, 300, 0.8, true); this.ripple(x, y, '#c060ff', 0.7, ev.r ?? 250); break;
@@ -879,6 +882,37 @@ export class Effects {
         ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y + Math.sin(aa) * rr * 0.6), PIXEL * 2, PIXEL);
       }
       pixelEllipse(ctx, ev.x, ev.y, R * Math.min(1, k * 2), R * Math.min(1, k * 2) * 0.6, cols[0]);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Un objeto se levanta solo antes de salir disparado (o la zona del Revuelo, si trae radio). */
+  private objSpawn(ev: FxEv) {
+    if (ev.r) { this.ripple(ev.x, ev.y, '#a0e8ff', 0.5, ev.r); return; }
+    this.add(0.3, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      for (let i = 0; i < 6; i++) {
+        const a = k * 8 + (i / 6) * Math.PI * 2;
+        ctx.fillStyle = i % 2 ? '#a0e8ff' : '#ffffff';
+        ctx.fillRect(snap(ev.x + Math.cos(a) * (14 - k * 8)), snap(ev.y - 40 + Math.sin(a) * (6 - k * 3)), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 10, 5, this.terrainColors(ev.x, ev.y), 80, 3, 300, 0.4);
+  }
+
+  /** Drenaje del Poltergeist: hilos de vida que van del enemigo al fantasma (n = 1) o la onda inicial (n = 0). */
+  private drainBeam(ev: FxEv) {
+    if (!ev.n) { this.ripple(ev.x, ev.y - 20, '#80c8ff', 0.8, ev.r ?? 270); return; }
+    const sx = ev.x, sy = ev.y - 40, tx = ev.tx ?? ev.x, ty = (ev.ty ?? ev.y) - 50;
+    this.add(0.35, 'glow', (ctx, k) => {
+      for (let i = 0; i < 6; i++) {
+        const t = (k * 1.6 + i / 6) % 1;
+        const px = sx + (tx - sx) * t + Math.sin(t * 9 + i) * 6, py = sy + (ty - sy) * t + Math.cos(t * 9 + i) * 6;
+        ctx.globalAlpha = 1 - k;
+        ctx.fillStyle = i % 2 ? '#c01030' : '#80c8ff';
+        ctx.fillRect(snap(px), snap(py), PIXEL, PIXEL);
+      }
       ctx.globalAlpha = 1;
     });
   }

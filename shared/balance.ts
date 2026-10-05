@@ -140,6 +140,13 @@ export const BAL = {
     wings: { t: 2.5, tT3: 3.5, speedMul: 1.3 }, // E: alas
     ult: { range: 420, r: 230, tPlayer: 3, tOther: 5 }, // R: Pasión desatada (rabia que nunca va contra ella)
   },
+  poltergeist: {
+    obj: { range: 420, spawnMin: 110, spawnMax: 200, speed: 640, dmg: 1.0, countT3: 2 }, // básico: objetos que salen de cualquier sitio
+    objSlow: { t: 1, mul: 0.6 }, // nivel 5: los objetos ralentizan
+    storm: { r: 210, count: 6, dmg: 0.7 }, // Q: revuelo
+    phase: { t: 2.2, tT3: 3.2 }, // E: intangible
+    ult: { r: 270, t: 4, dps: 12 }, // R: drenaje (se cura lo drenado)
+  },
 
 };
 
