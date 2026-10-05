@@ -173,6 +173,24 @@ export class Effects {
       case 'descend': this.lightPillar(x, y, 1.4, '#fff0a0'); break;
       case 'smite': this.smite(x, y); break;
       case 'holysplash': this.holySplash(x, y, ev.r ?? 70); break;
+      case 'sleep': this.burst(x, y - 50, 14, ['#a070ff', '#e0d0ff', '#4030a0'], 80, 3, -30, 1, true); this.ripple(x, y - 40, '#c0a8ff', 0.6, 40); break;
+      case 'lullaby': this.lullaby(ev); break;
+      case 'prop': this.burst(x, y - 30, 22, ['#2a2040', '#4a3a6a', '#a070ff', '#1a1424'], 140, 4, -20, 0.7); break;
+      case 'ambush': this.clawMarks(x + Math.cos(ev.r ?? 0) * 40, y - 42, ev.r ?? 0, '#ff60a0', 0.35, 1.6); this.ripple(x, y - 30, '#a070ff', 0.4, 60); break;
+      case 'dreamwalk': this.dreamwalk(ev); break;
+      case 'shards': this.burst(x, y - 30, ev.n ?? 5, ['#e8f4ff', '#a0c0e0', '#ff3040'], 170, 2, 500, 0.45); break;
+      case 'mirror': this.burst(x, y - 30, 10, ['#e8f4ff', '#ff3040'], 100, 3, -20, 0.6, true); break;
+      case 'mirrorBoom': this.mirrorBoom(ev); break;
+      case 'maryOut': this.burst(x, y - 40, 20, ['#e8f4ff', '#a0c0e0', '#ff3040'], 220, 3, 300, 0.6, true); this.ripple(x, y - 30, '#ff4060', 0.5, 50); break;
+      case 'slam': this.slam(ev); break;
+      case 'spark': this.spark(ev); break;
+      case 'lightning': this.lightning(x, y, !!ev.n); break;
+      case 'faceSteal': this.faceSteal(ev); break;
+      case 'charm': this.charmFx(ev); break;
+      case 'mimic': this.burst(x, y - 40, 18, ev.c === 'npc' ? ['#c0c0c0', '#8a8a8a', '#e0e0e0'] : ['#ffe060', '#c8c0d0', '#ffffff'], 120, 3, -40, 0.6); break;
+      case 'potion': this.potionSplash(ev); break;
+      case 'broom': this.burst(x, y - 20, 14, ['#a0ff40', '#c060ff', '#ffe060', '#6a4a28'], 140, 3, 100, 0.6, true); break;
+      case 'rage': this.rageFx(ev); break;
       case 'summon': this.lightPillar(x, y, ev.n ? 1 : 0.8, ev.n ? '#ff4060' : '#c060ff'); this.burst(x, y - 30, 24, ['#c060ff', '#ff4060', '#2e1a3a'], 200, 3, 0, 0.8, true); break;
     }
   }
@@ -197,6 +215,21 @@ export class Effects {
         }
         ctx.fillStyle = `rgba(255,255,255,${1 - k})`;
         for (const s of [-1, 1]) ctx.fillRect(snap(x + Math.cos(a) * 34), snap(y + Math.sin(a) * 34 + s * (10 - close * 8)), 3, 6);
+      });
+    } else if (ev.c === 'nightmare') {
+      // zarpa de sombra: tres trazos violetas que se deshacen
+      this.clawMarks(x, y, a, (ev.n ?? 0) >= 2 ? '#c0a0ff' : '#7050c0', 0.22, reach / 50);
+      this.burst(x + Math.cos(a) * reach * 0.6, y + Math.sin(a) * reach * 0.6, 6, ['#2a2040', '#a070ff'], 60, 3, -40, 0.5, true);
+    } else if (ev.c === 'mary') {
+      // cristal: arco de esquirlas brillantes
+      this.add(0.2, 'top', (ctx, k) => {
+        for (let i = 0; i < 7; i++) {
+          const aa = a - 0.7 + (i / 6) * 1.4, rr = reach * (0.55 + k * 0.5);
+          ctx.globalAlpha = 1 - k;
+          ctx.fillStyle = i % 2 ? '#e8f4ff' : '#ff3040';
+          ctx.fillRect(snap(x + Math.cos(aa) * rr), snap(y + Math.sin(aa) * rr), PIXEL, PIXEL * 2);
+        }
+        ctx.globalAlpha = 1;
       });
     } else if (ev.c === 'kthula') {
       // latigazo de tentáculo
@@ -647,6 +680,187 @@ export class Effects {
     this.ripple(x, y, '#80c0d0', 0.6, 50 * scale);
   }
 
+  /** Arrullo: notas y ondas de sueño en cono. */
+  private lullaby(ev: FxEv) {
+    const a = ev.r ?? 0, R = ev.d ?? 210, cone = (ev.n ?? 95) / 100;
+    this.add(0.7, 'glow', (ctx, k) => {
+      for (let ring = 0; ring < 3; ring++) {
+        const rr = R * Math.min(1, k * 1.4 + ring * 0.12);
+        ctx.globalAlpha = 0.5 * (1 - k);
+        ctx.fillStyle = ring % 2 ? '#c0a8ff' : '#7a5ad0';
+        for (let i = 0; i <= 10; i++) {
+          const aa = a - cone / 2 + (i / 10) * cone;
+          ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y - 40 + Math.sin(aa) * rr * 0.7), PIXEL, PIXEL);
+        }
+      }
+      // notas musicales
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#e0d0ff';
+      for (let i = 0; i < 4; i++) {
+        const aa = a - cone / 3 + (i / 3) * (cone * 0.66), rr = R * k * (0.6 + i * 0.1);
+        const nx = ev.x + Math.cos(aa) * rr, ny = ev.y - 50 + Math.sin(aa) * rr * 0.7 - Math.sin(k * 8 + i) * 6;
+        ctx.fillRect(snap(nx), snap(ny), PIXEL * 2, PIXEL * 2); ctx.fillRect(snap(nx) + PIXEL * 2, snap(ny) - PIXEL * 4, PIXEL, PIXEL * 5);
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Entre sueños / viaje por espejo: desaparece en humo y reaparece. */
+  private dreamwalk(ev: FxEv) {
+    const mary = ev.c === 'mary';
+    const cols = mary ? ['#e8f4ff', '#ff3040', '#a0c0e0'] : ['#a070ff', '#2a2040', '#e0d0ff'];
+    this.burst(ev.x, ev.y - 40, 24, cols, 180, 3, ev.n ? 200 : -60, 0.7, true);
+    this.add(0.5, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      pixelEllipse(ctx, ev.x, ev.y, 14 + k * 30, 5 + k * 10, cols[0]);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  private mirrorBoom(ev: FxEv) {
+    const R = ev.r ?? 110;
+    this.burst(ev.x, ev.y - 30, 34, ['#e8f4ff', '#a0c0e0', '#ff3040', '#ffffff'], 300, 3, 500, 0.6);
+    this.add(0.35, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#e8f4ff';
+      for (let i = 0; i < 16; i++) {
+        const aa = (i / 16) * Math.PI * 2 + i, rr = R * k;
+        ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y - 20 + Math.sin(aa) * rr * 0.6), PIXEL * 2, PIXEL);
+      }
+      pixelEllipse(ctx, ev.x, ev.y, R * k, R * k * 0.6, '#ff4060');
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  private slam(ev: FxEv) {
+    const R = ev.r ?? 150;
+    this.burst(ev.x, ev.y, 30, this.terrainColors(ev.x, ev.y).concat(['#3a2a1a']), 260, 4, 600, 0.6);
+    this.add(0.45, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.8 * (1 - k);
+      pixelEllipse(ctx, ev.x, ev.y, R * k, R * k * 0.6, '#c8b090', 2);
+      // grietas
+      ctx.fillStyle = '#1a1208';
+      for (let i = 0; i < 6; i++) {
+        const aa = (i / 6) * Math.PI * 2 + 0.3;
+        for (let s = 10; s < R * 0.6 * Math.min(1, k * 3); s += PIXEL) ctx.fillRect(snap(ev.x + Math.cos(aa) * s + Math.sin(s) * 3), snap(ev.y + Math.sin(aa) * s * 0.6), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Descarga eléctrica (Sobrecarga del Reanimado). */
+  private spark(ev: FxEv) {
+    const R = ev.r ?? 150;
+    this.add(0.4, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = Math.random() < 0.5 ? '#c8f0ff' : '#60c8ff';
+      for (let i = 0; i < 8; i++) {
+        let px = ev.x, py = ev.y - 40;
+        const aa = (i / 8) * Math.PI * 2 + k * 3;
+        for (let s = 0; s < R; s += 9) {
+          px += Math.cos(aa) * 9 + (Math.random() - 0.5) * 10; py += Math.sin(aa) * 6 + (Math.random() - 0.5) * 8;
+          ctx.fillRect(snap(px), snap(py), PIXEL, PIXEL);
+        }
+      }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 40, 20, ['#c8f0ff', '#60c8ff', '#ffffff'], 260, 2, 0, 0.4, true);
+  }
+
+  /** Rayo pixelado que cae del cielo. */
+  lightning(x: number, y: number, small = false) {
+    const pts: [number, number][] = [];
+    let px = x + (Math.random() - 0.5) * 60, py = y - 420;
+    while (py < y) { pts.push([px, py]); py += 18 + Math.random() * 14; px += (Math.random() - 0.5) * 28; }
+    pts.push([x, y]);
+    this.add(small ? 0.18 : 0.3, 'glow', (ctx, k) => {
+      ctx.globalAlpha = k < 0.3 ? 1 : 1 - k;
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / PIXEL);
+        for (let j = 0; j <= n; j++) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(snap(x0 + (x1 - x0) * (j / n)), snap(y0 + (y1 - y0) * (j / n)), PIXEL, PIXEL);
+          ctx.fillStyle = '#80c0ff';
+          ctx.fillRect(snap(x0 + (x1 - x0) * (j / n)) + PIXEL, snap(y0 + (y1 - y0) * (j / n)), PIXEL, PIXEL);
+        }
+      }
+      ctx.globalAlpha = 1;
+    });
+    if (!small) { this.burst(x, y, 16, ['#ffffff', '#c8f0ff', '#60c8ff'], 220, 3, 300, 0.5, true); this.ripple(x, y, '#c8f0ff', 0.35, 50); }
+  }
+
+  /** Robar rostro: una máscara viaja del objetivo a Doppy. */
+  private faceSteal(ev: FxEv) {
+    const sx = ev.x, sy = ev.y - 45, tx = ev.tx ?? ev.x, ty = (ev.ty ?? ev.y) - 45;
+    this.add(0.45, 'glow', (ctx, k) => {
+      const px = sx + (tx - sx) * k, py = sy + (ty - sy) * k - Math.sin(k * Math.PI) * 40;
+      ctx.fillStyle = '#f0e8d8'; ctx.fillRect(snap(px) - 6, snap(py) - 6, 12, 12);
+      ctx.fillStyle = '#1a1018'; ctx.fillRect(snap(px) - 3, snap(py) - 3, 3, 3); ctx.fillRect(snap(px) + 3, snap(py) - 3, 3, 3); ctx.fillRect(snap(px) - 3, snap(py) + 3, 9, 3);
+    });
+    this.burst(sx, sy, 10, ['#ffe060', '#ffffff'], 120, 2, 0, 0.5, true);
+  }
+
+  private charmFx(ev: FxEv) {
+    const R = ev.r ?? 300;
+    this.add(0.8, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 0.7 * (1 - k);
+      pixelEllipse(ctx, ev.x, ev.y, R * k, R * k * 0.6, '#ff80c0');
+      ctx.globalAlpha = 1;
+    });
+    for (let i = 0; i < 10; i++) this.particles.push({ x: ev.x + (Math.random() - 0.5) * 60, y: ev.y - 40 - Math.random() * 40, vx: (Math.random() - 0.5) * 80, vy: -40 - Math.random() * 40, life: 1, max: 1, color: Math.random() < 0.5 ? '#ff80c0' : '#ffd0e8', size: 4, grav: 0, glow: true });
+  }
+
+  /** Salpicadura de poción: fuego, ácido o maleficio. */
+  private potionSplash(ev: FxEv) {
+    const R = ev.r ?? 64, kind = ev.n ?? 0;
+    const cols = kind === 0 ? ['#ff6020', '#ffe060', '#c02010'] : kind === 1 ? ['#80e020', '#e0ff80', '#3a6a10'] : ['#a040e0', '#f0c0ff', '#4a1a6a'];
+    this.burst(ev.x, ev.y - 10, 26, cols.concat(['#d0e0d8']), R * 2.4, 3, 500, 0.6);
+    this.add(0.5, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.6 * (1 - k);
+      ctx.fillStyle = cols[2];
+      for (let i = 0; i < 18; i++) {
+        const aa = i * 2.4, rr = R * (0.3 + ((i * 37) % 10) / 14);
+        ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y + Math.sin(aa) * rr * 0.6), PIXEL * 2, PIXEL);
+      }
+      pixelEllipse(ctx, ev.x, ev.y, R * Math.min(1, k * 2), R * Math.min(1, k * 2) * 0.6, cols[0]);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Poción de rabia: estallido rojo enorme. */
+  private rageFx(ev: FxEv) {
+    const R = ev.r ?? 230;
+    this.burst(ev.x, ev.y - 20, 40, ['#ff2010', '#ff8020', '#5a0a0a', '#ffd060'], 360, 4, 300, 0.8);
+    this.add(1, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 0.8 * (1 - k);
+      pixelEllipse(ctx, ev.x, ev.y, R * Math.min(1, k * 2.5), R * Math.min(1, k * 2.5) * 0.62, '#ff3020', 2);
+      ctx.fillStyle = '#ff6030';
+      for (let i = 0; i < 12; i++) {
+        const aa = (i / 12) * Math.PI * 2, rr = R * Math.min(1, k * 2.5);
+        ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y + Math.sin(aa) * rr * 0.62) - PIXEL * 4, PIXEL, PIXEL * 4);
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Nubes de tormenta del Reanimado (encima de todo). Su dueño ve a través. */
+  drawStormClouds(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, life: number, now: number, mine: boolean) {
+    const fade = Math.min(1, life * 6, (1 - life) * 8 + 0.2);
+    const base = mine ? 0.16 : 0.7;
+    for (let i = 0; i < 38; i++) {
+      const a = (i / 38) * Math.PI * 2 * 3 + now / 9000 * (i % 2 ? 1 : -1);
+      const rr = r * (0.05 + ((i * 53) % 100) / 108);
+      const cx = x + Math.cos(a) * rr, cy = y + Math.sin(a) * rr * 0.7 - 60;
+      const cw = 70 + (i % 4) * 20;
+      ctx.globalAlpha = base * fade;
+      ctx.fillStyle = i % 3 ? '#3a4052' : '#4e5468';
+      for (let j = -2; j <= 2; j++) { const hw = Math.round(Math.sqrt(1 - (j / 3) ** 2) * cw / 6) * 3; ctx.fillRect(snap(cx - hw), snap(cy + j * 9), hw * 2, 9); }
+      if (Math.floor(now / 90 + i * 7) % 37 === 0) { ctx.globalAlpha = 0.6 * fade; ctx.fillStyle = '#c8e0ff'; ctx.fillRect(snap(cx - 12), snap(cy + 6), 24, 3); }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /** Columna de luz (llegada del heraldo, invocación del sectario). */
   private lightPillar(x: number, y: number, dur: number, color: string) {
     this.add(dur, 'glow', (ctx, k) => {
@@ -745,6 +959,47 @@ export class Effects {
       const t = (now / 1800 + seed * 0.37) % 1;
       ctx.globalAlpha = 0.45 * (1 - t) * fade;
       pixelEllipse(ctx, x + Math.sin(seed) * rq * 0.25, y, rq * 0.15 + t * rq * 0.5, (rq * 0.15 + t * rq * 0.5) * 0.55, '#6a8eaa');
+      ctx.globalAlpha = 1;
+    } else if (kind === 'mirror') {
+      // espejo de pie, pequeño, con marco y reflejo que parpadea
+      const X = snap(x), Y = snap(y);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(X - 9, Y - 3, 18, 4);
+      ctx.fillStyle = '#4a1a1a'; ctx.fillRect(X - 9, Y - 36, 18, 33); // marco
+      ctx.fillStyle = '#8a2a2a'; ctx.fillRect(X - 9, Y - 36, 18, 3);
+      ctx.fillStyle = '#a8c0d8'; ctx.fillRect(X - 6, Y - 33, 12, 27); // cristal
+      ctx.fillStyle = '#e8f4ff'; ctx.fillRect(X - 6, Y - 33, 3, 9); ctx.fillRect(X - 3, Y - 30, 3, 3);
+      ctx.fillStyle = '#2a1a1a'; ctx.fillRect(X - 3, Y - 18, 6, 3); ctx.fillRect(X, Y - 27, 3, 12); // grieta
+      if (Math.floor(now / 140 + seed) % 9 === 0) { ctx.fillStyle = '#ff3040'; ctx.fillRect(X - 3, Y - 24, 3, 3); ctx.fillRect(X + 3, Y - 24, 3, 3); } // ojos en el reflejo
+      ctx.fillStyle = '#4a1a1a'; ctx.fillRect(X - 6, Y - 3, 3, 3); ctx.fillRect(X + 3, Y - 3, 3, 3); // patas
+    } else if (kind === 'glass') {
+      ctx.globalAlpha = 0.9 * fade;
+      for (let i = 0; i < 16; i++) {
+        const aa = i * 2.39 + seed, rr = r * (0.2 + ((i * 41) % 10) / 12);
+        ctx.fillStyle = i % 3 ? '#c8dcf0' : '#ff4060';
+        ctx.fillRect(snap(x + Math.cos(aa) * rr), snap(y + Math.sin(aa) * rr * 0.6), i % 2 ? PIXEL * 2 : PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'nail') {
+      // clavo enorme clavado, con chispas
+      const X = snap(x), Y = snap(y);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(X - 6, Y - 2, 12, 3);
+      ctx.fillStyle = '#6a6a74'; ctx.fillRect(X - 1, Y - 24, 4, 24);
+      ctx.fillStyle = '#a8a8b4'; ctx.fillRect(X - 1, Y - 24, 2, 24);
+      ctx.fillStyle = '#8a8a94'; ctx.fillRect(X - 6, Y - 27, 14, 4);
+      if (Math.random() < 0.25) { ctx.fillStyle = '#c8f0ff'; ctx.fillRect(snap(x + (Math.random() - 0.5) * 16), snap(y - 20 - Math.random() * 16), PIXEL, PIXEL); }
+    } else if (kind === 'fire') {
+      ctx.globalAlpha = 0.5 * fade;
+      ctx.fillStyle = '#3a1008';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = fade;
+      for (let i = 0; i < 12; i++) {
+        const aa = i * 2.4 + seed, rr = r * (0.15 + ((i * 29) % 10) / 12);
+        const fx = x + Math.cos(aa) * rr, fy = y + Math.sin(aa) * rr * 0.6;
+        const h = 9 + ((Math.floor(now / 90) + i) % 4) * 3;
+        ctx.fillStyle = '#c02010'; ctx.fillRect(snap(fx), snap(fy - h), PIXEL * 2, h);
+        ctx.fillStyle = '#ff8020'; ctx.fillRect(snap(fx), snap(fy - h + 3), PIXEL, h - 3);
+        ctx.fillStyle = '#ffe060'; ctx.fillRect(snap(fx), snap(fy - 3), PIXEL, PIXEL);
+      }
       ctx.globalAlpha = 1;
     } else if (kind === 'holy') {
       // charco sagrado: azul pálido con destellos que suben

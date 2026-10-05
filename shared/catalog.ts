@@ -31,6 +31,11 @@ export const CHARACTER_UNLOCK: Record<CharacterId, { price: number; medal?: stri
   invisible: { price: 400, medal: 'predator' },
   zombie: { price: 350, medal: 'glutton' },
   kthula: { price: 450, medal: 'lord' },
+  nightmare: { price: 400, medal: 'survivor' },
+  mary: { price: 450, medal: 'level10' },
+  reanimated: { price: 350, medal: 'slayer' },
+  doppy: { price: 500 },
+  witch: { price: 450 },
 };
 
 // ---------- Perfil persistente ----------

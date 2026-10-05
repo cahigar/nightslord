@@ -240,6 +240,7 @@ function updateHud() {
     (el.querySelector('.cdov') as HTMLElement).style.height = `${(r / m) * 100}%`;
     (el.querySelector('.cdt') as HTMLElement).textContent = r > 0.05 && i > 0 ? r.toFixed(1) : '';
     el.classList.toggle('ready', r <= 0);
+    if (i === 2 && y.ecm) (el.querySelector('.cdt') as HTMLElement).textContent = `${y.ec}/${y.ecm}${r > 0.05 && (y.ec ?? 0) < y.ecm ? ' · ' + r.toFixed(0) : ''}`;
     if (i === 1 && y.qcm) (el.querySelector('.cdt') as HTMLElement).textContent = `${y.qc}/${y.qcm}${r > 0.05 && (y.qc ?? 0) < y.qcm ? ' · ' + r.toFixed(0) : ''}`;
   }
   // definitiva: bloqueada hasta nivel 10 y se carga con bajas
@@ -254,8 +255,8 @@ function updateHud() {
     (ultEl.querySelector('.cdt') as HTMLElement).textContent = locked ? 'Nv 10' : y.ultOn > 0 ? y.ultOn.toFixed(0) : y.ult >= 100 ? '¡R!' : `${y.ult}%`;
   }
   $('lvl').classList.toggle('t1', y.tier === 1); $('lvl').classList.toggle('t2', y.tier === 2); $('lvl').classList.toggle('t3', y.tier >= 3);
-  const BUFF_NAMES: Record<string, string> = { speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', invisAuto: '👻Presencia ausente', protect: '✨Protegido', slow: '🐌Lento', stun: '💫Aturdido', frenzy: '💨Frenesí', haste: '💨Sed', vuln: '💔Vulnerable', tomb: '⚱️Sarcófago', weak: '🤢Debilitado', dive: '🫧Sumergido', horde: '🧟Horda', deep: '🌊Abismo', puddle: '💧Charca' };
-  $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${BUFF_NAMES[b.t] ?? b.t}${b.t === 'horde' ? ' ' + b.r : b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
+  const BUFF_NAMES: Record<string, string> = { speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', invisAuto: '👻Presencia ausente', protect: '✨Protegido', slow: '🐌Lento', stun: '💫Aturdido', frenzy: '💨Frenesí', haste: '💨Sed', vuln: '💔Vulnerable', tomb: '⚱️Sarcófago', weak: '🤢Debilitado', dive: '🫧Sumergido', horde: '🧟Horda', deep: '🌊Abismo', puddle: '💧Charca', sleep: '💤Dormido', rage: '😡Rabia', charm: '💗Engatusado', bleed: '🩸Sangrado', fly: '🧹Volando', prop: '🌳Acecho', mimic: '🎭Imitando', guise: '🎭Disfrazado', mirrors: '🪞Espejos', ambush: '🗡Emboscada' };
+  $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${BUFF_NAMES[b.t] ?? b.t}${b.t === 'horde' || b.t === 'mirrors' ? ' ' + b.r : b.t === 'ambush' ? ' ' + Math.round(b.r) + '%' : b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
   const upKey = `${y.up}|${Object.values(y.ups).join(',')}|${y.lvl >= 15}`;
   if (upKey !== lastUpKey) {
     lastUpKey = upKey;

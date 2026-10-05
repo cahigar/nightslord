@@ -35,6 +35,13 @@ export interface Mob {
   entombBy: number;
   entombDot: number;
   weakT: number; // debilitado: hace menos daño
+  // sueño (Pesadilla)
+  drowsy: number; drowsyHold: number; sleepT: number; sleepMarkT: number;
+  // rabia (poción de la bruja): ataca a lo más cercano; las bajas son de quien la lanzó
+  rageT: number; rageBy: number;
+  bleedT: number; bleedDps: number; bleedBy: number;
+  charmT: number; charmBy: number; // engatusado: camina hacia quien lo engatusó
+  rageAtk: number;
 }
 
 export type InvisKind = 'none' | 'timed' | 'auto' | 'full';
@@ -94,6 +101,9 @@ export interface Player extends Mob {
   stillT: number; // tiempo quieta (charca que crece)
   growZone: number; // id de la charca que está creciendo
   summonedAt: number; // última vez que un sectario lo invocó
+  guise: string | null; // disfraz visible para los demás: 'prop:pine', 'npc:teen:12', 'char:werewolf:classic:Nombre:7'
+  flyT: number; // volando (escoba): ignora obstáculos y aterriza en un sitio libre
+  k: Record<string, number>; // estado numérico propio de cada kit
   // estadísticas de la vida actual
   lifeStart: number;
   lifeKills: number;
@@ -135,7 +145,7 @@ export interface Hunter extends Mob {
 }
 
 /** Esbirro (zombi de Paciente Cero). Reutilizable para futuros invocadores. */
-export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat';
+export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat' | 'clone';
 export interface Minion extends Mob {
   kind: Kind.Minion;
   owner: number; // id del jugador dueño
@@ -171,19 +181,22 @@ export interface Projectile {
   hitSet?: Set<number>;
   bounced?: boolean;
   trailAcc?: number;
-  land?: boolean; // revienta al final de su recorrido (frasco de agua bendita)
+  land?: boolean; // revienta al final de su recorrido (frascos)
+  home?: number; // persigue a esta entidad (clavo que vuelve)
+  v?: number; // dato propio del kit
 }
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual';
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire';
 /** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
-export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number> }
+export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number>; next?: number /* próximo evento (rayo del clavo) */; v?: number }
 
-export type Source = { player?: Player; hunter?: Hunter; minion?: Minion; name: string; kind: Kind };
+export type Source = { player?: Player; hunter?: Hunter; minion?: Minion; name: string; kind: Kind; raw?: boolean /* sin ganchos del kit (rabia, sangrado) */ };
 
 /** Valores iniciales de los estados genéricos. */
 export const mobStatus = () => ({
   stunT: 0, slowT: 0, slowMul: 1, fearT: 0, panicT: 0, vulnT: 0, vulnMul: 1, preyT: 0,
   curseMarkT: 0, curseBy: -1, entombT: 0, entombBy: -1, entombDot: 0, weakT: 0, knock: null, dead: false,
+  drowsy: 0, drowsyHold: 0, sleepT: 0, sleepMarkT: 0, rageT: 0, rageBy: -1, rageAtk: 0, bleedT: 0, bleedDps: 0, bleedBy: -1, charmT: 0, charmBy: -1,
 });

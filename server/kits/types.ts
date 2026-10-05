@@ -26,6 +26,16 @@ export interface Kit {
   blockProjectile?(room: Room, p: Player, pr: Projectile): boolean;
   /** Cuando muere uno de sus esbirros. */
   onMinionDeath?(room: Room, p: Player, m: Minion): void;
+  /** Recibe daño (después de armaduras y escudos). */
+  onHurt?(room: Room, p: Player, amount: number): void;
+  /** Uno de sus proyectiles termina (impacto, obstáculo o fin del recorrido). */
+  onProjectileEnd?(room: Room, p: Player, pr: Projectile): void;
+  /** Cargas máximas de E. */
+  eCharges?(p: Player): number;
+  /** Multiplicador del efecto de los power-ups. */
+  powerupMul?(p: Player): number;
+  /** Cuando duerme a alguien (somnolencia llena). */
+  onSleep?(room: Room, p: Player, target: Mob): void;
   /** Al alcanzar un nuevo tier de evolución (1, 2 o 3). */
   onTier?(room: Room, p: Player, tier: number): void;
 }

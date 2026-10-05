@@ -124,7 +124,7 @@ wss.on('connection', (ws: WebSocket) => {
         send({ t: 'profile', profile: c.profile });
         break;
       case 'cheat':
-        if (DEV) room?.onCheat(c, typeof msg.lvl === 'number' ? msg.lvl : undefined, !!msg.ult, Array.isArray(msg.tp) ? msg.tp : undefined);
+        if (DEV) room?.onCheat(c, typeof msg.lvl === 'number' ? msg.lvl : undefined, !!msg.ult, Array.isArray(msg.tp) ? msg.tp : undefined, !!msg.heal);
         break;
       case 'buy':
         buy(c, String(msg.item ?? ''));

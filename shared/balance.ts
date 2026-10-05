@@ -6,6 +6,14 @@ export const TIER_LEVELS = [5, 10, 15] as const;
 export const tierOf = (level: number) => (level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0);
 
 /** Carga de la definitiva (R): se gana con bajas, no con el tiempo. */
+/** Estados genéricos nuevos (sueño, rabia, sangrado, engatusar). */
+export const STATUS = {
+  drowsyDecay: 14, drowsyHold: 2.5, // la somnolencia baja sola si no la alimentan
+  sleepPlayer: 1.6, sleepOther: 2.8, sleepMarkT: 8,
+  rageNpcDmg: 8,
+  clone: { hp: 60, speed: 230, dmg: 0.55, cd: 0.6 },
+};
+
 export const ULT = {
   max: 100,
   onUnlock: 30, // carga regalada al llegar al nivel 10
@@ -82,6 +90,44 @@ export const BAL = {
     tentacleRange: 300, tentacleDelay: 0.4, tentacleR: 74, tentacleDmg: 1.2, tentaclePull: 60, qChargesT3: 2,
     diveLand: 1.2, diveDeep: 2.4, diveSpeedMul: 2.0, divePuddleR: 85, // duración doble a petición
     ult: { speed: 360, life: 1.5, hitR: 84, dmg: 1.1, knock: 170, puddleEvery: 70, puddleR: 64 },
+  },
+  nightmare: {
+    basicDrowsy: 14, // somnolencia por golpe básico
+    susceptMul: 1.45, susceptT: 8, // nv. 5: quien ya se durmió acumula más rápido
+    lullaby: { range: 210, rangeT3: 270, cone: 0.95, coneT3: 1.15, dmg: 0.45, drowsy: 48 },
+    stalk: { maxT: 10, chargeT: 3, chargeTT3: 1.6, bonusMax: 1.2, drowsyBonus: 35 }, // Acecho
+    ult: { range: 1400, nextMul: 2.2, nextDrowsy: 40, buffT: 4 },
+  },
+  mary: {
+    maxMirrors: 3, maxMirrorsT3: 4, mirrorLife: 40,
+    eBuff: { t: 4, speedMul: 1.3, atkSpeedMul: 0.7, lifesteal: 0.25 },
+    lifesteal1: 0.12, speed2: 1.12, bleed3: { t: 3, dps: 4 }, // nv. 5 (por espejos activos)
+    boom: { r: 110, rT3: 140, dmg: 1.4, dmgT3: 1.7 },
+    shardsT: 3, shardsSlow: 0.6, // nv. 15: cristales en el suelo
+    ult: { cloneLife: 7, clonesCap: 5 },
+  },
+  reanimated: {
+    regenSafeT: 4, regen: 0.035, // por segundo, fracción de la vida máxima
+    overload: { frac: 0.3, r: 150, dmg: 1.0, stun: 1.0 }, // nv. 5
+    slam: { r: 150, dmg: 0.8, knock: 190 },
+    nail: { speed: 620, life: 0.6, dmg: 0.9, stayT: 15, every: 5, returnR: 900, returnSpeed: 900, returnDmg: 1.1, strikeR: 60, strikeDmg: 0.6 },
+    qChargesNail: 2,
+    ult: { r: 430, t: 5, dps: 7, slowMul: 0.55 },
+    boulder: { speed: 520, life: 0.55, dmg: 1.1, meleeCheck: 80 }, // nv. 15
+  },
+  doppy: {
+    disguiseAfter: 3, disguiseAfterT1: 1.6, surpriseMul: 1.5, surpriseMulT1: 1.9, surpriseStun: 0.8,
+    steal: { range: 320, t: 10, tT3: 16 },
+    charm: { r: 300, rT3: 400, tNpc: 3, tPlayer: 1.1, buffT: 3, dmgTakenMul: 1.25 },
+    ult: { range: 800, extra: 2 },
+  },
+  witch: {
+    potion: { range: 360, speed: 520, r: 64, rT1: 84 },
+    fire: { t: 3, tT1: 4.5, dps: 9 }, acid: { dmg: 1.0, slowT: 2, slowMul: 0.5 }, hex: { dmg: 0.6, weakT: 3, vulnT: 3, vulnMul: 1.25 },
+    big: { r: 140, mul: 1.8 },
+    broom: { t: 2.6, tT3: 4, speedMul: 1.35 },
+    powerupMul: 1.5, // los power-ups le hacen más efecto
+    ult: { range: 420, r: 230, tPlayer: 3, tOther: 5 },
   },
 };
 

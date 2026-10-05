@@ -3,7 +3,7 @@ import type { CharacterId, UpgradeId } from './characters';
 import type { Profile } from './catalog';
 import type { MapThemeId } from './maps';
 
-export enum Kind { Player = 0, Npc = 1, Hunter = 2, PowerUp = 3, Projectile = 4, Minion = 5, Zone = 6 }
+export enum Kind { Player = 0, Npc = 1, Hunter = 2, PowerUp = 3, Projectile = 4, Minion = 5, Zone = 6, Prop = 7 }
 
 export enum Anim { Idle = 0, Walk = 1, Attack = 2, Cast = 3, Wave = 4, Taunt = 5, Hurt = 6, Dead = 7 }
 
@@ -23,10 +23,16 @@ export enum Flag {
   Jet = 1048576, // K'thula lanzando su chorro (r = ángulo)
   Ritual = 2097152, // sectario en pleno ritual
   Flying = 4194304, // volando por encima de obstáculos (heraldo, escoba)
+  Asleep = 8388608, // dormido (Pesadilla)
+  Disguised = 16777216, // (solo en tu propia entidad) estás disfrazado: los demás te ven como otra cosa
+  Raged = 33554432, // poción de rabia
+  Bleed = 67108864, // sangrado
+  Charmed = 134217728, // engatusado (Doppy)
 }
 
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp';
-export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy';
+export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy'
+  | 'nail' | 'nailback' | 'boulder' | 'potion0' | 'potion1' | 'potion2' | 'bigpotion0' | 'bigpotion1' | 'bigpotion2';
 
 export interface EntSnap {
   i: number; // id
@@ -45,6 +51,8 @@ export interface EntSnap {
   r?: number; // ángulo (proyectiles)
   o?: number; // murciélagos orbitales (Conde nv. 15) · id del dueño (esbirros)
   rr?: number; // radio (zonas)
+  z?: number; // somnolencia 0..100
+  g?: string; // (solo tu entidad) disfraz actual: 'prop:pine', 'npc:teen', 'char:werewolf'...
 }
 
 export type GameEvent =
@@ -61,9 +69,11 @@ export type FxId =
   | 'drain' | 'ghosthit' | 'undress' | 'crimson' | 'moon' | 'storm' | 'entomb' | 'disguise' | 'surprise'
   | 'mistTrail' | 'orbitBlock' | 'step' | 'prey' | 'curseMark' | 'evolve' | 'frenzy' | 'reveal'
   | 'infect' | 'emerge' | 'fatboom' | 'meat' | 'tentacle' | 'tentacleWarn' | 'dive' | 'surface' | 'splash'
-  | 'descend' | 'smite' | 'holysplash' | 'summon';
+  | 'descend' | 'smite' | 'holysplash' | 'summon'
+  | 'sleep' | 'lullaby' | 'prop' | 'ambush' | 'dreamwalk' | 'shards' | 'mirror' | 'mirrorBoom' | 'maryOut'
+  | 'slam' | 'spark' | 'lightning' | 'storm' | 'faceSteal' | 'charm' | 'mimic' | 'potion' | 'broom' | 'rage';
 
-export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant';
+export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
 
 export interface YouState {
   id: number;
@@ -86,11 +96,14 @@ export interface YouState {
   ult: number; // carga de la definitiva 0..100
   ultOn: number; // segundos restantes de definitiva activa
   qc?: number; // cargas de Q (si tiene más de una)
+  ec?: number; // cargas de E (si tiene más de una)
+  ecm?: number;
   qcm?: number;
   up: number; // puntos de mejora disponibles
   ups: Record<UpgradeId, number>;
   kills: number;
   buffs: { t: string; r: number }[];
+  fly?: boolean; // volando: la predicción ignora obstáculos
 }
 
 // ---------- Cliente -> Servidor ----------
@@ -102,7 +115,7 @@ export type ClientMsg =
   | { t: 'upgrade'; u: UpgradeId }
   | { t: 'respawn'; char?: CharacterId; skin?: string }
   | { t: 'leave' }
-  | { t: 'cheat'; lvl?: number; ult?: boolean; tp?: [number, number] } // solo en modo desarrollo
+  | { t: 'cheat'; lvl?: number; ult?: boolean; tp?: [number, number]; heal?: boolean } // solo en modo desarrollo
   | { t: 'buy'; item: string } // "char:<id>" o "skin:<char>:<id>"
   | { t: 'rooms' }
   | { t: 'ping'; c: number };

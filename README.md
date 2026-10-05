@@ -60,7 +60,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Saludar / Taunt | G / T | 😜 |
 | Silenciar | M | |
 
-## Contenido actual (v0.5)
+## Contenido actual (v0.6)
 
 **Monstruos**
 
@@ -72,11 +72,26 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | 👻 La Dama Velada | Puñetazo fantasma | Desvestirse | Frenesí invisible | Todos somos la Dama | 400 🪙 o medalla 💀 |
 | 🧟 Paciente Cero | Mordisco infecto | Contagio (convierte a un humano en zombi aliado) | Carne fresca (cebo que atrae a sus zombis) | Salida de la tumba (horda + zombi gordo explosivo) | 350 🪙 o medalla 🍖 |
 | 🐙 K'thula | Tentáculo | Tentáculo abisal (golpe en zona que atrae) | Sumergirse (intocable, ×2 velocidad) | Marejada abisal (ola que empuja y deja charcas) | 450 🪙 o medalla 👑 |
+| 🌙 Pesadilla | Zarpa de sombra | Arrullo (cono de sueño) | Acecho (se convierte en un objeto del mapa) | Entre sueños (aparece junto a un dormido) | 400 🪙 o medalla 🕯️ |
+| 🪞 Bloody Mary | Cristal | A través del espejo | Espejo de sangre | Sal del espejo (copias) | 450 🪙 o medalla 🌕 |
+| ⚡ Reanimado | Puñetazo | Sacudida | Clavo pararrayos (2 cargas) | Tormenta galvánica (5 s) | 350 🪙 o medalla ⚰️ |
+| 🎭 Doppy | Golpe falso | Robar rostro | Engatusar | Doble perfecto | 500 🪙 |
+| 🧹 Hécuba | Poción (fuego/ácido/maleficio) | Gran redoma | Escoba | Poción de rabia | 450 🪙 |
 
 **Paciente Cero (invocador)**: algo menos de vida que el resto (95). El Contagio tarda unos 5 s: la vida del humano baja poco a poco y al llegar a cero se levanta como zombi. Máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
 
 **K'thula (acuático)**: cruza el agua profunda (lagos, ríos, piscinas) donde va ×1,3 más rápido y se regenera si no ha recibido daño en 3 s. Sumergirse dura 2,4 s en agua profunda y 1,2 s en tierra. En el agua su ataque básico es un chorro a presión (1,5 s, recarga 0,5 s). Si se queda quieto fuera del agua, brota bajo él una charca que va creciendo (nv. 5: más grande y más rápida). Nv. 15: dos cargas de Q y deja una charca al emerger.
 **Charcas**: da igual quién las cree; cualquier criatura acuática recibe en ellas la mitad del bonus del agua profunda, y el resto se ralentiza.
+
+**Pesadilla (sueño y emboscada)**: sus golpes y habilidades llenan una barra violeta de **somnolencia**; al llenarse, el objetivo se duerme (1,6 s jugadores, 2,8 s el resto). Acecho lo convierte en un objeto típico del mapa (árbol, farola, buzón, lápida, estatua, roca, tronco): los demás lo ven exactamente así, los cazadores lo ignoran y los humanos no huyen. Si espera quieto y ataca, el primer golpe hace hasta +120 % de daño. Moverse o recibir daño lo destapa.
+
+**Bloody Mary (espejos)**: hasta 3 espejos (4 a nivel 15). E coloca uno y da velocidad, velocidad de ataque y robo de vida 4 s. Q viaja al más cercano y lo hace estallar. Nv. 5: 1 espejo = robo de vida, 2 = velocidad, 3 = sus golpes desangran. R: todos estallan y de cada uno sale una copia suya que ataca sola 7 s.
+
+**Reanimado (aguante)**: se regenera rápido si lleva 4 s sin recibir daño. Nv. 5: al acumular un 30 % de su vida en daño recibido suelta una descarga que aturde. E lanza un clavo que se queda 15 s; cada 5 s cae un rayo y, si estás cerca, vuelve a ti atravesando enemigos. R: 5 s de tormenta en una gran zona (ralentiza y daña; tú ves a través de las nubes). Nv. 15: sin nadie a mano, su básico lanza piedras, lápidas o troncos según el mapa.
+
+**Doppy (engaño)**: si no lucha un rato se convierte en un humano cualquiera (los demás lo ven como un NPC más); su primer golpe aturde. Q copia al monstruo cercano: aspecto, nombre, nivel y su básico, Q y E durante 10 s (16 s a nivel 15). E: se vuelve un humano irresistible; humanos y cazadores le siguen embobados y los monstruos cercanos caminan hacia él. R: imita la definitiva del monstruo más cercano convirtiéndose en él (si no hay, una al azar).
+
+**Hécuba (bruja del pantano)**: cada poción cambia: fuego (charco en llamas), ácido (ralentiza) y maleficio (debilita y hace vulnerable). Los power-ups le hacen un 50 % más de efecto. E: vuela en escoba por encima de cualquier obstáculo y aterriza siempre en un hueco libre. R: poción de rabia en un área grande: todos atacan a lo más cercano (3 s jugadores, 5 s humanos y cazadores) y las bajas cuentan para ella.
 
 **Evolución por niveles** (cada monstruo conserva su identidad):
 
@@ -104,7 +119,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Inquisidor | media ≥ 5 | Espada en llamas y embestida; prefiere a los monstruos de más nivel. |
 | Exorcista | media ≥ 10 | Lanza frascos de agua bendita: charco que quema poco a poco y aturde al pisarlo. |
 | Sectario | hay algún monstruo de nivel 15+ | Muy débil. Hace un ritual (círculo pixelado, 4 s) e invoca dentro a un monstruo de nivel 15+ al azar con la mitad de su vida actual; luego huye y desaparece. Matarlo interrumpe el ritual. |
-| Heraldo de la luz | media de los jugadores de nivel ≥ 10 llega a 20 | Ángel lento pero constante (no se le ralentiza, asusta ni empuja). Maza que quita mucha vida. Ignora a los de nivel < 10. |
+| Heraldo de la luz | media de los jugadores de nivel ≥ 10 llega a 20 | Ángel lento pero constante (no se le ralentiza, asusta ni empuja). Maza que quita mucha vida. Ignora a los de nivel < 10 (pero no a los clones de la Dama). Si no consigue llegar, vuela por encima de los obstáculos y aterriza en un sitio libre. |
 
 **Mejoras 1-2-3 a partir del nivel 15**: Vitalidad y Fuerza suben su tope de 8 a 16 y Velocidad de 6 a 10.
 

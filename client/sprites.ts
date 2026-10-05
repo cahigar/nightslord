@@ -345,7 +345,146 @@ const kthulaForm: FormFn = (b, p, c, _anim, tier) => {
   arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin, 2, true);
 };
 
-export const FORMS: Record<CharacterId, FormFn> = { vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm };
+const nightmareForm: FormFn = (b, p, c, _anim, tier) => {
+  // Pesadilla: sombra alta y delgada que flota, jirones en vez de piernas, ojos como lunas pálidas
+  const by = p.by, sw = p.sway ?? 0;
+  const body = c.skin, robe = c.cloth, robe2 = c.cloth2;
+  arm(b, 10, 13 + by, p.la, 9, shade(robe, -0.1), body, 4); // brazos largos y finos
+  // jirones que se deshacen (sin pies)
+  for (let i = 0; i < 5; i++) {
+    const x = 8 + i * 2, len = 4 + ((i + sw) % 3);
+    for (let y = 0; y < len; y++) b.set(x + Math.round(Math.sin((y + i + sw) * 0.8)), 23 + y, y > len - 2 ? robe2 : robe);
+  }
+  for (const x of [9, 13]) b.set(x, 29 + (sw % 2), c.accent, true); // brasas de sueño al caer
+  torso(b, by, robe, { x: 7, w: 10, bottom: 24 });
+  b.rect(7, 20, 10, 4, robe); b.line(7, 12 + by, 7, 23, shade(robe, 0.25)); b.line(16, 12 + by, 16, 23, shade(robe, -0.2)); b.line(12, 13 + by, 12, 23, robe2);
+  // cabeza redonda de sombra con capucha suave
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.ellipse(X + 5, Y + 5, 5, 5, body);
+  b.rect(X, Y + 2, 3, 8, robe); b.set(X + 1, Y + 1, robe); b.set(X + 2, Y, robe); // capucha
+  // ojos: medias lunas grandes y pálidas
+  if (!p.blink) {
+    b.set(X + 6, Y + 4, c.eye, true); b.set(X + 7, Y + 4, c.eye, true); b.set(X + 7, Y + 5, shade(c.eye, -0.2), true);
+    b.set(X + 9, Y + 4, c.eye, true); b.set(X + 9, Y + 5, shade(c.eye, -0.2), true);
+    if (tier >= 1) { b.set(X + 6, Y + 3, shade(c.eye, 0.2), true); b.set(X + 9, Y + 3, shade(c.eye, 0.2), true); }
+  }
+  if (p.mouth) b.rect(X + 6, Y + 8, 4, 1, c.accent, true); // sonrisa que brilla
+  else b.line(X + 6, Y + 8, X + 8, Y + 8, shade(body, 0.25));
+  if (tier >= 2) for (const [x, y] of [[9, 15], [14, 18], [10, 21]]) b.set(x, y + (y < 20 ? by : 0), c.accent, true); // motas de sueño
+  if (tier >= 3) { b.rect(X + 2, Y - 3, 3, 1, c.accent, true); b.set(X + 1, Y - 2, c.accent, true); b.set(X + 5, Y - 2, c.accent, true); } // media luna
+  arm(b, 13, 13 + by, p.ra, 9, robe, body, 4);
+  const hx = 13 + Math.sin(p.ra) * 9, hy = 13 + by + Math.cos(p.ra) * 9;
+  b.set(hx + 1, hy, shade(body, 0.3)); b.set(hx + 1, hy + 1, shade(body, 0.3)); // dedos largos
+};
+
+const maryForm: FormFn = (b, p, c, _anim, tier) => {
+  // Bloody Mary: vestido largo, melena que tapa media cara, trozo de espejo en la mano
+  const by = p.by, sw = p.sway ?? 0;
+  b.rect(5 - sw, 3 + by, 4, 13, c.hair); // melena por detrás
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin);
+  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, '#140a0c', { top: 26 });
+  torso(b, by, c.cloth, { bottom: 27 });
+  b.rect(6 - Math.min(1, sw), 21, 12, 7, c.cloth); // falda acampanada
+  for (const x of [6, 9, 12, 15]) b.set(x - Math.min(1, sw), 27, c.cloth2);
+  b.rect(8, 12 + by, 8, 1, c.cloth2); b.set(12, 14 + by, c.accent, false, true);
+  for (const [x, y] of [[10, 17], [14, 22], [8, 24]]) b.set(x, y + (y < 20 ? by : 0), '#5a0a10'); // manchas
+  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'long', eyeGlow: true });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 1, Y + 1, 5, 6, c.hair); // flequillo que tapa media cara
+  b.set(X + 7, Y + 6, '#a01020'); b.set(X + 7, Y + 7, '#a01020'); // lágrima de sangre
+  if (tier >= 1 && !p.blink) b.set(X + 8, Y + 5, shade(c.eye, 0.3), true);
+  if (tier >= 2) { b.rect(X, Y - 1, 9, 1, '#c8d8e8'); b.set(X + 4, Y - 2, '#e8f8ff', true); } // diadema de cristal
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin);
+  // fragmento de espejo en la mano (brilla)
+  const hx = 13 + Math.sin(p.ra) * 8, hy = 13 + by + Math.cos(p.ra) * 8;
+  b.rect(hx, hy - 3, 2, 4, c.accent); b.set(hx + 1, hy - 3, '#ffffff', true); b.set(hx, hy - 4, shade(c.accent, 0.2));
+  if (tier >= 3) { b.set(hx + 2, hy - 2, '#ff4060', true); b.set(9, 19 + by, '#e8f8ff', true); }
+};
+
+const reanimatedForm: FormFn = (b, p, c, _anim, tier) => {
+  // Reanimado: corpachón cosido y asimétrico, placas de metal, bobinas y clavos a la espalda
+  const by = p.by;
+  // clavos en la espalda
+  for (const [x, y] of [[5, 12], [4, 15], [5, 18], [4, 21]]) { b.line(x, y + by, x - 2, y - 1 + by, '#8a8a92'); b.set(x - 2, y - 1 + by, '#c8c8d0'); }
+  arm(b, 10, 13 + by, p.la, 8, shade(c.skin, -0.2), shade(c.skin, -0.1), 3); // brazo trasero, más delgado
+  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, '#1a1612', { width: 4, boots: '#2a2420' });
+  torso(b, by, c.cloth, { x: 6, w: 12, top: 11 });
+  b.rect(7, 11 + by, 9, 4, c.skin); // pecho al aire
+  b.line(9, 12 + by, 9, 20 + by, shade(c.skin, -0.4)); for (let y = 12; y < 20; y += 2) { b.set(8, y + by, shade(c.skin, -0.35)); b.set(10, y + by, shade(c.skin, -0.35)); } // costura
+  b.rect(13, 15 + by, 4, 4, '#6a6a74'); b.set(13, 15 + by, '#a0a0aa'); b.set(16, 18 + by, '#a0a0aa'); // placa de metal
+  b.rect(6, 19 + by, 12, 1, '#3a2a1a');
+  // bobinas en los hombros
+  for (const x of [6, 16]) { b.rect(x, 9 + by, 2, 3, '#8a5a2a'); b.set(x, 9 + by, c.accent, tier >= 1); b.set(x + 1, 8 + by, c.accent, true); }
+  // cabeza ladeada y deforme, con placa a un lado
+  const X = 7 + (p.lean ?? 0), Y = 3 + by;
+  b.rect(X + 1, Y, 9, 9, c.skin); b.rect(X, Y + 2, 11, 5, c.skin); b.rect(X + 2, Y + 9, 7, 1, c.skin);
+  b.rect(X, Y, 4, 4, '#7a7a84'); b.set(X + 1, Y + 1, '#b0b0ba'); b.set(X + 3, Y + 3, '#b0b0ba'); // placa en el cráneo
+  b.rect(X + 4, Y, 6, 1, c.hair); b.set(X + 6, Y - 1, c.hair);
+  b.line(X + 4, Y + 2, X + 9, Y + 3, shade(c.skin, -0.4)); // cicatriz
+  if (!p.blink) { b.rect(X + 6, Y + 4, 2, 2, c.eye, true); b.set(X + 9, Y + 5, shade(c.eye, -0.2), true); } // un ojo más grande que otro
+  b.rect(X + 6, Y + 8, 4, 1, shade(c.skin, -0.45)); for (const x of [X + 6, X + 8]) b.set(x, Y + 7, shade(c.skin, -0.35));
+  if (tier >= 2) for (const [x, y] of [[X - 1, Y + 1], [X + 4, Y - 1]]) b.set(x, y, c.accent, true); // chispas
+  if (tier >= 3) { b.set(11, 13 + by, c.accent, true); b.set(15, 16 + by, c.accent, true); b.set(12, 21, c.accent, true); }
+  // brazo delantero enorme
+  arm(b, 14, 13 + by, p.ra, 8, c.skin, c.skin, 3);
+  const dx = Math.sin(p.ra), dy = Math.cos(p.ra);
+  for (let i = 1; i < 8; i++) b.set(15 + dx * i, 13 + by + dy * i, shade(c.skin, -0.12));
+  b.rect(14 + dx * 9, 12 + by + dy * 9, 3, 3, shade(c.skin, -0.05)); // puño
+  b.set(14 + dx * 4, 13 + by + dy * 4, '#3a2a2a'); // grapa
+};
+
+const doppyForm: FormFn = (b, p, c, _anim, tier) => {
+  // Doppy: maniquí sin rasgos, traje gris y una sonrisa demasiado ancha
+  const by = p.by;
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin, 2, true);
+  legs(b, p, shade(c.cloth, -0.3), shade(c.cloth, -0.1), '#141414');
+  torso(b, by, c.cloth);
+  b.rect(11, 12 + by, 3, 7, c.cloth2); b.rect(12, 13 + by, 1, 5, c.accent); // camisa y corbata
+  b.line(10, 12 + by, 11, 16 + by, shade(c.cloth, -0.3)); b.line(15, 12 + by, 14, 16 + by, shade(c.cloth, -0.3));
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 1, Y, 8, 10, c.skin); b.rect(X, Y + 2, 10, 6, c.skin); b.rect(X + 2, Y + 10, 6, 1, c.skin); // cabeza lisa
+  b.set(X + 2, Y + 1, shade(c.skin, 0.2), false, true);
+  if (!p.blink) { b.set(X + 6, Y + 5, c.eye); b.set(X + 9, Y + 5, c.eye); }
+  // sonrisa de oreja a oreja
+  const smile = p.mouth ? 2 : 1;
+  b.rect(X + 4, Y + 8, 6, smile, '#1a1018'); b.set(X + 3, Y + 7, '#1a1018'); b.set(X + 10, Y + 7, '#1a1018');
+  if (tier >= 1) for (const x of [X + 5, X + 7, X + 9]) b.set(x, Y + 8, '#f0f0f0'); // dientes
+  if (tier >= 2) b.set(X + 6, Y + 5, '#ffe060', true);
+  if (tier >= 3) { b.set(X + 9, Y + 5, '#ffe060', true); b.rect(X + 3, Y + 3, 1, 3, shade(c.skin, -0.25)); } // grieta: hay otra cara debajo
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin, 2, true);
+};
+
+const witchForm: FormFn = (b, p, c, _anim, tier) => {
+  // Hécuba: bruja encorvada, nariz larga, sombrero picudo torcido, frascos al cinto
+  const by = p.by + 2, sw = p.sway ?? 0;
+  b.rect(5 - sw, 13 + by, 3, 10, c.hair); // melena enmarañada
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin);
+  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, '#1a1410', { top: 25 });
+  torso(b, by, c.cloth, { bottom: 27 });
+  b.rect(7 - sw, 21, 10, 6, c.cloth); for (const x of [7, 10, 13, 16]) b.clear(x - sw, 26); // falda raída
+  b.rect(8, 19 + by, 8, 1, '#3a2a1a');
+  // frascos al cinto (brillan)
+  b.rect(9, 20 + by, 2, 2, c.accent, true); b.rect(13, 20 + by, 2, 2, '#ff6020', true); b.set(9, 19 + by, '#d0d0d0'); b.set(13, 19 + by, '#d0d0d0');
+  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'long', eyeGlow: true });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 10, Y + 5, 2, 2, c.skin); b.set(X + 12, Y + 7, c.skin); b.set(X + 11, Y + 7, shade(c.skin, -0.2)); // narizota
+  b.set(X + 10, Y + 4, '#5a3a20'); // verruga
+  if (p.mouth) { b.rect(X + 7, Y + 8, 3, 1, '#2a0a0a'); b.set(X + 8, Y + 8, '#f0e0a0'); }
+  // sombrero picudo torcido
+  b.rect(X - 2, Y + 1, 14, 1, c.cloth2); b.rect(X - 1, Y + 2, 12, 1, shade(c.cloth2, -0.2));
+  b.rect(X + 1, Y - 1, 8, 2, c.cloth2); b.rect(X + 2, Y - 3, 6, 2, c.cloth2); b.rect(X + 3, Y - 4, 3, 1, c.cloth2); b.set(X + 2, Y - 5, c.cloth2); b.set(X + 1, Y - 5, c.cloth2);
+  b.rect(X + 1, Y, 8, 1, c.accent, tier >= 2); // cinta
+  if (tier >= 3) b.set(X + 1, Y - 5, c.accent, true);
+  if (tier >= 1 && !p.blink) b.set(X + 7, Y + 5, shade(c.eye, 0.3), true);
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin);
+  const hx = 13 + Math.sin(p.ra) * 8, hy = 13 + by + Math.cos(p.ra) * 8;
+  b.rect(hx, hy - 2, 2, 3, ['#ff6020', '#a0ff40', '#c060ff'][Math.floor(sw) % 3], true); b.set(hx, hy - 3, '#d0d0d0'); // frasco en la mano
+};
+
+export const FORMS: Record<CharacterId, FormFn> = {
+  vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
+  nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
+};
 
 // ---------------------------------------------------------------------------
 // Humanos y Hunter
@@ -394,6 +533,9 @@ const NPC_LOOKS: Record<string, NpcLook[]> = {
     { top: '#e07020', top2: '#ffffff', legs: '#3a5a8a', shoe: '#f0f0f0', styles: ['long', 'ponytail', 'pigtails'], kind: 'tshirt', held: ['none', 'none', 'flashlight'] },
     { top: '#3a6a9a', top2: '#c0d0e0', legs: '#6a5a3a', shoe: '#4a3020', styles: ['beanie', 'afro'], kind: 'overalls', held: ['lantern', 'flashlight'], cap: '#a03030' },
   ],
+  // Engatusar de Doppy: humanos irresistibles
+  hunk: [{ top: '#f0f0f0', top2: '#e0c060', legs: '#2a3a6a', shoe: '#e0e0e0', styles: ['slick', 'spiky'], kind: 'tshirt', held: ['none'] }],
+  belle: [{ top: '#e02060', top2: '#ffd0e0', legs: '#e02060', shoe: '#e02060', styles: ['long', 'ponytail'], kind: 'dress', held: ['none'] }],
   counselor: [{ top: '#c02020', top2: '#ffffff', legs: '#e0d0a0', shoe: '#f0f0f0', styles: ['short', 'ponytail', 'cap'], kind: 'uniform', held: ['flashlight', 'none'], cap: '#c02020' }],
 };
 
@@ -460,6 +602,12 @@ function drawNpc(b: PB, p: Pose, variant: string, seed: number, zombie?: ZombieK
   arm(b, 13, 13 + by, p.ra, 7, L.top, skin);
   const hx = 13 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
   if (!zombie) heldItem(b, n.held, hx, hy);
+  if (variant === 'hunk' || variant === 'belle') {
+    // irresistible: brillo de estrella y (el chico) brazos de culturista
+    if (variant === 'hunk') { b.rect(7, 12 + p.by, 2, 5, skin); b.rect(15, 12 + p.by, 2, 4, skin); b.set(8, 13 + p.by, shade(skin, 0.2)); }
+    b.set(17, 2 + p.by, '#fff8c0', true); b.set(18, 1 + p.by, '#ffffff', true); b.set(16, 1 + p.by, '#fff8c0', true); b.set(17, 0 + p.by, '#fff8c0', true);
+    b.set(5, 15 + p.by, '#ffd0f0', true);
+  }
 }
 
 /** Cazador clásico y el resto de la orden (inquisidor, exorcista, sectario, heraldo de la luz). */
@@ -647,6 +795,14 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   scarab0: { art: ['.l.l.l..', '..gGGg..', '.gGYGGgh', '..gGGg..', '.l.l.l..'], pal: { g: '#1a4a3a', G: '#2a8a6a', Y: '#e0c040', h: '#0a1a14', l: '#0a1a14' }, glow: 'Y' },
   scarab1: { art: ['l.l.l...', '..gGGg..', '.gGYGGgh', '..gGGg..', 'l.l.l...'], pal: { g: '#1a4a3a', G: '#2a8a6a', Y: '#e0c040', h: '#0a1a14', l: '#0a1a14' }, glow: 'Y' },
   footprint: { art: ['.oo..', 'oooo.', '.oo..', '.....', '..oo.', '.oooo', '..oo.'], pal: { o: '#2a2230' } },
+  nail: { art: ['hh......', 'hhsssssp', 'hh......'], pal: { h: '#6a6a74', s: '#a8a8b4', p: '#e0e0f0' } },
+  nailback: { art: ['hh......', 'hhsssssp', 'hh......'], pal: { h: '#6a6a74', s: '#c8e8ff', p: '#ffffff' }, glow: 's' },
+  boulder0: { art: ['..rrrr..', '.rRRrrr.', 'rRRrrrrr', 'rrrrrrkr', '.rrrrkk.', '..rrkk..'], pal: { r: '#6a6a72', R: '#9a9aa4', k: '#3a3a42' } },
+  boulder1: { art: ['..ssss..', '.sSSSSs.', '.sSkSSs.', '.skkkSs.', '.sSkSSs.', '.sSSSSs.', '.ssssss.'], pal: { s: '#5a5a62', S: '#8a8a94', k: '#3a3a42' } },
+  boulder2: { art: ['.bbbbbbbbbb.', 'bBBbbbbbbbbo', 'bbbbbbBbbbbO', '.bbbbbbbbbb.'], pal: { b: '#4a3020', B: '#6a4a30', o: '#8a6a40', O: '#a08050' } },
+  potion0: { art: ['..cc..', '..ww..', '.wFFw.', 'wFYFFw', 'wFFFFw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', F: '#ff6020', Y: '#ffe060' }, glow: 'Y' },
+  potion1: { art: ['..cc..', '..ww..', '.wAAw.', 'wAYAAw', 'wAAAAw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', A: '#80e020', Y: '#e0ff80' }, glow: 'Y' },
+  potion2: { art: ['..cc..', '..ww..', '.wHHw.', 'wHYHHw', 'wHHHHw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e0d8', H: '#a040e0', Y: '#f0c0ff' }, glow: 'Y' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

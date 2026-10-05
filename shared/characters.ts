@@ -2,7 +2,7 @@
 // Para añadir un monstruo nuevo: añade una entrada en CHARACTERS (stats + habilidades),
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
-export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula';
+export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -182,6 +182,127 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Llamada del abismo', desc: 'Tentáculo con 2 cargas y al emerger deja una charca corrupta.' },
     ],
   },
+  nightmare: {
+    id: 'nightmare',
+    name: 'Pesadilla',
+    title: 'Criatura del sueño',
+    hp: 105,
+    speed: 210,
+    damage: 18,
+    range: 52,
+    arc: Math.PI / 2,
+    attackCd: 0.5,
+    armor: 0.05,
+    attackName: 'Zarpa de sombra',
+    passive: 'Somnolencia: sus golpes y habilidades llenan una barra en los enemigos; al llenarse, se duermen un momento.',
+    abilities: [
+      { key: 'Q', name: 'Arrullo', desc: 'Nana en cono: poco daño pero mucha somnolencia.', cooldown: 6 },
+      { key: 'E', name: 'Acecho', desc: 'Se convierte en un objeto del escenario. Si espera quieto y luego ataca, el primer golpe hace daño extra.', cooldown: 9 },
+    ],
+    ult: { key: 'R', name: 'Entre sueños', desc: 'Aparece junto a un enemigo dormido; su siguiente ataque está potenciado.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Mal dormir', desc: 'Quien ya se ha dormido una vez acumula somnolencia más rápido durante un tiempo.' },
+      { lvl: 10, name: 'Entre sueños', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Pesadilla recurrente', desc: 'Arrullo con más área y Acecho llega antes al bonus máximo.' },
+    ],
+  },
+  mary: {
+    id: 'mary',
+    name: 'Bloody Mary',
+    title: 'Leyenda del espejo',
+    hp: 100,
+    speed: 212,
+    damage: 17,
+    range: 54,
+    arc: Math.PI / 2,
+    attackCd: 0.45,
+    armor: 0.05,
+    attackName: 'Cristal',
+    passive: 'Puede tener varios espejos activos por el mapa.',
+    abilities: [
+      { key: 'Q', name: 'A través del espejo', desc: 'Viaja al espejo más cercano, que estalla en fragmentos de cristal.', cooldown: 5 },
+      { key: 'E', name: 'Espejo de sangre', desc: 'Coloca un espejo y gana velocidad, velocidad de ataque y robo de vida unos segundos.', cooldown: 7 },
+    ],
+    ult: { key: 'R', name: 'Sal del espejo', desc: 'Todos sus espejos estallan y de cada uno sale una copia suya que ataca sola.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Reflejo sangriento', desc: 'Bonus por espejos activos: 1 robo de vida, 2 velocidad, 3 sus golpes desangran.' },
+      { lvl: 10, name: 'Sal del espejo', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Mil reflejos', desc: 'Un espejo más, explosión mayor y los cristales que quedan ralentizan.' },
+    ],
+  },
+  reanimated: {
+    id: 'reanimated',
+    name: 'Reanimado',
+    title: 'Cadáver cosido',
+    hp: 170,
+    speed: 178,
+    damage: 24,
+    range: 58,
+    arc: Math.PI * 0.55,
+    attackCd: 0.75,
+    armor: 0.15,
+    attackName: 'Puñetazo',
+    passive: 'Galvanizado: se regenera mucho más si lleva unos segundos sin recibir daño.',
+    abilities: [
+      { key: 'Q', name: 'Sacudida', desc: 'Golpea el suelo: daña y aleja a los enemigos cercanos.', cooldown: 7 },
+      { key: 'E', name: 'Clavo pararrayos', desc: 'Lanza un clavo que se queda clavado 15 s. Cada 5 s cae un rayo y el clavo vuelve a ti atravesando enemigos. 2 cargas.', cooldown: 8 },
+    ],
+    ult: { key: 'R', name: 'Tormenta galvánica', desc: 'Nubes de tormenta cubren la zona 5 s: ralentizan y dañan a los enemigos. Tú ves a través.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Sobrecarga', desc: 'Al acumular daño recibido suelta una descarga eléctrica que aturde alrededor.' },
+      { lvl: 10, name: 'Tormenta galvánica', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Fuerza bruta', desc: 'Sin enemigos al alcance, su ataque básico lanza lápidas, piedras o troncos.' },
+    ],
+  },
+  doppy: {
+    id: 'doppy',
+    name: 'Doppy',
+    title: 'Doppelgänger',
+    hp: 100,
+    speed: 215,
+    damage: 18,
+    range: 50,
+    arc: Math.PI / 2,
+    attackCd: 0.5,
+    armor: 0.05,
+    attackName: 'Golpe falso',
+    passive: 'Mil caras: si pasa un rato sin luchar, adopta el aspecto de un humano cualquiera. Su primer golpe desde el disfraz aturde.',
+    abilities: [
+      { key: 'Q', name: 'Robar rostro', desc: 'Copia al monstruo cercano: su aspecto, su nombre y su ataque, Q y E durante unos segundos.', cooldown: 12 },
+      { key: 'E', name: 'Engatusar', desc: 'Se vuelve irresistible: humanos y cazadores cercanos le siguen embobados y los monstruos se acercan sin querer.', cooldown: 11 },
+    ],
+    ult: { key: 'R', name: 'Doble perfecto', desc: 'Imita la definitiva del monstruo más cercano (o una al azar) convirtiéndose en él.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Cara conocida', desc: 'Se disfraza antes y su golpe por sorpresa hace más daño.' },
+      { lvl: 10, name: 'Doble perfecto', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Nadie es quien dice ser', desc: 'Robar rostro dura más y Engatusar llega más lejos.' },
+    ],
+  },
+  witch: {
+    id: 'witch',
+    name: 'Hécuba',
+    title: 'Bruja del pantano',
+    hp: 95,
+    speed: 205,
+    damage: 15,
+    range: 360,
+    arc: 0,
+    attackCd: 0.75,
+    armor: 0,
+    rangedBasic: true,
+    attackName: 'Poción',
+    passive: 'Alquimista: cada poción tiene un efecto distinto (fuego, ácido, maleficio) y los power-ups le hacen más efecto.',
+    abilities: [
+      { key: 'Q', name: 'Gran redoma', desc: 'Lanza un frasco enorme con la siguiente poción potenciada en un área grande.', cooldown: 8 },
+      { key: 'E', name: 'Escoba', desc: 'Vuela unos segundos por encima de los obstáculos (aterriza siempre en un sitio libre).', cooldown: 12 },
+    ],
+    ult: { key: 'R', name: 'Poción de rabia', desc: 'En un área grande, todos atacan a lo más cercano (3 s jugadores, 5 s humanos y cazadores). Las bajas cuentan para ella.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Caldero espeso', desc: 'Las pociones salpican más y sus efectos duran más.' },
+      { lvl: 10, name: 'Poción de rabia', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Vuelo nocturno', desc: 'La escoba dura más y puede lanzar pociones mientras vuela.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -239,6 +360,31 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Abisal', price: 0, palette: { skin: '#3a7a6a', hair: '#2a5a50', cloth: '#1a2a3a', cloth2: '#0e1824', accent: '#60e0a0', eye: '#80ff60' } },
     { id: 'coral', name: 'Coral', price: 200, palette: { skin: '#b04a5a', hair: '#7a2a3a', cloth: '#2a1a2a', cloth2: '#180e18', accent: '#ffa070', eye: '#ffe060' } },
     { id: 'void', name: 'Del vacío', price: 350, palette: { skin: '#3a3a6a', hair: '#24244a', cloth: '#0e0e1a', cloth2: '#06060e', accent: '#a080ff', eye: '#ff60ff' } },
+  ],
+  nightmare: [
+    { id: 'classic', name: 'Sombra', price: 0, palette: { skin: '#2a2238', hair: '#3a2e58', cloth: '#28204a', cloth2: '#161026', accent: '#b080ff', eye: '#ece0ff' } },
+    { id: 'insomnia', name: 'Insomnio', price: 200, palette: { skin: '#34302a', hair: '#4a4030', cloth: '#2e2a1e', cloth2: '#1a1810', accent: '#ffb030', eye: '#fff0a0' } },
+    { id: 'night', name: 'Terror nocturno', price: 350, palette: { skin: '#2e1420', hair: '#4a1428', cloth: '#2a1020', cloth2: '#160810', accent: '#ff3060', eye: '#ff90a0' } },
+  ],
+  mary: [
+    { id: 'classic', name: 'Velo rojo', price: 0, palette: { skin: '#e8dcdc', hair: '#2a1416', cloth: '#7a1018', cloth2: '#4a0a10', accent: '#d8e8f8', eye: '#ff3040' } },
+    { id: 'bride', name: 'Novia', price: 200, palette: { skin: '#f0e8e8', hair: '#e8d8b0', cloth: '#e8e4ec', cloth2: '#b8b0c0', accent: '#c01830', eye: '#ff3040' } },
+    { id: 'ghost', name: 'Reflejo frío', price: 350, palette: { skin: '#c8e0e8', hair: '#3a5060', cloth: '#2a4a5a', cloth2: '#183040', accent: '#a0f0ff', eye: '#a0f0ff' } },
+  ],
+  reanimated: [
+    { id: 'classic', name: 'Cosido', price: 0, palette: { skin: '#8a9a7a', hair: '#1a1a1a', cloth: '#3a3430', cloth2: '#24201c', accent: '#60c8ff', eye: '#c8f0ff' } },
+    { id: 'rust', name: 'Oxidado', price: 200, palette: { skin: '#9a8a7a', hair: '#3a2a1a', cloth: '#5a3a24', cloth2: '#3a2414', accent: '#ffa030', eye: '#ffe080' } },
+    { id: 'storm', name: 'Tormenta', price: 350, palette: { skin: '#6a7a8a', hair: '#e8e8f0', cloth: '#202838', cloth2: '#141a26', accent: '#c080ff', eye: '#ffffff' } },
+  ],
+  doppy: [
+    { id: 'classic', name: 'Sin rostro', price: 0, palette: { skin: '#c8c0d0', hair: '#8a8098', cloth: '#5a5068', cloth2: '#3a3448', accent: '#ffe060', eye: '#202030' } },
+    { id: 'mime', name: 'Mimo', price: 150, palette: { skin: '#f0f0f0', hair: '#202020', cloth: '#202020', cloth2: '#f0f0f0', accent: '#e02040', eye: '#202020' } },
+    { id: 'gold', name: 'Dorado', price: 300, palette: { skin: '#e0c060', hair: '#a07020', cloth: '#6a4a10', cloth2: '#4a3008', accent: '#ffffff', eye: '#3a2008' } },
+  ],
+  witch: [
+    { id: 'classic', name: 'Del pantano', price: 0, palette: { skin: '#8aa060', hair: '#3a2a3a', cloth: '#2a3a24', cloth2: '#1a2414', accent: '#a0ff40', eye: '#ffe040' } },
+    { id: 'night', name: 'Medianoche', price: 200, palette: { skin: '#d8c8e0', hair: '#1a1020', cloth: '#2a1a40', cloth2: '#180e28', accent: '#c060ff', eye: '#ff60c0' } },
+    { id: 'pumpkin', name: 'Calabaza', price: 300, palette: { skin: '#e0b090', hair: '#c04010', cloth: '#3a2010', cloth2: '#241408', accent: '#ff9020', eye: '#40ff60' } },
   ],
 };
 
