@@ -1099,6 +1099,18 @@ export class Game {
       const ow = this.ents.get(e.o);
       if (ow) { ctx.fillStyle = '#8a8a94'; const n = Math.ceil(Math.hypot(e.rx - ow.rx, e.ry - ow.ry) / 9); for (let i = 0; i < n; i++) { const t = i / n; ctx.fillRect(Math.round((ow.rx + (e.rx - ow.rx) * t) / 3) * 3, Math.round((ow.ry - 40 + (e.ry - ow.ry) * t) / 3) * 3, 3, 3); } }
     }
+    if (e.c === 'firewave') {
+      // onda de fuego: arco de llamas que avanza
+      const a = e.r ?? 0, nx = -Math.sin(a), ny = Math.cos(a);
+      for (let i = -5; i <= 5; i++) {
+        const px = e.rx + nx * i * 6 - Math.cos(a) * Math.abs(i) * 2, py = e.ry - 20 + ny * i * 4;
+        const h = 12 + ((Math.floor(now / 70) + i) % 3) * 4;
+        ctx.fillStyle = '#c02010'; ctx.fillRect(Math.round(px / 3) * 3, Math.round((py - h) / 3) * 3, 6, h);
+        ctx.fillStyle = '#ffb030'; ctx.fillRect(Math.round(px / 3) * 3, Math.round((py - h + 6) / 3) * 3, 3, h - 6);
+      }
+      if (Math.random() < 0.6) this.particles.push({ x: e.rx, y: e.ry - 30, vx: 0, vy: -40, life: 0.4, max: 0.4, color: '#ffd040', size: 3, grav: 0 });
+      return;
+    }
     if (e.c === 'crows' || e.c === 'crowsback') {
       // bandada de cuervos
       for (let i = 0; i < 7; i++) {
@@ -1114,7 +1126,7 @@ export class Game {
     if (e.c === 'sandstorm') { this.effects.drawStorm(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     if (e.c === 'wave') { this.effects.drawWave(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     const big = e.c.startsWith('bigpotion');
-    const spin = e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion') || e.c.startsWith('obj');
+    const spin = e.c === 'fireball' || e.c === 'ember' || e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion') || e.c.startsWith('obj');
     const id = e.c === 'bat' ? `bat${Math.floor(now / 90) % 2}` : e.c === 'scarab' ? `scarab${Math.floor(now / 60) % 2}`
       : e.c === 'boulder' ? `boulder${({ elm: 0, transylvania: 1, camp: 2 } as Record<string, number>)[this.theme] ?? 0}` : big ? e.c.slice(3) : e.c;
     const img = getItem(id);
@@ -1128,7 +1140,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1257,7 +1269,7 @@ const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
 const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1291,6 +1303,7 @@ const TAUNTS: Record<CharacterId, string> = {
   pirate: '¡Arrr, marinero!',
   spider: 'Ven a mi tela...',
   scarecrow: '¡Bu! ...¿Asustado?',
+  demon: '¿Hace calor o soy yo?',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

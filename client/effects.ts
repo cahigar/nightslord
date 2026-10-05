@@ -250,6 +250,7 @@ export class Effects {
       case 'rooted': this.rootedFx(ev); break;
       case 'treeFire': this.burst(x, y - 20, 30, ['#ff6020', '#ffd040', '#c02010', '#3a3430'], 220, 4, -60, 0.9, true); this.ripple(x, y, '#ff8020', 0.5, (ev.r ?? 30) + 30); break;
       case 'shock': this.shockFx(ev); break;
+      case 'fireBoom': this.burst(x, y - 20, 40, ['#ff6020', '#ffd040', '#c02010', '#ffffff'], (ev.r ?? 90) * 3, 4, 250, 0.7, true); this.ripple(x, y, '#ff8020', 0.5, ev.r ?? 90); break;
       case 'scare': this.ripple(x, y - 20, '#ffb020', 0.6, ev.r ?? 200); this.burst(x, y - 50, 10, ['#141018', '#2a2030'], 200, 3, -40, 0.8); break;
       case 'leapLand': this.burst(x, y, 16, this.terrainColors(x, y), 180, 3, 400, 0.5); this.ripple(x, y, '#e8e8f0', 0.4, ev.r ?? 120); break;
       case 'sprout': this.burst(x, y - 10, 22, ['#5a4632', '#2e4a24', '#a0e040', '#4a7a34'], 200, 3, 400, 0.6); this.ripple(x, y, '#a0e040', 0.5, 40); break;

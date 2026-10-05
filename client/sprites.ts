@@ -716,6 +716,44 @@ const scarecrowForm: FormFn = (b, p, c, anim, tier) => {
   void sw; void anim;
 };
 
+const demonForm: FormFn = (b, p, c, anim, tier) => {
+  // Azufre: demonio de piel roja con grietas de lava, cuernos curvos, melena de fuego, pezuñas y cola en punta
+  const by = p.by, sw = p.sway ?? 0;
+  const lava = c.accent, flame = c.hair;
+  // cola
+  b.line(8, 20, 4 - sw, 23, c.skin); b.line(4 - sw, 23, 2 - sw, 20, c.skin);
+  b.set(1 - sw, 19, c.cloth2); b.set(2 - sw, 18, c.cloth2); b.set(3 - sw, 19, c.cloth2); // punta
+  arm(b, 10, 13 + by, p.la, 7, shade(c.skin, -0.2), shade(c.skin, -0.2), 3);
+  legs(b, p, shade(c.cloth, -0.2), c.cloth, '#1a0a08', { boots: shade(c.skin, -0.35) }); // pezuñas
+  torso(b, by, c.skin, { x: 7, w: 10 });
+  b.rect(8, 17 + by, 8, 1, c.cloth); b.rect(8, 19 + by, 8, 3, c.cloth); // taparrabos
+  // grietas de lava que brillan
+  b.line(9, 12 + by, 11, 16 + by, lava); b.line(14, 13 + by, 13, 16 + by, lava); b.set(12, 14 + by, shade(lava, 0.3));
+  for (const [x, y] of [[9, 12], [11, 16], [14, 13], [13, 16]]) b.set(x, y + by, lava, true);
+  // cabeza
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 1, Y + 1, 8, 9, c.skin); b.rect(X, Y + 2, 10, 6, c.skin); b.rect(X + 2, Y + 10, 6, 1, c.skin);
+  b.rect(X + 9, Y + 4, 2, 3, c.skin); // morro
+  if (!p.blink) { b.rect(X + 6, Y + 4, 3, 1, c.eye, true); b.set(X + 8, Y + 5, c.eye, true); }
+  b.rect(X + 6, Y + 3, 4, 1, shade(c.skin, -0.45)); // ceño
+  b.rect(X + 6, Y + 8, 4, 1, '#1a0404'); b.set(X + 7, Y + 7, '#f0e0c0'); b.set(X + 9, Y + 7, '#f0e0c0'); if (p.mouth) { b.rect(X + 6, Y + 8, 4, 2, lava, true); }
+  // melena de fuego (por detrás de los cuernos)
+  const fl = (sw + Math.floor((p.by + 3) * 7)) % 3;
+  for (let i = 0; i < 4; i++) { const fx = X + i * 2, h = 2 + ((i + fl) % 3); for (let k = 0; k < h; k++) b.set(fx, Y + 1 - k, k === h - 1 ? lava : flame, true); }
+  b.rect(X - 1, Y + 2, 2, 5, flame, true); b.set(X - 2, Y + 3 + (fl % 2), lava, true);
+  // cuernos curvos, grandes y oscuros
+  const hornC = '#1a1010', hornL = '#4a3a34';
+  b.rect(X + 1, Y, 2, 2, hornC); b.set(X, Y - 1, hornC); b.set(X - 1, Y - 2, hornC); b.set(X - 1, Y - 3, hornL); b.set(X, Y - 4, hornL);
+  b.rect(X + 7, Y, 2, 2, hornC); b.set(X + 9, Y - 1, hornC); b.set(X + 10, Y - 2, hornC); b.set(X + 10, Y - 3, hornL); b.set(X + 9, Y - 4, hornL);
+  if (tier >= 1) b.set(X + 9, Y + 4, c.eye, true);
+  if (tier >= 2) { b.set(X, Y - 4, lava, true); b.set(X + 9, Y - 4, lava, true); } // cuernos al rojo
+  if (tier >= 3) for (const [x, y] of [[5, 9], [18, 12], [4, 17], [19, 20]]) b.set(x, y + by, flame, true); // ascuas flotando
+  arm(b, 14, 13 + by, p.ra, 7, c.skin, c.skin, 3);
+  const hx = 14 + Math.sin(p.ra) * 8, hy = 13 + by + Math.cos(p.ra) * 8;
+  b.set(hx, hy, lava, true); b.set(hx + 1, hy - 1, flame, true); // puño en llamas
+  void anim;
+};
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -782,7 +820,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
-  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm,
+  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -1120,6 +1158,8 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   web: { art: ['w..w..w', '.w.w.w.', '..www..', 'wwwWwww', '..www..', '.w.w.w.', 'w..w..w'], pal: { w: '#e8e8f0', W: '#ffffff' } },
   crow0: { art: ['k.....k', 'kk...kk', '.kkkkk.', '..kRk..', '...k...'], pal: { k: '#141018', R: '#ff3020' }, glow: 'R' },
   crow1: { art: ['.......', '.kkkkk.', 'kkkkkkk', 'k.kRk.k', '...k...'], pal: { k: '#141018', R: '#ff3020' }, glow: 'R' },
+  fireball: { art: ['..ooo..', '.oyyyo.', 'oyWWWyo', 'oyWWWyo', 'oyWWWyo', '.oyyyo.', '..ooo..'], pal: { o: '#c02010', y: '#ff8020', W: '#ffe060' }, glow: 'W' },
+  ember: { art: ['.o.', 'oyo', '.o.'], pal: { o: '#ff6020', y: '#ffe060' }, glow: 'y' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

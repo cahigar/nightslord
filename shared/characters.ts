@@ -3,7 +3,7 @@
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
-  | 'pirate' | 'spider' | 'scarecrow';
+  | 'pirate' | 'spider' | 'scarecrow' | 'demon';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -454,6 +454,31 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Bandada de retorno', desc: 'Los cuervos vuelven hacia él y Plantarse tiene 2 cargas.' },
     ],
   },
+  demon: {
+    id: 'demon',
+    name: 'Azufre',
+    title: 'Demonio de fuego',
+    hp: 110,
+    speed: 210,
+    damage: 18,
+    range: 52,
+    arc: Math.PI / 2,
+    attackCd: 0.5,
+    armor: 0.05,
+    fireImmune: true,
+    attackName: 'Golpe ígneo',
+    passive: 'Inmune al fuego. Sus golpes dejan una pequeña quemadura.',
+    abilities: [
+      { key: 'Q', name: 'Bola infernal', desc: 'Proyectil que explota y deja el suelo en llamas (y prende los árboles).', cooldown: 6 },
+      { key: 'E', name: 'Paso ardiente', desc: 'Embestida corta que deja un camino de llamas detrás.', cooldown: 8 },
+    ],
+    ult: { key: 'R', name: 'Infierno', desc: '6 s: sus golpes lanzan ondas de fuego hacia delante y ataca y corre más rápido.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Combustión', desc: 'Quien ya arde recibe un 40 % más de daño de sus habilidades de fuego.' },
+      { lvl: 10, name: 'Infierno', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Señor de las llamas', desc: 'La Bola infernal suelta llamas secundarias y el fuego le cura.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -566,6 +591,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Saco viejo', price: 0, palette: { skin: '#c8a870', hair: '#e0c050', cloth: '#5a6a8a', cloth2: '#3a2a1a', accent: '#a02020', eye: '#ffb020' } },
     { id: 'pumpkin', name: 'Calabaza', price: 200, palette: { skin: '#e07020', hair: '#c8a040', cloth: '#4a3a5a', cloth2: '#2a1a12', accent: '#40a030', eye: '#ffe040' } },
     { id: 'blight', name: 'Plaga', price: 350, palette: { skin: '#8a8a7a', hair: '#6a6a50', cloth: '#2a2a2a', cloth2: '#141414', accent: '#60c040', eye: '#a0ff40' } },
+  ],
+  demon: [
+    { id: 'classic', name: 'Brasa', price: 0, palette: { skin: '#b02818', hair: '#ff8020', cloth: '#2a1010', cloth2: '#140808', accent: '#ffd040', eye: '#fff080' } },
+    { id: 'blue', name: 'Llama azul', price: 200, palette: { skin: '#2a3a8a', hair: '#40c0ff', cloth: '#101830', cloth2: '#080c18', accent: '#a0f0ff', eye: '#e0ffff' } },
+    { id: 'obsidian', name: 'Obsidiana', price: 350, palette: { skin: '#2a2028', hair: '#c040ff', cloth: '#140c14', cloth2: '#080408', accent: '#ff60e0', eye: '#ffa0ff' } },
   ],
 };
 

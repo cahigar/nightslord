@@ -1,4 +1,5 @@
 import type { CharacterId } from '../../shared/characters';
+import { demonKit } from './demon';
 import { doppyKit, setKits } from './doppy';
 import { invisibleKit } from './invisible';
 import { kthulaKit } from './kthula';
@@ -37,6 +38,7 @@ export const KITS: Record<CharacterId, Kit> = {
   pirate: pirateKit,
   spider: spiderKit,
   scarecrow: scarecrowKit,
+  demon: demonKit,
 };
 setKits(KITS); // Doppy necesita los kits de los demás para imitarlos
 
