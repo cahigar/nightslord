@@ -226,7 +226,7 @@ export class Room {
     }
     this.allyAsk.set(p.id, { to: o.id, until: this.time + 8 });
     this.fx('allyAsk', p.x, p.y, { o: p.id, tx: Math.round(o.x), ty: Math.round(o.y) });
-    o.conn.send({ t: 'toast', text: `🤝 ${p.name} te ofrece una alianza: pulsa H para aceptar.` });
+    o.conn.send({ t: 'toast', text: `🤝 ${p.name} te ofrece una alianza: pulsa H para aceptar.`, k: 'allyOffer', a: { n: p.name } });
   }
 
   onUpgrade(conn: Conn, u: UpgradeId) {
@@ -1686,7 +1686,7 @@ export class Room {
         v.hp = Math.max(1, Math.ceil(v.hp / 2)); // llega con la mitad de su vida actual
         v.summonedAt = this.time;
         v.lastAttacker = 'Sectario';
-        v.conn.send({ t: 'toast', text: '¡Un sectario te ha invocado! Llegas con la mitad de tu vida.' });
+        v.conn.send({ t: 'toast', text: '¡Un sectario te ha invocado! Llegas con la mitad de tu vida.', k: 'summoned' });
         this.fx('summon', x, y, { o: v.id, n: 1 });
         this.sfx('chant', x, y);
       }

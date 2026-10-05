@@ -90,7 +90,7 @@ function cleanName(n: unknown): string {
 
 wss.on('connection', (ws: WebSocket, req) => {
   if (wss.clients.size > MAX_CONNECTIONS) {
-    ws.send(JSON.stringify({ t: 'error', msg: 'El servidor está lleno ahora mismo. Prueba en un momento.' } satisfies ServerMsg));
+    ws.send(JSON.stringify({ t: 'error', msg: 'El servidor está lleno ahora mismo. Prueba en un momento.', k: 'serverBusy' } satisfies ServerMsg));
     ws.close(1013, 'lleno');
     return;
   }
@@ -130,7 +130,7 @@ wss.on('connection', (ws: WebSocket, req) => {
     if (msg.t === 'login' && conn) {
       const c = conn;
       void verifyGoogle(String(msg.credential ?? '')).then((g) => {
-        if (!g) return c.send({ t: 'error', msg: 'No se pudo iniciar sesión con Google.' });
+        if (!g) return c.send({ t: 'error', msg: 'No se pudo iniciar sesión con Google.', k: 'loginFail' });
         c.profile = store.linkGoogle(c.profile, g.sub, g.email);
         c.profile.master = ADMIN_EMAILS.includes(g.email);
         c.send({ t: 'welcome', profile: c.profile, dev: DEV, google: GOOGLE_CLIENT_ID || undefined });
@@ -152,14 +152,14 @@ wss.on('connection', (ws: WebSocket, req) => {
         let target = null;
         if (msg.mode === 'code') {
           target = msg.code ? rooms.get(msg.code) : undefined;
-          if (!target) return send({ t: 'error', msg: 'No existe ninguna sala con ese código.' });
-          if (target.isFull) return send({ t: 'error', msg: 'La sala está llena.' });
+          if (!target) return send({ t: 'error', msg: 'No existe ninguna sala con ese código.', k: 'noRoom' });
+          if (target.isFull) return send({ t: 'error', msg: 'La sala está llena.', k: 'roomFull' });
         } else if (msg.mode === 'create') {
           target = rooms.create(!!msg.priv, msg.theme);
         } else {
           target = rooms.findRandom();
         }
-        if (!target) return send({ t: 'error', msg: 'El servidor está lleno. Inténtalo en un rato.' });
+        if (!target) return send({ t: 'error', msg: 'El servidor está lleno. Inténtalo en un rato.', k: 'serverFull' });
         target.addConn(c, char, skin);
         break;
       }
@@ -219,7 +219,7 @@ function buy(c: Conn, item: string) {
     const ch = parts[1] as CharacterId;
     if (!CHARACTERS[ch] || hasCharacter(p, ch)) return;
     const price = unlockPrice(p);
-    if (p.coins < price) return c.send({ t: 'error', msg: 'No tienes monedas suficientes.' });
+    if (p.coins < price) return c.send({ t: 'error', msg: 'No tienes monedas suficientes.', k: 'noCoins' });
     p.coins -= price;
     p.chars.push(ch);
     if (CHARACTER_IDS.filter((x) => FREE_CHARS.includes(x) || hasCharacter(p, x)).length >= 16) awardOutside(c, 'collector');
@@ -227,8 +227,8 @@ function buy(c: Conn, item: string) {
     const ch = parts[1] as CharacterId;
     const sk = SKINS[ch]?.find((s) => s.id === parts[2]);
     if (!sk || hasSkin(p, ch, sk)) return;
-    if (sk.medal && sk.price === 0) return c.send({ t: 'error', msg: 'Esta skin se gana con una medalla.' });
-    if (p.coins < sk.price) return c.send({ t: 'error', msg: 'No tienes monedas suficientes.' });
+    if (sk.medal && sk.price === 0) return c.send({ t: 'error', msg: 'Esta skin se gana con una medalla.', k: 'skinMedalOnly' });
+    if (p.coins < sk.price) return c.send({ t: 'error', msg: 'No tienes monedas suficientes.', k: 'noCoins' });
     p.coins -= sk.price;
     p.skins.push(`${ch}:${sk.id}`);
     awardOutside(c, 'fashion');

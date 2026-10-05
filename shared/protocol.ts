@@ -149,7 +149,7 @@ export interface RoomInfo { code: string; players: number; max: number; theme: M
 export type ServerMsg =
   | { t: 'welcome'; profile: Profile; dev?: boolean; google?: string } // google: ID de cliente OAuth (si hay inicio de sesión)
   | { t: 'profile'; profile: Profile }
-  | { t: 'toast'; text: string }
+  | { t: 'toast'; text: string; k?: string; a?: Record<string, string | number> } // k: clave de traducción
   | { t: 'joined'; code: string; theme: MapThemeId; seed: number; priv: boolean; you: number }
   | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[]; burn?: [number, number, number][]; tv?: TvState } // burn: árboles del mapa [índice, s ardiendo, s quemado]
   | { t: 'rank'; list: [string, number, CharacterId, number][]; total: number } // nombre, puntos, personaje, id
@@ -157,5 +157,5 @@ export type ServerMsg =
   | { t: 'medal'; id: string }
   | { t: 'rooms'; list: RoomInfo[] }
   | { t: 'left' }
-  | { t: 'error'; msg: string }
+  | { t: 'error'; msg: string; k?: string }
   | { t: 'pong'; c: number };
