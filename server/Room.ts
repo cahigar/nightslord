@@ -14,7 +14,11 @@ import {
   Anim, Flag, Flag2, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type ServerMsg, type SfxId, type TvState, type YouState,
 } from '../shared/protocol';
 import { mobStatus, type Hunter, type Minion, type MinionVariant, type Mob, type Npc, type Player, type PowerUp, type Projectile, type Source, type Zone, type ZoneKind } from './entities';
+import { createHash } from 'node:crypto';
 import { KITS } from './kits';
+
+/** Huella anónima de un perfil (nunca se envía el token de otro jugador). */
+const profileTag = (token: string) => createHash('sha256').update(token).digest('hex').slice(0, 16);
 import { store } from './store';
 import type { Conn } from './types';
 
@@ -1224,9 +1228,9 @@ export class Room {
         if (pk >= 10) this.medal(killer, 'monster10');
         if (pk >= 50) this.medal(killer, 'monster50');
         if (v.id === this.bountyId) this.medal(killer, 'bounty');
-        if (killer.conn.profile.lastKiller === v.conn.profile.token) { this.medal(killer, 'revenge'); killer.conn.profile.lastKiller = undefined; }
+        if (killer.conn.profile.lastKiller === profileTag(v.conn.profile.token)) { this.medal(killer, 'revenge'); killer.conn.profile.lastKiller = undefined; }
         if (killer.allies.has(v.id)) { this.medal(killer, 'traitor'); killer.allies.delete(v.id); this.fx('allyAsk', v.x, v.y, { o: v.id, n: -1 }); }
-        v.conn.profile.lastKiller = killer.conn.profile.token;
+        v.conn.profile.lastKiller = profileTag(killer.conn.profile.token);
       }
       const by = src.name || v.lastAttacker || 'la noche';
       this.emit({ e: 'kill', a: by, v: v.name, ak: src.kind, vk: Kind.Player }, m.x, m.y, true);

@@ -129,6 +129,7 @@ export interface YouState {
 // ---------- Cliente -> Servidor ----------
 export type ClientMsg =
   | { t: 'hello'; token?: string; name: string }
+  | { t: 'login'; credential: string } // ID token de Google
   | { t: 'join'; mode: 'random' | 'code' | 'create'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
   | { t: 'input'; q: number; mx: number; my: number; a: number; b: number; d?: number } // d: distancia al cursor
   | { t: 'emote'; e: 'wave' | 'taunt' | 'ally' }
@@ -146,7 +147,7 @@ export interface TvState { ch?: number[]; bc?: string }
 export interface RoomInfo { code: string; players: number; max: number; theme: MapThemeId; priv: boolean }
 
 export type ServerMsg =
-  | { t: 'welcome'; profile: Profile; dev?: boolean }
+  | { t: 'welcome'; profile: Profile; dev?: boolean; google?: string } // google: ID de cliente OAuth (si hay inicio de sesión)
   | { t: 'profile'; profile: Profile }
   | { t: 'toast'; text: string }
   | { t: 'joined'; code: string; theme: MapThemeId; seed: number; priv: boolean; you: number }

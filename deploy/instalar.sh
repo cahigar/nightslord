@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Instalación en un VPS limpio con Ubuntu 24.04 (Hetzner, Hostinger VPS, Oracle...). Ejecutar como root:
-#   curl -fsSL https://raw.githubusercontent.com/cahigar/nightslord/main/deploy/instalar.sh | bash -s juego.midominio.com
+#   curl -fsSL https://raw.githubusercontent.com/cahigar/nightslord/main/deploy/instalar.sh | bash -s juego.midominio.com tu@gmail.com
+# (el segundo dato, opcional, es el Gmail de la cuenta master). El ID de Google se añade luego en /opt/nightslord/deploy/.env
 set -euo pipefail
 DOMAIN="${1:-}"
-[ -z "$DOMAIN" ] && { echo "Uso: instalar.sh tu.dominio.com"; exit 1; }
+ADMIN="${2:-}"
+[ -z "$DOMAIN" ] && { echo "Uso: instalar.sh tu.dominio.com [gmail-master]"; exit 1; }
 
 echo "== Actualizando el sistema"
 apt-get update -y && apt-get upgrade -y
@@ -25,7 +27,9 @@ echo "== Código del juego"
 mkdir -p /opt && cd /opt
 [ -d nightslord ] || git clone https://github.com/cahigar/nightslord.git
 cd nightslord/deploy
-echo "DOMAIN=$DOMAIN" > .env
+if [ ! -f .env ]; then
+  { echo "DOMAIN=$DOMAIN"; echo "ADMIN_EMAILS=$ADMIN"; echo "GOOGLE_CLIENT_ID="; } > .env
+fi
 
 echo "== Compilando y arrancando (tarda unos minutos la primera vez)"
 docker compose up -d --build

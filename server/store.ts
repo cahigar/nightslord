@@ -24,7 +24,8 @@ class ProfileStore {
     mkdirSync(dirname(DB_FILE), { recursive: true });
     this.db = new DatabaseSync(DB_FILE);
     this.db.exec(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 3000; PRAGMA synchronous = NORMAL;
-      CREATE TABLE IF NOT EXISTS profiles (token TEXT PRIMARY KEY, data TEXT NOT NULL, updated INTEGER NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS profiles (token TEXT PRIMARY KEY, data TEXT NOT NULL, updated INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS accounts (sub TEXT PRIMARY KEY, token TEXT NOT NULL, email TEXT NOT NULL, created INTEGER NOT NULL);`);
     this.importOldJson();
     const n = (this.db.prepare('SELECT COUNT(*) AS n FROM profiles').get() as { n: number }).n;
     console.log(`[store] ${n} perfiles en ${DB_FILE}`);
@@ -34,6 +35,8 @@ class ProfileStore {
       this.dirty = true; this.flush();
       const old = Date.now() - 3 * 3600_000;
       for (const [t, s] of this.saved) if (s.active < old) { this.saved.delete(t); this.cache.delete(t); }
+      // los invitados (sin cuenta de Google) no se guardan para siempre: se borran a los 30 días sin jugar
+      try { this.db.prepare(`DELETE FROM profiles WHERE updated < ? AND token NOT IN (SELECT token FROM accounts)`).run(Date.now() - 30 * 86400_000); } catch { /* */ }
     }, 10 * 60_000).unref();
   }
 
@@ -77,6 +80,22 @@ class ProfileStore {
     };
     this.cache.set(p.token, p);
     this.dirty = true;
+    return p;
+  }
+
+  /** Inicio de sesión con Google: devuelve el perfil de esa cuenta. Si es la primera vez, la cuenta se queda
+   *  con el progreso del invitado actual. */
+  linkGoogle(guest: Profile, sub: string, email: string): Profile {
+    const row = this.db.prepare('SELECT token FROM accounts WHERE sub = ?').get(sub) as { token: string } | undefined;
+    let p: Profile;
+    if (row) p = this.getOrCreate(row.token, guest.name);
+    else {
+      p = guest;
+      this.db.prepare('INSERT INTO accounts (sub, token, email, created) VALUES (?, ?, ?, ?)').run(sub, p.token, email, Date.now());
+    }
+    p.google = { sub, email };
+    this.dirty = true;
+    this.flush();
     return p;
   }
 

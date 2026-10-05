@@ -15,6 +15,22 @@ const PORT = Number(process.env.PORT ?? 3000);
 /** Modo desarrollo: permite trucos para probar (subir nivel, llenar la R). */
 const DEV = process.argv.includes('--dev') || process.env.NL_DEV === '1';
 const STATIC_DIR = resolve(process.env.STATIC_DIR ?? 'dist/client');
+/** Inicio de sesión con Google (ID de cliente OAuth "Aplicación web"). Sin él, solo se juega como invitado. */
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? '';
+/** Cuentas master (todo desbloqueado y trucos de prueba): correos de Google separados por comas. */
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').toLowerCase().split(',').map((s) => s.trim()).filter(Boolean);
+
+/** Comprueba con Google un ID token del botón "Iniciar sesión con Google". */
+async function verifyGoogle(credential: string): Promise<{ sub: string; email: string } | null> {
+  if (!GOOGLE_CLIENT_ID || !credential || credential.length > 4096) return null;
+  try {
+    const r = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+    if (!r.ok) return null;
+    const t = await r.json() as { aud?: string; sub?: string; email?: string; email_verified?: string | boolean; exp?: string };
+    if (t.aud !== GOOGLE_CLIENT_ID || !t.sub || !t.email || String(t.email_verified) !== 'true' || Number(t.exp) * 1000 < Date.now()) return null;
+    return { sub: t.sub, email: t.email.toLowerCase() };
+  } catch { return null; }
+}
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
@@ -106,8 +122,19 @@ wss.on('connection', (ws: WebSocket, req) => {
         return;
       }
       const profile = store.getOrCreate(typeof msg.token === 'string' ? msg.token : undefined, cleanName(msg.name));
+      profile.master = !!profile.google && ADMIN_EMAILS.includes(profile.google.email);
       conn = { id: nextConnId++, profile, name: profile.name, send, roomCode: null };
-      send({ t: 'welcome', profile, dev: DEV });
+      send({ t: 'welcome', profile, dev: DEV, google: GOOGLE_CLIENT_ID || undefined });
+      return;
+    }
+    if (msg.t === 'login' && conn) {
+      const c = conn;
+      void verifyGoogle(String(msg.credential ?? '')).then((g) => {
+        if (!g) return c.send({ t: 'error', msg: 'No se pudo iniciar sesión con Google.' });
+        c.profile = store.linkGoogle(c.profile, g.sub, g.email);
+        c.profile.master = ADMIN_EMAILS.includes(g.email);
+        c.send({ t: 'welcome', profile: c.profile, dev: DEV, google: GOOGLE_CLIENT_ID || undefined });
+      });
       return;
     }
     if (msg.t === 'ping') { send({ t: 'pong', c: msg.c }); return; }
@@ -157,7 +184,7 @@ wss.on('connection', (ws: WebSocket, req) => {
         send({ t: 'profile', profile: c.profile });
         break;
       case 'cheat':
-        if (DEV) room?.onCheat(c, typeof msg.lvl === 'number' ? msg.lvl : undefined, !!msg.ult, Array.isArray(msg.tp) ? msg.tp : undefined, !!msg.heal);
+        if (DEV || c.profile.master) room?.onCheat(c, typeof msg.lvl === 'number' ? msg.lvl : undefined, !!msg.ult, Array.isArray(msg.tp) ? msg.tp : undefined, !!msg.heal);
         break;
       case 'buy':
         buy(c, String(msg.item ?? ''));

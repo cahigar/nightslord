@@ -18,7 +18,17 @@ const game = new Game(canvas);
 const store = {
   get(k: string) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k: string, v: string) { try { localStorage.setItem(k, v); } catch { /* */ } },
+  del(k: string) { try { localStorage.removeItem(k); } catch { /* */ } },
 };
+/** Invitado: su token vive solo en esta pestaña/navegador abierto (al cerrarlo se pierde el progreso).
+ *  Con cuenta de Google: el token se guarda y el progreso se recupera desde cualquier sitio. */
+const session = {
+  get(k: string) { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set(k: string, v: string) { try { sessionStorage.setItem(k, v); } catch { /* */ } },
+  del(k: string) { try { sessionStorage.removeItem(k); } catch { /* */ } },
+};
+const savedToken = () => store.get('nl_token') ?? session.get('nl_token') ?? undefined;
+let googleClientId = '';
 
 let profile: Profile | null = null;
 let selChar = (store.get('nl_char') as CharacterId) || 'vampire';
@@ -105,6 +115,41 @@ function buildChars(container: HTMLElement, small = false) {
     };
     container.appendChild(el);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Cuenta: invitado o Google
+// ---------------------------------------------------------------------------
+let gsiLoaded: Promise<void> | null = null;
+function loadGoogle(): Promise<void> {
+  return (gsiLoaded ??= new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client'; s.async = true; s.onload = () => ok(); s.onerror = () => fail();
+    document.head.appendChild(s);
+  }));
+}
+type GoogleId = { accounts: { id: { initialize(o: object): void; renderButton(el: HTMLElement, o: object): void; disableAutoSelect(): void } } };
+
+function buildAccount() {
+  const box = $('account');
+  if (profile?.google) {
+    box.innerHTML = `<div class="who">✅ Progreso guardado en <b>${profile.google.email}</b>${profile.master ? ' · <span class="master">MASTER</span>' : ''}</div><button id="logout" class="btn tiny">Cerrar sesión</button>`;
+    $('logout').onclick = () => {
+      store.del('nl_token'); session.del('nl_token');
+      (window as unknown as { google?: GoogleId }).google?.accounts.id.disableAutoSelect();
+      location.reload();
+    };
+    return;
+  }
+  box.innerHTML = `<div class="who">👤 Juegas como <b>invitado</b>: tu progreso se pierde al cerrar el navegador.</div><div id="gbtn"></div>
+    <div class="note">Entra con Google para guardar monedas, medallas y compras. Solo usamos tu correo para identificarte: <b>nunca te enviaremos publicidad</b>. <a href="/privacidad.html" target="_blank">Privacidad</a></div>`;
+  if (!googleClientId) { $('gbtn').textContent = '(inicio de sesión no disponible en este servidor)'; return; }
+  loadGoogle().then(() => {
+    const g = (window as unknown as { google: GoogleId }).google;
+    g.accounts.id.initialize({ client_id: googleClientId, callback: (r: { credential: string }) => net.send({ t: 'login', credential: r.credential }) });
+    const el = document.getElementById('gbtn');
+    if (el) g.accounts.id.renderButton(el, { theme: 'filled_black', size: 'medium', text: 'signin_with', shape: 'pill' });
+  }).catch(() => { const el = document.getElementById('gbtn'); if (el) el.textContent = '(no se pudo cargar Google)'; });
 }
 
 function buildCharInfo() {
@@ -194,7 +239,7 @@ async function join(mode: 'random' | 'code' | 'create', code?: string) {
     try { await net.switchTo(net.shardOfCode(code)); } catch { showError('No se pudo conectar con el servidor de esa sala.'); return; }
   }
   // re-hello por si cambió el nombre
-  net.send({ t: 'hello', token: store.get('nl_token') ?? undefined, name });
+  net.send({ t: 'hello', token: savedToken(), name });
   net.send({
     t: 'join', mode, code, char: selChar, skin: selSkin,
     priv: $<HTMLInputElement>('priv').checked, theme: ($<HTMLSelectElement>('theme').value || undefined) as MapThemeId | undefined,
@@ -344,11 +389,14 @@ $('tomenu').onclick = () => net.send({ t: 'leave' });
 net.on((m: ServerMsg) => {
   switch (m.t) {
     case 'welcome':
-      devMode = !!m.dev;
+      devMode = !!m.dev || !!m.profile.master;
+      googleClientId = m.google ?? '';
     // falls through
     case 'profile':
       profile = m.profile;
-      store.set('nl_token', m.profile.token);
+      if (m.profile.google) { store.set('nl_token', m.profile.token); session.del('nl_token'); }
+      else { session.set('nl_token', m.profile.token); store.del('nl_token'); }
+      buildAccount();
       if (!nameInput.value) nameInput.value = m.profile.name;
       refreshMenu();
       break;
@@ -422,7 +470,7 @@ async function boot() {
   try {
     const linkCode = new URLSearchParams(location.search).get('sala');
     await net.connect(linkCode ? net.shardOfCode(linkCode) || await net.pickShard() : await net.pickShard());
-    net.send({ t: 'hello', token: store.get('nl_token') ?? undefined, name: nameInput.value.trim() });
+    net.send({ t: 'hello', token: savedToken(), name: nameInput.value.trim() });
     net.send({ t: 'rooms' });
     setInterval(() => { if (!inGame) net.send({ t: 'rooms' }); }, 5000);
   } catch {

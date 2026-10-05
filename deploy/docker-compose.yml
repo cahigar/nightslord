@@ -11,6 +11,8 @@ x-game: &game
     MAX_CONNECTIONS: "200"        # tope de jugadores por shard: el "freno" de CPU y de tráfico
     MAX_ROOMS: "14"
     MIN_ROOMS: "1"                # siempre al menos una sala pública abierta
+    GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}   # inicio de sesión con Google (deploy/.env)
+    ADMIN_EMAILS: ${ADMIN_EMAILS:-}           # cuentas master (deploy/.env), separadas por comas
   cpus: "1.0"
   mem_limit: 512m
   logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }

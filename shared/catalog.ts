@@ -114,7 +114,7 @@ export interface Profile {
   google?: { sub: string; email: string };
   /** Cuenta master: todo desbloqueado y trucos de prueba. */
   master?: boolean;
-  /** Último monstruo que te derrotó (token de su perfil), para la medalla Venganza. */
+  /** Último monstruo que te derrotó (huella anónima de su perfil), para la medalla Venganza. */
   lastKiller?: string;
 }
 

@@ -4,3 +4,4 @@ data
 .git
 deploy/data
 deploy/caddy_*
+deploy/.env
