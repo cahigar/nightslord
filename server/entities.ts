@@ -161,7 +161,8 @@ export interface Hunter extends Mob {
 
 /** Esbirro (zombi de Paciente Cero). Reutilizable para futuros invocadores. */
 export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat' | 'clone' | 'thrall' | 'wall' | 'turret' | 'flower' | 'digger'
-  | 'barrel' | 'buccaneer' | 'spiderling' | 'decoy' | 'slimelet' | 'beacon'; // thrall: humano engatusado por la súcubo · wall/turret/flower: plantas del Árbol maldito (no se mueven)
+  | 'barrel' | 'buccaneer' | 'spiderling' | 'decoy' | 'slimelet' | 'beacon'
+  | 'skel' | 'skelarcher' | 'skeldog' | 'unit' | 'unitfree'; // thrall: humano engatusado por la súcubo · wall/turret/flower: plantas del Árbol maldito (no se mueven)
 export interface Minion extends Mob {
   kind: Kind.Minion;
   owner: number; // id del jugador dueño
@@ -176,6 +177,8 @@ export interface Minion extends Mob {
   speed: number;
   swellT: number; // zombi gordo a punto de explotar
   born: number;
+  wx?: number; wy?: number; // destino de paseo (Unidad independiente)
+  boomAt?: number; // explota en este instante (Convergencia de Unidad)
 }
 
 export interface PowerUp { id: number; x: number; y: number; type: PowerUpType }
@@ -204,7 +207,7 @@ export interface Projectile {
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation' | 'whirl';
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation' | 'whirl' | 'lastspell' | 'portal';
 /** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
 export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number>; next?: number /* próximo evento (rayo del clavo) */; v?: number }
 

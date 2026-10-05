@@ -6,7 +6,7 @@ import { Room } from '../server/Room';
 import type { Conn } from '../server/types';
 
 function run(char: CharacterId) {
-  const room = new Room('TEST', 'camp', true);
+  const room = new Room('TEST', (process.env.THEME as 'camp') ?? 'camp', true);
   room.destroy();
   const step = () => (room as unknown as { step(): void }).step();
   const fx = new Map<string, number>();

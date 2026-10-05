@@ -4,16 +4,17 @@ import { MAP_SIZE } from './constants';
 import { fbm } from './noise';
 import { mulberry32, rint, rpick, rrange, type Rng } from './rng';
 
-export type MapThemeId = 'elm' | 'transylvania' | 'camp';
+export type MapThemeId = 'elm' | 'transylvania' | 'camp' | 'swamp';
 
 export type ObstacleType =
   | 'house' | 'fence' | 'tree' | 'car' | 'hedge' | 'lamp' | 'mailbox'
   | 'wall' | 'tomb' | 'crypt' | 'deadtree' | 'tower' | 'brazier' | 'well' | 'statue'
   | 'cabin' | 'pine' | 'water' | 'canoe' | 'rock' | 'firepit' | 'log'
-  | 'shop' | 'barricade';
+  | 'shop' | 'barricade'
+  | 'cypress' | 'hut' | 'cauldron';
 
 export type DecorType =
-  | 'bones' | 'pumpkin' | 'candle' | 'skull' | 'tricycle' | 'cross' | 'mushroom' | 'stump' | 'lantern' | 'sign';
+  | 'bones' | 'pumpkin' | 'candle' | 'skull' | 'tricycle' | 'cross' | 'mushroom' | 'stump' | 'lantern' | 'sign' | 'reeds' | 'totem';
 
 export interface Obstacle { x: number; y: number; w: number; h: number; type: ObstacleType; v: number; body?: number }
 export interface Decor { x: number; y: number; type: DecorType; v: number }
@@ -57,6 +58,7 @@ export const THEMES: Record<MapThemeId, MapTheme> = {
   elm: { id: 'elm', name: 'Calle del Olmo', subtitle: 'Un barrio tranquilo... demasiado tranquilo', ambient: '#0a0618', moon: 'rgba(120,110,200,' },
   transylvania: { id: 'transylvania', name: 'Transilvania', subtitle: 'El castillo espera a su señor', ambient: '#12040a', moon: 'rgba(200,90,120,' },
   camp: { id: 'camp', name: 'Campamento Lago Sereno', subtitle: 'Nadie volvió del turno de noche', ambient: '#040a14', moon: 'rgba(90,150,210,' },
+  swamp: { id: 'swamp', name: 'Pantano de la Bruja', subtitle: 'El caldero lleva siglos sin apagarse', ambient: '#050e08', moon: 'rgba(120,200,120,' },
 };
 
 export const THEME_IDS = Object.keys(THEMES) as MapThemeId[];
@@ -259,7 +261,7 @@ function houseTV(o: Obstacle, idx: number, id: number): TV | null {
 /** Franja exterior temática: el mundo continúa, pero se entiende que no se puede pasar. */
 function buildBorder(r: Rng, theme: MapThemeId, edges: Record<Side, EdgeKind>, trails: Trail[]): Obstacle[] {
   const S = MAP_SIZE, D = BORDER_DEPTH, out: Obstacle[] = [];
-  const treeType: ObstacleType = theme === 'elm' ? 'tree' : theme === 'transylvania' ? 'deadtree' : 'pine';
+  const treeType: ObstacleType = theme === 'elm' ? 'tree' : theme === 'transylvania' ? 'deadtree' : theme === 'swamp' ? 'cypress' : 'pine';
   const nearRoad = (x: number, y: number, pad: number) => trails.some((t) => t.kind === 'road' && distToTrail(t, x, y) < t.w / 2 + pad);
   const add = (type: ObstacleType, x: number, y: number, w: number, h: number, v = rint(r, 0, 3)) => {
     if (nearRoad(x + w / 2, y + h / 2, Math.max(w, h) / 2 + 6)) return;
@@ -473,6 +475,44 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     P.cluster('deadtree', 90, 50, 50, 30, seed + 3, 500, 0.55);
     P.scatter('rock', 14, 44, 34, 40);
     for (let k = 0; k < 30; k++) decor.push({ x: rrange(r, 80, S - 80), y: rrange(r, 80, S - 80), type: rpick(r, ['bones', 'skull', 'mushroom', 'candle'] as const), v: rint(r, 0, 3) });
+  } else if (theme === 'swamp') {
+    // Pantano: muchas charcas de agua negra unidas por pasarelas de tierra, la choza de la bruja en el centro
+    const hx = S / 2 + rint(r, -260, 260) - 110, hy = S / 2 + rint(r, -260, 260) - 80;
+    plazas.push({ x: hx - 140, y: hy - 90, w: 500, h: 360, kind: 'dirt' });
+    const nPonds = rint(r, 9, 12);
+    for (let k = 0, tries = 0; k < nPonds && tries < 200; tries++) {
+      const cx = rrange(r, 260, S - 260), cy = rrange(r, 260, S - 260);
+      if (cx > hx - 360 && cx < hx + 580 && cy > hy - 320 && cy < hy + 480) continue; // la isla de la choza queda seca
+      const rx = rrange(r, 130, 250), ry = rrange(r, 100, 190);
+      if (lakes.some((l) => Math.hypot(l.cx - cx, l.cy - cy) < l.rx + rx + 90)) continue;
+      lakes.push({ cx, cy, rx, ry, seed: seed + 31 + k });
+      k++;
+    }
+    // senderos fangosos desde la choza
+    const door: [number, number] = [hx + 110, hy + 190];
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + r() * 0.7;
+      const ex = Math.max(60, Math.min(S - 60, door[0] + Math.cos(a) * 1900)), ey = Math.max(60, Math.min(S - 60, door[1] + Math.sin(a) * 1900));
+      trails.push(windingTrail(r, door, [ex, ey], 54, 'dirt', 260));
+    }
+    P = new Placer(r, trails, (x, y) => lakes.some((l) => lakeValue(l, x, y) > -0.2) || (x > hx - 140 && x < hx + 360 && y > hy - 90 && y < hy + 270));
+    for (const l of lakes) P.obs.push(...lakeObstacles(l));
+    P.add('hut', hx, hy, 220, 160, 0);
+    P.add('cauldron', hx + 280, hy + 150, 44, 36, 0);
+    for (const [dx, dy] of [[-100, 40], [-80, 210], [300, 20]]) decor.push({ x: hx + dx, y: hy + dy, type: 'totem', v: rint(r, 0, 3) });
+    // chozas de pescadores (algunas con tele)
+    P.scatter('cabin', 5, 170, 130, 140);
+    // cipreses y árboles muertos agrupados, más densos en la orilla
+    P.cluster('cypress', 150, 56, 56, 22, seed + 9, 380, 0.4);
+    P.cluster('deadtree', 40, 50, 50, 30, seed + 4, 300, 0.55);
+    P.scatter('rock', 10, 44, 34, 40);
+    P.scatter('log', 10, 80, 24, 40);
+    // juncos en las orillas y setas brillantes
+    for (const l of lakes) for (let k = 0; k < 7; k++) {
+      const a = r() * Math.PI * 2;
+      decor.push({ x: l.cx + Math.cos(a) * l.rx * 1.12, y: l.cy + Math.sin(a) * l.ry * 1.15, type: 'reeds', v: rint(r, 0, 3) });
+    }
+    for (let k = 0; k < 26; k++) decor.push({ x: rrange(r, 80, S - 80), y: rrange(r, 80, S - 80), type: rpick(r, ['mushroom', 'mushroom', 'bones', 'skull', 'candle', 'stump'] as const), v: rint(r, 0, 3) });
   } else {
     // Lago irregular
     const lake: Lake = { cx: rrange(r, 1000, 2200), cy: rrange(r, 900, 1400), rx: rrange(r, 420, 560), ry: rrange(r, 300, 400), seed: seed + 11 };
@@ -523,7 +563,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
   // ---- masas de agua (identificables para futuros personajes)
   const water: WaterBody[] = [];
   let wid = 1;
-  for (const l of lakes) water.push({ id: wid++, kind: theme === 'elm' ? 'pond' : 'lake', x: Math.round(l.cx - l.rx * 1.3), y: Math.round(l.cy - l.ry * 1.3), w: Math.round(l.rx * 2.6), h: Math.round(l.ry * 2.6) });
+  for (const l of lakes) water.push({ id: wid++, kind: theme === 'elm' || theme === 'swamp' ? 'pond' : 'lake', x: Math.round(l.cx - l.rx * 1.3), y: Math.round(l.cy - l.ry * 1.3), w: Math.round(l.rx * 2.6), h: Math.round(l.ry * 2.6) });
   for (const p of pools) water.push({ id: wid++, kind: 'pool', ...p });
   for (const rv of rivers) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -555,7 +595,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     }
   });
   // televisores abandonados a la intemperie (inquietantes)
-  const outdoor = theme === 'transylvania' ? 9 : theme === 'camp' ? 8 : 4; // solo se ven si hay una Interferencia en la sala
+  const outdoor = theme === 'transylvania' ? 9 : theme === 'camp' || theme === 'swamp' ? 8 : 4; // solo se ven si hay una Interferencia en la sala
   for (let k = 0, tries = 0; k < outdoor && tries < 80; tries++) {
     const x = rrange(r, 200, S - 200), y = rrange(r, 200, S - 200);
     if (!P.free(x - 20, y - 20, 40, 34, 20)) continue;
@@ -569,6 +609,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     elm: ['houses', 'hedge', 'fence', 'houses', 'water'],
     transylvania: ['cliff', 'forest', 'wall', 'graves'],
     camp: ['forest', 'forest', 'water', 'cliff'],
+    swamp: ['forest', 'water', 'forest', 'graves'],
   };
   const edges = {} as Record<Side, EdgeKind>;
   let usedWater = false, usedCliff = false;

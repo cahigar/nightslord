@@ -12,7 +12,7 @@ import type { Kit } from './types';
 
 const B = BAL.tree;
 type PlantKind = 'wall' | 'turret' | 'flower';
-const VEGETATION = new Set(['tree', 'pine', 'deadtree', 'hedge']);
+const VEGETATION = new Set(['tree', 'pine', 'deadtree', 'hedge', 'cypress']);
 
 const plants = (room: Room, p: Player, kind?: PlantKind): Minion[] =>
   room.minionsOf(p.id).filter((m) => (kind ? m.variant === kind : m.variant === 'wall' || m.variant === 'turret' || m.variant === 'flower'));

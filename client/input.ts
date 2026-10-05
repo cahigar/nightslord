@@ -7,7 +7,13 @@ export const input = {
   mouseX: 0,
   mouseY: 0,
   mouseDown: false,
-  touch: { active: false, mx: 0, my: 0, aim: null as number | null, buttons: 0 },
+  /** Táctil: joystick flotante (mueve) y botones que se arrastran para apuntar (y se sueltan para lanzar). */
+  touch: {
+    active: false, mx: 0, my: 0,
+    moveAim: null as number | null, // última dirección del joystick
+    aim: null as number | null, aimDist: 220, dragging: 0, // apuntado manual arrastrando un botón (bit del botón)
+    buttons: 0, pulse: 0,
+  },
   onKey: null as ((code: string) => void) | null,
 };
 
@@ -34,44 +40,90 @@ export function setupInput(canvas: HTMLCanvasElement) {
 }
 
 function setupTouch() {
-  if (!('ontouchstart' in window)) return;
+  if (!('ontouchstart' in window) && !(navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches)) return;
   const pad = document.getElementById('touch')!;
   pad.hidden = false;
   input.touch.active = true;
+  document.body.classList.add('touch');
   const stick = document.getElementById('stick')!;
   const knob = document.getElementById('knob')!;
+  const MAX = 48;
   let stickId: number | null = null;
   let cx = 0, cy = 0;
-  stick.addEventListener('touchstart', (e) => {
+  // joystick flotante: aparece donde apoyes el pulgar en la mitad izquierda de la pantalla
+  const zone = document.getElementById('stickzone')!;
+  const place = (x: number, y: number) => {
+    cx = x; cy = y;
+    stick.style.left = `${x - stick.offsetWidth / 2}px`; stick.style.top = `${y - stick.offsetHeight / 2}px`;
+    stick.style.bottom = 'auto';
+    stick.classList.add('on');
+  };
+  zone.addEventListener('touchstart', (e) => {
+    if (stickId !== null) return;
     const t = e.changedTouches[0];
     stickId = t.identifier;
-    const r = stick.getBoundingClientRect();
-    cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+    place(t.clientX, t.clientY);
     e.preventDefault();
   }, { passive: false });
+  // botones: pulsar = mantener (ataque) · arrastrar = apuntar · soltar = lanzar (Q, E, R)
+  const drags = new Map<number, { bit: number; x: number; y: number; hold: boolean; el: HTMLElement }>();
   window.addEventListener('touchmove', (e) => {
     for (const t of Array.from(e.changedTouches)) {
-      if (t.identifier !== stickId) continue;
-      let dx = t.clientX - cx, dy = t.clientY - cy;
-      const d = Math.hypot(dx, dy), max = 45;
-      if (d > max) { dx = (dx / d) * max; dy = (dy / d) * max; }
-      knob.style.transform = `translate(${dx}px, ${dy}px)`;
-      input.touch.mx = dx / max; input.touch.my = dy / max;
-      if (d > 10) input.touch.aim = Math.atan2(dy, dx);
+      if (t.identifier === stickId) {
+        let dx = t.clientX - cx, dy = t.clientY - cy;
+        const d = Math.hypot(dx, dy);
+        if (d > MAX * 1.6) { cx += (dx / d) * (d - MAX * 1.6); cy += (dy / d) * (d - MAX * 1.6); place(cx, cy); dx = t.clientX - cx; dy = t.clientY - cy; } // el joystick sigue al dedo
+        const dd = Math.hypot(dx, dy);
+        if (dd > MAX) { dx = (dx / dd) * MAX; dy = (dy / dd) * MAX; }
+        knob.style.transform = `translate(${dx}px, ${dy}px)`;
+        input.touch.mx = dx / MAX; input.touch.my = dy / MAX;
+        if (dd > 10) input.touch.moveAim = Math.atan2(dy, dx);
+        e.preventDefault();
+        continue;
+      }
+      const g = drags.get(t.identifier);
+      if (!g) continue;
+      const dx = t.clientX - g.x, dy = t.clientY - g.y, d = Math.hypot(dx, dy);
+      if (d > 16) {
+        input.touch.dragging = g.bit;
+        input.touch.aim = Math.atan2(dy, dx);
+        input.touch.aimDist = Math.max(60, Math.min(900, (d - 16) * 5));
+        g.el.classList.add('aiming');
+      }
+      e.preventDefault();
     }
   }, { passive: false });
-  window.addEventListener('touchend', (e) => {
-    for (const t of Array.from(e.changedTouches)) if (t.identifier === stickId) {
-      stickId = null; input.touch.mx = 0; input.touch.my = 0; knob.style.transform = '';
+  const end = (e: TouchEvent) => {
+    for (const t of Array.from(e.changedTouches)) {
+      if (t.identifier === stickId) {
+        stickId = null; input.touch.mx = 0; input.touch.my = 0; knob.style.transform = '';
+        stick.classList.remove('on'); stick.style.left = ''; stick.style.top = ''; stick.style.bottom = '';
+      }
+      const g = drags.get(t.identifier);
+      if (!g) continue;
+      drags.delete(t.identifier);
+      g.el.classList.remove('down', 'aiming');
+      input.touch.buttons &= ~g.bit;
+      if (!g.hold) input.touch.pulse |= g.bit; // Q, E y R se lanzan al soltar (hacia donde apuntaste)
+      if (input.touch.dragging === g.bit) setTimeout(() => { if (input.touch.dragging === g.bit) { input.touch.dragging = 0; input.touch.aim = null; } }, 120);
     }
-  });
-  const bind = (id: string, bit: number) => {
-    const el = document.getElementById(id)!;
-    el.addEventListener('touchstart', (e) => { input.touch.buttons |= bit; e.preventDefault(); }, { passive: false });
-    el.addEventListener('touchend', () => { input.touch.buttons &= ~bit; });
   };
-  bind('tb-atk', BTN_ATTACK); bind('tb-q', BTN_Q); bind('tb-e', BTN_E); bind('tb-r', BTN_R);
-  document.getElementById('tb-emote')!.addEventListener('touchstart', () => input.onKey?.('KeyT'));
+  window.addEventListener('touchend', end);
+  window.addEventListener('touchcancel', end);
+  const bind = (id: string, bit: number, hold: boolean) => {
+    const el = document.getElementById(id)!;
+    el.addEventListener('touchstart', (e) => {
+      const t = e.changedTouches[0];
+      const r = el.getBoundingClientRect();
+      drags.set(t.identifier, { bit, x: r.left + r.width / 2, y: r.top + r.height / 2, hold, el });
+      el.classList.add('down');
+      if (hold) input.touch.buttons |= bit;
+      if (navigator.vibrate) try { navigator.vibrate(8); } catch { /* */ }
+      e.preventDefault();
+    }, { passive: false });
+  };
+  bind('tb-atk', BTN_ATTACK, true); bind('tb-q', BTN_Q, false); bind('tb-e', BTN_E, false); bind('tb-r', BTN_R, false);
+  document.getElementById('tb-emote')!.addEventListener('touchstart', (e) => { input.onKey?.('KeyT'); e.preventDefault(); }, { passive: false });
 }
 
 export function readMove(): { mx: number; my: number } {
@@ -87,7 +139,8 @@ export function readMove(): { mx: number; my: number } {
 }
 
 export function readButtons(): number {
-  let b = input.touch.buttons;
+  let b = input.touch.buttons | input.touch.pulse;
+  input.touch.pulse = 0;
   const k = (c: string) => input.keys.has(c) || input.pulses.has(c);
   if (input.mouseDown || input.pulses.has('Mouse0') || k('Space')) b |= BTN_ATTACK;
   if (k('KeyQ')) b |= BTN_Q;

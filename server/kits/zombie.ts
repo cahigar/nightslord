@@ -19,7 +19,7 @@ export const zombieKit: Kit = {
       const ax = p.x + Math.cos(a) * aimD, ay = p.y + Math.sin(a) * aimD;
       let best: Npc | null = null, bd = Infinity;
       for (const n of room.npcs.values()) {
-        if (n.dead || n.entombT > 0 || n.infectT > 0 || n.disguiseT > 0) continue;
+        if (n.dead || n.entombT > 0 || n.infectT > 0 || n.disguiseT > 0 || n.variant.startsWith('c_')) continue;
         const dp = Math.hypot(n.x - p.x, n.y - p.y);
         if (dp > B.contagionRange + 40) continue;
         const ang = Math.abs(Math.atan2(Math.sin(Math.atan2(n.y - p.y, n.x - p.x) - a), Math.cos(Math.atan2(n.y - p.y, n.x - p.x) - a)));

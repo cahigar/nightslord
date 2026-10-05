@@ -169,6 +169,7 @@ export class Effects {
     switch (this.map.theme) {
       case 'elm': return n < 0.4 ? ['#5a4632', '#3a2c20', '#7a6046'] : ['#a0501a', '#c07020', '#3a6a2a', '#8a2a14'];
       case 'transylvania': return n < 0.42 ? ['#5a5660', '#3a3640', '#7a7680'] : ['#5a5236', '#3a3424', '#2e4a2e'];
+      case 'swamp': return n < 0.4 ? ['#2b231c', '#3a2c20', '#1a1512'] : ['#2a361d', '#212b18', '#3a4a24'];
       default: return n < 0.3 ? ['#5a4632', '#463626'] : ['#5a4022', '#2c5236', '#463522'];
     }
   }
@@ -273,6 +274,19 @@ export class Effects {
       case 'heartHit': this.burst(x, y - 40, 12, ['#ff4a8a', '#ffd0e0', '#ffffff'], 140, 3, 0, 0.6, true); break;
       case 'hexed': this.burst(x, y - 20, 18, ['#c060ff', '#80e020', '#ffffff'], 140, 3, 100, 0.6, true); this.ripple(x, y - 10, '#c060ff', 0.4, 30); break;
       case 'hexzone': this.burst(x, y, 40, ['#c060ff', '#5a2a8a', '#80e020'], 300, 4, 300, 0.8, true); this.ripple(x, y, '#c060ff', 0.7, ev.r ?? 250); break;
+      case 'tvBolt': this.tvBolt(ev); break;
+      case 'tvPop': this.tvPop(ev); break;
+      case 'lick': this.lick(ev); break;
+      case 'reap': this.reap(ev); break;
+      case 'deathMark': this.deathMark(ev); break;
+      case 'blink': this.blink(ev); break;
+      case 'unitBoom': this.unitBoom(ev); break;
+      case 'assimilate': this.assimilate(ev); break;
+      case 'boneWarn': this.boneWarn(ev); break;
+      case 'boneSlam': this.boneSlam(ev); break;
+      case 'raise': this.raise(ev); break;
+      case 'ghostRise': this.ghostRise(ev); break;
+      case 'critterPop': this.burst(x, y - 16, 14, ['#ffe080', '#ffffff', '#c0a040'], 140, 3, 200, 0.6, true); this.ripple(x, y, '#ffe080', 0.4, 30); break;
       case 'summon': this.lightPillar(x, y, ev.n ? 1 : 0.8, ev.n ? '#ff4060' : '#c060ff'); this.burst(x, y - 30, 24, ['#c060ff', '#ff4060', '#2e1a3a'], 200, 3, 0, 0.8, true); break;
     }
   }
@@ -330,6 +344,52 @@ export class Effects {
       this.burst(ev.x, ev.y - 40, 4, ['#60e0a0', '#a0fff0'], 80, 2, 0, 0.4, true);
     } else if (ev.c === 'zombie') {
       this.clawMarks(x, y, a, '#b0d070', 0.16, reach / 52);
+    } else if (ev.c === 'kappa') {
+      // tajo de agua: media luna de gotas que barre de un lado a otro y salpica
+      this.add(0.26, 'top', (ctx, k) => {
+        const sweep = Math.min(1, k * 2.4), half = 1.05;
+        for (let i = 0; i <= 16; i++) {
+          const t = i / 16;
+          if (t > sweep) break;
+          const aa = a - half + t * half * 2, rr = reach * (0.55 + Math.sin(t * Math.PI) * 0.35);
+          const px = x + Math.cos(aa) * rr, py = y + Math.sin(aa) * rr * 0.8;
+          ctx.globalAlpha = (1 - k) * (0.4 + t * 0.6);
+          ctx.fillStyle = '#3a90d0'; ctx.fillRect(snap(px), snap(py), PIXEL * 3, PIXEL * 2);
+          ctx.fillStyle = '#a0d8f8'; ctx.fillRect(snap(px), snap(py), PIXEL * 2, PIXEL);
+          if (i % 4 === 0) { ctx.fillStyle = '#ffffff'; ctx.fillRect(snap(px + PIXEL), snap(py - PIXEL), PIXEL, PIXEL); }
+        }
+        ctx.globalAlpha = 1;
+      });
+      this.spray(ev.x + Math.cos(a) * reach * 0.7, ev.y + Math.sin(a) * reach * 0.5, a, 12, ['#c8e8f8', '#7aa6d0', '#3a90d0', '#ffffff'], 220);
+    } else if (ev.c === 'demon') {
+      // zarpazo de fuego: arco de llamas y brasas
+      this.add(0.24, 'glow', (ctx, k) => {
+        for (let i = 0; i <= 12; i++) {
+          const t = i / 12, aa = a - 0.9 + t * 1.8, rr = reach * 0.75;
+          const px = x + Math.cos(aa) * rr, py = y + Math.sin(aa) * rr * 0.8;
+          const fh = PIXEL * (2 + ((i + Math.floor(k * 10)) % 3));
+          ctx.globalAlpha = 1 - k;
+          ctx.fillStyle = '#c02010'; ctx.fillRect(snap(px), snap(py - fh), PIXEL * 2, fh);
+          ctx.fillStyle = '#ffb030'; ctx.fillRect(snap(px), snap(py - fh + PIXEL), PIXEL, fh - PIXEL);
+        }
+        ctx.globalAlpha = 1;
+      });
+      this.burst(ev.x + Math.cos(a) * reach * 0.6, ev.y - 30 + Math.sin(a) * reach * 0.4, 10, ['#ff6020', '#ffd040', '#c02010'], 160, 3, -80, 0.5, true);
+    } else if (ev.c === 'reaper') {
+      // guadañazo: media luna fría y ancha con estela de almas
+      this.add(0.24, 'top', (ctx, k) => {
+        const sweep = Math.min(1, k * 2.6);
+        for (let i = 0; i <= 20; i++) {
+          const t = i / 20;
+          if (t > sweep) break;
+          const aa = a + 1.25 - t * 2.5, rr = reach * 0.85;
+          const th = Math.max(1, Math.round(Math.sin(t * Math.PI) * 3));
+          ctx.globalAlpha = (1 - k) * (0.3 + t * 0.7);
+          for (let j = 0; j < th; j++) { ctx.fillStyle = j === 0 ? '#ffffff' : j === 1 ? '#a0ffe0' : '#3a8a78'; ctx.fillRect(snap(x + Math.cos(aa) * (rr - j * PIXEL)), snap(y + Math.sin(aa) * (rr - j * PIXEL) * 0.8), PIXEL * 2, PIXEL); }
+        }
+        ctx.globalAlpha = 1;
+      });
+      this.burst(ev.x + Math.cos(a) * reach * 0.6, ev.y - 40, 6, ['#60ffd0', '#e0fff8'], 80, 3, -30, 0.5, true);
     } else if (ev.c === 'invisible') {
       this.add(0.15, 'top', (ctx, k) => {
         ctx.strokeStyle = `rgba(190,220,255,${0.5 * (1 - k)})`; ctx.lineWidth = 3;
@@ -375,9 +435,9 @@ export class Effects {
         const e = t * t * (3 - 2 * t);
         const x = d.x + (tp.x - d.x) * e + Math.sin(now / 60 + d.wob) * 4 * (1 - e);
         const y = d.y + (tp.y - 45 - d.y) * e - Math.sin(e * Math.PI) * 30;
-        ctx.fillStyle = sand ? '#e0c060' : '#ff2a40';
+        ctx.fillStyle = sand ? '#e0c060' : ev.c === 'water' ? '#a0d8f8' : ev.c === 'soul' ? '#60ffd0' : '#ff2a40';
         ctx.fillRect(snap(x), snap(y), PIXEL * 2, PIXEL * 2);
-        ctx.fillStyle = sand ? 'rgba(224,192,96,0.4)' : 'rgba(255,40,60,0.4)';
+        ctx.fillStyle = sand ? 'rgba(224,192,96,0.4)' : ev.c === 'water' ? 'rgba(160,216,248,0.4)' : ev.c === 'soul' ? 'rgba(96,255,208,0.4)' : 'rgba(255,40,60,0.4)';
         ctx.fillRect(snap(x - (tp.x - d.x) * 0.04), snap(y - (tp.y - d.y) * 0.04), PIXEL, PIXEL);
       }
     });
@@ -986,18 +1046,232 @@ export class Effects {
     });
   }
 
-  /** Nube que llueve sobre un punto (Kappa nv. 15); al acabar deja una poza. */
+  /** Nube de tormenta que llueve sobre un punto (Kappa nv. 15): la lluvia va formando la poza. */
   private rainCloud(ev: FxEv) {
     const R = ev.r ?? 80, dur = ev.d ?? 2;
-    this.add(dur, 'glow', (ctx, k) => {
-      const fade = Math.min(1, k * dur * 3, (1 - k) * dur * 3);
-      ctx.globalAlpha = 0.8 * fade;
-      ctx.fillStyle = '#4a5468';
-      for (let i = 0; i < 6; i++) ctx.beginPath(), ctx.ellipse(ev.x - R * 0.6 + i * R * 0.25, ev.y - 170 + Math.sin(i * 1.7) * 8, 26, 16, 0, 0, Math.PI * 2), ctx.fill();
-      ctx.fillStyle = '#a0c8f0';
-      for (let i = 0; i < 18; i++) { const t = (k * 8 + i / 18) % 1; ctx.fillRect(snap(ev.x - R + ((i * 37) % 20) / 20 * R * 2), snap(ev.y - 160 + t * 160), PIXEL, PIXEL * 3); }
+    const drops = Array.from({ length: 34 }, (_, i) => ({ x: (hash2(i, 1, R) - 0.5) * R * 1.7, ph: hash2(i, 2, R), sp: 0.8 + hash2(i, 3, R) * 0.5 }));
+    const cy = ev.y - 190;
+    // la poza crece en el suelo a medida que llueve
+    this.add(dur, 'ground', (ctx, k) => {
+      const grow = Math.min(1, k * 1.15);
+      const rq = Math.max(12, Math.round((R * (0.25 + grow * 0.75)) / 4) * 4);
+      const img = bakePuddle(rq, 5);
+      ctx.globalAlpha = 0.9 * Math.min(1, k * 4);
+      ctx.drawImage(img, snap(ev.x - img.width * PIXEL / 2), snap(ev.y - img.height * PIXEL / 2), img.width * PIXEL, img.height * PIXEL);
       ctx.globalAlpha = 1;
     });
+    this.add(dur, 'glow', (ctx, k, now) => {
+      const fade = Math.min(1, k * dur * 3, (1 - k) * dur * 3);
+      // nube pixelada (la misma masa de nubes que la tormenta del Reanimado, en pequeño)
+      const img = bakeClouds(80, 3);
+      const w = img.width * PIXEL, h = img.height * PIXEL;
+      ctx.globalAlpha = 0.95 * fade;
+      ctx.drawImage(img, snap(ev.x - w / 2 + Math.sin(now / 900) * 6), snap(cy - h / 2), w, h);
+      // lluvia: trazos pixelados que caen inclinados y salpican al llegar
+      for (const d of drops) {
+        const t = (k * dur * 2.2 * d.sp + d.ph) % 1;
+        const px = ev.x + d.x - t * 18, py = cy + 20 + t * (ev.y - cy - 20);
+        ctx.globalAlpha = 0.85 * fade;
+        ctx.fillStyle = '#a0c8f0'; ctx.fillRect(snap(px), snap(py), PIXEL, PIXEL * 3);
+        if (t > 0.9) { ctx.fillStyle = '#e0f0ff'; ctx.fillRect(snap(px - PIXEL), snap(ev.y + d.x * 0.3 - PIXEL), PIXEL, PIXEL); ctx.fillRect(snap(px + PIXEL), snap(ev.y + d.x * 0.3 - PIXEL * 2), PIXEL, PIXEL); }
+      }
+      // relámpago ocasional dentro de la nube
+      if (Math.floor(now / 90) % 23 === 0) { ctx.globalAlpha = 0.4 * fade; ctx.fillStyle = '#e0e8ff'; ctx.fillRect(snap(ev.x - 20), snap(cy - 10), PIXEL * 12, PIXEL * 4); }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Rayo de la Emisión nacional: salta de una tele a otra en zigzag. */
+  private tvBolt(ev: FxEv) {
+    const ax = ev.x, ay = ev.y, bx = ev.tx ?? ev.x, by = ev.ty ?? ev.y, col = ev.c ?? '#40ff90';
+    const n = Math.max(4, Math.round(Math.hypot(bx - ax, by - ay) / 28));
+    const pts = Array.from({ length: n + 1 }, (_, i) => { const t = i / n, j = i === 0 || i === n ? 0 : (Math.random() - 0.5) * 34; return [ax + (bx - ax) * t - ((by - ay) / (Math.hypot(bx - ax, by - ay) || 1)) * j, ay + (by - ay) * t + ((bx - ax) / (Math.hypot(bx - ax, by - ay) || 1)) * j]; });
+    this.add(0.22, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+        const m = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / PIXEL));
+        for (let s2 = 0; s2 <= m; s2++) {
+          const px = x0 + ((x1 - x0) * s2) / m, py = y0 + ((y1 - y0) * s2) / m;
+          ctx.fillStyle = col; ctx.fillRect(snap(px) - PIXEL, snap(py), PIXEL * 3, PIXEL);
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(snap(px), snap(py), PIXEL, PIXEL);
+        }
+      }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(bx, by, 8, [col, '#ffffff'], 140, 3, 0, 0.3, true);
+  }
+
+  /** La Interferencia entra en una tele (n=0), aparece dentro (n=1) o sale con un chispazo (n=2). */
+  private tvPop(ev: FxEv) {
+    const col = ev.c ?? '#40ff90';
+    if (ev.n === 2) {
+      this.burst(ev.x, ev.y - 30, 26, [col, '#ffffff', '#9098a0'], 220, 3, 0, 0.5, true);
+      this.ripple(ev.x, ev.y, col, 0.5, ev.r ?? 120);
+      return;
+    }
+    // la imagen se "encoge" en una línea, como al apagar una tele antigua
+    this.add(0.35, 'glow', (ctx, k) => {
+      const w = 40 * (1 - k * 0.8), h = Math.max(PIXEL, 60 * (1 - k * 1.4));
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(snap(ev.x - w / 2), snap(ev.y - 40 - h / 2), snap(w), snap(h));
+      ctx.fillStyle = col; ctx.fillRect(snap(ev.x - w / 2), snap(ev.y - 40), snap(w), PIXEL);
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 30, 12, [col, '#e8f0f0'], 120, 3, 0, 0.4, true);
+  }
+
+  /** La lengua del Kappa se recoge arrastrando a la víctima. */
+  private lick(ev: FxEv) {
+    this.add(0.22, 'top', (ctx, k) => {
+      const ow = (ev.o !== undefined ? this.entPos(ev.o) : null) ?? { x: ev.tx ?? ev.x, y: ev.ty ?? ev.y };
+      const ex = ev.x + (ow.x - ev.x) * k, ey = ev.y + (ow.y - ev.y) * k;
+      const n = Math.ceil(Math.hypot(ex - ow.x, ey - ow.y) / PIXEL);
+      for (let i = 0; i <= n; i++) {
+        const t = i / Math.max(1, n);
+        ctx.fillStyle = '#c03050'; ctx.fillRect(snap(ow.x + (ex - ow.x) * t), snap(ow.y - 52 + (ey - 40 - ow.y + 52) * t), PIXEL, PIXEL * 2);
+        ctx.fillStyle = '#ff7090'; ctx.fillRect(snap(ow.x + (ex - ow.x) * t), snap(ow.y - 52 + (ey - 40 - ow.y + 52) * t), PIXEL, PIXEL);
+      }
+    });
+    this.burst(ev.x, ev.y - 40, 10, ['#c8e8f8', '#ff7090'], 120, 3, 300, 0.4);
+  }
+
+  /** Gran tajo de la Parca (danza) o golpe a un marcado (n=1). */
+  private reap(ev: FxEv) {
+    const R = ev.r ?? 100, a0 = ev.d ?? 0;
+    this.add(0.32, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      const sweep = Math.min(1, k * 2.5);
+      for (let i = 0; i <= 28; i++) {
+        const t = i / 28;
+        if (t > sweep) break;
+        const aa = a0 - Math.PI + t * Math.PI * 2;
+        for (let j = 0; j < 3; j++) {
+          const rr = R * (0.7 + j * 0.12);
+          ctx.fillStyle = j === 2 ? '#ffffff' : j === 1 ? '#a0ffe0' : '#3a8a78';
+          ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y - 30 + Math.sin(aa) * rr * 0.6), PIXEL * 2, PIXEL);
+        }
+      }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 30, ev.n === 1 ? 24 : 14, ['#60ffd0', '#e0fff8', '#141018'], 220, 3, 100, 0.5, true);
+  }
+
+  /** Calavera sobre la cabeza del marcado por la Parca. */
+  private deathMark(ev: FxEv) {
+    const g = ['.xxx.', 'xoxox', 'xxxxx', '.x.x.'];
+    this.add(ev.d ?? 5, 'glow', (ctx, k, now) => {
+      const pos = (ev.o !== undefined ? this.entPos(ev.o) : null);
+      if (!pos) return;
+      ctx.globalAlpha = (Math.floor(now / 200) % 2 ? 1 : 0.7) * Math.min(1, (1 - k) * 8);
+      g.forEach((row, j) => [...row].forEach((ch, i) => {
+        if (ch === '.') return;
+        ctx.fillStyle = ch === 'o' ? '#141018' : '#60ffd0';
+        ctx.fillRect(snap(pos.x) + (i - 2) * PIXEL * 2, snap(pos.y - 146) + j * PIXEL * 2, PIXEL * 2, PIXEL * 2);
+      }));
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Teletransporte: columna de humo/píxeles que se abre (n=1) o se cierra (n=0). */
+  private blink(ev: FxEv) {
+    const col = ev.c ?? '#ffffff';
+    this.add(0.3, 'glow', (ctx, k) => {
+      const kk = ev.n ? 1 - k : k;
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = col;
+      for (let i = 0; i < 10; i++) {
+        const xx = ev.x - 18 + i * 4, hh = (30 + ((i * 7) % 5) * 10) * (1 - kk * 0.8);
+        ctx.fillRect(snap(xx), snap(ev.y - hh), PIXEL, snap(hh * (0.3 + kk * 0.7)));
+      }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 30, 12, [col, '#141018', '#ffffff'], 140, 3, -40, 0.5, true);
+  }
+
+  /** Explosión de una Unidad (Convergencia). */
+  private unitBoom(ev: FxEv) {
+    const R = ev.r ?? 120, col = ev.c ?? '#ff40c0';
+    this.add(0.45, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      pixelEllipse(ctx, ev.x, ev.y, R * (0.3 + k * 0.8), R * (0.3 + k * 0.8) * 0.62, col, 2);
+      ctx.fillStyle = '#ffffff';
+      const r2 = R * 0.35 * (1 - k);
+      ctx.fillRect(snap(ev.x - r2), snap(ev.y - 30 - r2 * 0.6), snap(r2 * 2), snap(r2 * 1.2));
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 20, 40, [col, '#ffffff', '#3a2e52', '#f4f0f8'], R * 2.6, 4, 300, 0.7, true);
+  }
+
+  /** Un humano se convierte en Unidad: el ojo se abre y un hilo lo une a su dueña. */
+  private assimilate(ev: FxEv) {
+    this.add(0.6, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#ff40c0';
+      const tx = ev.tx ?? ev.x, ty = ev.ty ?? ev.y;
+      const n = Math.ceil(Math.hypot(tx - ev.x, ty - ev.y) / 9);
+      for (let i = 0; i <= n; i++) { const t = i / Math.max(1, n); if ((i + Math.floor(k * 12)) % 3) continue; ctx.fillRect(snap(ev.x + (tx - ev.x) * t), snap(ev.y - 40 + (ty - ev.y) * t), PIXEL, PIXEL); }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 40, 18, ['#ff40c0', '#f4f0f8', '#5a4a7a'], 130, 3, 0, 0.6, true);
+    this.ripple(ev.x, ev.y - 30, '#ff40c0', 0.5, 40);
+  }
+
+  /** Aviso: la sombra de un puño/pie de hueso gigante que va a caer. */
+  private boneWarn(ev: FxEv) {
+    const R = ev.r ?? 80;
+    this.add(ev.d ?? 0.45, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.25 + k * 0.4;
+      ctx.fillStyle = '#000000';
+      ctx.beginPath(); ctx.ellipse(ev.x, ev.y, R * (0.5 + k * 0.5), R * (0.5 + k * 0.5) * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.6;
+      pixelEllipse(ctx, ev.x, ev.y, R, R * 0.6, '#80ff60');
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Puño (n=0) o pie (n=1) esquelético gigante que aplasta el suelo. */
+  private boneSlam(ev: FxEv) {
+    const R = ev.r ?? 80, foot = ev.n === 1;
+    const bone = '#e0d8c8', boneD = '#a8a090', P = PIXEL * 3;
+    this.add(0.6, 'top', (ctx, k) => {
+      const fall = Math.min(1, k * 5), lift = (1 - fall) * 220 + (k > 0.6 ? (k - 0.6) * 300 : 0);
+      ctx.globalAlpha = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1;
+      const x0 = snap(ev.x - P * 3), y0 = snap(ev.y - P * 4 - lift);
+      ctx.fillStyle = bone;
+      if (foot) {
+        ctx.fillRect(x0, y0, P * 6, P * 2); // empeine
+        for (let i = 0; i < 5; i++) ctx.fillRect(x0 + i * P + P / 2, y0 + P * 2, P - PIXEL, P * 2); // dedos
+        ctx.fillRect(x0 + P * 2, y0 - P * 5, P * 2, P * 5); // tibia
+        ctx.fillStyle = boneD; ctx.fillRect(x0 + P * 2 + PIXEL, y0 - P * 5, PIXEL, P * 5);
+      } else {
+        ctx.fillRect(x0, y0, P * 6, P * 3); // nudillos y palma
+        for (let i = 0; i < 4; i++) ctx.fillRect(x0 + i * P * 1.5, y0 + P * 3, P, P); // falanges
+        ctx.fillRect(x0 + P * 2, y0 - P * 5, P * 2, P * 5); // radio
+        ctx.fillStyle = boneD; for (let i = 0; i < 4; i++) ctx.fillRect(x0 + i * P * 1.5, y0 + P, PIXEL, P * 2);
+      }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y, 30, ['#e0d8c8', ...this.terrainColors(ev.x, ev.y)], R * 3, 4, 500, 0.6);
+    this.ripple(ev.x, ev.y, '#80ff60', 0.5, R);
+  }
+
+  /** Esqueleto que sale de la tierra (n=0), perro (n=1) o aura de la Marcha (n=2). */
+  private raise(ev: FxEv) {
+    if (ev.n === 2) { this.burst(ev.x, ev.y - 20, 24, ['#80ff60', '#2a1e3a', '#e0d8c8'], 160, 3, -60, 0.7, true); this.ripple(ev.x, ev.y, '#80ff60', 0.6, 90); return; }
+    this.burst(ev.x, ev.y, 18, ['#e0d8c8', '#80ff60', ...this.terrainColors(ev.x, ev.y)], 160, 3, 400, 0.6);
+    this.add(0.6, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#80ff60';
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2 + k * 3; pixelGlyph(ctx, GLYPHS[i % GLYPHS.length], ev.x + Math.cos(a) * 34 - 4, ev.y + Math.sin(a) * 20 - 4, 1); }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Último conjuro: el fantasma del Nigromante aparece donde murió. */
+  private ghostRise(ev: FxEv) {
+    this.burst(ev.x, ev.y - 40, 30, ['#80ff60', '#e0ffc0', '#2a1e3a'], 160, 3, -80, 0.8, true);
+    this.ripple(ev.x, ev.y, '#80ff60', 0.6, 60);
   }
 
   /** OVNI que se queda sobre un punto con su haz de abducción. */
@@ -1320,6 +1594,38 @@ export class Effects {
         const a = arm * Math.PI / 2 + t * 6 + now / 300, rr = r * (1 - t) * 0.9;
         ctx.globalAlpha = (0.3 + t * 0.6) * fade;
         ctx.fillRect(snap(x + Math.cos(a) * rr), snap(y + Math.sin(a) * rr * 0.62), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'portal') {
+      // portal del osario: agujero oscuro con anillo de huesos y runas verdes que giran
+      ctx.globalAlpha = 0.85 * fade;
+      ctx.fillStyle = '#08040c';
+      ctx.beginPath(); ctx.ellipse(x, y, r * 0.5, r * 0.3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1a0a24';
+      ctx.beginPath(); ctx.ellipse(x, y, r * 0.38, r * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2 + now / 1400;
+        ctx.fillStyle = i % 2 ? '#e0d8c8' : '#a8a090';
+        ctx.fillRect(snap(x + Math.cos(a) * r * 0.52), snap(y + Math.sin(a) * r * 0.32), PIXEL * 2, PIXEL);
+      }
+      ctx.fillStyle = '#80ff60';
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2 - now / 900; pixelGlyph(ctx, GLYPHS[i % GLYPHS.length], x + Math.cos(a) * r * 0.7 - 4, y + Math.sin(a) * r * 0.42 - 4, 1); }
+      for (let i = 0; i < 5; i++) { const t = (now / 900 + i / 5) % 1; ctx.globalAlpha = (1 - t) * fade; ctx.fillRect(snap(x + Math.cos(i * 2.3 + seed) * r * 0.3), snap(y - t * 40), PIXEL, PIXEL); }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'lastspell') {
+      // fantasma del Nigromante y su largo rayo
+      const ex = bx ?? x, ey = by ?? y;
+      const fr = getFrame('monster', 'necro', 'classic', Anim.Cast, Math.floor(now / 120) % 4, 0, 1).base;
+      const w = SW * PIXEL, h = SH * PIXEL;
+      ctx.globalAlpha = (0.45 + Math.sin(now / 70) * 0.1) * fade;
+      ctx.drawImage(fr, snap(x - w / 2), snap(y - h + 9 - 10 - Math.sin(now / 300) * 4), w, h);
+      const n = Math.ceil(Math.hypot(ex - x, ey - (y - 30)) / PIXEL);
+      for (let i = 0; i < n; i++) {
+        const t = i / n, j = Math.sin(t * 30 - now / 40) * 3;
+        const px = x + (ex - x) * t, py = y - 30 + (ey - y + 30) * t + j;
+        ctx.globalAlpha = (0.6 + Math.random() * 0.4) * fade;
+        ctx.fillStyle = '#2a8a20'; ctx.fillRect(snap(px), snap(py) - PIXEL * 2, PIXEL, PIXEL * 5);
+        ctx.fillStyle = '#c0ff90'; ctx.fillRect(snap(px), snap(py), PIXEL, PIXEL);
       }
       ctx.globalAlpha = 1;
     } else if (kind === 'radiation') {

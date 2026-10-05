@@ -61,7 +61,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Proponer / aceptar alianza | H | |
 | Silenciar | M | |
 
-## Contenido actual (v0.9)
+## Contenido actual (v0.10)
 
 **Monstruos**
 
@@ -87,8 +87,11 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | 🔥 Azufre | Golpe ígneo (quema) | Bola infernal | Paso ardiente | Infierno | 🪙 o medalla ⚰️ Pesadilla de los Cazadores |
 | 🟢 Baba | Salpicadura (mancha pegajosa) | Rastro de veneno | Burbuja de ácido | Masa crítica | 🪙 o medalla 🍖 Glotón |
 | 👽 El Visitante | Rayo de plasma | Abducción | Baliza | Invasión | 🪙 o medalla 👑 Señor de la Noche |
-| 📺 Interferencia | Estática (las teles cercanas repiten el ataque) | Señal pirata (onda que hipnotiza) | Zapping (las teles hipnotizan muy rápido) | Emisión nacional (rayo de tele en tele) | 🪙 o medalla 😤 Venganza |
-| 🥒 Kappa | Garra de río | Lengua de agua (atrae) | Cuenco sagrado (cura y aguanta) | Remolino del río | 🪙 o medalla 🤝 Pacto de sangre |
+| 📺 Interferencia | Estática (las teles cercanas repiten el ataque) | Señal pirata (onda que hipnotiza) | Cambio de canal (se mete en una tele) | Emisión nacional (rayo que salta de tele en tele) | 🪙 o medalla 😤 Venganza |
+| 🥒 Kappa | Zarpazo de río (en el agua: burbujas) | Lengua acuática (arrastra hasta él) | Cuenco sagrado (cura y aguanta) | Remolino del río (daño cada segundo) | 🪙 o medalla 🤝 Pacto de sangre |
+| ☠️ La Parca | Guadañazo amplio | Paso fúnebre (teletransporte) | Marca de muerte | Danza de la Parca | 🪙 o medalla 🔥 Imparable |
+| 👁️ Unidad | Mirada compartida (disparan todas) | Asimilación | Independencia | Convergencia | 🪙 o medalla 🗃️ Coleccionista |
+| 💀 El Nigromante | Orbe oscuro | Alzar huesos | Marcha de los muertos | Portales del osario | 🪙 o medalla ♾️ Eterno |
 
 **Paciente Cero (invocador)**: algo menos de vida que el resto (95). El Contagio tarda unos 5 s: la vida del humano baja poco a poco y al llegar a cero se levanta como zombi. Máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
 
@@ -138,7 +141,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 
 **La R se carga con bajas**, no con el tiempo: humano +4 %, otro monstruo +25 %, Cazador +40 % (Sectario +15 %, Heraldo +60 %) (al llegar al nivel 10 empieza con un 30 %). Todos los números están en `shared/balance.ts`.
 
-**Mapas** (procedurales con semilla): Calle del Olmo, Transilvania, Campamento Lago Sereno.
+**Mapas** (procedurales con semilla): Calle del Olmo, Transilvania, Campamento Lago Sereno y **Pantano de la Bruja** (charcas de agua negra, cipreses con musgo, la choza de la bruja con su caldero y tótems).
 - **Agua en todos**: estanque y piscinas (Olmo), río con puentes (Transilvania), lago (Campamento). Se consulta con `map.water`, `waterAt(map, x, y)` y `obstacle.body`.
 - **Televisiones** (`map.tvs`): en ventanas, escaparates y abandonadas a la intemperie; solo aparecen (encendidas) cuando hay una Interferencia en la sala.
 - **Bordes temáticos**: el mundo continúa fuera del área jugable (bosque denso, agua profunda, acantilados, vallas, muros, casas, cementerios) y se pierde en una niebla espesa.
@@ -170,6 +173,24 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 **Interferencia (señal maldita)**: mientras está en la sala, las televisiones del mapa se encienden (si no hay ninguna Interferencia, no se ven). Las teles cercanas repiten sus ataques. Su **Ruido** llena una barra de hipnosis: al llenarse, la víctima camina hacia ella o hacia una tele. Nv. 5: +50 % de daño a hipnotizados o casi. Nv. 15: las teles atacan en más radio.
 
 **Kappa (duende del río)**: acuático como K'thula (cruza agua profunda y en cualquier agua o charca corre más y se regenera). Q: lengua que atrae un poco. E: se agacha 2,5 s y rellena el agua de su cabeza (cura y recibe menos daño; un golpe fuerte lo interrumpe). R: remolino que arrastra al centro 6 s (cuenta como agua). Nv. 5: golpear por la espalda roba velocidad. Nv. 15: de vez en cuando una nube llueve cerca y deja una poza.
+
+**La Parca (asesina)**: cada baja le da almas (+1,5 % de daño cada una; los monstruos y cazadores dan 3) hasta que muere y las pierde todas; las almas orbitan a su alrededor. Q: teletransporte corto (nv. 15: 2 cargas). E: marca al enemigo más cercano al puntero 5 s: corre más hacia él y el siguiente guadañazo hace +80 %. Nv. 5: las almas también dan velocidad y velocidad de ataque. R: 10 s apareciendo cada 0,75 s junto a un enemigo al azar con un gran tajo; al acabar vuelve exactamente a donde empezó (nv. 15: tajos más grandes).
+
+**Unidad (invocadora, enjambre)**: Q convierte al humano más cercano en una Unidad vinculada que la sigue (máx. 4; nv. 15: 8); cuando ataca, todas sus Unidades disparan a la vez al mismo punto. E: una Unidad vinculada se vuelve independiente y recorre el mapa sola (máx. 1; nv. 15: 2). Pasiva Somos Uno: si muere con otra Unidad viva, reaparece en ella y la muerte no cuenta. Nv. 5: más velocidad por cada Unidad activa. R: las vinculadas (y su cuerpo) parpadean 2 s y explotan; su conciencia salta a una independiente (sin una viva no se puede usar).
+
+**El Nigromante (invocador)**: dispara orbes oscuros. Q: esqueleto guerrero o arquero al azar (12 %: perro esqueleto rapidísimo); máx. 3 (nv. 15: 5). E: 4 s de marcha (él y sus esqueletos corren y atacan más rápido; él levita y cruza el agua). Nv. 5 Último conjuro: al morir, al cabo de 1 s vuelve 3 s como fantasma inmóvil que gira un largo rayo que quema. R: tres portales de los que caen puños y pies de hueso gigantes que aplastan y empujan (con aviso de sombra).
+
+**Kappa e Interferencia (v0.10)**: el Kappa pega un tajo de agua más amplio y de más alcance; desde el agua dispara burbujas lejanas que ralentizan; su lengua arrastra a la víctima hasta él; el remolino quita vida cada segundo; y en el nivel 15 la lluvia de una nube de tormenta va formando la poza. La E de Interferencia ahora la mete en la tele a la que apuntes (hasta 3 s, intocable): con otra E sale donde apuntes cerca de esa tele y, si no hace nada, sale por una tele al azar con un chispazo que hipnotiza; su R es un rayo que salta muy rápido de tele en tele (prefiere las que tienen enemigos cerca).
+
+**Clases** (`CLASS` en `shared/balance.ts`): cuerpo a cuerpo (+12 % vida y +6 % armadura: Aullador, Reanimado, Raíz Negra, Baba, Kappa, Capitán Ahogado, Azufre), asesinos (−10 % vida y 8 % de robo de vida: Dama, Pesadilla, Aracne, Parca), invocadores (−15 % vida y la mitad de regeneración: Paciente Cero, Lilith, Bloody Mary, Unidad, Nigromante) y a distancia (sin cambios).
+
+**Alimañas**: cada mapa tiene bichos poco comunes (ratas, cuervos, murciélagos, sapos) que no atacan, huyen muy rápido de cualquier monstruo o cazador y **siempre** sueltan un objeto al morir.
+
+**Todo en pixel art**: círculos, anillos y arcos (zonas, golpes, sombras, auras) se dibujan con píxeles de la rejilla del mundo (`client/pixelshapes.ts`), y los proyectiles giran en pasos de 45°.
+
+**Móvil**: joystick flotante (aparece donde pongas el pulgar), botones en arco que se arrastran para apuntar (Q, E y R se lanzan al soltar; pulsar sin arrastrar apunta solo al enemigo más cercano), enfriamientos en los propios botones, barras arriba y la cámara centra al personaje en la zona que no tapan los controles.
+
+**Azufre**: todos sus golpes queman y se ven las llamas sobre quien arde. **El enterrador** de la pala da más miedo (y ya no rompe el juego al morir).
 
 **Ajustes de esta versión**: la somnolencia de Pesadilla sube más rápido y en los NPC ya no baja con el tiempo; los espejos de Bloody Mary se pueden romper a golpes; las televisiones solo existen si hay una Interferencia.
 
@@ -234,5 +255,5 @@ Para enseñar el prototipo gratis sigue valiendo **Render** (`render.yaml`, se d
 1. Tienda de cosméticos: partículas y gorros.
 2. Banner no invasivo en la selección de personaje (`#ad-slot`).
 3. Protocolo binario y delta-snapshots para bajar el ancho de banda.
-4. Más mapas (hospital abandonado, pantano) y más monstruos.
+4. Más mapas (hospital abandonado) y más monstruos.
 5. Anti-trampas básicos.

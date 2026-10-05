@@ -15,6 +15,7 @@ const VARIANTS: Record<string, string[]> = {
   elm: ['teen', 'neighbor', 'jock', 'nerd'],
   transylvania: ['villager', 'priest', 'maid'],
   camp: ['camper', 'counselor', 'jock', 'nerd'],
+  swamp: ['villager', 'camper', 'priest'],
 };
 // orden fijo de personajes para guardar el imitado como número en p.k
 const IDS = CHARACTER_IDS;

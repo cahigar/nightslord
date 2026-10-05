@@ -45,9 +45,9 @@ input:focus, select:focus { border-color: #8050c0; }
 .btn.tiny { padding: 5px 8px; font-size: 9px; }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.chars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.chars { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
 .chars.small { grid-template-columns: repeat(6, 1fr); }
-.char { background: #0c0714; border: 3px solid var(--line); padding: 6px 4px; text-align: center; cursor: pointer; position: relative; }
+.char { background: #0c0714; border: 3px solid var(--line); padding: 6px 4px; text-align: center; cursor: pointer; position: relative; min-width: 0; overflow-wrap: anywhere; }
 .char canvas { width: 54px; height: 70px; image-rendering: pixelated; display: block; margin: 0 auto; }
 .chars.small .char canvas { width: 44px; height: 58px; }
 .char .cname { font-family: var(--px); font-size: 8px; margin-top: 4px; line-height: 1.4; }
@@ -141,15 +141,84 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
 
 /* ---------- Táctil ---------- */
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
-#stick { position: absolute; left: 30px; bottom: 30px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.2); pointer-events: auto; display: grid; place-items: center; }
-#knob { width: 54px; height: 54px; border-radius: 50%; background: rgba(255, 255, 255, 0.25); }
-#tbuttons { position: absolute; right: 24px; bottom: 30px; display: grid; grid-template-columns: repeat(3, 64px); gap: 10px; pointer-events: auto; }
-#tbuttons button { width: 64px; height: 64px; border-radius: 50%; background: rgba(60, 20, 80, 0.6); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 18px; }
-@media (pointer: coarse) { #minimap { display: none; } #bottom { bottom: 175px; } #upgrades { bottom: 290px; } }
+#stickzone { position: absolute; left: 0; top: 30%; bottom: 0; width: 48%; pointer-events: auto; }
+#stick { position: absolute; left: calc(26px + env(safe-area-inset-left)); bottom: calc(26px + env(safe-area-inset-bottom)); width: 124px; height: 124px; border-radius: 50%; background: rgba(255, 255, 255, 0.06); border: 3px solid rgba(255, 255, 255, 0.16); pointer-events: none; display: grid; place-items: center; opacity: 0.55; transition: opacity 0.15s; }
+#stick.on { opacity: 1; }
+#knob { width: 52px; height: 52px; border-radius: 50%; background: rgba(255, 255, 255, 0.28); border: 3px solid rgba(255, 255, 255, 0.35); }
+/* botones en arco alrededor del ataque (pulgar derecho) */
+#tbuttons { position: absolute; right: calc(14px + env(safe-area-inset-right)); bottom: calc(14px + env(safe-area-inset-bottom)); width: 220px; height: 220px; pointer-events: none; --b: 64px; }
+#tbuttons button { position: absolute; width: var(--b); height: var(--b); border-radius: 50%; background: rgba(40, 14, 60, 0.72); border: 3px solid rgba(255, 255, 255, 0.28); color: #fff; font-family: var(--px); font-size: 14px; pointer-events: auto; overflow: hidden; display: grid; place-items: center; touch-action: none; -webkit-user-select: none; user-select: none; }
+#tbuttons button b { position: relative; z-index: 2; text-shadow: 2px 2px 0 #000; }
+#tbuttons button small { position: absolute; left: 0; right: 0; bottom: 7px; z-index: 2; font-size: 8px; text-align: center; text-shadow: 1px 1px 0 #000; color: #ffe080; }
+#tbuttons button .cd { position: absolute; inset: 0; z-index: 1; background: conic-gradient(rgba(0, 0, 0, 0.7) calc(var(--cd, 0) * 360deg), transparent 0); }
+#tbuttons button.down { transform: scale(0.92); border-color: #ffe080; }
+#tbuttons button.aiming { border-color: #ffe080; box-shadow: 0 0 14px #ffe080; }
+#tb-atk { right: 0; bottom: 0; --b: 92px; width: 92px !important; height: 92px !important; font-size: 28px !important; background: rgba(120, 20, 40, 0.72) !important; }
+#tb-q { right: 104px; bottom: 4px; }
+#tb-e { right: 82px; bottom: 80px; }
+#tb-r { right: 10px; bottom: 104px; }
+#tb-r.ready { border-color: #ff60c0; box-shadow: 0 0 14px #ff40a0; animation: pulse 0.8s infinite; }
+#tb-r.locked { opacity: 0.45; filter: grayscale(1); }
+#tb-r small { font-size: 7px; }
+#tb-emote { right: 150px; bottom: 120px; width: 44px !important; height: 44px !important; font-size: 18px !important; background: rgba(20, 10, 30, 0.6) !important; }
+
+/* HUD en pantallas táctiles: barras arriba, controles abajo, el centro despejado para el personaje */
+body.touch #minimap, body.touch #killfeed, body.touch #abilities { display: none; }
+body.touch #bottom { top: calc(6px + env(safe-area-inset-top)); bottom: auto; width: min(430px, calc(100vw - 16px)); gap: 4px; }
+body.touch .bars { padding: 4px; gap: 6px; }
+body.touch .lvl { min-width: 32px; height: 32px; font-size: 11px; }
+body.touch .bar { height: 13px; }
+body.touch .stats { font-size: 7px; }
+body.touch #buffs { flex-wrap: wrap; justify-content: center; }
+body.touch .buff { font-size: 7px; padding: 2px 4px; }
+body.touch #topleft { top: calc(58px + env(safe-area-inset-top)); left: calc(6px + env(safe-area-inset-left)); gap: 4px; max-width: 46vw; }
+body.touch #topleft button { font-size: 8px; padding: 3px 6px; }
+body.touch #roominfo { font-size: 7px; padding: 3px 5px; }
+body.touch #ping { font-size: 12px; }
+body.touch #rank { top: calc(58px + env(safe-area-inset-top)); right: calc(6px + env(safe-area-inset-right)); width: 140px; font-size: 13px; padding: 5px; pointer-events: auto; opacity: 0.85; }
+body.touch #rank .title { font-size: 7px; }
+body.touch #rank:not(.open) .r:nth-child(n + 5):not(.me) { display: none; }
+/* mejoras: 4 fichas pequeñas (sin descripción) */
+body.touch #upgrades { top: calc(92px + env(safe-area-inset-top)); bottom: auto; gap: 4px; flex-wrap: nowrap; }
+body.touch .up { min-width: 0; width: 64px; font-size: 0; padding: 4px 3px; line-height: 1.2; }
+body.touch .up b { font-size: 7px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.touch .up small { font-size: 11px; }
+body.touch .up br { display: none; }
+body.touch .up-title { top: -14px; font-size: 7px; }
+body.touch #toast { top: auto; bottom: calc(150px + env(safe-area-inset-bottom)); max-width: min(360px, 60vw); }
+body.touch .toast { font-size: 7px; padding: 3px 7px; line-height: 1.5; }
+body.touch .toast span { font-size: 11px !important; }
+@media (max-height: 480px) { body.touch #toast { max-width: 46vw; } }
+/* móvil en horizontal (poca altura) */
+@media (max-height: 480px) {
+  body.touch #tbuttons { transform: scale(0.82); transform-origin: bottom right; }
+  body.touch #stick { transform: scale(0.85); }
+  body.touch #rank { top: calc(6px + env(safe-area-inset-top)); width: 120px; }
+  body.touch #rank:not(.open) .r:nth-child(n + 4):not(.me) { display: none; }
+  body.touch #upgrades { top: calc(6px + env(safe-area-inset-top)); left: auto; right: calc(130px + env(safe-area-inset-right)); transform: none; }
+  body.touch #upgrades .up { width: 54px; }
+  body.touch #bottom { left: calc(8px + env(safe-area-inset-left)); transform: none; width: min(340px, 40vw); }
+  body.touch #toast { bottom: calc(10px + env(safe-area-inset-bottom)); }
+}
+/* móvil en vertical (estrecho) */
+@media (max-width: 480px) {
+  body.touch #tbuttons { transform: scale(0.88); transform-origin: bottom right; }
+  body.touch #rank { top: calc(84px + env(safe-area-inset-top)); width: 116px; font-size: 12px; }
+  body.touch #upgrades { left: calc(6px + env(safe-area-inset-left)); transform: none; top: calc(112px + env(safe-area-inset-top)); }
+  body.touch #topleft { max-width: calc(100vw - 140px); }
+}
+@media (pointer: coarse) { #minimap { display: none; } }
 
 @media (max-width: 640px) {
-  .chars { grid-template-columns: repeat(3, 1fr); }
-  .chars.small { grid-template-columns: repeat(3, 1fr); }
+  .screen { padding: 12px 8px; }
+  .panel { padding: 10px; }
+  .chars { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .chars.small { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .char { padding: 4px 2px; border-width: 2px; }
+  .char canvas { width: 40px; height: 52px; }
+  .char .cname { font-size: 6px; }
+  .char .ctitle { font-size: 11px; }
+  .account { font-size: 11px; }
   #rank { width: 170px; font-size: 15px; }
   #killfeed { display: none; }
   #minimap { width: 100px; height: 100px; }

@@ -7,16 +7,19 @@ import { kappaKit } from './kappa';
 import { kthulaKit } from './kthula';
 import { maryKit } from './mary';
 import { mummyKit } from './mummy';
+import { necroKit } from './necro';
 import { nightmareKit } from './nightmare';
 import { pirateKit } from './pirate';
 import { poltergeistKit } from './poltergeist';
 import { reanimatedKit } from './reanimated';
+import { reaperKit } from './reaper';
 import { scarecrowKit } from './scarecrow';
 import { slimeKit } from './slime';
 import { spiderKit } from './spider';
 import { staticKit } from './static';
 import { succubusKit } from './succubus';
 import { treeKit } from './tree';
+import { unitKit } from './unit';
 import type { Kit } from './types';
 import { vampireKit } from './vampire';
 import { werewolfKit } from './werewolf';
@@ -47,6 +50,9 @@ export const KITS: Record<CharacterId, Kit> = {
   alien: alienKit,
   static: staticKit,
   kappa: kappaKit,
+  reaper: reaperKit,
+  unit: unitKit,
+  necro: necroKit,
 };
 setKits(KITS); // Doppy necesita los kits de los demás para imitarlos
 

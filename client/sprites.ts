@@ -886,6 +886,230 @@ const kappaForm: FormFn = (b, p, c, anim, tier) => {
   b.set(hx + 1, hy, shade(c.skin, -0.3)); b.set(hx, hy + 1, shade(c.skin, -0.3)); // garras
 };
 
+
+const reaperForm: FormFn = (b, p, c, anim, tier) => {
+  // La Parca: túnica negra hecha jirones, calavera bajo la capucha y una guadaña enorme
+  const by = p.by, sw = p.sway ?? 0;
+  const robe = c.cloth, robe2 = c.cloth2, bone = c.skin;
+  arm(b, 10, 13 + by, p.la, 7, shade(robe, -0.15), bone, 2);
+  // túnica larga sin pies: bajo deshilachado que ondea
+  torso(b, by, robe, { x: 7, w: 10, bottom: 26 });
+  b.rect(6, 20, 12, 7, robe);
+  for (let i = 0; i < 6; i++) { const x = 6 + i * 2 - (sw % 2); b.rect(x, 27, 2, 1 + ((i + sw) % 3), i % 2 ? robe2 : robe); }
+  b.line(9, 13 + by, 8, 27, robe2); b.line(14, 13 + by, 15, 27, shade(robe, 0.2));
+  b.rect(8, 19 + by, 8, 1, shade(robe2, -0.2)); // cordón
+  b.set(11, 19 + by, c.accent, tier >= 1);
+  // capucha y calavera
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X, Y + 1, 10, 10, robe); b.rect(X + 1, Y, 8, 1, robe); b.rect(X + 3, Y - 1, 4, 1, robe);
+  b.rect(X + 4, Y + 3, 6, 6, bone); b.rect(X + 5, Y + 9, 4, 1, bone);
+  if (!p.blink) { b.rect(X + 5, Y + 4, 2, 2, '#06040a'); b.rect(X + 8, Y + 4, 2, 2, '#06040a'); b.set(X + 6, Y + 5, c.eye, true); b.set(X + 9, Y + 5, c.eye, true); }
+  else { b.rect(X + 5, Y + 5, 2, 1, '#06040a'); b.rect(X + 8, Y + 5, 2, 1, '#06040a'); }
+  b.set(X + 7, Y + 7, '#06040a'); // nariz
+  for (const x of [5, 6, 7, 8]) b.set(X + x, Y + 9, x % 2 ? '#06040a' : bone); // dientes
+  if (p.mouth) b.rect(X + 5, Y + 10, 4, 1, '#06040a');
+  b.line(X + 1, Y + 2, X + 1, Y + 10, shade(robe, -0.3));
+  // almas que la acompañan
+  if (tier >= 2) for (const [x, y] of [[3, 10], [20, 16]]) b.set(x, y + by + (sw % 2), c.accent, true);
+  if (tier >= 3) { b.set(X + 4, Y - 2, c.accent, true); b.set(X + 6, Y - 3, c.accent, true); b.set(X + 8, Y - 2, c.accent, true); } // corona de almas
+  // guadaña: mango largo y hoja curva por encima de la cabeza
+  arm(b, 13, 13 + by, p.ra, 6, robe, bone, 2);
+  const dx = Math.sin(p.ra), dy = Math.cos(p.ra);
+  const hx = 13 + dx * 6, hy = 13 + by + dy * 6;
+  const ux = Math.sin(p.ra + 2.8), uy = Math.cos(p.ra + 2.8); // el mango apunta hacia arriba
+  const tx = hx + ux * 16, ty = hy + uy * 16, bx2 = hx - ux * 5, by2 = hy - uy * 5;
+  b.line(bx2, by2, tx, ty, '#5a4030'); b.line(bx2 + 1, by2, tx + 1, ty, '#3a2818');
+  const blade = anim === Anim.Attack ? '#e8f0f0' : '#b8c0c8';
+  const bxv = Math.sin(p.ra + 1.3), byv = Math.cos(p.ra + 1.3);
+  for (let i = 0; i < 9; i++) {
+    const cv = Math.sin((i / 8) * Math.PI) * 2;
+    const x = tx + bxv * i - ux * cv * 0.6, y = ty + byv * i - uy * cv * 0.6;
+    b.set(x, y, i > 6 ? '#ffffff' : blade, anim === Anim.Attack && i > 4); b.set(x - ux, y - uy, shade(blade, -0.3));
+  }
+};
+
+const unitForm: FormFn = (b, p, c, _anim, tier) => {
+  // Unidad: humano sin rasgos, mono ceñido y un único ojo enorme en la cara; un cable de la nuca al enjambre
+  const by = p.by, sw = p.sway ?? 0;
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin);
+  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, '#141018');
+  torso(b, by, c.cloth);
+  b.line(12, 12 + by, 12, 20 + by, c.cloth2); // costura
+  b.rect(10, 15 + by, 4, 3, c.cloth2); b.set(11, 16 + by, c.accent, true); b.set(12, 16 + by, c.accent, true); // símbolo del enjambre
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 1, Y + 1, 8, 9, c.skin); b.rect(X, Y + 2, 10, 6, c.skin); b.rect(X + 2, Y + 10, 6, 1, c.skin);
+  b.rect(X + 1, Y, 8, 2, c.hair); b.rect(X, Y + 1, 2, 4, c.hair); // casco liso
+  // el ojo
+  if (!p.blink) {
+    b.rect(X + 4, Y + 3, 5, 4, '#f4f0f8'); b.rect(X + 5, Y + 4, 3, 2, c.eye, true); b.set(X + 6, Y + 4, '#100810', true);
+    b.set(X + 8, Y + 3, '#ffffff', true);
+  } else b.rect(X + 4, Y + 5, 5, 1, shade(c.skin, -0.4));
+  b.rect(X + 5, Y + 8, 3, 1, shade(c.skin, -0.3)); // boca cosida
+  // cable a la nuca
+  b.line(X, Y + 6, 4 - sw, 14 + by, '#2a2030'); b.set(4 - sw, 14 + by, c.accent, true);
+  if (tier >= 1) b.set(X + 9, Y + 2, c.accent, true);
+  if (tier >= 3) for (const [x, y] of [[3, 6], [20, 8], [19, 22]]) b.set(x, y + by, c.accent, true); // ojos flotantes
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.skin);
+};
+
+const necroForm: FormFn = (b, p, c, anim, tier) => {
+  // Nigromante: túnica con costillar bordado, capucha con cuernos de hueso, cara de calavera a medias y bastón con cráneo
+  const by = p.by, sw = p.sway ?? 0;
+  const robe = c.cloth, robe2 = c.cloth2;
+  arm(b, 10, 13 + by, p.la, 7, shade(robe, -0.2), c.skin);
+  legs(b, p, shade(robe2, -0.1), robe2, '#100c14', { top: 25 });
+  torso(b, by, robe, { x: 7, w: 10, bottom: 27 });
+  b.rect(6 - (sw % 2), 21, 12, 6, robe); b.rect(6 - (sw % 2), 26, 12, 1, robe2);
+  for (let y = 14; y < 20; y += 2) { b.line(9, y + by, 11, y + by, '#d8d0c0'); b.line(13, y + by, 15, y + by, '#d8d0c0'); } // costillas bordadas
+  b.line(12, 13 + by, 12, 20 + by, '#d8d0c0');
+  b.rect(7, 20 + by, 10, 1, c.accent, tier >= 1);
+  // capucha con cuernos
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X, Y + 1, 10, 10, robe); b.rect(X + 1, Y, 8, 1, robe);
+  b.line(X + 1, Y, X - 1, Y - 3, '#d8d0c0'); b.line(X + 8, Y, X + 10, Y - 3, '#d8d0c0');
+  b.rect(X + 4, Y + 3, 6, 7, c.skin);
+  b.rect(X + 7, Y + 3, 3, 7, shade(c.skin, 0.15)); // media cara de hueso
+  if (!p.blink) { b.set(X + 5, Y + 5, c.eye, true); b.rect(X + 8, Y + 5, 2, 2, '#08060a'); b.set(X + 8, Y + 5, c.eye, true); }
+  b.rect(X + 5, Y + 8, 4, 1, p.mouth ? '#08060a' : shade(c.skin, -0.35));
+  b.line(X + 1, Y + 2, X + 1, Y + 10, shade(robe, -0.3));
+  if (tier >= 2) for (const [x, y] of [[4, 22], [19, 24]]) b.set(x, y, c.accent, true); // fuego fatuo en el bajo
+  if (tier >= 3) { b.set(X + 4, Y - 2, c.accent, true); b.set(X + 5, Y - 3, c.accent, true); } // llama sobre la capucha
+  // bastón con cráneo
+  arm(b, 13, 13 + by, p.ra, 7, robe, c.skin);
+  const hx = 13 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
+  b.line(hx, hy - 9, hx, hy + 8, '#3a2a20'); b.line(hx + 1, hy - 9, hx + 1, hy + 8, '#4a3a2a');
+  b.rect(hx - 1, hy - 13, 4, 4, '#e0d8c8'); b.set(hx, hy - 12, '#08060a'); b.set(hx + 2, hy - 12, '#08060a');
+  b.set(hx, hy - 12, c.accent, anim === Anim.Attack || anim === Anim.Cast); b.set(hx + 2, hy - 12, c.accent, anim === Anim.Attack || anim === Anim.Cast);
+  if (anim === Anim.Attack || anim === Anim.Cast) b.set(hx + 1, hy - 14, c.accent, true);
+};
+
+/** Esqueletos del Nigromante: guerrero (espada y escudo), arquero y perro. */
+const skelCache = new Map<string, Baked>();
+export function getSkeleton(kind: string, anim: Anim, frame: number, tint: string): Baked {
+  const def = ANIMS[anim] ?? ANIMS[Anim.Idle];
+  const fr = frame % def.frames.length;
+  const key = `${kind}|${anim}|${fr}|${tint}`;
+  let out = skelCache.get(key);
+  if (out) return out;
+  const p = def.frames[fr];
+  const b = new PB(SW, SH);
+  const bone = '#e0d8c8', boneD = '#a8a090';
+  if (kind === 'skeldog') {
+    // perro esqueleto a cuatro patas
+    const run = p.ll[0] !== 0 || p.rl[0] !== 0 ? 1 : 0, by = p.by;
+    b.line(5, 20 + by, 17, 19 + by, bone); // espinazo
+    for (let x = 7; x < 16; x += 2) b.line(x, 20 + by, x, 23 + by, boneD); // costillas
+    const leg = (x: number, d: number) => { b.line(x, 21 + by, x + d, 26, bone); b.line(x + d, 26, x + d, 30, bone); b.set(x + d + 1, 30, boneD); };
+    leg(6, run ? -1 : 0); leg(8, run ? 1 : 0); leg(15, run ? 1 : 0); leg(17, run ? -1 : 0);
+    b.line(5, 20 + by, 2, 16 + by + (p.sway ?? 0) % 2, bone); // cola
+    b.rect(17, 15 + by, 5, 4, bone); b.rect(21, 17 + by, 2, 2, bone); b.set(19, 16 + by, tint, true); // cráneo
+    if (p.mouth) { b.rect(20, 19 + by, 3, 1, bone); b.clear(21, 18 + by); }
+    b.set(18, 14 + by, bone); b.set(17, 14 + by, bone); // orejas
+  } else {
+    const by = p.by;
+    arm(b, 10, 13 + by, p.la, 7, boneD, bone);
+    legs(b, p, boneD, bone, boneD, { width: 1 });
+    b.line(12, 11 + by, 12, 21, bone); // columna
+    for (let y = 13; y < 19; y += 2) b.line(9, y + by, 15, y + by, y % 4 === 1 ? bone : boneD); // costillas
+    b.line(9, 21, 15, 21, bone); // pelvis
+    const X = 7 + (p.lean ?? 0), Y = 2 + by;
+    b.rect(X + 2, Y + 1, 7, 7, bone); b.rect(X + 3, Y + 8, 5, 2, bone);
+    if (!p.blink) { b.rect(X + 4, Y + 4, 2, 2, '#100c10'); b.rect(X + 7, Y + 4, 2, 2, '#100c10'); b.set(X + 5, Y + 4, tint, true); b.set(X + 8, Y + 4, tint, true); }
+    for (const x of [4, 6, 8]) b.set(X + x, Y + 9, '#100c10');
+    if (kind === 'skel') {
+      // espada oxidada y escudo redondo
+      b.ellipse(8, 16 + by, 3, 4, '#5a4a3a'); b.set(8, 16 + by, '#a08040');
+      arm(b, 13, 13 + by, p.ra, 7, boneD, bone);
+      const dx = Math.sin(p.ra - 2.2), dy = Math.cos(p.ra - 2.2);
+      const hx = 13 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
+      for (let i = 1; i <= 7; i++) b.set(hx + dx * i, hy + dy * i, i > 5 ? '#c0c0c8' : '#8a8a90');
+      b.line(hx - dy, hy + dx, hx + dy, hy - dx, '#6a5030');
+    } else {
+      // arco
+      arm(b, 13, 13 + by, Math.PI / 2, 6, boneD, bone);
+      b.line(19, 7 + by, 21, 13 + by, '#6a4a28'); b.line(21, 13 + by, 19, 19 + by, '#6a4a28'); b.line(19, 7 + by, 19, 19 + by, '#d0c8b0');
+      b.rect(6, 10 + by, 2, 8, '#5a3a20'); b.set(6, 9 + by, '#e0e0e0'); b.set(7, 9 + by, '#e0e0e0'); // carcaj
+    }
+  }
+  out = b.finish({ outline: 'selout' });
+  skelCache.set(key, out);
+  return out;
+}
+
+/** Alimañas de los mapas: murciélago, cuervo, rata y sapo (2 fotogramas). */
+const vermCache = new Map<string, Baked>();
+export function getVermin(kind: string, frame: number): Baked {
+  const f = frame % 2;
+  const key = `${kind}|${f}`;
+  let out = vermCache.get(key);
+  if (out) return out;
+  const b = new PB(18, 14);
+  if (kind === 'c_bat') {
+    const k = '#2a1a32', K = '#46305a';
+    b.rect(7, 6, 4, 3, k); b.set(7, 5, k); b.set(10, 5, k); b.set(8, 7, '#ff3040', true); b.set(10, 7, '#ff3040', true);
+    if (f) { b.line(6, 7, 1, 3, K); b.line(6, 8, 2, 5, k); b.line(11, 7, 16, 3, K); b.line(11, 8, 15, 5, k); }
+    else { b.line(6, 7, 1, 10, K); b.line(6, 6, 2, 9, k); b.line(11, 7, 16, 10, K); b.line(11, 6, 15, 9, k); }
+  } else if (kind === 'c_crow') {
+    const k = '#141018', K = '#2a2434';
+    b.ellipse(8, 9, 4, 2, k); b.rect(11, 6, 3, 3, k); b.set(14, 7, '#c8a030'); b.set(15, 7, '#c8a030'); b.set(12, 6, '#ff3020', true);
+    b.line(4, 9, 1, 8, K); // cola
+    if (f) { b.line(7, 8, 4, 3, K); b.line(9, 8, 8, 3, k); } else b.line(6, 8, 10, 9, K);
+    b.set(8, 12, '#c8a030'); b.set(10, 12, '#c8a030');
+  } else if (kind === 'c_rat') {
+    const g = '#5a5058', G = '#7a6e74';
+    b.ellipse(8, 10, 4, 2, g); b.rect(11, 9, 3, 2, G); b.set(14, 10, '#d08090'); b.set(12, 9, '#ff2030', true); b.set(11, 8, '#d08090');
+    b.line(4, 10, 1, 9 + f, '#c08090'); // cola
+    b.set(6 + f, 12, G); b.set(10 - f, 12, G);
+  } else {
+    // sapo
+    const g = '#4a7a32', G = '#7aa050';
+    const y0 = f ? 6 : 8;
+    b.ellipse(9, y0 + 3, 5, 3, g); b.ellipse(9, y0 + 4, 3, 1, G);
+    b.rect(5, y0, 2, 2, g); b.rect(11, y0, 2, 2, g); b.set(5, y0, '#ffe060', true); b.set(12, y0, '#ffe060', true);
+    b.rect(3, y0 + 6 - f, 3, 1, g); b.rect(13, y0 + 6 - f, 3, 1, g);
+    if (f) { b.rect(3, y0 + 7, 2, 2, g); b.rect(14, y0 + 7, 2, 2, g); }
+  }
+  out = b.finish({ outline: 'selout' });
+  vermCache.set(key, out);
+  return out;
+}
+
+/** El enterrador de la pala: encorvado, flaco, sombrero de ala ancha, ojos que brillan y sonrisa cosida. */
+function drawGravedigger(b: PB, p: Pose) {
+  const by = p.by + 1, sw = p.sway ?? 0;
+  const coat = '#2a2622', coatD = '#181512', skin = '#9aa898', skinD = '#6a7868';
+  // faldones rotos del abrigo
+  b.rect(6 - (sw % 2), 19, 4, 9, coatD); for (const y of [24, 26]) b.clear(6 - (sw % 2), y);
+  arm(b, 10, 13 + by, p.la, 8, shade(coat, -0.2), skinD, 3);
+  legs(b, p, '#1a1614', '#221e1a', '#0e0c0a', { width: 2, boots: '#3a2a1a' });
+  // cuerpo encorvado y huesudo
+  torso(b, by + 1, coat, { x: 8, w: 8, bottom: 25 });
+  b.rect(8, 21, 8, 4, coat);
+  b.line(12, 14 + by, 12, 24, coatD);
+  b.rect(10, 15 + by, 3, 1, '#5a4a30'); b.rect(10, 18 + by, 3, 1, '#5a4a30'); // tierra y botones
+  for (const [x, y] of [[9, 22], [14, 20], [10, 24]]) b.set(x, y, '#4a3a24'); // manchas de tierra
+  // cabeza: inclinada hacia delante, mejillas hundidas
+  const X = 8 + (p.lean ?? 0), Y = 4 + by;
+  b.rect(X + 1, Y + 1, 7, 8, skin); b.rect(X + 2, Y + 9, 5, 1, skin);
+  b.rect(X + 2, Y + 6, 1, 2, skinD); b.rect(X + 7, Y + 6, 1, 2, skinD); // pómulos
+  // ojos hundidos que brillan
+  b.rect(X + 3, Y + 4, 2, 2, '#0a0806'); b.rect(X + 6, Y + 4, 2, 2, '#0a0806');
+  if (!p.blink) { b.set(X + 4, Y + 5, '#ffe060', true); b.set(X + 7, Y + 5, '#ffe060', true); }
+  // sonrisa cosida de oreja a oreja
+  b.line(X + 2, Y + 8, X + 8, Y + 7, '#3a1010');
+  for (const x of [3, 5, 7]) { b.set(X + x, Y + 7, '#c8c0b0'); b.set(X + x, Y + 9, '#c8c0b0'); }
+  // sombrero de ala ancha y raído
+  b.rect(X - 3, Y + 1, 14, 1, '#141210'); b.rect(X - 2, Y + 2, 2, 1, '#141210');
+  b.rect(X + 1, Y - 3, 7, 4, '#1c1916'); b.rect(X + 1, Y, 7, 1, '#4a1a14');
+  b.clear(X + 6, Y - 3);
+  // pala al hombro
+  const hx = 13 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
+  arm(b, 13, 13 + by, p.ra, 7, coat, skinD, 3);
+  b.line(hx - 1, hy + 5, hx + 3, hy - 9, '#5a4028');
+  b.rect(hx + 2, hy - 14, 4, 5, '#7a7a82'); b.set(hx + 3, hy - 14, '#a0a0a8'); b.set(hx + 4, hy - 10, '#5a2a1a'); // pala con manchas
+  b.set(hx - 1, hy, skinD); b.set(hx, hy + 1, skinD); // dedos largos
+}
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -953,6 +1177,7 @@ export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
   succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm, slime: slimeForm, alien: alienForm, static: staticForm, kappa: kappaForm,
+  reaper: reaperForm, unit: unitForm, necro: necroForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -1041,10 +1266,11 @@ type ZombieKind = 'normal' | 'fast' | 'tough' | 'fat';
 const ZOMBIE_SKIN: Record<ZombieKind, string> = { normal: '#6a9a50', fast: '#9aaab0', tough: '#4a6a3a', fat: '#7a9a48' };
 
 function drawNpc(b: PB, p: Pose, variant: string, seed: number, zombie?: ZombieKind, anim: Anim = Anim.Idle) {
+  if (variant === 'gravedigger' && !zombie) { drawGravedigger(b, p); return; }
   const n = npcLook(variant, seed);
   if (zombie && (anim === Anim.Idle || anim === Anim.Walk)) p = { ...p, la: 1.35 + p.la * 0.2, ra: 1.5 + p.ra * 0.2, mouth: true };
   const L = n.L, by = p.by;
-  const skin = zombie ? mix(n.skin, ZOMBIE_SKIN[zombie], 0.65) : n.skin;
+  const skin = zombie ? mix(n.skin, ZOMBIE_SKIN[zombie] ?? ZOMBIE_SKIN.normal, 0.65) : n.skin;
   const tw = zombie === 'fat' ? 11 : n.stout ? 9 : 8;
   arm(b, 10, 13 + by, p.la, 7, shade(L.top, -0.25), skin);
   const longSkirt = L.kind === 'dress' || L.kind === 'robe' || L.kind === 'apron';
@@ -1298,6 +1524,10 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   noise: { art: ['w.g.w', '.wgw.', 'gwWwg', '.wgw.', 'w.g.w'], pal: { w: '#e8f0f0', g: '#40ff90', W: '#ffffff' }, glow: 'W' },
   tongue: { art: ['.pp.', 'pPPp', 'pPPp', '.pp.'], pal: { p: '#c04060', P: '#ff7090' } },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
+  wbubble: { art: ['..bbb..', '.bWccb.', 'bWcccCb', 'bccccCb', 'bcccCCb', '.bCCCb.', '..bbb..'], pal: { b: '#60b8f0', c: '#a0d8f8', C: '#3a90d0', W: '#ffffff' }, glow: 'W' },
+  eye: { art: ['.www.', 'wpPpw', 'wPkPw', 'wpPpw', '.www.'], pal: { w: '#f4f0f8', p: '#ff40c0', P: '#ff90e0', k: '#100810' }, glow: 'P' },
+  orb: { art: ['..ggg..', '.gkkkg.', 'gkGWGkg', 'gkWWWkg', 'gkGWGkg', '.gkkkg.', '..ggg..'], pal: { g: '#3a1a4a', k: '#1a0a24', G: '#80ff60', W: '#e0ffc0' }, glow: 'W' },
+  bonearrow: { art: ['b.......', 'bbsssssp', 'b.......'], pal: { b: '#d8d0c0', s: '#a89880', p: '#e8e8f0' } },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };
 

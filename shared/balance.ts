@@ -191,7 +191,7 @@ export const BAL = {
     ult: { r: 330, t: 8, speedMul: 1.5, dmgMul: 1.4, reinvis: 1.2 }, // R: la Cosecha (trigo alto)
   },
   demon: {
-    burn: { t: 3, dps: 5 }, // básico: pequeña quemadura
+    burn: { t: 3, dps: 7 }, // todos sus golpes queman
     combustMul: 1.4, // nv. 5: más daño a quien ya arde
     fireball: { speed: 520, life: 0.8, dmg: 1.2, r: 90, zoneT: 3, dps: 8, sparks: 4 }, // Q (nv. 15: llamas secundarias)
     dash: { t: 0.25, speedMul: 3.2, dmg: 0.6, trailT: 2.5, every: 26 }, // E: paso ardiente
@@ -211,16 +211,17 @@ export const BAL = {
     noise: { speed: 620, life: 0.38, dmg: 0.8, hypno: 22 }, // básico: estática (Ruido)
     tvR: 450, tvShotR: 200, tvShotRT3: 290, tvDmg: 0.5, tvMax: 4, // pasiva: las teles cercanas repiten sus ataques
     wave: { r: 220, tvR: 150, tvRT3: 220, slowT: 1.5, slowMul: 0.6, hypno: 40 }, // Q: señal pirata
-    channel: { r: 520, t: 4, rate: 30, tvR: 160, tvRT3: 240 }, // E: cambio de canal
+    channel: { range: 950, pick: 260, t: 3, exitR: 300, popR: 130, popHypno: 30 }, // E: meterse en una tele (y salir)
     hypnoDmgMul: 1.5, // nv. 5: más daño a los hipnotizados
-    ult: { t: 6, every: 0.5, beamW: 30, dmg: 0.45, hypno: 20 }, // R: emisión nacional
+    ult: { t: 6, hop: 0.12, beamW: 30, dmg: 0.55, hypno: 22, hitR: 70 }, // R: el rayo salta de tele en tele
   },
   kappa: {
-    tongue: { speed: 640, life: 0.45, dmg: 0.6, pull: 85 }, // Q: lengua acuática
+    bubble: { speed: 480, life: 1.15, dmg: 0.75, slowT: 1, slowMul: 0.8 }, // desde el agua: burbujas a larga distancia
+    tongue: { speed: 700, life: 0.48, dmg: 0.6, stun: 0.35 }, // Q: lengua acuática (arrastra hasta él)
     bowl: { t: 2.5, heal: 0.07, armorMul: 0.55, breakFrac: 0.12 }, // E: cuenco sagrado (se corta con un golpe fuerte)
     steal: { t: 3, slowMul: 0.75, speedMul: 1.25 }, // nv. 5: robo de velocidad por la espalda
-    ult: { r: 270, t: 6, pull: 110, dps: 6 }, // R: remolino del río
-    rain: { every: 6, t: 2.2, r: 80, puddleT: 9, near: 220 }, // nv. 15: nubes que dejan pozas
+    ult: { r: 270, t: 6, pull: 110, every: 1, dmg: 0.7 }, // R: remolino del río (daño cada segundo)
+    rain: { every: 6, t: 2.4, r: 80, puddleT: 9, near: 220 }, // nv. 15: nubes cuya lluvia forma una poza
   },
   alien: {
     plasma: { speed: 760, life: 0.5, dmg: 1.0 }, // básico
@@ -231,7 +232,45 @@ export const BAL = {
     ult: { t: 7, every: 0.6, range: 380, dmg: 0.6, ufos: 3 }, // R: Invasión
   },
 
+  reaper: {
+    soul: { npc: 1, big: 3, max: 40, dmg: 0.015, spd: 0.006, atk: 0.008 }, // pasiva (y nv. 5: velocidad y ataque)
+    step: { range: 210, chargesT3: 2 }, // Q: paso fúnebre
+    mark: { range: 520, pick: 220, t: 5, speedMul: 1.3, dot: 0.6, bonus: 1.8 }, // E: marca de muerte
+    ult: { t: 10, every: 0.75, range: 650, r: 115, rT3: 145, dmg: 1.6 }, // R: danza de la Parca
+  },
+  unit: {
+    eye: { speed: 640, life: 0.38, dmg: 0.85, unitDmg: 0.45 }, // básico: disparo de cada Unidad
+    link: { max: 4, maxT3: 8, range: 340 }, // Q: asimilación
+    free: { max: 1, maxT3: 2 }, // E: independencia
+    drone: { hp: 55, speed: 205, dmg: 0.4, cd: 0.9 }, // Unidad vinculada (sigue y ayuda)
+    freeDrone: { hp: 70, speed: 190, dmg: 0.5, cd: 0.8 }, // Unidad independiente (deambula sola)
+    rebirthHp: 0.6, // pasiva: vida al reaparecer en otra Unidad
+    hive: { speed: 0.04, atk: 0.04, max: 10 }, // nv. 5: por cada Unidad activa
+    ult: { delay: 2, r: 120, dmg: 2.2 }, // R: convergencia
+  },
+  necro: {
+    orb: { speed: 520, life: 0.6, dmg: 1.0 }, // básico: orbe oscuro
+    max: 3, maxT3: 5, dogChance: 0.12, // Q: alzar huesos
+    skel: { hp: 60, speed: 170, dmg: 0.5, cd: 0.9 }, archer: { hp: 40, speed: 160, dmg: 0.45, cd: 1.3, range: 300, arrowSpeed: 560 }, dog: { hp: 38, speed: 280, dmg: 0.32, cd: 0.4 },
+    march: { t: 4, speedMul: 1.3, atkMul: 0.7 }, // E: marcha de los muertos
+    last: { delay: 1, t: 3, len: 520, w: 34, dps: 22, turn: 2.2 }, // nv. 5: último conjuro
+    ult: { t: 7, portals: 3, spread: 170, every: 0.9, reach: 170, r: 80, dmg: 1.7, knock: 140, warn: 0.45 }, // R: portales del osario
+  },
 };
+
+/** Clases: invocadores con menos vida y regeneración, asesinos con robo de vida y algo menos de vida,
+ *  cuerpo a cuerpo con más vida y armadura. */
+export const CLASS: Record<string, { hp: number; regen: number; armor: number; lifesteal: number }> = {
+  melee: { hp: 1.12, regen: 1, armor: 0.06, lifesteal: 0 },
+  assassin: { hp: 0.9, regen: 1, armor: 0, lifesteal: 0.08 },
+  summoner: { hp: 0.85, regen: 0.5, armor: 0, lifesteal: 0 },
+  ranged: { hp: 1, regen: 1, armor: 0, lifesteal: 0 },
+  hybrid: { hp: 1, regen: 1, armor: 0, lifesteal: 0 },
+};
+
+/** Alimañas de cada mapa: no atacan, huyen muy rápido y siempre dejan un objeto. */
+export const CRITTERS = { max: 7, every: 9, hp: 14, r: 10, speed: 70, flee: 270, seeR: 300, xp: 8, pts: 6 };
+
 
 // ---------------------------------------------------------------------------
 // La orden de cazadores: aparecen según el nivel medio de la sala

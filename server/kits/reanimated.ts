@@ -6,7 +6,7 @@ import type { Room } from '../Room';
 import type { Kit } from './types';
 
 const B = BAL.reanimated;
-const BOULDERS: Record<string, number> = { elm: 0, transylvania: 1, camp: 2 }; // piedra · lápida · tronco
+const BOULDERS: Record<string, number> = { elm: 0, transylvania: 1, camp: 2, swamp: 2 }; // piedra · lápida · tronco
 
 /** Rayo sobre un clavo: daña alrededor y, si el dueño está cerca, el clavo vuelve a él atravesando enemigos. */
 function strike(room: Room, p: Player, z: Zone) {

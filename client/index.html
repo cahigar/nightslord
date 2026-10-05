@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>El Señor de la Noche .io</title>
   <meta name="description" content="Juego multijugador gratuito tipo .io: sé el monstruo, caza humanos, esquiva a los Cazadores y conviértete en el Señor de la Noche." />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%2310061a'/><path d='M2 6l3 2 3-4 3 4 3-2-2 6H4z' fill='%23b0182a'/></svg>" />
@@ -51,6 +51,7 @@
             <option value="elm"></option>
             <option value="transylvania"></option>
             <option value="camp"></option>
+            <option value="swamp"></option>
           </select>
           <label class="check"><input type="checkbox" id="priv" /> <span data-i18n="private"></span></label>
           <button id="create" class="btn" data-i18n="createRoom"></button>
@@ -111,12 +112,13 @@
 
   <!-- TÁCTIL -->
   <div id="touch" hidden>
+    <div id="stickzone"></div>
     <div id="stick"><div id="knob"></div></div>
     <div id="tbuttons">
-      <button id="tb-q">Q</button>
-      <button id="tb-e">E</button>
-      <button id="tb-r">R</button>
-      <button id="tb-atk">⚔</button>
+      <button id="tb-atk"><i class="cd"></i><b>⚔</b><small></small></button>
+      <button id="tb-q"><i class="cd"></i><b>Q</b><small></small></button>
+      <button id="tb-e"><i class="cd"></i><b>E</b><small></small></button>
+      <button id="tb-r"><i class="cd"></i><b>R</b><small></small></button>
       <button id="tb-emote">😜</button>
     </div>
   </div>

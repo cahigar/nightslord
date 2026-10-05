@@ -1,5 +1,6 @@
 // Estado de partida en el cliente: predicción del jugador local, interpolación del resto, efectos y render.
 import { CHARACTERS, type CharacterId } from '../shared/characters';
+import { pixelizeShapes } from './pixelshapes';
 import { MAP_SIZE, PIXEL, TICK_DT } from '../shared/constants';
 import { BORDER_DEPTH, generateMap, THEMES, tvLinks, tvSpot, type GameMap, type MapThemeId, type Obstacle } from '../shared/maps';
 import { BAL, tierOf } from '../shared/balance';
@@ -12,7 +13,7 @@ import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, 
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
-import { ANIMS, getBeacon, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSpiderling, npcLook, SH, SW } from './sprites';
+import { ANIMS, getBeacon, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSkeleton, getSpiderling, getVermin, npcLook, SH, SW } from './sprites';
 import { LIGHT_COLORS, lightsFor, renderDecor, renderObstacle, renderTV, type Light, type Prerendered } from './tiles';
 
 const INTERP_MS = 120;
@@ -74,6 +75,8 @@ export class Game {
   private corpses: Corpse[] = [];
   private shake = 0;
   cam = { x: MAP_SIZE / 2, y: MAP_SIZE / 2, zoom: 1 };
+  /** Altura (fracción de la pantalla) donde se centra el personaje: en móvil, el centro de la zona que no tapan HUD y controles. */
+  focusY = 0.5;
 
   onEvent: ((ev: GameEvent) => void) | null = null;
 
@@ -166,19 +169,25 @@ export class Game {
     const { mx, my } = this.alive ? readMove() : { mx: 0, my: 0 };
     const b = this.alive ? readButtons() : 0;
     // ángulo de apuntado
+    let d = 200;
     if (input.touch.active) {
-      if (input.touch.aim !== null) this.aim = input.touch.aim;
+      if (input.touch.dragging && input.touch.aim !== null) { this.aim = input.touch.aim; d = input.touch.aimDist; }
+      else {
+        // apuntado automático: el enemigo visible más cercano; si no hay, hacia donde caminas
+        const t = this.autoTarget(520);
+        if (t) { const rp = this.renderPos(); this.aim = Math.atan2(t.ry - rp.y, t.rx - rp.x); d = Math.hypot(t.rx - rp.x, t.ry - rp.y); }
+        else if (input.touch.moveAim !== null) this.aim = input.touch.moveAim;
+      }
     } else {
       const sx = this.canvas.width / 2 + (this.renderPos().x - this.cam.x) * this.cam.zoom;
-      const sy = this.canvas.height / 2 + (this.renderPos().y - this.cam.y - 45) * this.cam.zoom;
+      const sy = this.canvas.height * this.focusY + (this.renderPos().y - this.cam.y - 45) * this.cam.zoom;
       this.aim = Math.atan2(input.mouseY * devicePixelRatio - sy, input.mouseX * devicePixelRatio - sx);
     }
     // distancia al cursor (habilidades que se lanzan en un punto: carne, tentáculo...)
-    let d = 200;
     if (!input.touch.active) {
       const rp = this.renderPos();
       const wx = this.cam.x + (input.mouseX * devicePixelRatio - this.canvas.width / 2) / this.cam.zoom;
-      const wy = this.cam.y + (input.mouseY * devicePixelRatio - this.canvas.height / 2) / this.cam.zoom;
+      const wy = this.cam.y + (input.mouseY * devicePixelRatio - this.canvas.height * this.focusY) / this.cam.zoom;
       d = Math.hypot(wx - rp.x, wy - (rp.y - 45));
     }
     const q = ++this.seq;
@@ -191,6 +200,20 @@ export class Game {
       const r = this.predMove(this.pred.x, this.pred.y, mx * this.you.spd * TICK_DT, my * this.you.spd * TICK_DT, this.aquatic(), !!this.you.fly);
       this.pred.x = r.x; this.pred.y = r.y;
     }
+  }
+
+  /** Enemigo visible más cercano (apuntado automático en móvil). */
+  private autoTarget(R: number): CEnt | null {
+    const me = this.renderPos();
+    let best: CEnt | null = null, bd = R * R;
+    for (const e of this.ents.values()) {
+      if (e.id === this.youId || (e.k !== Kind.Player && e.k !== Kind.Npc && e.k !== Kind.Hunter && e.k !== Kind.Minion)) continue;
+      if (e.k === Kind.Minion && e.o === this.youId) continue;
+      if (e.fl & (Flag.Invisible | Flag.Protected | Flag.Submerged)) continue;
+      const dd = (e.rx - me.x) ** 2 + (e.ry - me.y) ** 2;
+      if (dd < bd) { bd = dd; best = e; }
+    }
+    return best;
   }
 
   /** Movimiento predicho: con colisiones, o libre si vuela. */
@@ -209,7 +232,7 @@ export class Game {
   /** ¿Mi personaje cruza el agua profunda? (cualquier criatura acuática). */
   private aquatic() {
     const c = this.ents.get(this.youId)?.c as CharacterId | undefined;
-    return !!(c && (CHARACTERS[c]?.aquatic || CHARACTERS[c]?.hover || (c === 'pirate' && (this.you?.tier ?? 0) >= 1))); // camina (o levita, o navega) sobre el agua
+    return !!(c && (CHARACTERS[c]?.aquatic || CHARACTERS[c]?.hover || (c === 'pirate' && (this.you?.tier ?? 0) >= 1) || (c === 'necro' && this.you?.buffs.some((b) => b.t === 'march')))); // camina (o levita, o navega) sobre el agua
   }
 
   renderPos() {
@@ -238,7 +261,7 @@ export class Game {
       case 'die': {
         if (ev.k !== Kind.Player || ev.c) {
           const e = [...this.ents.values()].find((x) => Math.abs(x.rx - ev.x) < 30 && Math.abs(x.ry - ev.y) < 30 && x.k === ev.k);
-          if (ev.k === Kind.Minion && e?.c === 'thrall') this.corpses.push({ x: ev.x, y: ev.y, k: Kind.Npc, c: e.s ?? ev.c, f: e.f ?? 1, life: 6, seed: e.l ?? 0 });
+          if (ev.k === Kind.Minion && (e?.c === 'thrall' || e?.c === 'digger')) this.corpses.push({ x: ev.x, y: ev.y, k: Kind.Npc, c: e.s ?? ev.c, f: e.f ?? 1, life: 6, seed: e.l ?? 0 });
           else if (ev.k === Kind.Minion) { if (e && NO_CORPSE.has(e.c)) { /* sin cadáver */ } else if (e && ['wall', 'turret', 'flower'].includes(e.c)) this.effects.burst(ev.x, ev.y - 20, 18, ['#5a4632', '#2e4a24', '#a0e040'], 160, 3, 400, 0.6); else if (e?.c !== 'clone') this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 }); }
           else this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: ev.c, s: e?.s, f: e?.f ?? 1, life: 6, seed: e?.id ?? 0 });
           if (this.corpses.length > 60) this.corpses.shift();
@@ -294,6 +317,7 @@ export class Game {
   render(dt: number) {
     const cv = this.canvas;
     const ctx = cv.getContext('2d')!;
+    pixelizeShapes(ctx);
     const W = cv.width, H = cv.height;
     if (!this.map) { ctx.fillStyle = '#05030a'; ctx.fillRect(0, 0, W, H); return; }
     const now = performance.now();
@@ -329,7 +353,7 @@ export class Game {
     const z = this.cam.zoom;
     this.shake = Math.max(0, this.shake - dt * 40);
     const sx = (Math.random() - 0.5) * this.shake, sy = (Math.random() - 0.5) * this.shake;
-    const camX = this.cam.x - W / 2 / z + sx, camY = this.cam.y - H / 2 / z + sy;
+    const camX = this.cam.x - W / 2 / z + sx, camY = this.cam.y - (H * this.focusY) / z + sy;
     const vx0 = camX - 100, vy0 = camY - 200, vx1 = camX + W / z + 100, vy1 = camY + H / z + 150;
     const inView = (x: number, y: number) => x > vx0 && x < vx1 && y > vy0 && y < vy1;
     const world = () => ctx.setTransform(z, 0, 0, z, Math.round(-camX * z), Math.round(-camY * z));
@@ -488,18 +512,13 @@ export class Game {
 
     // trigo alto de la Cosecha: tapa a quien esté dentro
     for (const e of this.ents.values()) if (e.k === Kind.Zone && e.c === 'wheat' && inView(e.rx, e.ry)) this.effects.drawWheat(ctx, e.rx, e.ry, e.rr ?? 300, (e.h ?? 100) / 100, now, e.id % 97);
-    // Emisión nacional: rayos de tele en tele por todo el mapa
-    if (this.tv?.bc) {
-      const spots = this.map.tvs.map(tvSpot);
-      if (!this.tvLinkCache) this.tvLinkCache = tvLinks(this.map.tvs);
-      ctx.fillStyle = this.tv.bc;
-      for (const [a, b] of this.tvLinkCache) {
-        const A = spots[a], B2 = spots[b];
-        if (!inView(A.x, A.y) && !inView(B2.x, B2.y)) continue;
-        const n = Math.ceil(Math.hypot(B2.x - A.x, B2.y - A.y) / 6);
-        for (let i = 0; i <= n; i++) { const t = i / n; const j = Math.sin(t * 40 + now / 40) * 4; ctx.globalAlpha = 0.6 + Math.random() * 0.4; ctx.fillRect(Math.round((A.x + (B2.x - A.x) * t) / 3) * 3, Math.round((A.y - 20 + (B2.y - A.y) * t + j) / 3) * 3, 6, 3); }
-        dyn.push({ x: (A.x + B2.x) / 2, y: (A.y + B2.y) / 2, r: 120, c: 'cold' });
-      }
+    // móvil: guía de apuntado mientras arrastras un botón
+    if (input.touch.active && input.touch.dragging && this.alive) {
+      const a = this.aim, L = Math.min(input.touch.aimDist, 700);
+      ctx.fillStyle = '#ffffff';
+      for (let k = 30; k < L; k += 18) { ctx.globalAlpha = 0.55 * (1 - k / (L + 60)); ctx.fillRect(Math.round((me.x + Math.cos(a) * k) / PIXEL) * PIXEL, Math.round((me.y - 30 + Math.sin(a) * k) / PIXEL) * PIXEL, PIXEL * 2, PIXEL * 2); }
+      ctx.globalAlpha = 0.6;
+      pixelEllipse(ctx, me.x + Math.cos(a) * L, me.y - 30 + Math.sin(a) * L, 26, 16, '#ffe080', 2);
       ctx.globalAlpha = 1;
     }
     // proyectiles y efectos
@@ -543,7 +562,7 @@ export class Game {
     // cegado por los cuervos: casi no ves más allá de ti
     if (this.you?.buffs.some((b) => b.t === 'blind')) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      const sx = W / 2 + (me.x - this.cam.x) * z, sy = H / 2 + (me.y - 40 - this.cam.y) * z;
+      const sx = W / 2 + (me.x - this.cam.x) * z, sy = H * this.focusY + (me.y - 40 - this.cam.y) * z;
       const g = ctx.createRadialGradient(sx, sy, 60 * z, sx, sy, 260 * z);
       g.addColorStop(0, 'rgba(6,4,10,0)'); g.addColorStop(1, 'rgba(6,4,10,0.94)');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -681,6 +700,25 @@ export class Game {
       if (img.glow) glows.push({ img: img.glow, x: x - w / 2, y: y - h - 2 + bob, w, h, flip: false, a: 0.6 + Math.sin(now / 200 + e.id) * 0.3 });
       return;
     }
+    // ---- alimañas del mapa
+    if (e.k === Kind.Npc && e.c.startsWith('c_')) {
+      const fly = e.c === 'c_bat' || e.c === 'c_crow';
+      const moving = e.a === Anim.Walk;
+      const img = getVermin(e.c, fly ? Math.floor(now / (moving ? 70 : 220) + e.id) % 2 : moving ? Math.floor(now / 90 + e.id) % 2 : 0);
+      const lift = fly ? (moving || e.c === 'c_bat' ? 26 + Math.sin(now / 150 + e.id) * 6 : 0) : 0;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
+      const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
+      const dx = Math.round((x - w / 2) / PIXEL) * PIXEL, dy = Math.round((y - h + 6 - lift) / PIXEL) * PIXEL;
+      if (e.f === -1) { ctx.save(); ctx.translate(dx * 2 + w, 0); ctx.scale(-1, 1); }
+      ctx.drawImage(img.base, dx, dy, w, h);
+      if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.7; ctx.drawImage(img.base, dx, dy, w, h); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+      if (e.f === -1) ctx.restore();
+      if (img.glow) glows.push({ img: img.glow, x: dx, y: dy, w, h, flip: e.f === -1, a: 1 });
+      // destello: siempre sueltan algo
+      if (Math.random() < 0.06) this.particles.push({ x: x + (Math.random() - 0.5) * 16, y: y - lift - 16, vx: 0, vy: -20, life: 0.5, max: 0.5, color: '#ffe080', size: 3, grav: 0 });
+      return;
+    }
     // ---- sumergido: solo ondas y burbujas
     if (e.fl & Flag.Submerged) {
       const t = now / 1000;
@@ -762,6 +800,7 @@ export class Game {
     if (flying) lift += 26 + Math.sin(now / 200 + e.id) * 3;
     if (isMonster && e.c === 'pirate' && tier >= 1 && this.waterUnder(x, y)) { this.drawGhostShip(ctx, x, y, e.f, now, glows); lift += 10; }
     if (isMonster && e.c === 'poltergeist') lift += 8 + Math.sin(now / 300 + e.id) * 4; // levita
+    if (isMonster && e.c === 'necro' && e.fl & Flag.Haste) { lift += 12 + Math.sin(now / 250 + e.id) * 3; if (Math.random() < 0.4) this.effects.particles.push({ x: x + (Math.random() - 0.5) * 30, y: y - 4, vx: 0, vy: -20, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#80ff60' : '#2a1e3a', size: 3, grav: 0, glow: true }); }
     // drenaje del Poltergeist: aura que tira de la vida de alrededor
     if (ult && e.c === 'poltergeist') {
       const R = BAL.poltergeist.ult.r, k = (now / 900) % 1;
@@ -835,7 +874,7 @@ export class Game {
       ctx.globalCompositeOperation = 'source-over';
     }
     if (e.f2 & Flag2.Engulfed) { ctx.globalAlpha = 0.45; ctx.fillStyle = '#60d040'; ctx.fillRect(dx, dy, w, h); ctx.globalAlpha = 1; }
-    if (e.f2 & Flag2.Burning && Math.random() < 0.45) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y - 10 - Math.random() * 50, vx: 0, vy: -70, life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#ff6020' : '#ffd040', size: 3, grav: 0 });
+    if (e.f2 & Flag2.Burning) this.drawFlames(ctx, x, y - lift, h, now, e.id);
     if (e.f2 & Flag2.Blind) for (let i = 0; i < 3; i++) { const a = now / 200 + i * 2.1; ctx.fillStyle = '#141018'; ctx.fillRect(Math.round((x + Math.cos(a) * 16) / 3) * 3, Math.round((y - h + 6 - lift + Math.sin(a) * 5) / 3) * 3, 6, 3); }
     if (e.fl & Flag.Poison && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: -20, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#80e020' : '#3a6a10', size: 3, grav: 0 });
     if (e.fl & Flag.Bleed && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: 0, life: 0.5, max: 0.5, color: '#c01020', size: 3, grav: 300 });
@@ -858,6 +897,19 @@ export class Game {
       this.effects.drawJet(ctx, x + Math.cos(a) * 30, y - 58 + Math.sin(a) * 10, a, len, now); // sale de delante de la cabeza, como invocado
     }
     if (fr.glow && alpha > 0.3) glows.push({ img: fr.glow, x: dx, y: dy, w, h, flip, a: Math.min(1, alpha + tier * 0.1) });
+    // almas que orbitan a la Parca (una por alma, hasta 12)
+    if (isMonster && e.c === 'reaper' && e.o && !invis) {
+      const n = Math.min(12, e.o);
+      for (let i = 0; i < n; i++) {
+        const a = now / 600 + (i / n) * Math.PI * 2;
+        const sx = Math.round((x + Math.cos(a) * 26) / PIXEL) * PIXEL, sy = Math.round((y - 44 - lift + Math.sin(a) * 10 + Math.sin(now / 200 + i) * 3) / PIXEL) * PIXEL;
+        ctx.globalAlpha = Math.sin(a) > 0 ? 0.95 : 0.5;
+        ctx.fillStyle = '#60ffd0'; ctx.fillRect(sx, sy, PIXEL * 2, PIXEL * 2);
+        ctx.fillStyle = '#e0fff8'; ctx.fillRect(sx, sy, PIXEL, PIXEL);
+        ctx.fillStyle = '#2a8a70'; ctx.fillRect(sx + PIXEL, sy + PIXEL * 2, PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 1;
+    }
 
     // ---- delante del personaje
     if (ult && e.c === 'alien') {
@@ -948,6 +1000,34 @@ export class Game {
   private drawMinion(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     const x = e.rx, y = e.ry;
     const variant = e.c;
+    if (variant === 'skel' || variant === 'skelarcher' || variant === 'skeldog') {
+      // esqueletos del Nigromante
+      const sk = getSkeleton(variant, e.a, this.frameFor(e, now), '#80ff60');
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = e.o === this.youId ? 'rgba(128,255,96,0.7)' : 'rgba(255,110,70,0.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 16, 5, 0, 0, Math.PI * 2); ctx.stroke();
+      this.blitFrame(ctx, sk.base, x, y, e.f === -1, variant === 'skeldog' ? 0.9 : 0.95, 1);
+      if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, sk.base, x, y, e.f === -1, 0.95, 0.7); ctx.globalCompositeOperation = 'source-over'; }
+      if (sk.glow) glows.push({ img: sk.glow, x: x - (SW * PIXEL * 0.95) / 2, y: y - SH * PIXEL * 0.95 + 9 * 0.95, w: SW * PIXEL * 0.95, h: SH * PIXEL * 0.95, flip: e.f === -1, a: 1 });
+      return;
+    }
+    if (variant === 'unit' || variant === 'unitfree') {
+      // Unidades: copias del enjambre (las independientes, con antena luminosa)
+      const sk = (e.s ?? 'unit:classic').split(':')[1] || 'classic';
+      const fr = getFrame('monster', 'unit', sk, e.a, this.frameFor(e, now), 0, 0);
+      const mine = e.o === this.youId;
+      const boom = !!(e.fl & Flag.Swollen);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.beginPath(); ctx.ellipse(x + 2, y + 3, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = variant === 'unitfree' ? 'rgba(64,224,255,0.75)' : mine ? 'rgba(255,64,192,0.7)' : 'rgba(255,110,70,0.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 17, 5, 0, 0, Math.PI * 2); ctx.stroke();
+      this.blitFrame(ctx, fr.base, x, y, e.f === -1, 0.88, 1);
+      if (boom ? Math.floor(now / 90) % 2 : now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, fr.base, x, y, e.f === -1, 0.88, boom ? 0.9 : 0.7); ctx.globalCompositeOperation = 'source-over'; }
+      if (fr.glow) glows.push({ img: fr.glow, x: x - (SW * PIXEL * 0.88) / 2, y: y - SH * PIXEL * 0.88 + 9 * 0.88, w: SW * PIXEL * 0.88, h: SH * PIXEL * 0.88, flip: e.f === -1, a: 0.9 });
+      if (variant === 'unitfree') { ctx.fillStyle = '#40e0ff'; ctx.fillRect(Math.round(x / PIXEL) * PIXEL, Math.round((y - SH * PIXEL * 0.88 - 2) / PIXEL) * PIXEL, PIXEL, PIXEL * 3) }
+      return;
+    }
     if (variant === 'wall' || variant === 'turret' || variant === 'flower') {
       // plantas del Árbol maldito
       const pl = getPlant(variant, Math.floor(now / 400 + e.id) % 2, e.l === 1);
@@ -1106,6 +1186,21 @@ export class Game {
     if (y1 > S + D) ctx.fillRect(x0, S + D, x1 - x0, y1 - S - D);
   }
 
+  /** Llamas pixeladas sobre quien arde. */
+  private drawFlames(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, now: number, seed: number) {
+    const P = PIXEL;
+    for (let i = 0; i < 5; i++) {
+      const fx = Math.round((x - 15 + i * 7 + Math.sin(now / 90 + i * 1.7 + seed) * 2) / P) * P;
+      const base = Math.round((y - 6 - ((i * 13 + seed) % 4) * P - (i % 2 ? h * 0.25 : 0)) / P) * P;
+      const fh = (3 + ((Math.floor(now / 70) + i + seed) % 3)) * P;
+      ctx.fillStyle = '#c02010'; ctx.fillRect(fx - P, base - fh, P * 3, fh);
+      ctx.fillStyle = '#ff7020'; ctx.fillRect(fx - P, base - fh + P, P * 2, fh - P);
+      ctx.fillStyle = '#ffd040'; ctx.fillRect(fx, base - fh + P * 2, P, Math.max(P, fh - P * 3));
+      ctx.fillStyle = '#ff9030'; ctx.fillRect(fx, base - fh - P, P, P);
+    }
+    if (Math.random() < 0.5) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y - 10 - Math.random() * h * 0.6, vx: 0, vy: -80, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#ff6020' : '#ffd040', size: 3, grav: 0 });
+  }
+
   /** Luna llena detrás del Lobo durante su definitiva. */
   private drawMoon(ctx: CanvasRenderingContext2D, x: number, y: number, now: number) {
     const r = 40 + Math.sin(now / 400) * 2;
@@ -1156,7 +1251,16 @@ export class Game {
   private drawProjectile(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     if ((e.c === 'hook' || e.c === 'tongue') && e.o !== undefined) {
       const ow = this.ents.get(e.o);
-      if (ow) { ctx.fillStyle = e.c === 'tongue' ? '#e05070' : '#8a8a94'; const n = Math.ceil(Math.hypot(e.rx - ow.rx, e.ry - ow.ry) / 9); for (let i = 0; i < n; i++) { const t = i / n; ctx.fillRect(Math.round((ow.rx + (e.rx - ow.rx) * t) / 3) * 3, Math.round((ow.ry - 40 + (e.ry - ow.ry) * t) / 3) * 3, 3, 3); } }
+      if (ow) {
+        const n = Math.ceil(Math.hypot(e.rx - ow.rx, e.ry - ow.ry) / 3);
+        const oy = e.c === 'tongue' ? 52 : 40;
+        for (let i = 0; i < n; i++) {
+          const t = i / n, wob = e.c === 'tongue' ? Math.sin(t * 9 + now / 40) * 3 * (1 - t) : 0;
+          const px = Math.round((ow.rx + (e.rx - ow.rx) * t) / 3) * 3, py = Math.round((ow.ry - oy + (e.ry - 40 - ow.ry + oy) * t + wob) / 3) * 3;
+          ctx.fillStyle = e.c === 'tongue' ? '#c03050' : '#8a8a94'; ctx.fillRect(px, py, 3, e.c === 'tongue' ? 6 : 3);
+          if (e.c === 'tongue') { ctx.fillStyle = '#ff7090'; ctx.fillRect(px, py, 3, 3); }
+        }
+      }
     }
     if (e.c === 'firewave') {
       // onda de fuego: arco de llamas que avanza
@@ -1187,7 +1291,7 @@ export class Game {
     const big = e.c.startsWith('bigpotion');
     const spin = e.c === 'fireball' || e.c === 'ember' || e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion') || e.c.startsWith('obj');
     const id = e.c === 'bat' ? `bat${Math.floor(now / 90) % 2}` : e.c === 'scarab' ? `scarab${Math.floor(now / 60) % 2}`
-      : e.c === 'boulder' ? `boulder${({ elm: 0, transylvania: 1, camp: 2 } as Record<string, number>)[this.theme] ?? 0}` : big ? e.c.slice(3) : e.c;
+      : e.c === 'boulder' ? `boulder${({ elm: 0, transylvania: 1, camp: 2, swamp: 2 } as Record<string, number>)[this.theme] ?? 0}` : big ? e.c.slice(3) : e.c;
     const img = getItem(id);
     const sc = big ? 1.8 : e.c === 'boulder' ? 1.4 : 1;
     const w = img.base.width * PIXEL * sc, h = img.base.height * PIXEL * sc;
@@ -1195,11 +1299,11 @@ export class Game {
     ctx.save();
     ctx.translate(e.rx, py);
     if (e.c === 'bat') { if ((e.r ?? 0) > Math.PI / 2 || (e.r ?? 0) < -Math.PI / 2) ctx.scale(-1, 1); }
-    else ctx.rotate(spin ? now / 60 : e.c === 'heart' ? 0 : e.r ?? 0);
+    else ctx.rotate(spin ? Math.floor(now / 90) * (Math.PI / 2) : e.c === 'heart' || e.c === 'wbubble' || e.c === 'orb' || e.c === 'eye' ? 0 : Math.round((e.r ?? 0) / (Math.PI / 4)) * (Math.PI / 4)); // giros en pasos (sin rotación suave)
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'noise' ? '#e8f0f0' : e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'wbubble' ? '#a0d8f8' : e.c === 'orb' ? '#80ff60' : e.c === 'eye' ? '#ff40c0' : e.c === 'bonearrow' ? '#d8d0c0' : e.c === 'noise' ? '#e8f0f0' : e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1319,7 +1423,7 @@ export class Game {
     const me = this.renderPos();
     c.fillStyle = '#ffe080'; c.fillRect(me.x * s - 3, me.y * s - 3, 6, 6);
     c.strokeStyle = 'rgba(255,255,255,0.3)';
-    c.strokeRect((this.cam.x - this.canvas.width / 2 / this.cam.zoom) * s, (this.cam.y - this.canvas.height / 2 / this.cam.zoom) * s, (this.canvas.width / this.cam.zoom) * s, (this.canvas.height / this.cam.zoom) * s);
+    c.strokeRect((this.cam.x - this.canvas.width / 2 / this.cam.zoom) * s, (this.cam.y - (this.canvas.height * this.focusY) / this.cam.zoom) * s, (this.canvas.width / this.cam.zoom) * s, (this.canvas.height / this.cam.zoom) * s);
   }
 
   get lastSnap() { return this.lastSnapAt; }
@@ -1328,13 +1432,13 @@ export class Game {
 /** Lo que no sangra al golpearlo: el Árbol maldito y sus plantas. */
 const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
-const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
+const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon', 'skel', 'skelarcher', 'skeldog', 'unit', 'unitfree']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90', static: '#40ff90', kappa: '#a0d8f0' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90', static: '#40ff90', kappa: '#a0d8f0', reaper: '#60ffd0', unit: '#ff40c0', necro: '#80ff60' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
-  tree: [52, 52], pine: [52, 52], deadtree: [52, 52], tomb: [28, 34], lamp: [16, 16], statue: [40, 40], mailbox: [14, 14], rock: [46, 36], log: [80, 24], well: [44, 44],
+  tree: [52, 52], pine: [52, 52], deadtree: [52, 52], cypress: [56, 56], tomb: [28, 34], lamp: [16, 16], statue: [40, 40], mailbox: [14, 14], rock: [46, 36], log: [80, 24], well: [44, 44],
 };
 const PROP_ART = new Map<string, Prerendered>();
 
@@ -1369,6 +1473,9 @@ const TAUNTS: Record<CharacterId, string> = {
   alien: 'Llévame con tu líder',
   static: 'No toque su televisor...',
   kappa: '¡Cuidado con mi cuenco!',
+  reaper: 'Tu hora ha llegado...',
+  unit: 'Somos uno. Únete.',
+  necro: '¡Levantaos, huesos!',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

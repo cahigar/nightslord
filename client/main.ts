@@ -49,6 +49,20 @@ addEventListener('resize', resize);
 resize();
 setupInput(canvas);
 
+/** Centro vertical de la zona de juego que no tapan el HUD ni los controles (el personaje se dibuja ahí). */
+function measureFocus(): number {
+  const H = innerHeight, W = innerWidth;
+  let top = 0, bottom = H;
+  for (const id of ['bottom', 'upgrades', 'tbuttons', 'topleft']) {
+    const el = document.getElementById(id);
+    if (!el || el.hidden || el.offsetParent === null) continue;
+    const r = el.getBoundingClientRect();
+    if (r.height < 4 || r.right < W / 2 - 70 || r.left > W / 2 + 70) continue; // solo lo que tapa la columna central
+    if (r.top + r.height / 2 < H / 2) top = Math.max(top, r.bottom); else bottom = Math.min(bottom, r.top);
+  }
+  return Math.max(0.32, Math.min(0.62, (top + bottom) / 2 / H));
+}
+
 let last = performance.now();
 let mmT = 0;
 function frame(now: number) {
@@ -56,7 +70,7 @@ function frame(now: number) {
   last = now;
   game.render(dt);
   mmT -= dt;
-  if (inGame && mmT <= 0) { game.minimap($<HTMLCanvasElement>('minimap')); mmT = 0.2; }
+  if (inGame && mmT <= 0) { game.minimap($<HTMLCanvasElement>('minimap')); mmT = 0.2; game.focusY += (measureFocus() - game.focusY) * 0.5; }
   animatePreviews(now);
   requestAnimationFrame(frame);
 }
@@ -296,6 +310,30 @@ function updateHud() {
     if (i === 2 && y.ecm) (el.querySelector('.cdt') as HTMLElement).textContent = `${y.ec}/${y.ecm}${r > 0.05 && (y.ec ?? 0) < y.ecm ? ' · ' + r.toFixed(0) : ''}`;
     if (i === 1 && y.qcm) (el.querySelector('.cdt') as HTMLElement).textContent = `${y.qc}/${y.qcm}${r > 0.05 && (y.qc ?? 0) < y.qcm ? ' · ' + r.toFixed(0) : ''}`;
   }
+  // botones táctiles: enfriamiento como "tarta" que se vacía y cargas
+  if (input.touch.active) {
+    const ids = ['tb-atk', 'tb-q', 'tb-e', 'tb-r'];
+    for (let i = 0; i < 4; i++) {
+      const el = document.getElementById(ids[i]);
+      if (!el) continue;
+      let frac = 0, txt = '';
+      if (i < 3) {
+        const r = y.cd[i], m = y.cdm[i] || 1;
+        frac = Math.max(0, Math.min(1, r / m));
+        if (i > 0 && r > 0.05) txt = r.toFixed(r < 10 ? 1 : 0);
+        if (i === 1 && y.qcm) { txt = `${y.qc}/${y.qcm}`; if ((y.qc ?? 0) > 0) frac = 0; }
+        if (i === 2 && y.ecm) { txt = `${y.ec}/${y.ecm}`; if ((y.ec ?? 0) > 0) frac = 0; }
+      } else {
+        const locked = y.tier < 2;
+        frac = locked ? 1 : y.ultOn > 0 ? 0 : 1 - y.ult / 100;
+        txt = locked ? t('ultLocked') : y.ultOn > 0 ? y.ultOn.toFixed(0) : y.ult >= 100 ? '' : `${y.ult}%`;
+        el.classList.toggle('locked', locked);
+        el.classList.toggle('ready', !locked && y.ult >= 100 && y.ultOn <= 0);
+      }
+      el.style.setProperty('--cd', String(frac));
+      (el.querySelector('small') as HTMLElement).textContent = txt;
+    }
+  }
   // definitiva: bloqueada hasta nivel 10 y se carga con bajas
   const ultEl = document.getElementById('ab3');
   if (ultEl) {
@@ -323,6 +361,8 @@ function updateHud() {
   }
   $('ping').textContent = `${Math.round(net.rtt)} ms`;
 }
+
+$('rank').addEventListener('click', () => $('rank').classList.toggle('open'));
 
 function renderRank(list: [string, number, CharacterId, number][], total: number) {
   $('rank').innerHTML = `<div class="title">${t('rank')} · ${total}👤</div>` + list.map((r, i) =>

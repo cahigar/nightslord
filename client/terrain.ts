@@ -26,6 +26,7 @@ const M = {
   sand: ramp('#3a3226', '#463c2c', '#544834', '#62543c'),
   gravel: ramp('#24222a', '#2d2b33', '#38363e', '#44424a'),
   moss: ramp('#16241a', '#1d2e1e', '#263a22', '#30462a'),
+  bog: ramp('#141a10', '#1a2214', '#212b18', '#2a361d'),
   asphalt: ramp('#18171c', '#1d1c22', '#232229', '#2a2930'),
   sidewalk: ramp('#34323a', '#3e3c44', '#4a4850', '#56545c'),
   cobble: ramp('#25232b', '#302e37', '#3c3a44', '#4a4852'),
@@ -46,6 +47,7 @@ const THEME_GROUND: Record<string, ThemeGround> = {
   elm: { base: (n, d) => (n < 0.33 ? 'dirt' : n < 0.4 ? 'mud' : d > 0.62 ? 'lawn' : 'grass') },
   transylvania: { base: (n, d) => (n < 0.3 ? 'gravel' : n < 0.42 ? 'dirt' : d > 0.64 ? 'moss' : 'deadgrass') },
   camp: { base: (n, d) => (n < 0.3 ? 'dirt' : n > 0.62 ? 'needles' : d > 0.6 ? 'grass' : 'forest') },
+  swamp: { base: (n, d) => (n < 0.36 ? 'mud' : n < 0.44 ? 'dirt' : d > 0.58 ? 'moss' : n > 0.66 ? 'forest' : 'bog') },
 };
 
 export class Terrain {
@@ -194,7 +196,7 @@ export class Terrain {
         const v = lakeValue(l, x, y);
         if (v > 0.04) { mat = 'water'; tone = Math.max(0, Math.min(0.99, 0.85 - v * 1.6 + b * 0.12 + (d - 0.5) * 0.3)); }
         else if (v > 0.0) { mat = 'foam'; tone = 0.5 + b; }
-        else if (v > -0.07) { mat = map.theme === 'transylvania' ? 'mud' : 'sand'; tone = 0.4 + (v + 0.07) * 6 + b * 0.3; }
+        else if (v > -0.07) { mat = map.theme === 'transylvania' || map.theme === 'swamp' ? 'mud' : 'sand'; tone = 0.4 + (v + 0.07) * 6 + b * 0.3; }
         else if (v > -0.13 && b > (v + 0.13) * 6 - 0.5) mat = 'mud';
       }
 
@@ -226,7 +228,7 @@ export class Terrain {
           const wob = (fbm(x, y, seed + 31, 80, 2) - 0.5) * 30;
           if (dOut > 18 + wob) { mat = 'water'; tone = Math.max(0, 0.6 - (dOut - 18) / 400 + b * 0.12); }
           else if (dOut > 4 + wob) { mat = 'foam'; tone = 0.4 + b; }
-          else if (dOut > -26 + wob) { mat = map.theme === 'transylvania' ? 'mud' : 'sand'; tone = 0.45 + b * 0.3; }
+          else if (dOut > -26 + wob) { mat = map.theme === 'transylvania' || map.theme === 'swamp' ? 'mud' : 'sand'; tone = 0.45 + b * 0.3; }
         } else if (kind === 'cliff') {
           const wob = (fbm(x, y, seed + 37, 60, 2) - 0.5) * 26;
           if (dOut > 40 + wob) { mat = 'abyss'; tone = Math.max(0, 0.8 - (dOut - 40) / 120 + b * 0.2); }
@@ -253,10 +255,10 @@ export class Terrain {
       const px = Math.floor(hashAt(i, cx * 31 + cy, seed + 13) * CHUNK), py = Math.floor(hashAt(cy * 17 + cx, i, seed + 14) * CHUNK);
       const mat = mats[py * CHUNK + px];
       const h = hashAt(px, py, seed + 15);
-      if (mat === 'grass' || mat === 'lawn' || mat === 'forest' || mat === 'moss') {
+      if (mat === 'grass' || mat === 'lawn' || mat === 'forest' || mat === 'moss' || mat === 'bog') {
         const g = M[mat];
         put(px, py, g[3]); put(px, py - 1, g[3]); put(px + 1, py, g[2]);
-        if (h < 0.12 && map.theme !== 'transylvania') put(px, py - 2, FLOWERS[Math.floor(h * 33) % 4]);
+        if (h < 0.12 && map.theme !== 'transylvania' && map.theme !== 'swamp') put(px, py - 2, FLOWERS[Math.floor(h * 33) % 4]);
       } else if (mat === 'deadgrass') {
         put(px, py, M.deadgrass[3]); put(px - 1, py - 1, M.deadgrass[3]); put(px + 1, py - 1, M.deadgrass[2]);
       } else if (mat === 'dirt' || mat === 'gravel' || mat === 'mud') {
@@ -276,8 +278,8 @@ export class Terrain {
 
     // sombras de obstáculos (luz de luna desde arriba-izquierda)
     const shadowOf = (o: Obstacle) => {
-      const tall = ['house', 'cabin', 'crypt', 'wall', 'tower', 'shop'].includes(o.type);
-      const round = ['tree', 'pine', 'deadtree', 'rock', 'well', 'statue', 'brazier', 'lamp', 'firepit', 'mailbox', 'tomb'].includes(o.type);
+      const tall = ['house', 'cabin', 'crypt', 'wall', 'tower', 'shop', 'hut'].includes(o.type);
+      const round = ['tree', 'pine', 'deadtree', 'rock', 'well', 'statue', 'brazier', 'lamp', 'firepit', 'mailbox', 'tomb', 'cypress', 'cauldron'].includes(o.type);
       if (o.type === 'water') return null;
       if (tall) return { kind: 'rect' as const, x: o.x + 10, y: o.y + 8, w: o.w + 14, h: o.h + 10 };
       if (round) return { kind: 'ell' as const, x: o.x + o.w / 2 + 8, y: o.y + o.h - 2, rx: o.w * 0.75 + 6, ry: Math.max(10, o.h * 0.4) };

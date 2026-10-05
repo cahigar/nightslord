@@ -41,7 +41,7 @@ export const MEDALS: MedalDef[] = [
   { id: 'fashion', name: 'Presumido', desc: 'Compra una skin.', icon: '🎩', coins: 20 },
 ];
 
-/** Medallas propias de cada monstruo (22): alcanzar el nivel 15 con él. Se añaden a MEDALS más abajo. */
+/** Medallas propias de cada monstruo (25): alcanzar el nivel 15 con él. Se añaden a MEDALS más abajo. */
 export const CHAR_MEDALS: Record<CharacterId, { name: string; icon: string }> = {
   vampire: { name: 'Señor de los murciélagos', icon: '🦇' },
   werewolf: { name: 'Bestia alfa', icon: '🐺' },
@@ -65,6 +65,9 @@ export const CHAR_MEDALS: Record<CharacterId, { name: string; icon: string }> = 
   alien: { name: 'Nave nodriza', icon: '👽' },
   static: { name: 'Alta definición', icon: '📺' },
   kappa: { name: 'Dueño de la lluvia', icon: '🥒' },
+  reaper: { name: 'Segadora', icon: '☠️' },
+  unit: { name: 'Legión', icon: '👁️' },
+  necro: { name: 'Ejército de hueso', icon: '💀' },
 };
 for (const [c, m] of Object.entries(CHAR_MEDALS)) MEDALS.push({ id: `char:${c}`, name: m.name, desc: `Alcanza el nivel 15 con este monstruo.`, icon: m.icon, coins: 80 });
 
@@ -86,6 +89,9 @@ export const CHARACTER_UNLOCK: Record<CharacterId, { price: number; medal?: stri
   alien: { price: 1, medal: 'lord' },
   static: { price: 1, medal: 'revenge' },
   kappa: { price: 1, medal: 'ally' },
+  reaper: { price: 1, medal: 'streak5' },
+  unit: { price: 1, medal: 'collector' },
+  necro: { price: 1, medal: 'eternal' },
 };
 /** Precio del siguiente monstruo: 400 monedas el primero y +200 por cada uno que ya hayas comprado. */
 export function unlockPrice(p: Profile | null): number {

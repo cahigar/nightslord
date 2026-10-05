@@ -21,7 +21,7 @@ export class Ambient {
     this.fog.width = N; this.fog.height = N;
     const c = this.fog.getContext('2d')!;
     const img = c.createImageData(N, N);
-    const tint = map.theme === 'camp' ? [150, 175, 200] : map.theme === 'transylvania' ? [170, 150, 170] : [160, 160, 190];
+    const tint = map.theme === 'camp' ? [150, 175, 200] : map.theme === 'transylvania' ? [170, 150, 170] : map.theme === 'swamp' ? [130, 180, 120] : [160, 160, 190];
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       // ruido periódico: mezcla de las 4 esquinas para que el patrón encaje al repetir
       const u = x / N, v = y / N;
@@ -38,13 +38,14 @@ export class Ambient {
   update(dt: number, camX: number, camY: number, vw: number, vh: number) {
     this.t += dt;
     // generar motas cerca de la cámara
-    const want = this.map.theme === 'camp' ? 70 : 50;
+    const want = this.map.theme === 'camp' || this.map.theme === 'swamp' ? 70 : 50;
     while (this.motes.length < want) {
       const x = camX + Math.random() * vw, y = camY + Math.random() * vh;
       let kind: Mote['kind'];
       let color: string;
       const rnd = Math.random();
-      if (this.map.theme === 'camp') { kind = rnd < 0.7 ? 'firefly' : 'spore'; color = kind === 'firefly' ? '#d8ff60' : '#a0b0c0'; }
+      if (this.map.theme === 'swamp') { kind = rnd < 0.5 ? 'firefly' : 'spore'; color = kind === 'firefly' ? '#a0ff60' : '#80a070'; }
+      else if (this.map.theme === 'camp') { kind = rnd < 0.7 ? 'firefly' : 'spore'; color = kind === 'firefly' ? '#d8ff60' : '#a0b0c0'; }
       else if (this.map.theme === 'elm') { kind = rnd < 0.55 ? 'leaf' : rnd < 0.8 ? 'firefly' : 'spore'; color = kind === 'leaf' ? ['#a0501a', '#c07020', '#8a2a14'][Math.floor(Math.random() * 3)] : kind === 'firefly' ? '#e0ff80' : '#9090b0'; }
       else { kind = rnd < 0.6 ? 'spore' : 'ember'; color = kind === 'ember' ? '#ff7020' : '#c0a0c0'; }
       this.motes.push({ x, y, vx: 0, vy: 0, ph: Math.random() * 6.28, kind, life: 4 + Math.random() * 6, color });

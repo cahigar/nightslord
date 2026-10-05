@@ -48,6 +48,14 @@ export interface Kit {
   onMinionHit?(room: Room, p: Player, m: Minion, target: Mob): void;
   /** Termina un salto (Player.leap). */
   onLand?(room: Room, p: Player): void;
+  /** Antes de morir: devuelve true si se salva (Somos Uno de Unidad). */
+  preventDeath?(room: Room, p: Player): boolean;
+  /** Justo después de morir (ya sin esbirros). */
+  onDeath?(room: Room, p: Player): void;
+  /** Multiplicador de velocidad de sus esbirros (y divide su enfriamiento de ataque). */
+  minionMul?(room: Room, p: Player, m: Minion): number;
+  /** Estados propios para el HUD del jugador. */
+  buffs?(room: Room, p: Player, add: (t: string, r: number) => void, list: { t: string; r: number }[]): void;
   /** Al alcanzar un nuevo tier de evolución (1, 2 o 3). */
   onTier?(room: Room, p: Player, tier: number): void;
 }

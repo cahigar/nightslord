@@ -47,7 +47,7 @@ export enum Flag2 {
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp' | 'spirits' | 'boots' | 'shovel';
 export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy'
   | 'nail' | 'nailback' | 'boulder' | 'potion0' | 'potion1' | 'potion2' | 'bigpotion0' | 'bigpotion1' | 'bigpotion2'
-  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon' | 'web' | 'crows' | 'crowsback' | 'fireball' | 'ember' | 'firewave' | 'bubble' | 'plasma' | 'noise' | 'tongue';
+  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon' | 'web' | 'crows' | 'crowsback' | 'fireball' | 'ember' | 'firewave' | 'bubble' | 'plasma' | 'noise' | 'tongue' | 'wbubble' | 'eye' | 'orb' | 'bonearrow';
 
 export interface EntSnap {
   i: number; // id
@@ -91,7 +91,8 @@ export type FxId =
   | 'sleep' | 'lullaby' | 'prop' | 'ambush' | 'dreamwalk' | 'shards' | 'mirror' | 'mirrorBoom' | 'maryOut'
   | 'slam' | 'spark' | 'lightning' | 'storm' | 'faceSteal' | 'charm' | 'mimic' | 'potion' | 'broom' | 'rage'
   | 'hexed' | 'hexzone' | 'wings' | 'thrall' | 'heartHit' | 'phase' | 'objSpawn' | 'drainBeam'
-  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand' | 'scare' | 'fireBoom' | 'slimeSplit' | 'slimeBoom' | 'ufoBeam' | 'ufoRay' | 'hypno' | 'tvWave' | 'tvBeam' | 'rain' | 'bowl' | 'confetti' | 'allyAsk';
+  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand' | 'scare' | 'fireBoom' | 'slimeSplit' | 'slimeBoom' | 'ufoBeam' | 'ufoRay' | 'hypno' | 'tvWave' | 'tvBeam' | 'rain' | 'bowl' | 'confetti' | 'allyAsk'
+  | 'tvBolt' | 'tvPop' | 'lick' | 'reap' | 'deathMark' | 'blink' | 'unitBoom' | 'assimilate' | 'boneSlam' | 'boneWarn' | 'raise' | 'ghostRise' | 'critterPop';
 
 export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
 

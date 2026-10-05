@@ -10,7 +10,7 @@ const B = BAL.succubus;
 const thralls = (room: Room, p: Player): Minion[] => room.minionsOf(p.id).filter((m) => m.variant === 'thrall').sort((a, b) => a.born - b.born);
 const capOf = (p: Player) => (p.tier >= 1 ? B.thrallCapT1 : B.thrallCap);
 /** Humano que se puede engatusar (no los disfrazados de la Dama ni los infectados). */
-const charmable = (m: Mob): m is Npc => m.kind === Kind.Npc && !m.dead && (m as Npc).disguiseT <= 0 && (m as Npc).infectT <= 0;
+const charmable = (m: Mob): m is Npc => m.kind === Kind.Npc && !m.dead && (m as Npc).disguiseT <= 0 && (m as Npc).infectT <= 0 && !(m as Npc).variant.startsWith('c_');
 
 /** El humano golpeado no muere: se enamora y lucha por ella. Si ya tiene todos sus siervos, el más antiguo vuelve en sí. */
 function enthrall(room: Room, p: Player, n: Npc) {

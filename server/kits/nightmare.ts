@@ -12,6 +12,7 @@ const PROPS: Record<string, string[]> = {
   elm: ['tree', 'lamp', 'mailbox'],
   transylvania: ['tomb', 'deadtree', 'statue'],
   camp: ['pine', 'rock', 'log'],
+  swamp: ['cypress', 'deadtree', 'log'],
 };
 
 const angleDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));

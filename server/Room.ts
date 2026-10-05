@@ -2,7 +2,7 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, HUNTERS, ITEMS, ORDER, STATUS, tierOf, ULT, type HunterType } from '../shared/balance';
+import { BAL, CLASS, CRITTERS, HUNTERS, ITEMS, ORDER, STATUS, tierOf, ULT, type HunterType } from '../shared/balance';
 import {
   BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAP_SIZE, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
@@ -26,7 +26,19 @@ const NPC_VARIANTS: Record<MapThemeId, string[]> = {
   elm: ['teen', 'neighbor', 'jock', 'nerd'],
   transylvania: ['villager', 'priest', 'maid', 'villager'],
   camp: ['camper', 'counselor', 'jock', 'nerd'],
+  swamp: ['villager', 'camper', 'priest', 'maid'],
 };
+/** Alimañas de cada mapa (bichos que huyen y siempre sueltan un objeto). */
+const CRITTER_KINDS: Record<MapThemeId, string[]> = {
+  elm: ['c_rat', 'c_crow', 'c_rat'],
+  transylvania: ['c_bat', 'c_rat', 'c_crow', 'c_bat'],
+  camp: ['c_toad', 'c_bat', 'c_crow'],
+  swamp: ['c_toad', 'c_bat', 'c_rat', 'c_toad'],
+};
+/** ¿Es una alimaña? */
+export const isCritter = (m: Mob) => m.kind === Kind.Npc && (m as Npc).variant.startsWith('c_');
+/** Clase de un jugador (vida, armadura, regeneración, robo de vida). */
+const classOf = (p: Player) => CLASS[p.def.role ?? 'hybrid'];
 
 const TR = BAL.tree;
 const plant = (hp: number) => ({ hp, speed: 0, dmg: 0, cd: 0 }); // plantas del Árbol maldito: no se mueven
@@ -36,11 +48,14 @@ const MINION_STATS: Record<MinionVariant, { hp: number; speed: number; dmg: numb
   digger: ITEMS.digger,
   barrel: plant(1), buccaneer: BAL.pirate.buccaneer, spiderling: BAL.spider.spiderling,
   decoy: plant(BAL.scarecrow.decoy.hp), slimelet: BAL.slime.slimelet, beacon: plant(BAL.alien.beacon.hp),
+  skel: BAL.necro.skel, skelarcher: BAL.necro.archer, skeldog: BAL.necro.dog, unit: BAL.unit.drone, unitfree: BAL.unit.freeDrone,
 };
 /** Radio de los esbirros que no tienen el de un humano. */
-const MINION_R: Partial<Record<MinionVariant, number>> = { wall: TR.wall.r, turret: TR.turret.r, flower: TR.flower.r, barrel: 14, spiderling: 9, slimelet: 12, beacon: 12, decoy: PLAYER_RADIUS, fat: 18, tough: 16 };
+const MINION_R: Partial<Record<MinionVariant, number>> = { wall: TR.wall.r, turret: TR.turret.r, flower: TR.flower.r, barrel: 14, spiderling: 9, slimelet: 12, beacon: 12, decoy: PLAYER_RADIUS, fat: 18, tough: 16, skeldog: 12 };
 /** Esbirros con su propio tope (no cuentan con la horda de zombis). */
-const OWN_GROUP = new Set<MinionVariant>(['clone', 'digger', 'wall', 'turret', 'flower', 'barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
+const OWN_GROUP = new Set<MinionVariant>(['clone', 'digger', 'wall', 'turret', 'flower', 'barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon', 'skel', 'skelarcher', 'skeldog', 'unit', 'unitfree']);
+/** Grupo con tope común (los tres tipos de esqueleto comparten tope). */
+const capGroup = (v: MinionVariant) => (v === 'skel' || v === 'skelarcher' || v === 'skeldog' ? 'skel' : OWN_GROUP.has(v) ? v : 'horde');
 /** Esbirro inmóvil (planta): no le afectan empujones, rabia, engatusar ni maleficios. */
 const isStatic = (m: Mob) => m.kind === Kind.Minion && MINION_STATS[(m as Minion).variant].speed === 0;
 
@@ -48,7 +63,7 @@ const POWERUP_WEIGHTS: [PowerUpType, number][] = [
   ['blood', 30], ['xp', 25], ['coin', 18], ['speed', 10], ['fury', 9], ['shield', 8], ['spirits', 5], ['boots', 5], ['shovel', 3],
 ];
 /** Vegetación del mapa que puede arder. */
-const FLAMMABLE = new Set(['tree', 'pine', 'deadtree', 'hedge']);
+const FLAMMABLE = new Set(['tree', 'pine', 'deadtree', 'hedge', 'cypress']);
 
 const dist2 = (ax: number, ay: number, bx: number, by: number) => (ax - bx) ** 2 + (ay - by) ** 2;
 const angleDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
@@ -92,6 +107,7 @@ export class Room {
   private hunterRespawnT = 0;
   private powerupRespawnT = 0;
   emptySince = Date.now();
+  private critterT = 2;
   bountyId = -1;
 
   constructor(public code: string, public theme: MapThemeId, public priv: boolean, private onPlayerCountChange?: () => void) {
@@ -176,6 +192,7 @@ export class Room {
       lifeStart: this.time, lifeKills: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
       lastAttacker: '', allies: new Set(),
     };
+    p.maxHp = p.hp = this.calcMaxHp(p);
     this.players.set(conn.id, p);
     return p;
   }
@@ -579,8 +596,7 @@ export class Room {
 
   spawnMinion(owner: Player, x: number, y: number, variant: MinionVariant, look: string, lookSeed: number, life: number, chain: boolean, capOverride?: number): Minion {
     const cap = capOverride ?? (owner.ultT > 0 ? ZB.maxMinionsUlt : ZB.maxMinions);
-    const group = (v: MinionVariant) => (OWN_GROUP.has(v) ? v : 'horde');
-    const mine = this.minionsOf(owner.id).filter((m) => group(m.variant) === group(variant)).sort((a, b) => a.born - b.born);
+    const mine = this.minionsOf(owner.id).filter((m) => capGroup(m.variant) === capGroup(variant)).sort((a, b) => a.born - b.born);
     while (mine.length >= cap) { const old = mine.shift()!; old.life = 0; this.kill(old, { name: '', kind: Kind.Minion }); }
     const st = MINION_STATS[variant];
     const m: Minion = {
@@ -700,7 +716,7 @@ export class Room {
   disguiseAround(p: Player, r: number, t: number) {
     let n = 0;
     for (const npc of this.npcs.values()) {
-      if (npc.entombT > 0 || dist2(p.x, p.y, npc.x, npc.y) > r * r) continue;
+      if (npc.entombT > 0 || isCritter(npc) || dist2(p.x, p.y, npc.x, npc.y) > r * r) continue;
       npc.disguiseBy = p.id;
       npc.disguiseT = t;
       npc.panicT = 0; npc.fearT = 0; npc.fleeing = false;
@@ -770,15 +786,63 @@ export class Room {
     if (type === 'heraldo') { this.fx('descend', h.x, h.y, { o: h.id }); this.sfx('smite', h.x, h.y); }
   }
 
-  private spawnPowerUp() {
-    const pos = this.findSpawn(150, POWERUP_RADIUS + 6);
+  /** Objeto al azar (según los pesos del mapa). */
+  randomPowerUp(): PowerUpType {
     let total = 0;
     for (const [, w] of POWERUP_WEIGHTS) total += w;
     let r = Math.random() * total;
-    let type: PowerUpType = 'blood';
-    for (const [t, w] of POWERUP_WEIGHTS) { if ((r -= w) <= 0) { type = t; break; } }
-    const u: PowerUp = { id: this.nextId++, x: pos.x, y: pos.y, type };
+    for (const [t, w] of POWERUP_WEIGHTS) { if ((r -= w) <= 0) return t; }
+    return 'blood';
+  }
+
+  private spawnPowerUp() {
+    const pos = this.findSpawn(150, POWERUP_RADIUS + 6);
+    const u: PowerUp = { id: this.nextId++, x: pos.x, y: pos.y, type: this.randomPowerUp() };
     this.powerups.set(u.id, u);
+  }
+
+  /** Alimaña nueva lejos de los jugadores. */
+  private spawnCritter() {
+    const kinds = CRITTER_KINDS[this.theme];
+    const n = this.spawnNpc(this.findSpawn(600, CRITTERS.r + 2), kinds[Math.floor(Math.random() * kinds.length)]);
+    n.hp = n.maxHp = CRITTERS.hp; n.r = CRITTERS.r;
+  }
+
+  /** Alimañas: pasean despacio y huyen muy rápido de cualquier monstruo o cazador. */
+  private updateCritter(n: Npc, dt: number) {
+    if (this.applyStatus(n, dt)) return;
+    if (n.stunT > 0 || n.rootT > 0) { n.moving = false; return; }
+    n.thinkT -= dt;
+    if (n.thinkT <= 0) {
+      n.thinkT = 0.2 + Math.random() * 0.15;
+      let threat: Mob | null = null, bd = CRITTERS.seeR ** 2;
+      const see = (t: Mob) => { if (t.dead) return; const d = dist2(n.x, n.y, t.x, t.y); if (d < bd) { bd = d; threat = t; } };
+      for (const p of this.players.values()) if (p.invisKind === 'none' && !this.isHiddenGuise(p)) see(p);
+      for (const h of this.hunters.values()) see(h);
+      for (const mn of this.minions.values()) see(mn);
+      if (threat) {
+        const t = threat as Mob;
+        let ax = n.x - t.x, ay = n.y - t.y; const d = Math.hypot(ax, ay) || 1; ax /= d; ay /= d;
+        for (const rot of [0, 0.5, -0.5, 1.1, -1.1, 1.7, -1.7, 2.4, -2.4]) {
+          const c = Math.cos(rot), sn = Math.sin(rot), dx = ax * c - ay * sn, dy = ax * sn + ay * c;
+          if (!this.grid.blocked(n.x + dx * 50, n.y + dy * 50, n.r)) { n.tx = n.x + dx * 240; n.ty = n.y + dy * 240; break; }
+        }
+        n.fleeing = true;
+      } else {
+        n.fleeing = false;
+        if (Math.random() < 0.2 || dist2(n.x, n.y, n.tx, n.ty) < 300) { n.tx = n.x + (Math.random() - 0.5) * 300; n.ty = n.y + (Math.random() - 0.5) * 300; }
+      }
+    }
+    let speed = n.fleeing ? CRITTERS.flee : CRITTERS.speed;
+    if (n.slowT > 0) speed *= n.slowMul;
+    const dx = n.tx - n.x, dy = n.ty - n.y, d = Math.hypot(dx, dy);
+    n.moving = d > 6;
+    if (!n.moving) return;
+    const step = Math.min(d, speed * dt);
+    const res = this.grid.move(n.x, n.y, (dx / d) * step, (dy / d) * step, n.r);
+    if (res.hit) { n.tx = n.x; n.ty = n.y; n.thinkT = 0; }
+    n.x = res.x; n.y = res.y;
+    n.facing = dx >= 0 ? 1 : -1;
   }
 
   private alivePlayers() {
@@ -788,7 +852,7 @@ export class Room {
   }
 
   private calcMaxHp(p: Player) {
-    return Math.round(CHARACTERS[p.char].hp * (1 + 0.15 * p.ups.vit) * (1 + 0.03 * (p.level - 1)));
+    return Math.round(CHARACTERS[p.char].hp * classOf(p).hp * (1 + 0.15 * p.ups.vit) * (1 + 0.03 * (p.level - 1)));
   }
 
   calcSpeed(p: Player) {
@@ -930,7 +994,7 @@ export class Room {
       if (p.invisT <= 0) { p.invisT = 0; p.invisBonus = false; p.invisKind = 'none'; }
     }
     // regeneración lenta (y la de las criaturas acuáticas en el agua, si no les han dado hace poco)
-    let regen = 0.008;
+    let regen = 0.008 * classOf(p).regen;
     if (p.def.aquatic && this.time - p.lastHurtT >= KT.regenSafeT) {
       const w = this.waterAt(p.x, p.y);
       if (w === 'deep') regen += KT.deepRegen;
@@ -1107,7 +1171,7 @@ export class Room {
     if (m.kind === Kind.Player) {
       const p = m as Player;
       if (p.protectT > 0 || p.mistT > 0 || p.submergeT > 0 || p.phaseT > 0) return 0;
-      amount *= (1 - p.def.armor) * (KITS[p.char].damageTakenMul?.(this, p) ?? 1);
+      amount *= (1 - Math.min(0.6, p.def.armor + classOf(p).armor)) * (KITS[p.char].damageTakenMul?.(this, p) ?? 1);
       p.lastHurtT = this.time;
       if (p.shieldHp > 0) {
         const absorbed = Math.min(p.shieldHp, amount);
@@ -1133,6 +1197,11 @@ export class Room {
       src.player.hp = Math.min(src.player.maxHp, src.player.hp + amount * BAL.mummy.ult.healFrac);
       this.fx('drain', m.x, m.y, { tx: Math.round(src.player.x), ty: Math.round(src.player.y), o: src.player.id, n: 2, c: 'sand' });
     }
+    // robo de vida de los asesinos (solo sus golpes directos)
+    if (src.player && !src.minion && !src.raw && amount > 0 && src.player !== m && !src.player.dead) {
+      const ls = classOf(src.player).lifesteal;
+      if (ls > 0) src.player.hp = Math.min(src.player.maxHp, src.player.hp + Math.min(amount, Math.max(0, m.hp)) * ls);
+    }
     m.hp -= amount;
     if (!quiet) this.emit({ e: 'hit', x: Math.round(m.x), y: Math.round(m.y), d: Math.round(amount), t: m.id, crit }, m.x, m.y);
     if (m.hp <= 0) this.kill(m, src);
@@ -1142,6 +1211,8 @@ export class Room {
 
   kill(m: Mob, src: Source) {
     if (m.dead) return;
+    // Somos Uno (Unidad): la muerte no cuenta si le queda otra Unidad
+    if (m.kind === Kind.Player && KITS[(m as Player).char].preventDeath?.(this, m as Player)) return;
     m.dead = true;
     m.hp = 0;
     let killer = src.player && !src.player.dead ? src.player : undefined;
@@ -1158,6 +1229,18 @@ export class Room {
       if (owner && !owner.dead) KITS[owner.char].onMinionDeath?.(this, owner, mn);
       if (killer && killer.id !== mn.owner) this.reward(killer, 4, 3, 0);
       this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c }, m.x, m.y);
+      return;
+    }
+    if (m.kind === Kind.Npc && isCritter(m)) {
+      // alimaña: siempre suelta un objeto
+      const n = m as Npc;
+      this.npcs.delete(n.id);
+      this.dropPowerUp(n.x, n.y, this.randomPowerUp());
+      this.fx('critterPop', n.x, n.y, { c: n.variant });
+      this.sfx('pickup', n.x, n.y);
+      if (killer) this.reward(killer, CRITTERS.xp * share, CRITTERS.pts * share, 0);
+      if (killer && !src.minion) KITS[killer.char].onKill?.(this, killer, m);
+      this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c: n.variant }, m.x, m.y);
       return;
     }
     if (m.kind === Kind.Npc) {
@@ -1215,6 +1298,7 @@ export class Room {
       v.ultT = 0;
       v.submergeT = 0;
       this.releaseMinions(v.id);
+      KITS[v.char].onDeath?.(this, v);
       this.recordBest(v);
       v.conn.profile.stats.deaths++;
       if (killer) {
@@ -1357,6 +1441,7 @@ export class Room {
   }
 
   private updateNpc(n: Npc, dt: number) {
+    if (isCritter(n)) { this.updateCritter(n, dt); return; }
     n.screamCd = Math.max(0, n.screamCd - dt);
     if (n.infectT > 0) {
       // contagio: la vida baja poco a poco hasta cero y se levanta como zombi
@@ -1757,6 +1842,7 @@ export class Room {
     if (m.anim === Anim.Cast && this.time < m.animUntil && m.swellT <= 0) { m.moving = false; return; } // saliendo de la tierra
     if (this.hexHop(m, dt)) return;
     if (this.rageOrCharm(m, m.speed, this.calcDamage(owner, MINION_STATS[m.variant].dmg), MINION_STATS[m.variant].cd || 1, ZB.attackReach, dt)) return;
+    if (m.boomAt !== undefined) { m.moving = false; return; } // Convergencia: parpadea quieta hasta explotar
     // zombi gordo hinchándose: aviso antes de explotar
     if (m.swellT > 0) {
       m.swellT -= dt;
@@ -1778,18 +1864,42 @@ export class Room {
         if (m.variant === 'thrall' && t.kind === Kind.Npc && (t as Npc).disguiseT <= 0) return; // los siervos de la súcubo van a por cazadores y monstruos
         if (m.variant === 'fat' && t.kind !== Kind.Player && t.kind !== Kind.Hunter) return;
         const d = dist2(cx, cy, t.x, t.y);
-        if (d < R * R && d < bd && (meat || dist2(owner.x, owner.y, t.x, t.y) < leash2)) { bd = d; best = t; }
+        if (d < R * R && d < bd && (meat || m.variant === 'unitfree' || dist2(owner.x, owner.y, t.x, t.y) < leash2)) { bd = d; best = t; }
       };
-      for (const n of this.npcs.values()) consider(n);
+      for (const n of this.npcs.values()) if (!isCritter(n) || m.variant === 'skeldog') consider(n);
       for (const h of this.hunters.values()) consider(h);
       for (const p of this.players.values()) if (!p.dead && p.invisKind === 'none' && p.submergeT <= 0 && p.protectT <= 0 && p.mistT <= 0 && p.phaseT <= 0 && !this.isHiddenGuise(p)) consider(p);
       for (const o of this.minions.values()) if (o.owner !== m.owner) consider(o);
       m.target = best ? (best as Mob).id : -1;
     }
     const t = this.mobById(m.target);
-    let tx: number, ty: number, speed = m.speed;
+    const mul = KITS[owner.char].minionMul?.(this, owner, m) ?? 1;
+    let tx: number, ty: number, speed = m.speed * mul;
+    // arquero esqueleto: dispara desde lejos y no se acerca más de la cuenta
+    if (m.variant === 'skelarcher' && t && !t.dead) {
+      const A = BAL.necro.archer, d = Math.hypot(t.x - m.x, t.y - m.y);
+      m.facing = t.x >= m.x ? 1 : -1;
+      if (d < A.range) {
+        m.moving = false;
+        if (m.atkCd <= 0) {
+          m.atkCd = A.cd / mul;
+          this.setAnim(m, Anim.Attack, 0.3);
+          const pr = this.shoot('bonearrow', owner.id, m.x, m.y - 20, Math.atan2(t.y - m.y, t.x - m.x), A.arrowSpeed, A.range / A.arrowSpeed + 0.1, this.calcDamage(owner, A.dmg));
+          pr.hitR = 10;
+          this.sfx('stake', m.x, m.y);
+        }
+        return;
+      }
+    }
     if (t && !t.dead) { tx = t.x; ty = t.y; }
     else if (meat && dist2(m.x, m.y, meat.ax, meat.ay) < ZB.meatPullR ** 2) { tx = meat.ax; ty = meat.ay; speed *= 1.2; }
+    else if (m.variant === 'unitfree') {
+      // Unidad independiente: recorre el mapa por libre
+      if (m.wx === undefined || m.wy === undefined || dist2(m.x, m.y, m.wx, m.wy) < 40 * 40 || Math.random() < 0.004) {
+        const f = this.findSpawn(0, m.r + 2); m.wx = f.x; m.wy = f.y;
+      }
+      tx = m.wx; ty = m.wy; speed *= 0.8;
+    }
     else if (dist2(m.x, m.y, owner.x, owner.y) > ZB.followDist ** 2) { tx = owner.x - owner.facing * 50; ty = owner.y + ((m.id % 5) - 2) * 18; }
     else { m.moving = false; return; }
     if (m.slowT > 0) speed *= m.slowMul;
@@ -1808,7 +1918,7 @@ export class Room {
       } else if (d < m.r + t.r + ZB.attackReach) {
         m.moving = false;
         if (m.atkCd <= 0) {
-          m.atkCd = MINION_STATS[m.variant].cd;
+          m.atkCd = MINION_STATS[m.variant].cd / mul;
           this.setAnim(m, Anim.Attack, 0.3);
           this.damage(t, this.calcDamage(owner, MINION_STATS[m.variant].dmg), { player: owner, minion: m, name: owner.name, kind: Kind.Player });
           KITS[owner.char].onMinionHit?.(this, owner, m, t);
@@ -1953,7 +2063,8 @@ export class Room {
     if (this.tick % 10 === 0) for (const z of this.zones) if (z.kind === 'fire') this.ignite(z.ax, z.ay, z.w / 2, z.owner);
     const V = BAL.vampire;
     for (const z of this.zones) {
-      if (z.kind === 'meat' || z.kind === 'ritual' || z.kind === 'mirror' || z.kind === 'nail') continue;
+      if (z.kind === 'meat' || z.kind === 'ritual' || z.kind === 'mirror' || z.kind === 'nail' || z.kind === 'portal') continue;
+      if (z.kind === 'lastspell') { this.lastSpell(z); continue; }
       const owner = this.findPlayerById(z.owner);
       const inside = (m: Mob) => distToSegment(m.x, m.y, z.ax, z.ay, z.bx, z.by) < z.w / 2 + (z.kind === 'puddle' ? 0 : m.r);
       const all: Mob[] = [...this.npcs.values(), ...this.hunters.values(), ...this.minions.values(), ...[...this.players.values()].filter((p) => !p.dead)];
@@ -1984,7 +2095,6 @@ export class Room {
           const pull = Math.min(d, BAL.kappa.ult.pull * TICK_DT);
           const res = this.grid.move(m.x, m.y, (dx / d) * pull - (dy / d) * pull * 0.6, (dy / d) * pull + (dx / d) * pull * 0.6, m.r, walksWater(m));
           m.x = res.x; m.y = res.y;
-          this.damage(m, BAL.kappa.ult.dps * TICK_DT, { ...this.src(owner), raw: true }, false, true);
         }
         else if (z.kind === 'radiation') { if (owner && this.isEnemyOf(owner, m)) this.damage(m, BAL.alien.beacon.radDps * TICK_DT, { ...this.src(owner), raw: true }, false, true); }
         else if (z.kind === 'goo') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, BAL.slime.goo.slowMul); }
@@ -2010,6 +2120,27 @@ export class Room {
         }
       }
     }
+  }
+
+  /** Último conjuro del Nigromante (nv. 5): su fantasma gira un largo rayo hacia el enemigo más cercano. */
+  private lastSpell(z: Zone) {
+    const L = BAL.necro.last;
+    const owner = this.findPlayerById(z.owner);
+    if (!owner) { z.until = 0; return; }
+    let a = z.v ?? 0;
+    const t = this.nearestEnemy(owner, z.ax, z.ay, L.len, owner.id);
+    if (t) {
+      const want = Math.atan2(t.y - z.ay, t.x - z.ax);
+      const diff = Math.atan2(Math.sin(want - a), Math.cos(want - a));
+      a += Math.max(-L.turn * TICK_DT, Math.min(L.turn * TICK_DT, diff));
+    }
+    z.v = a;
+    z.bx = z.ax + Math.cos(a) * L.len; z.by = z.ay - 30 + Math.sin(a) * L.len;
+    const src: Source = { ...this.src(owner), raw: true };
+    this.forEachEnemyNear(owner, (z.ax + z.bx) / 2, (z.ay - 30 + z.by) / 2, L.len / 2 + L.w, (m) => {
+      if (m.dead || distToSegment(m.x, m.y - 20, z.ax, z.ay - 30, z.bx, z.by) > L.w / 2 + m.r) return;
+      this.damage(m, L.dps * TICK_DT * (1 + 0.025 * (owner.level - 1)), src, false, true);
+    });
   }
 
   private updatePickups() {
@@ -2087,7 +2218,11 @@ export class Room {
   private maintainPopulation(dt: number) {
     const pc = this.alivePlayers().length;
     const npcTarget = Math.min(95, 45 + pc * 4);
-    if (this.npcs.size < npcTarget && this.tick % 10 === 0) this.spawnNpc();
+    let critters = 0;
+    for (const n of this.npcs.values()) if (isCritter(n)) critters++;
+    if (this.npcs.size - critters < npcTarget && this.tick % 10 === 0) this.spawnNpc();
+    this.critterT -= dt;
+    if (critters < CRITTERS.max && this.critterT <= 0) { this.critterT = CRITTERS.every * (0.6 + Math.random() * 0.8); this.spawnCritter(); }
     this.hunterRespawnT = Math.max(0, this.hunterRespawnT - dt);
     if (this.tick % TICK_RATE === 0) this.cullHunters();
     if (this.hunterRespawnT <= 0) {
@@ -2117,7 +2252,7 @@ export class Room {
     if (m.curseMarkT > 0) f |= Flag.Cursed;
     if (m.entombT > 0) f |= Flag.Entombed;
     if (m.weakT > 0) f |= Flag.Weak;
-    if (m.kind === Kind.Minion && (m as Minion).swellT > 0) f |= Flag.Swollen;
+    if (m.kind === Kind.Minion && ((m as Minion).swellT > 0 || (m as Minion).boomAt !== undefined)) f |= Flag.Swollen;
     if (m.kind === Kind.Npc && (m as Npc).infectT > 0) f |= Flag.Infected;
     if (m.kind === Kind.Hunter && (m as Hunter).ritualT > 0) f |= Flag.Ritual;
     if (m.kind === Kind.Hunter && (m as Hunter).flyT > 0) f |= Flag.Flying;
@@ -2136,7 +2271,7 @@ export class Room {
       if (p.mistT > 0) f |= Flag.Mist;
       if (p.id === this.bountyId) f |= Flag.Bounty;
       if (p.ultT > 0) f |= Flag.Ult;
-      if (p.frenzyT > 0 || p.killSpeedT > 0) f |= Flag.Haste;
+      if (p.frenzyT > 0 || p.killSpeedT > 0 || (p.k.marchEnd ?? 0) > this.time) f |= Flag.Haste;
       if (p.submergeT > 0) f |= Flag.Submerged;
       if (p.jetT > 0) f |= Flag.Jet;
       if (p.flyT > 0) f |= Flag.Flying;
@@ -2187,6 +2322,7 @@ export class Room {
       if (p.jetT > 0) s.r = +p.input.a.toFixed(2);
       if (s.h === undefined) s.h = 100;
       if (p.orbit.length) s.o = p.orbit.filter((t) => t <= 0).length;
+      if (p.char === 'reaper' && p.k.souls) s.o = p.k.souls;
     }
     return s;
   }
@@ -2229,6 +2365,7 @@ export class Room {
       for (const p of this.players.values()) {
         if (p.dead || !inView(p.x, p.y)) continue;
         if (p !== me && p.phaseT > 0 && this.grid.blocked(p.x, p.y, p.r * 0.5, true)) continue; // intangible dentro de un obstáculo: nadie lo ve
+        if (p !== me && (p.k.tvEnd ?? 0) > this.time) continue; // Interferencia dentro de una tele
         if (p !== me && p.invisKind !== 'none') {
           // desvestida: invisible del todo; en el resto se intuye solo muy de cerca
           if (p.invisKind === 'full' || dist2(cx, cy, p.x, p.y) > DAMA.revealR ** 2) continue;
@@ -2271,6 +2408,7 @@ export class Room {
       if (me.char === 'zombie') { const n = this.minionsOf(me.id).length; if (n) buffs.push({ t: 'horde', r: n }); }
       if (me.char === 'tree' && (me.k.rooted ?? 0) > 0) buffs.push({ t: 'treeRoot', r: 999 });
       if (me.char === 'succubus') { const n = this.minionsOf(me.id).filter((m) => m.variant === 'thrall').length; if (n) buffs.push({ t: 'thralls', r: n }); }
+      KITS[me.char].buffs?.(this, me, addB, buffs);
       if (me.def.aquatic) { const w = this.waterAt(me.x, me.y); if (w) buffs.push({ t: w === 'deep' ? 'deep' : 'puddle', r: 999 }); }
 
       const qMax = this.qChargesMax(me);

@@ -4,7 +4,10 @@
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
   | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime' | 'alien'
-  | 'static' | 'kappa';
+  | 'static' | 'kappa' | 'reaper' | 'unit' | 'necro';
+
+/** Clase del monstruo: cambia vida, armadura, regeneración y robo de vida (ver CLASS en balance.ts). */
+export type Role = 'melee' | 'assassin' | 'summoner' | 'ranged' | 'hybrid';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -39,6 +42,8 @@ export interface CharacterDef {
   hover?: boolean;
   /** Inmune al fuego (zonas en llamas, quemaduras, árboles ardiendo). */
   fireImmune?: boolean;
+  /** Clase (por defecto 'hybrid'). */
+  role?: Role;
 }
 
 export const CHARACTERS: Record<CharacterId, CharacterDef> = {
@@ -68,6 +73,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   werewolf: {
     id: 'werewolf',
+    role: 'melee',
     name: 'Aullador',
     title: 'Hombre lobo',
     hp: 130,
@@ -92,6 +98,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   mummy: {
     id: 'mummy',
+    role: 'ranged',
     name: 'Ramsés',
     title: 'Momia',
     hp: 150,
@@ -117,6 +124,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   invisible: {
     id: 'invisible',
+    role: 'assassin',
     name: 'La Dama Velada',
     title: 'Mujer invisible',
     hp: 90,
@@ -141,9 +149,10 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   zombie: {
     id: 'zombie',
+    role: 'summoner',
     name: 'Paciente Cero',
     title: 'Zombi',
-    hp: 95, // invocador: algo menos de vida que el resto
+    hp: 105, // invocador: la clase ya le quita vida (CLASS.summoner)
     speed: 195,
     damage: 17,
     range: 48,
@@ -190,6 +199,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   nightmare: {
     id: 'nightmare',
+    role: 'assassin',
     name: 'Pesadilla',
     title: 'Criatura del sueño',
     hp: 105,
@@ -214,6 +224,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   mary: {
     id: 'mary',
+    role: 'summoner',
     name: 'Bloody Mary',
     title: 'Leyenda del espejo',
     hp: 100,
@@ -238,6 +249,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   reanimated: {
     id: 'reanimated',
+    role: 'melee',
     name: 'Reanimado',
     title: 'Cadáver cosido',
     hp: 170,
@@ -286,6 +298,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   witch: {
     id: 'witch',
+    role: 'ranged',
     name: 'Hécuba',
     title: 'Bruja del pantano',
     hp: 95,
@@ -311,6 +324,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   succubus: {
     id: 'succubus',
+    role: 'summoner',
     name: 'Lilith',
     title: 'Súcubo',
     hp: 100,
@@ -335,6 +349,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   poltergeist: {
     id: 'poltergeist',
+    role: 'ranged',
     name: 'Poltergeist',
     title: 'Fantasma ruidoso',
     hp: 95,
@@ -361,6 +376,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   tree: {
     id: 'tree',
+    role: 'melee',
     name: 'Raíz Negra',
     title: 'Árbol maldito',
     hp: 180,
@@ -385,6 +401,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   pirate: {
     id: 'pirate',
+    role: 'melee',
     name: 'Capitán Ahogado',
     title: 'Pirata fantasma',
     hp: 130,
@@ -409,6 +426,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   spider: {
     id: 'spider',
+    role: 'assassin',
     name: 'Aracne',
     title: 'Mujer araña',
     hp: 100,
@@ -457,6 +475,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   demon: {
     id: 'demon',
+    role: 'melee',
     name: 'Azufre',
     title: 'Demonio de fuego',
     hp: 110,
@@ -482,6 +501,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   slime: {
     id: 'slime',
+    role: 'melee',
     name: 'Baba',
     title: 'Slime',
     hp: 140,
@@ -506,6 +526,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   alien: {
     id: 'alien',
+    role: 'ranged',
     name: 'El Visitante',
     title: 'Alien',
     hp: 90,
@@ -531,6 +552,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   static: {
     id: 'static',
+    role: 'ranged',
     name: 'Interferencia',
     title: 'Señal maldita',
     hp: 95,
@@ -545,9 +567,9 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     passive: 'Con ella en la sala se encienden las teles del mapa. Las cercanas repiten sus ataques. Su Ruido hipnotiza: al llenarse, la víctima camina hacia ella o hacia una tele.',
     abilities: [
       { key: 'Q', name: 'Señal pirata', desc: 'Una onda que ralentiza e hipnotiza (también sale de las teles cercanas).', cooldown: 7 },
-      { key: 'E', name: 'Cambio de canal', desc: 'Las teles cercanas emiten una señal perturbadora 4 s: quien esté frente a ellas se hipnotiza muy rápido.', cooldown: 11 },
+      { key: 'E', name: 'Cambio de canal', desc: 'Apunta a una tele y métete dentro hasta 3 s (intocable). Pulsa E otra vez para salir donde apuntes, cerca de esa tele; si no haces nada, sales por una tele al azar.', cooldown: 10 },
     ],
-    ult: { key: 'R', name: 'Emisión nacional', desc: 'Se encienden todas las teles del mapa y un rayo de su color salta de una a otra quitando vida e hipnotizando.', cooldown: 0 },
+    ult: { key: 'R', name: 'Emisión nacional', desc: 'Se encienden todas las teles del mapa y un rayo de su color salta muy rápido de tele en tele quitando vida e hipnotizando a quien pille en medio.', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Sintonía', desc: 'Hace un 50 % más de daño a quien esté hipnotizado o casi.' },
       { lvl: 10, name: 'Emisión nacional', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
@@ -556,27 +578,105 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   kappa: {
     id: 'kappa',
+    role: 'melee',
     name: 'Kappa',
     title: 'Duende del río',
     hp: 115,
     speed: 205,
     damage: 16,
-    range: 48,
-    arc: Math.PI / 2,
-    attackCd: 0.38,
+    range: 70,
+    arc: Math.PI * 0.75,
+    attackCd: 0.42,
     armor: 0.1,
     aquatic: true,
     attackName: 'Zarpazo de río',
-    passive: 'Criatura del agua: cruza el agua profunda y en cualquier agua (charcas incluidas) corre más y se regenera.',
+    passive: 'Criatura del agua: cruza el agua profunda y en cualquier agua (charcas incluidas) corre más y se regenera. Desde el agua su ataque dispara burbujas a larga distancia.',
     abilities: [
-      { key: 'Q', name: 'Lengua acuática', desc: 'Lanza la lengua y atrae ligeramente al objetivo.', cooldown: 6 },
+      { key: 'Q', name: 'Lengua acuática', desc: 'Lanza la lengua y arrastra a la víctima hasta él.', cooldown: 7 },
       { key: 'E', name: 'Cuenco sagrado', desc: 'Se agacha 2,5 s y rellena el agua de su cabeza: se cura y recibe menos daño. Un golpe fuerte lo interrumpe.', cooldown: 12 },
     ],
-    ult: { key: 'R', name: 'Remolino del río', desc: 'Un gran remolino arrastra a los enemigos hacia el centro 6 s mientras él se mueve libre dentro.', cooldown: 0 },
+    ult: { key: 'R', name: 'Remolino del río', desc: 'Un gran remolino arrastra a los enemigos hacia el centro 6 s y les quita vida cada segundo mientras él se mueve libre dentro.', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Ladrón travieso', desc: 'Al golpear por la espalda roba parte de la velocidad del enemigo.' },
       { lvl: 10, name: 'Remolino del río', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
-      { lvl: 15, name: 'Dueño de la lluvia', desc: 'De vez en cuando una nube llueve cerca de él y deja una poza.' },
+      { lvl: 15, name: 'Dueño de la lluvia', desc: 'De vez en cuando una nube de tormenta llueve cerca de él y la lluvia va formando una poza.' },
+    ],
+  },
+  reaper: {
+    id: 'reaper',
+    name: 'La Parca',
+    title: 'Asesina de almas',
+    role: 'assassin',
+    hp: 100,
+    speed: 215,
+    damage: 21,
+    range: 66,
+    arc: Math.PI * 0.95,
+    attackCd: 0.55,
+    armor: 0,
+    attackName: 'Guadañazo',
+    passive: 'Cosecha de almas: cada baja le da un alma (+daño) hasta que muere; al morir pierde todas.',
+    abilities: [
+      { key: 'Q', name: 'Paso fúnebre', desc: 'Se teletransporta una distancia corta hacia donde apuntas.', cooldown: 6 },
+      { key: 'E', name: 'Marca de muerte', desc: 'Marca al enemigo más cercano al puntero: corre más hacia él y su siguiente guadañazo le hace mucho daño.', cooldown: 10 },
+    ],
+    ult: { key: 'R', name: 'Danza de la Parca', desc: '10 s: cada 0,75 s aparece junto a un enemigo al azar y lanza un gran tajo. Al terminar vuelve exactamente a donde empezó.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Almas inquietas', desc: 'Las almas también le dan velocidad de movimiento y de ataque.' },
+      { lvl: 10, name: 'Danza de la Parca', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Segadora', desc: 'Paso fúnebre con 2 cargas y tajos de la Danza más grandes.' },
+    ],
+  },
+  unit: {
+    id: 'unit',
+    name: 'Unidad',
+    title: 'El enjambre',
+    role: 'summoner',
+    hp: 95,
+    speed: 205,
+    damage: 13,
+    range: 240,
+    arc: 0,
+    attackCd: 0.6,
+    armor: 0,
+    rangedBasic: true,
+    attackName: 'Mirada compartida',
+    passive: 'Somos Uno: si muere y le queda otra Unidad viva, reaparece en ella y la muerte no cuenta. Cuando ataca, todas sus Unidades vinculadas disparan a la vez.',
+    abilities: [
+      { key: 'Q', name: 'Asimilación', desc: 'Convierte al humano más cercano en una Unidad vinculada que te sigue (máx. 4).', cooldown: 5 },
+      { key: 'E', name: 'Independencia', desc: 'Una Unidad vinculada se vuelve una copia autónoma que recorre el mapa por libre (máx. 1).', cooldown: 8 },
+    ],
+    ult: { key: 'R', name: 'Convergencia', desc: 'Todas las Unidades vinculadas (y tu cuerpo) parpadean y explotan a los 2 s. Tu conciencia salta a una Unidad independiente: hace falta tener una viva.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Mente colectiva', desc: 'Más velocidad de movimiento y de ataque por cada Unidad activa.' },
+      { lvl: 10, name: 'Convergencia', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Legión', desc: 'Hasta 8 Unidades vinculadas y 2 independientes.' },
+    ],
+  },
+  necro: {
+    id: 'necro',
+    name: 'El Nigromante',
+    title: 'Señor de los huesos',
+    role: 'summoner',
+    hp: 90,
+    speed: 200,
+    damage: 15,
+    range: 300,
+    arc: 0,
+    attackCd: 0.55,
+    armor: 0,
+    rangedBasic: true,
+    attackName: 'Orbe oscuro',
+    passive: 'Invocador: dispara bolas de magia oscura y levanta esqueletos que le siguen.',
+    abilities: [
+      { key: 'Q', name: 'Alzar huesos', desc: 'Invoca un esqueleto guerrero o arquero (máx. 3). A veces sale un perro esqueleto, rapidísimo.', cooldown: 6 },
+      { key: 'E', name: 'Marcha de los muertos', desc: '4 s: él y sus esqueletos corren y atacan más rápido. Él levita y puede cruzar el agua.', cooldown: 12 },
+    ],
+    ult: { key: 'R', name: 'Portales del osario', desc: 'Abre tres grandes portales de los que salen puños y pies de hueso gigantes que aplastan y empujan a los enemigos cercanos.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Último conjuro', desc: 'Al morir, al cabo de 1 s vuelve 3 s como fantasma inmóvil y lanza un largo rayo que quema antes de desintegrarse.' },
+      { lvl: 10, name: 'Portales del osario', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Ejército de hueso', desc: 'Hasta 5 esqueletos a la vez.' },
     ],
   },
 };
@@ -717,6 +817,21 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'swamp', name: 'Ciénaga', price: 200, palette: { skin: '#6a7a3a', hair: '#3a3a1a', cloth: '#4a3a24', cloth2: '#2a2010', accent: '#c0e080', eye: '#ff8030' } },
     { id: 'koi', name: 'Koi', price: 350, palette: { skin: '#e07a40', hair: '#f0f0e8', cloth: '#a03020', cloth2: '#601810', accent: '#ffffff', eye: '#141414' } },
   ],
+  reaper: [
+  { id: 'classic', name: 'Sudario', price: 0, palette: { skin: '#e8e4dc', hair: '#141018', cloth: '#1c1822', cloth2: '#0c0a10', accent: '#a0ffe0', eye: '#60ffd0' } },
+  { id: 'crimson', name: 'Carmesí', price: 200, palette: { skin: '#f0e0d8', hair: '#2a0a10', cloth: '#5a0a14', cloth2: '#2a0408', accent: '#ff4060', eye: '#ff3040' } },
+  { id: 'gold', name: 'Psicopompo', price: 350, palette: { skin: '#d8c8a0', hair: '#1a1408', cloth: '#e8e0c8', cloth2: '#a89878', accent: '#ffd040', eye: '#ffe080' } },
+],
+  unit: [
+  { id: 'classic', name: 'Uno', price: 0, palette: { skin: '#c8c0d8', hair: '#3a3048', cloth: '#5a4a7a', cloth2: '#3a2e52', accent: '#ff40c0', eye: '#ff60d0' } },
+  { id: 'hive', name: 'Colmena', price: 200, palette: { skin: '#d8c890', hair: '#3a2a10', cloth: '#a07a20', cloth2: '#5a4010', accent: '#ffd040', eye: '#ffe060' } },
+  { id: 'void', name: 'Vacío', price: 350, palette: { skin: '#a0a8b8', hair: '#101018', cloth: '#1a1a28', cloth2: '#0a0a12', accent: '#40e0ff', eye: '#80f0ff' } },
+],
+  necro: [
+  { id: 'classic', name: 'Hueso y sombra', price: 0, palette: { skin: '#b8b0a0', hair: '#1a1424', cloth: '#2a1e3a', cloth2: '#16101e', accent: '#80ff60', eye: '#a0ff60' } },
+  { id: 'blood', name: 'Ritual de sangre', price: 200, palette: { skin: '#c8a8a0', hair: '#2a0a0a', cloth: '#4a0e14', cloth2: '#24060a', accent: '#ff4030', eye: '#ff6040' } },
+  { id: 'frost', name: 'Escarcha', price: 350, palette: { skin: '#c8d8e8', hair: '#e8f0f8', cloth: '#1e2a48', cloth2: '#101830', accent: '#80d0ff', eye: '#c0f0ff' } },
+],
 };
 
 export function getSkin(char: CharacterId, skinId: string): SkinDef {
