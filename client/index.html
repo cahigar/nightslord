@@ -19,53 +19,51 @@
     <div class="menu-inner">
       <header class="logo">
         <div class="logo-moon"></div>
-        <h1>El Señor<br />de la Noche</h1>
+        <h1 data-i18n-html="logo">El Señor<br />de la Noche</h1>
         <span class="io">.io</span>
       </header>
 
       <div class="panel">
         <div class="row between">
-          <input id="name" maxlength="14" placeholder="Tu nombre" autocomplete="off" />
-          <div class="coins" title="Monedas">🪙 <span id="coins">0</span></div>
+          <input id="name" maxlength="14" data-i18n-ph="namePh" autocomplete="off" />
+          <div class="coins">🪙 <span id="coins">0</span></div>
         </div>
 
+        <div id="langs" class="langs"></div>
         <div id="account" class="account"></div>
 
-        <h3>Elige tu monstruo</h3>
+        <h3 data-i18n="chooseMonster"></h3>
         <div id="chars" class="chars"></div>
         <div id="charinfo" class="charinfo"></div>
-        <h3>Skin</h3>
+        <h3 data-i18n="skin"></h3>
         <div id="skins" class="skins"></div>
         <!-- Hueco reservado para un banner de anuncio (no invasivo). Oculto hasta que haya anunciante: quitar "hidden". -->
         <div id="ad-slot" class="ad-slot" hidden></div>
 
-        <button id="play" class="btn big">🦇 Jugar</button>
+        <button id="play" class="btn big" data-i18n="play"></button>
         <div class="row">
-          <input id="code" class="code" maxlength="4" placeholder="CÓDIGO" autocomplete="off" />
-          <button id="join" class="btn">Unirse</button>
+          <input id="code" class="code" maxlength="4" data-i18n-ph="codePh" autocomplete="off" />
+          <button id="join" class="btn" data-i18n="join"></button>
         </div>
         <div class="row">
           <select id="theme">
-            <option value="">Mapa aleatorio</option>
-            <option value="elm">Calle del Olmo</option>
-            <option value="transylvania">Transilvania</option>
-            <option value="camp">Campamento Lago Sereno</option>
+            <option value="" data-i18n="randomMap"></option>
+            <option value="elm"></option>
+            <option value="transylvania"></option>
+            <option value="camp"></option>
           </select>
-          <label class="check"><input type="checkbox" id="priv" /> Privada</label>
-          <button id="create" class="btn">Crear sala</button>
+          <label class="check"><input type="checkbox" id="priv" /> <span data-i18n="private"></span></label>
+          <button id="create" class="btn" data-i18n="createRoom"></button>
         </div>
         <div id="rooms" class="rooms"></div>
         <details>
-          <summary>🏅 Medallas <span id="medal-count"></span></summary>
+          <summary><span data-i18n="medals"></span> <span id="medal-count"></span></summary>
           <div id="medals" class="medals"></div>
         </details>
         <div id="menu-error" class="error"></div>
       </div>
 
-      <p class="help">
-        <b>WASD</b> moverse · <b>Ratón</b> apuntar · <b>Clic / Espacio</b> atacar · <b>Q / clic dcho.</b> y <b>E</b> habilidades · <b>R</b> definitiva (nivel 10)<br />
-        <b>1-4</b> mejoras al subir nivel · <b>G</b> saludar · <b>T</b> taunt · <b>H</b> alianza · <b>M</b> silenciar
-      </p>
+      <p class="help" data-i18n-html="help"></p>
     </div>
   </div>
 
@@ -75,7 +73,7 @@
       <div id="roominfo"></div>
       <div id="ping"></div>
       <button id="mute" class="btn tiny">🔊</button>
-      <button id="exit" class="btn tiny">Salir</button>
+      <button id="exit" class="btn tiny" data-i18n="exit"></button>
     </div>
     <div id="rank"></div>
     <div id="killfeed"></div>
@@ -99,14 +97,14 @@
   <!-- MUERTE -->
   <div id="death" class="screen" hidden>
     <div class="panel death">
-      <h2>Has caído</h2>
+      <h2 data-i18n="fallen"></h2>
       <p id="death-by"></p>
       <div id="death-stats" class="death-stats"></div>
-      <h3>¿Volver con otro monstruo?</h3>
+      <h3 data-i18n="again"></h3>
       <div id="death-chars" class="chars small"></div>
       <div class="row center">
-        <button id="respawn" class="btn big">Volver a la noche</button>
-        <button id="tomenu" class="btn">Menú</button>
+        <button id="respawn" class="btn big" data-i18n="respawn"></button>
+        <button id="tomenu" class="btn" data-i18n="menu"></button>
       </div>
     </div>
   </div>

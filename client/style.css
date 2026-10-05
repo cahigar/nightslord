@@ -180,3 +180,12 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
 .account .master { color: var(--gold); font-weight: bold; }
 /* banner de anuncio (futuro): discreto, debajo de las skins */
 .ad-slot { margin: 10px auto 0; min-height: 60px; max-width: 468px; border: 1px solid #2a2238; display: flex; align-items: center; justify-content: center; color: #6a5a80; font-size: 11px; }
+
+/* selector de idioma: banderitas pixeladas */
+.langs { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
+.langs .flag { padding: 2px; background: transparent; border: 2px solid transparent; cursor: pointer; line-height: 0; }
+.langs .flag canvas { width: 27px; height: 18px; image-rendering: pixelated; }
+.langs .flag.sel { border-color: var(--gold); }
+.langs .flag:hover { border-color: #8a7aa8; }
+/* chino y japonés: la fuente pixelada no tiene esos caracteres */
+html:lang(zh), html:lang(ja) { --px: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif; --vt: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif; }

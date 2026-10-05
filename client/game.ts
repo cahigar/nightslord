@@ -5,6 +5,7 @@ import { BORDER_DEPTH, generateMap, THEMES, tvLinks, tvSpot, type GameMap, type 
 import { BAL, tierOf } from '../shared/balance';
 import { Ambient } from './ambient';
 import { Effects, pixelEllipse } from './effects';
+import { t as tr, tc, th as thunter, tpu } from './i18n';
 import { Terrain } from './terrain';
 import { ObstacleGrid } from '../shared/physics';
 import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, type TvState, type YouState } from '../shared/protocol';
@@ -28,7 +29,6 @@ interface Ring { x: number; y: number; r: number; life: number; max: number; col
 interface Swing { x: number; y: number; a: number; life: number; color: string }
 interface Corpse { x: number; y: number; k: Kind; c: string; s?: string; f: 1 | -1; life: number; seed: number }
 
-const PU_LABEL: Record<string, string> = { blood: '+Sangre', speed: '¡Rapidez!', fury: '¡Furia!', shield: '+Escudo', coin: '+5 monedas', xp: '+XP', spirits: '¡Espíritus!', boots: '¡Botas elementales!', shovel: '¡Un enterrador!' };
 
 export class Game {
   map!: GameMap;
@@ -251,7 +251,7 @@ export class Game {
       case 'fx': this.fx(ev); break;
       case 'pick':
         this.burst(ev.x, ev.y, 10, ev.p === 'coin' ? '#ffd040' : '#ffffff', 120, 2);
-        this.floaters.push({ x: ev.x, y: ev.y - 30, text: PU_LABEL[ev.p] ?? '+', color: '#a0ffa0', life: 1 });
+        this.floaters.push({ x: ev.x, y: ev.y - 30, text: tpu(ev.p), color: '#a0ffa0', life: 1 });
         break;
     }
     this.onEvent?.(ev);
@@ -261,11 +261,11 @@ export class Game {
     switch (ev.f) {
       case 'lvl':
         for (let i = 0; i < 26; i++) this.particles.push({ x: ev.x + (Math.random() - 0.5) * 40, y: ev.y, vx: 0, vy: -120 - Math.random() * 120, life: 0.9, max: 0.9, color: '#ffd040', size: 4, grav: 0 });
-        if (ev.o === this.youId) this.floaters.push({ x: ev.x, y: ev.y - 90, text: '¡NIVEL!', color: '#ffd040', life: 1.4, big: true });
+        if (ev.o === this.youId) this.floaters.push({ x: ev.x, y: ev.y - 90, text: tr('levelUp'), color: '#ffd040', life: 1.4, big: true });
         return;
       case 'howl': this.shake = Math.max(this.shake, 8); break;
       case 'crimson': case 'moon': if (ev.o === this.youId && ev.d) this.shake = Math.max(this.shake, 10); break;
-      case 'evolve': if (ev.o === this.youId && (ev.n ?? 0) > 0) { this.shake = 6; this.floaters.push({ x: ev.x, y: ev.y - 120, text: '¡EVOLUCIÓN!', color: '#ff90ff', life: 1.8, big: true }); } break;
+      case 'evolve': if (ev.o === this.youId && (ev.n ?? 0) > 0) { this.shake = 6; this.floaters.push({ x: ev.x, y: ev.y - 120, text: tr('evolution'), color: '#ff90ff', life: 1.8, big: true }); } break;
       case 'entomb': if (ev.o === this.youId && ev.d) this.shake = 8; break;
     }
     this.effects.spawn(ev, this.youId);
@@ -1239,10 +1239,10 @@ export class Game {
       const info = HUNTER_LABEL[e.c] ?? HUNTER_LABEL.cazador;
       const ty = top - (e.c === 'heraldo' ? 28 : 0);
       ctx.font = '9px "Press Start 2P", monospace';
-      ctx.fillStyle = '#000'; ctx.fillText(info.name, x + 1, ty - 1);
-      ctx.fillStyle = info.color; ctx.fillText(info.name, x, ty - 2);
+      ctx.fillStyle = '#000'; ctx.fillText(thunter(e.c), x + 1, ty - 1);
+      ctx.fillStyle = info.color; ctx.fillText(thunter(e.c), x, ty - 2);
       if (e.h !== undefined) this.bar(ctx, x, ty + 2, e.c === 'heraldo' ? 60 : 40, e.h, info.color);
-      if (e.fl & Flag.Ritual) { ctx.font = '8px "Press Start 2P", monospace'; ctx.fillStyle = '#ff4060'; ctx.fillText('¡RITUAL!', x, ty - 14 + (Math.floor(now / 200) % 2) * 2); }
+      if (e.fl & Flag.Ritual) { ctx.font = '8px "Press Start 2P", monospace'; ctx.fillStyle = '#ff4060'; ctx.fillText(tr('ritual'), x, ty - 14 + (Math.floor(now / 200) % 2) * 2); }
     } else if (e.k === Kind.Minion) {
       if (e.h !== undefined && e.h < 100) this.bar(ctx, x, top + 8, 26, e.h, e.o === this.youId ? '#80ff60' : '#c06040');
     } else if (e.h !== undefined) {
@@ -1284,7 +1284,7 @@ export class Game {
     }
     // bocadillos para emotes
     if (e.k === Kind.Player && (e.a === Anim.Wave || e.a === Anim.Taunt)) {
-      const txt = e.a === Anim.Wave ? '¡Buenas noches!' : TAUNTS[e.c as CharacterId] ?? '¡Buu!';
+      const txt = e.a === Anim.Wave ? tr('wave') : (CHARACTERS[e.c as CharacterId] ? tc(e.c as CharacterId).taunt : undefined) ?? TAUNTS[e.c as CharacterId] ?? '¡Buu!';
       ctx.font = '10px "Press Start 2P", monospace';
       const w = ctx.measureText(txt).width + 14;
       const by = top - 46;

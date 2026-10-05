@@ -8,6 +8,7 @@ import { Game } from './game';
 import { input, setupInput } from './input';
 import { net } from './net';
 import { ANIMS, getFrame, SH, SW } from './sprites';
+import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, tk, tm, tt, tu, tw } from './i18n';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('game');
@@ -93,19 +94,20 @@ function buildChars(container: HTMLElement, small = false) {
     cv.width = SW * 3; cv.height = SH * 3;
     previews.push({ cv, char: id, skin: () => (selChar === id ? selSkin : 'classic'), anim: selChar === id ? Anim.Taunt : Anim.Idle });
     el.appendChild(cv);
-    el.insertAdjacentHTML('beforeend', `<div class="cname">${def.name}</div>${small ? '' : `<div class="ctitle">${def.title}</div>`}`);
+    const tx = tc(id);
+    el.insertAdjacentHTML('beforeend', `<div class="cname">${tx.name}</div>${small ? '' : `<div class="ctitle">${tx.title}</div>`}`);
     if (!owned) {
       const u = CHARACTER_UNLOCK[id];
       const medal = u.medal ? MEDAL_BY_ID[u.medal] : null;
       const price = unlockPrice(profile);
-      el.insertAdjacentHTML('beforeend', `<div class="lock">🔒 ${price}🪙${medal ? ` o ${medal.icon}` : ''}</div>`);
-      el.title = `Desbloquear por ${price} monedas${medal ? ` o consiguiendo la medalla «${medal.name}»` : ''}`;
+      el.insertAdjacentHTML('beforeend', `<div class="lock">🔒 ${price}🪙${medal ? ` ${t('or')} ${medal.icon}` : ''}</div>`);
+      el.title = t('unlockFor', { p: price }) + (medal ? t('orMedalLong', { m: tm(medal.id).name }) : '');
     }
     el.onclick = () => {
       if (!owned) {
         const price = unlockPrice(profile);
-        if (profile && profile.coins >= price && confirm(`¿Desbloquear ${def.name} por ${price} monedas?`)) net.send({ t: 'buy', item: `char:${id}` });
-        else showError(`Necesitas ${price} monedas${CHARACTER_UNLOCK[id].medal ? ` o la medalla «${MEDAL_BY_ID[CHARACTER_UNLOCK[id].medal!].name}»` : ''}.`);
+        if (profile && profile.coins >= price && confirm(t('confirmUnlock', { n: tc(id).name, p: price }))) net.send({ t: 'buy', item: `char:${id}` });
+        else showError(t('needCoins', { p: price }) + (CHARACTER_UNLOCK[id].medal ? t('orMedal', { m: tm(CHARACTER_UNLOCK[id].medal!).name }) : '') + '.');
         return;
       }
       selChar = id;
@@ -133,7 +135,7 @@ type GoogleId = { accounts: { id: { initialize(o: object): void; renderButton(el
 function buildAccount() {
   const box = $('account');
   if (profile?.google) {
-    box.innerHTML = `<div class="who">✅ Progreso guardado en <b>${profile.google.email}</b>${profile.master ? ' · <span class="master">MASTER</span>' : ''}</div><button id="logout" class="btn tiny">Cerrar sesión</button>`;
+    box.innerHTML = `<div class="who">${t('savedIn', { email: escapeHtml(profile.google.email) })}${profile.master ? ' · <span class="master">MASTER</span>' : ''}</div><button id="logout" class="btn tiny">${t('logout')}</button>`;
     $('logout').onclick = () => {
       store.del('nl_token'); session.del('nl_token');
       (window as unknown as { google?: GoogleId }).google?.accounts.id.disableAutoSelect();
@@ -141,27 +143,27 @@ function buildAccount() {
     };
     return;
   }
-  box.innerHTML = `<div class="who">👤 Juegas como <b>invitado</b>: tu progreso se pierde al cerrar el navegador.</div><div id="gbtn"></div>
-    <div class="note">Entra con Google para guardar monedas, medallas y compras. Solo usamos tu correo para identificarte: <b>nunca te enviaremos publicidad</b>. <a href="/privacidad.html" target="_blank">Privacidad</a></div>`;
-  if (!googleClientId) { $('gbtn').textContent = '(inicio de sesión no disponible en este servidor)'; return; }
+  box.innerHTML = `<div class="who">${t('guest')}</div><div id="gbtn"></div>
+    <div class="note">${t('accountNote')} <a href="/privacidad.html" target="_blank">${t('privacy')}</a></div>`;
+  if (!googleClientId) { $('gbtn').textContent = t('loginUnavailable'); return; }
   loadGoogle().then(() => {
     const g = (window as unknown as { google: GoogleId }).google;
     g.accounts.id.initialize({ client_id: googleClientId, callback: (r: { credential: string }) => net.send({ t: 'login', credential: r.credential }) });
     const el = document.getElementById('gbtn');
-    if (el) g.accounts.id.renderButton(el, { theme: 'filled_black', size: 'medium', text: 'signin_with', shape: 'pill' });
-  }).catch(() => { const el = document.getElementById('gbtn'); if (el) el.textContent = '(no se pudo cargar Google)'; });
+    if (el) g.accounts.id.renderButton(el, { theme: 'filled_black', size: 'medium', text: 'signin_with', shape: 'pill', locale: lang });
+  }).catch(() => { const el = document.getElementById('gbtn'); if (el) el.textContent = t('googleFail'); });
 }
 
 function buildCharInfo() {
-  const d = CHARACTERS[selChar];
+  const d = CHARACTERS[selChar], x = tc(selChar);
   $('charinfo').innerHTML = `
-    <div><b>${d.attackName}</b> · ${d.passive}</div>
-    <div><b>Q ${d.abilities[0].name}</b> · ${d.abilities[0].desc}</div>
-    <div><b>E ${d.abilities[1].name}</b> · ${d.abilities[1].desc}</div>
-    <div><b>R ${d.ult.name}</b> · ${d.ult.desc}</div>
-    <div class="evo">${d.evolution.map((ev) => `<span><b>Nv ${ev.lvl}</b> ${ev.name}</span>`).join('')}</div>
-    <div class="stats">Vida ${d.hp} · Velocidad ${d.speed} · Daño ${d.damage}${d.armor ? ` · Armadura ${Math.round(d.armor * 100)}%` : ''}</div>`;
-  $('charinfo').title = d.evolution.map((ev) => `Nivel ${ev.lvl} · ${ev.name}: ${ev.desc}`).join('\n');
+    <div><b>${x.attack}</b> · ${x.passive}</div>
+    <div><b>Q ${x.q[0]}</b> · ${x.q[1]}</div>
+    <div><b>E ${x.e[0]}</b> · ${x.e[1]}</div>
+    <div><b>R ${x.r[0]}</b> · ${x.r[1]}</div>
+    <div class="evo">${d.evolution.map((ev, i) => `<span><b>${t('lvlShort')} ${ev.lvl}</b> ${x.evo[i]?.[0] ?? ev.name}</span>`).join('')}</div>
+    <div class="stats">${t('stats', { hp: d.hp, sp: d.speed, dm: d.damage })}${d.armor ? t('armor', { a: Math.round(d.armor * 100) }) : ''}</div>`;
+  $('charinfo').title = d.evolution.map((ev, i) => `${t('levelLong')} ${ev.lvl} · ${x.evo[i]?.[0] ?? ev.name}: ${x.evo[i]?.[1] ?? ev.desc}`).join('\n');
 }
 
 function buildSkins() {
@@ -173,12 +175,12 @@ function buildSkins() {
     el.className = `skin${selSkin === s.id ? ' sel' : ''}${owned ? '' : ' locked'}`;
     const medal = s.medal ? MEDAL_BY_ID[s.medal] : null;
     el.innerHTML = `<span class="sw" style="background:${s.palette.cloth};box-shadow:inset -6px 0 0 ${s.palette.accent}"></span>${s.name}${owned ? '' : medal ? ` <span class="price">${medal.icon}</span>` : ` <span class="price">${s.price}🪙</span>`}`;
-    el.title = owned ? s.name : medal ? `Se gana con la medalla «${medal.name}»` : `${s.price} monedas`;
+    el.title = owned ? s.name : medal ? t('skinByMedal', { m: tm(medal.id).name }) : t('coinsN', { p: s.price });
     el.onclick = () => {
       if (!owned) {
-        if (medal) return showError(`Skin de medalla: ${medal.name} — ${medal.desc}`);
-        if (profile && profile.coins >= s.price && confirm(`¿Comprar la skin «${s.name}» por ${s.price} monedas?`)) net.send({ t: 'buy', item: `skin:${selChar}:${s.id}` });
-        else showError(`Necesitas ${s.price} monedas.`);
+        if (medal) return showError(t('skinMedalErr', { m: tm(medal.id).name, d: tm(medal.id).desc }));
+        if (profile && profile.coins >= s.price && confirm(t('confirmSkin', { s: s.name, p: s.price }))) net.send({ t: 'buy', item: `skin:${selChar}:${s.id}` });
+        else showError(t('needCoins', { p: s.price }) + '.');
         return;
       }
       selSkin = s.id;
@@ -192,7 +194,7 @@ function buildSkins() {
 function buildMedals() {
   const got = new Set(profile?.medals ?? []);
   $('medal-count').textContent = `${got.size}/${MEDALS.length}`;
-  $('medals').innerHTML = MEDALS.map((m) => `<div class="medal${got.has(m.id) ? ' got' : ''}"><span class="mi">${m.icon}</span><b>${m.name}</b>${m.desc} <span style="color:var(--gold)">+${m.coins}🪙</span></div>`).join('');
+  $('medals').innerHTML = MEDALS.map((m) => { const x = tm(m.id); return `<div class="medal${got.has(m.id) ? ' got' : ''}"><span class="mi">${m.icon}</span><b>${x.name}</b>${x.desc} <span style="color:var(--gold)">+${m.coins}🪙</span></div>`; }).join('');
 }
 
 function refreshMenu() {
@@ -236,7 +238,7 @@ async function join(mode: 'random' | 'code' | 'create', code?: string) {
   store.set('nl_name', name);
   // con varios servidores, la sala vive en el suyo (su código empieza por esa letra)
   if (mode === 'code' && code && net.shardOfCode(code) !== net.shard) {
-    try { await net.switchTo(net.shardOfCode(code)); } catch { showError('No se pudo conectar con el servidor de esa sala.'); return; }
+    try { await net.switchTo(net.shardOfCode(code)); } catch { showError(t('connectRoomFail')); return; }
   }
   // re-hello por si cambió el nombre
   net.send({ t: 'hello', token: savedToken(), name });
@@ -249,7 +251,7 @@ async function join(mode: 'random' | 'code' | 'create', code?: string) {
 $('play').onclick = () => join('random');
 $('join').onclick = () => {
   const code = $<HTMLInputElement>('code').value.trim().toUpperCase();
-  if (code.length !== 4) return showError('El código tiene 4 caracteres.');
+  if (code.length !== 4) return showError(t('code4'));
   join('code', code);
 };
 $('create').onclick = () => join('create');
@@ -266,10 +268,10 @@ if (urlCode) $<HTMLInputElement>('code').value = urlCode.toUpperCase();
 function buildAbilities() {
   const d = CHARACTERS[selChar];
   const items = [
-    { key: '🖱', name: d.attackName },
-    { key: 'Q', name: d.abilities[0].name },
-    { key: 'E', name: d.abilities[1].name },
-    { key: 'R', name: d.ult.name },
+    { key: '🖱', name: tc(d.id).attack },
+    { key: 'Q', name: tc(d.id).q[0] },
+    { key: 'E', name: tc(d.id).e[0] },
+    { key: 'R', name: tc(d.id).r[0] },
   ];
   $('abilities').innerHTML = items.map((a, i) => `<div class="ab${i === 3 ? ' ult' : ''}" id="ab${i}"><span class="key">${a.key}</span><span class="nm">${a.name}</span><div class="cdov"></div><div class="cdt"></div>${i === 3 ? '<div class="charge"><div></div></div>' : ''}</div>`).join('');
 }
@@ -282,7 +284,7 @@ function updateHud() {
   $('hptext').textContent = `${y.hp} / ${y.mhp}`;
   $('xpfill').style.width = `${(y.xp / y.xpn) * 100}%`;
   $('lvl').textContent = String(y.lvl);
-  $('pts').textContent = `${y.pts} pts`;
+  $('pts').textContent = t('pts', { n: y.pts });
   $('gcoins').textContent = `🪙 ${y.coins}`;
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById(`ab${i}`);
@@ -303,20 +305,19 @@ function updateHud() {
     ultEl.classList.toggle('active', y.ultOn > 0);
     (ultEl.querySelector('.charge div') as HTMLElement).style.width = `${locked ? 0 : y.ult}%`;
     (ultEl.querySelector('.cdov') as HTMLElement).style.height = '0%';
-    (ultEl.querySelector('.cdt') as HTMLElement).textContent = locked ? 'Nv 10' : y.ultOn > 0 ? y.ultOn.toFixed(0) : y.ult >= 100 ? '¡R!' : `${y.ult}%`;
+    (ultEl.querySelector('.cdt') as HTMLElement).textContent = locked ? t('ultLocked') : y.ultOn > 0 ? y.ultOn.toFixed(0) : y.ult >= 100 ? t('ultReady') : `${y.ult}%`;
   }
   $('lvl').classList.toggle('t1', y.tier === 1); $('lvl').classList.toggle('t2', y.tier === 2); $('lvl').classList.toggle('t3', y.tier >= 3);
-  const BUFF_NAMES: Record<string, string> = { speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', invisAuto: '👻Presencia ausente', protect: '✨Protegido', slow: '🐌Lento', stun: '💫Aturdido', frenzy: '💨Frenesí', haste: '💨Sed', vuln: '💔Vulnerable', tomb: '⚱️Sarcófago', weak: '🤢Debilitado', dive: '🫧Sumergido', horde: '🧟Horda', deep: '🌊Abismo', puddle: '💧Charca', sleep: '💤Dormido', rage: '😡Rabia', charm: '💗Engatusado', bleed: '🩸Sangrado', fly: '🧹Volando', prop: '🌳Acecho', mimic: '🎭Imitando', guise: '🎭Disfrazado', mirrors: '🪞Espejos', ambush: '🗡Emboscada', hex: '🐸Animalillo', poison: '🧪Envenenado', thralls: '💘Enamorados', phase: '👻Intangible', root: '🌿Enredado', treeRoot: '🌳Enraizado', burn: '🔥Ardiendo', silence: '🔇Silenciado', blind: '🐦‍⬛Cegado', fear: '😱Aterrorizado', spirits: '💀Espíritus', bootsFire: '👢🔥Botas de fuego', bootsNature: '👢🌿Botas de naturaleza', bootsWater: '👢💧Botas de agua', planted: '🌾Plantado' };
-  $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${BUFF_NAMES[b.t] ?? b.t}${b.t === 'horde' || b.t === 'mirrors' || b.t === 'thralls' ? ' ' + b.r : b.t === 'ambush' ? ' ' + Math.round(b.r) + '%' : b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
+  $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${tb(b.t)}${b.t === 'horde' || b.t === 'mirrors' || b.t === 'thralls' ? ' ' + b.r : b.t === 'ambush' ? ' ' + Math.round(b.r) + '%' : b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
   const upKey = `${y.up}|${Object.values(y.ups).join(',')}|${y.lvl >= 15}`;
   if (upKey !== lastUpKey) {
     lastUpKey = upKey;
     const box = $('upgrades');
     box.hidden = y.up <= 0;
-    box.innerHTML = `<div class="up-title">¡${y.up} mejora${y.up > 1 ? 's' : ''} disponible${y.up > 1 ? 's' : ''}! (1-4)</div>` + UPGRADES.map((u) => {
+    box.innerHTML = `<div class="up-title">${y.up > 1 ? t('upMany', { n: y.up }) : t('upOne')}</div>` + UPGRADES.map((u) => {
       const lv = y.ups[u.id];
       const mx = upgradeMax(u, y.lvl);
-      return `<div class="up${lv >= mx ? ' maxed' : ''}" data-u="${u.id}"><b>${u.key}·${u.name}</b>${u.desc}<br><small>${lv}/${mx}</small></div>`;
+      return `<div class="up${lv >= mx ? ' maxed' : ''}" data-u="${u.id}"><b>${u.key}·${tu(u.id).name}</b>${tu(u.id).desc}<br><small>${lv}/${mx}</small></div>`;
     }).join('');
     box.querySelectorAll<HTMLElement>('.up').forEach((el) => { el.onclick = () => net.send({ t: 'upgrade', u: el.dataset.u as UpgradeId }); });
   }
@@ -324,7 +325,7 @@ function updateHud() {
 }
 
 function renderRank(list: [string, number, CharacterId, number][], total: number) {
-  $('rank').innerHTML = `<div class="title">RANKING DE SALA · ${total}👤</div>` + list.map((r, i) =>
+  $('rank').innerHTML = `<div class="title">${t('rank')} · ${total}👤</div>` + list.map((r, i) =>
     `<div class="r${r[3] === myId ? ' me' : ''}"><span>${i === 0 ? '👑' : `${i + 1}.`} ${escapeHtml(r[0])}</span><span>${r[1]}</span></div>`).join('');
 }
 
@@ -335,14 +336,14 @@ function escapeHtml(s: string) {
 function onGameEvent(ev: GameEvent) {
   if (ev.e === 'fx' && ev.f === 'evolve' && ev.o === myId && (ev.n ?? 0) > 0) {
     const ch = (ev.c ?? selChar) as CharacterId;
-    const m = CHARACTERS[ch]?.evolution[(ev.n ?? 1) - 1];
-    if (m) toast(`✨ Nivel ${m.lvl}: <b>${m.name}</b><br><span style="font-family:var(--vt);font-size:18px">${m.desc}</span>`);
+    const i = (ev.n ?? 1) - 1, m = CHARACTERS[ch]?.evolution[i], x = CHARACTERS[ch] ? tc(ch).evo[i] : undefined;
+    if (m) toast(`${t('evoToast', { l: m.lvl, n: x?.[0] ?? m.name })}<br><span style="font-family:var(--vt);font-size:18px">${x?.[1] ?? m.desc}</span>`);
     return;
   }
   if (ev.e === 'kill') {
     const d = document.createElement('div');
     const icon = ev.vk === Kind.Hunter ? '🏹' : '💀';
-    d.innerHTML = `<span class="a">${escapeHtml(ev.a)}</span> ${icon} <span class="v">${escapeHtml(ev.v)}</span>`;
+    d.innerHTML = `<span class="a">${escapeHtml(tw(ev.a))}</span> ${icon} <span class="v">${escapeHtml(tw(ev.v))}</span>`;
     const kf = $('killfeed');
     kf.prepend(d);
     while (kf.children.length > 6) kf.lastChild?.remove();
@@ -405,13 +406,13 @@ net.on((m: ServerMsg) => {
       game.start(m);
       buildAbilities();
       lastUpKey = '';
-      const th = THEMES[m.theme];
+      const th = tt(m.theme);
       const link = `${location.origin}${location.pathname}?sala=${m.code}`;
-      $('roominfo').innerHTML = `Sala <b>${m.code}</b>${m.priv ? ' 🔒' : ''} · ${th.name}`;
-      $('roominfo').title = `Comparte: ${link}`;
+      $('roominfo').innerHTML = `${t('room')} <b>${m.code}</b>${m.priv ? ' 🔒' : ''} · ${th.name}`;
+      $('roominfo').title = t('share', { l: link });
       $('roominfo').style.pointerEvents = 'auto';
       $('roominfo').style.cursor = 'pointer';
-      $('roominfo').onclick = () => { navigator.clipboard?.writeText(link); toast('Enlace de la sala copiado 📋'); };
+      $('roominfo').onclick = () => { navigator.clipboard?.writeText(link); toast(t('linkCopied')); };
       if ($('menu').hidden === false || !$('death').hidden) toast(`<b>${th.name}</b><br>${th.subtitle}`);
       showScreen('game');
       history.replaceState(null, '', `?sala=${m.code}`);
@@ -425,23 +426,23 @@ net.on((m: ServerMsg) => {
       renderRank(m.list, m.total);
       break;
     case 'died': {
-      $('death-by').textContent = `Te ha cazado: ${m.by}`;
+      $('death-by').textContent = t('killedBy', { n: tw(m.by) });
       const mins = Math.floor(m.time / 60), secs = m.time % 60;
       $('death-stats').innerHTML = `
-        <div><b>${m.pts}</b>puntos</div><div><b>${m.lvl}</b>nivel</div><div><b>${m.kills}</b>monstruos</div>
-        <div><b>${mins}:${String(secs).padStart(2, '0')}</b>sobrevivido</div><div><b>+${m.coins}🪙</b>monedas</div>`;
+        <div><b>${m.pts}</b>${t('dPoints')}</div><div><b>${m.lvl}</b>${t('dLevel')}</div><div><b>${m.kills}</b>${t('dMonsters')}</div>
+        <div><b>${mins}:${String(secs).padStart(2, '0')}</b>${t('dSurvived')}</div><div><b>+${m.coins}🪙</b>${t('dCoins')}</div>`;
       setTimeout(() => { if (inGame && !game.alive) { showScreen('death'); buildChars($('death-chars'), true); } }, 1400);
       break;
     }
-    case 'toast': toast(escapeHtml(m.text)); break;
+    case 'toast': toast(escapeHtml((m.k && tk(m.k, m.a ?? {})) || m.text)); break;
     case 'medal': {
       const md = MEDAL_BY_ID[m.id];
-      if (md) toast(`${md.icon} ¡Medalla desbloqueada!<br>${md.name}<br><span style="color:var(--gold)">+${md.coins} monedas</span>`);
+      if (md) toast(`${md.icon} ${t('medalUnlocked')}<br>${tm(md.id).name}<br><span style="color:var(--gold)">${t('coinsPlus', { c: md.coins })}</span>`);
       break;
     }
     case 'rooms':
       $('rooms').innerHTML = m.list.length
-        ? m.list.map((r) => `<span class="room" data-code="${r.code}">${r.code} · ${THEMES[r.theme].name} · ${r.players}/${r.max}</span>`).join('')
+        ? m.list.map((r) => `<span class="room" data-code="${r.code}">${r.code} · ${tt(r.theme).name} · ${r.players}/${r.max}</span>`).join('')
         : '';
       $('rooms').querySelectorAll<HTMLElement>('.room').forEach((el) => { el.onclick = () => join('code', el.dataset.code); });
       break;
@@ -452,7 +453,7 @@ net.on((m: ServerMsg) => {
       net.send({ t: 'rooms' });
       break;
     case 'error':
-      showError(m.msg);
+      showError((m.k && tk(m.k)) || m.msg);
       break;
   }
 });
@@ -460,11 +461,22 @@ net.on((m: ServerMsg) => {
 net.onClose = () => {
   game.stop();
   showScreen('menu');
-  showError('Conexión perdida. Reintentando...');
+  showError(t('connLost'));
   setTimeout(() => location.reload(), 2500);
 };
 
+function retranslate() {
+  applyStatic();
+  document.querySelectorAll<HTMLOptionElement>('#theme option').forEach((o) => { if (o.value) o.textContent = tt(o.value as MapThemeId).name; });
+  buildAccount();
+  refreshMenu();
+  if (inGame) { buildAbilities(); lastUpKey = ''; }
+}
+onLangChange(retranslate);
+
 async function boot() {
+  buildLangPicker($('langs'));
+  setLang(lang);
   showScreen('menu');
   refreshMenu();
   try {
@@ -474,7 +486,7 @@ async function boot() {
     net.send({ t: 'rooms' });
     setInterval(() => { if (!inGame) net.send({ t: 'rooms' }); }, 5000);
   } catch {
-    showError('No se pudo conectar con el servidor. ¿Está arrancado (npm run dev)?');
+    showError(t('noServer'));
   }
 }
 boot();

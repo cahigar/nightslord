@@ -1,0 +1,137 @@
+// Castellano: idioma base. Todas las claves de la interfaz están aquí; los otros idiomas pueden dejar huecos.
+import type { CharacterId } from '../../shared/characters';
+
+const UI = {
+  docTitle: 'El Señor de la Noche .io',
+  logo: 'El Señor<br />de la Noche',
+  language: 'Idioma',
+  namePh: 'Tu nombre',
+  coins: 'Monedas',
+  chooseMonster: 'Elige tu monstruo',
+  skin: 'Skin',
+  play: '🦇 Jugar',
+  codePh: 'CÓDIGO',
+  join: 'Unirse',
+  randomMap: 'Mapa aleatorio',
+  private: 'Privada',
+  createRoom: 'Crear sala',
+  medals: '🏅 Medallas',
+  help: '<b>WASD</b> moverse · <b>Ratón</b> apuntar · <b>Clic / Espacio</b> atacar · <b>Q / clic dcho.</b> y <b>E</b> habilidades · <b>R</b> definitiva (nivel 10)<br /><b>1-4</b> mejoras al subir nivel · <b>G</b> saludar · <b>T</b> taunt · <b>H</b> alianza · <b>M</b> silenciar',
+  // cuenta
+  guest: '👤 Juegas como <b>invitado</b>: tu progreso se pierde al cerrar el navegador.',
+  accountNote: 'Entra con Google para guardar monedas, medallas y compras. Solo usamos tu correo para identificarte: <b>nunca te enviaremos publicidad</b>.',
+  privacy: 'Privacidad',
+  savedIn: '✅ Progreso guardado en <b>{email}</b>',
+  logout: 'Cerrar sesión',
+  loginUnavailable: '(inicio de sesión no disponible en este servidor)',
+  googleFail: '(no se pudo cargar Google)',
+  // desbloqueos
+  unlockFor: 'Desbloquear por {p} monedas',
+  orMedalLong: ' o consiguiendo la medalla «{m}»',
+  confirmUnlock: '¿Desbloquear {n} por {p} monedas?',
+  needCoins: 'Necesitas {p} monedas',
+  orMedal: ' o la medalla «{m}»',
+  or: 'o',
+  skinByMedal: 'Se gana con la medalla «{m}»',
+  coinsN: '{p} monedas',
+  skinMedalErr: 'Skin de medalla: {m} — {d}',
+  confirmSkin: '¿Comprar la skin «{s}» por {p} monedas?',
+  // ficha
+  lvlShort: 'Nv',
+  levelLong: 'Nivel',
+  stats: 'Vida {hp} · Velocidad {sp} · Daño {dm}',
+  armor: ' · Armadura {a}%',
+  // errores y avisos
+  connectRoomFail: 'No se pudo conectar con el servidor de esa sala.',
+  code4: 'El código tiene 4 caracteres.',
+  connLost: 'Conexión perdida. Reintentando...',
+  noServer: 'No se pudo conectar con el servidor.',
+  noCoins: 'No tienes monedas suficientes.',
+  noRoom: 'No existe ninguna sala con ese código.',
+  roomFull: 'La sala está llena.',
+  serverFull: 'El servidor está lleno. Inténtalo en un rato.',
+  serverBusy: 'El servidor está lleno ahora mismo. Prueba en un momento.',
+  loginFail: 'No se pudo iniciar sesión con Google.',
+  skinMedalOnly: 'Esta skin se gana con una medalla.',
+  summoned: '¡Un sectario te ha invocado! Llegas con la mitad de tu vida.',
+  allyOffer: '🤝 {n} te ofrece una alianza: pulsa H para aceptar.',
+  // HUD
+  pts: '{n} pts',
+  ultLocked: 'Nv 10',
+  ultReady: '¡R!',
+  upOne: '¡1 mejora disponible! (1-4)',
+  upMany: '¡{n} mejoras disponibles! (1-4)',
+  rank: 'RANKING DE SALA',
+  evoToast: '✨ Nivel {l}: <b>{n}</b>',
+  room: 'Sala',
+  share: 'Comparte: {l}',
+  linkCopied: 'Enlace de la sala copiado 📋',
+  medalUnlocked: '¡Medalla desbloqueada!',
+  coinsPlus: '+{c} monedas',
+  charMedalDesc: 'Alcanza el nivel 15 con este monstruo.',
+  evoUlt: 'Desbloquea la definitiva R, que se carga con bajas.',
+  // muerte
+  fallen: 'Has caído',
+  killedBy: 'Te ha cazado: {n}',
+  dPoints: 'puntos',
+  dLevel: 'nivel',
+  dMonsters: 'monstruos',
+  dSurvived: 'sobrevivido',
+  dCoins: 'monedas',
+  again: '¿Volver con otro monstruo?',
+  respawn: 'Volver a la noche',
+  menu: 'Menú',
+  exit: 'Salir',
+  // en partida
+  levelUp: '¡NIVEL!',
+  evolution: '¡EVOLUCIÓN!',
+  ritual: '¡RITUAL!',
+  wave: '¡Buenas noches!',
+};
+export type UiKey = keyof typeof UI;
+
+export interface Dict {
+  ui: Partial<Record<UiKey, string>>;
+  /** Textos de cada monstruo (en castellano salen de shared/characters.ts; aquí solo los taunts). */
+  chars: Partial<Record<CharacterId, Partial<{ name: string; title: string; attack: string; passive: string; q: [string, string]; e: [string, string]; r: [string, string]; evo: [string, string][]; taunt: string }>>>;
+  medals: Record<string, [string, string?]>;
+  upgrades: Record<string, [string, string]>;
+  themes: Record<string, [string, string]>;
+  /** Palabras y nombres que llegan del servidor en castellano. */
+  words: Record<string, string>;
+  buffs: Record<string, string>;
+  pu: Record<string, string>;
+  hunters: Record<string, string>;
+}
+
+type CharTr = NonNullable<Dict['chars'][CharacterId]>;
+/** Ficha traducida de un monstruo: nombre, título, ataque, pasiva, Q, E, R, evolución nv. 5 y nv. 15 y taunt. */
+export function ch(name: string, title: string, attack: string, passive: string, q: [string, string], e: [string, string], r: [string, string], e5: [string, string], e15: [string, string], taunt: string): CharTr {
+  return { name, title, attack, passive, q, e, r, evo: [e5, e15], taunt };
+}
+
+export const ES: Dict & { ui: typeof UI } = {
+  ui: UI,
+  chars: {
+    vampire: { taunt: '¡Bleh, bleh!' }, werewolf: { taunt: '¡AUUUUU!' }, mummy: { taunt: '¡Te envuelvo!' }, invisible: { taunt: '¿Me buscabas?' },
+    zombie: { taunt: '¡Cereeebros!' }, kthula: { taunt: "Ph'nglui... ¡glub!" }, nightmare: { taunt: 'Duérmete, niño...' }, mary: { taunt: 'Di mi nombre 3 veces' },
+    reanimated: { taunt: '¡ESTÁ VIVO!' }, doppy: { taunt: '¿Quién es quién?' }, witch: { taunt: '¡Jijijiji!' }, succubus: { taunt: 'Mua ♥' },
+    poltergeist: { taunt: '¡BUUU!' }, tree: { taunt: '¡Yo soy... madera!' }, pirate: { taunt: '¡Arrr, marinero!' }, spider: { taunt: 'Ven a mi tela...' },
+    scarecrow: { taunt: '¡Bu! ...¿Asustado?' }, demon: { taunt: '¿Hace calor o soy yo?' }, slime: { taunt: '*blub blub*' }, alien: { taunt: 'Llévame con tu líder' },
+    static: { taunt: 'No toque su televisor...' }, kappa: { taunt: '¡Cuidado con mi cuenco!' },
+  },
+  medals: {},
+  upgrades: {},
+  themes: {},
+  words: {},
+  buffs: {
+    speed: '⚡Rapidez', fury: '🔥Furia', howl: '🌕Aullido', shield: '🛡Escudo', invis: '👻Invisible', invisAuto: '👻Presencia ausente', protect: '✨Protegido',
+    slow: '🐌Lento', stun: '💫Aturdido', frenzy: '💨Frenesí', haste: '💨Sed', vuln: '💔Vulnerable', tomb: '⚱️Sarcófago', weak: '🤢Debilitado', dive: '🫧Sumergido',
+    horde: '🧟Horda', deep: '🌊Abismo', puddle: '💧Charca', sleep: '💤Dormido', rage: '😡Rabia', charm: '💗Engatusado', bleed: '🩸Sangrado', fly: '🪽Volando',
+    prop: '🌳Acecho', mimic: '🎭Imitando', guise: '🎭Disfrazado', mirrors: '🪞Espejos', ambush: '🗡Emboscada', hex: '🐸Animalillo', poison: '🧪Envenenado',
+    thralls: '💘Enamorados', phase: '👻Intangible', root: '🌿Enredado', treeRoot: '🌳Enraizado', burn: '🔥Ardiendo', silence: '🔇Silenciado', blind: '🐦‍⬛Cegado',
+    fear: '😱Aterrorizado', spirits: '💀Espíritus', bootsFire: '👢🔥Botas de fuego', bootsNature: '👢🌿Botas de naturaleza', bootsWater: '👢💧Botas de agua', planted: '🌾Plantado',
+  },
+  pu: { blood: '+Sangre', speed: '¡Rapidez!', fury: '¡Furia!', shield: '+Escudo', coin: '+5 monedas', xp: '+XP', spirits: '¡Espíritus!', boots: '¡Botas elementales!', shovel: '¡Un enterrador!' },
+  hunters: { cazador: 'CAZADOR', inquisidor: 'INQUISIDOR', exorcista: 'EXORCISTA', sectario: 'SECTARIO', heraldo: 'HERALDO' },
+};
