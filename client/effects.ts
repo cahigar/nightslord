@@ -103,9 +103,58 @@ function spectralHand(ctx: CanvasRenderingContext2D, x: number, y: number, h: nu
   for (let f = 0; f < 4; f++) ctx.fillRect(snap(x) - 2 * s + f * s * 1.3, snap(top) - (f === 1 || f === 2 ? 2 : 1) * s, s, 3 * s); // dedos
 }
 
+const cloudCache = new Map<string, HTMLCanvasElement>();
+/** Nubes de tormenta horneadas en pixel art: bocanadas con volumen (borde iluminado arriba, panza oscura) y bordes tramados. */
+function bakeClouds(r: number, seed: number): HTMLCanvasElement {
+  const key = `${r}|${seed}`;
+  let c = cloudCache.get(key);
+  if (c) return c;
+  const W = Math.ceil((r * 2.3) / PIXEL), H = Math.ceil((r * 1.75) / PIXEL);
+  c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(W, H);
+  const rnd = (i: number, k: number) => hash2(i, k, seed * 17.3);
+  // bocanadas repartidas por toda la elipse (más densas en el centro)
+  const puffs: { x: number; y: number; r: number }[] = [];
+  const n = Math.round(r / 6);
+  for (let i = 0; i < n; i++) {
+    const a = rnd(i, 1) * Math.PI * 2, d = Math.sqrt(rnd(i, 2)) * 0.92;
+    puffs.push({ x: W / 2 + Math.cos(a) * d * (W / 2 - 14), y: H / 2 + Math.sin(a) * d * (H / 2 - 14), r: (r / PIXEL) * (0.09 + rnd(i, 3) * 0.12) });
+  }
+  const dens = new Float32Array(W * H);
+  for (const p of puffs) {
+    const x0 = Math.max(0, Math.floor(p.x - p.r)), x1 = Math.min(W - 1, Math.ceil(p.x + p.r));
+    const y0 = Math.max(0, Math.floor(p.y - p.r)), y1 = Math.min(H - 1, Math.ceil(p.y + p.r));
+    for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++) {
+      const d = Math.hypot((i - p.x) / p.r, (j - p.y) / (p.r * 0.8));
+      if (d < 1) { const v = 1 - d * d, o = j * W + i; if (v > dens[o]) dens[o] = v; }
+    }
+  }
+  const hex = (h: string) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const RIM = hex('#8a92b0'), LIGHT = hex('#5c647e'), MID = hex('#3e4458'), DARK = hex('#2a2e3e'), BELLY = hex('#1c1f2a');
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const o = j * W + i, v = dens[o] + (hash2(i, j, seed) - 0.5) * 0.12;
+    if (v + BAYER4[(j & 3) * 4 + (i & 3)] * 0.22 < 0.3) continue;
+    // luz desde arriba: compara con la densidad unos píxeles más arriba y más abajo
+    const up = j > 2 ? dens[o - 2 * W] : 0, down = j < H - 3 ? dens[o + 2 * W] : 0;
+    let col = MID;
+    if (up < 0.25 && v < 0.55) col = RIM;
+    else if (up < v - 0.12) col = LIGHT;
+    else if (down < 0.3) col = BELLY;
+    else if (down < v - 0.1) col = DARK;
+    const q = o * 4;
+    img.data[q] = col[0]; img.data[q + 1] = col[1]; img.data[q + 2] = col[2]; img.data[q + 3] = Math.min(255, 140 + v * 160);
+  }
+  g.putImageData(img, 0, 0);
+  cloudCache.set(key, c);
+  if (cloudCache.size > 8) cloudCache.delete(cloudCache.keys().next().value!);
+  return c;
+}
+
 export class Effects {
   list: Effect[] = [];
   particles: Particle[] = [];
+  lastFlash = -1e9; // último relámpago grande (ilumina las nubes de tormenta)
   constructor(private map: GameMap, private entPos: (id: number) => Pos) {}
 
   /** Color de partícula según el terreno bajo un punto (polvo, hojas, agujas, salpicaduras). */
@@ -769,6 +818,7 @@ export class Effects {
 
   /** Rayo pixelado que cae del cielo. */
   lightning(x: number, y: number, small = false) {
+    this.lastFlash = performance.now();
     const pts: [number, number][] = [];
     let px = x + (Math.random() - 0.5) * 60, py = y - 420;
     while (py < y) { pts.push([px, py]); py += 18 + Math.random() * 14; px += (Math.random() - 0.5) * 28; }
@@ -844,19 +894,25 @@ export class Effects {
     });
   }
 
-  /** Nubes de tormenta del Reanimado (encima de todo). Su dueño ve a través. */
+  /** Nubes de tormenta del Reanimado (encima de todo): dos capas horneadas con volumen que derivan
+   *  en sentidos opuestos y se iluminan por dentro con cada relámpago. Su dueño ve a través. */
   drawStormClouds(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, life: number, now: number, mine: boolean) {
-    const fade = Math.min(1, life * 6, (1 - life) * 8 + 0.2);
-    const base = mine ? 0.16 : 0.7;
-    for (let i = 0; i < 38; i++) {
-      const a = (i / 38) * Math.PI * 2 * 3 + now / 9000 * (i % 2 ? 1 : -1);
-      const rr = r * (0.05 + ((i * 53) % 100) / 108);
-      const cx = x + Math.cos(a) * rr, cy = y + Math.sin(a) * rr * 0.7 - 60;
-      const cw = 70 + (i % 4) * 20;
-      ctx.globalAlpha = base * fade;
-      ctx.fillStyle = i % 3 ? '#3a4052' : '#4e5468';
-      for (let j = -2; j <= 2; j++) { const hw = Math.round(Math.sqrt(1 - (j / 3) ** 2) * cw / 6) * 3; ctx.fillRect(snap(cx - hw), snap(cy + j * 9), hw * 2, 9); }
-      if (Math.floor(now / 90 + i * 7) % 37 === 0) { ctx.globalAlpha = 0.6 * fade; ctx.fillStyle = '#c8e0ff'; ctx.fillRect(snap(cx - 12), snap(cy + 6), 24, 3); }
+    const fade = Math.min(1, life * 6, (1 - life) * 8 + 0.15);
+    const R = Math.max(60, Math.round(r / 20) * 20);
+    const flash = Math.max(0, 1 - (now - this.lastFlash) / 160);
+    for (const [seed, dir, alpha] of [[1, -1, 0.92], [2, 1, 0.78]] as const) {
+      const img = bakeClouds(R, seed);
+      const w = img.width * PIXEL, h = img.height * PIXEL;
+      const dx = snap(x - w / 2 + Math.sin(now / 7000 + seed) * 28 * dir);
+      const dy = snap(y - h / 2 - 50 + Math.cos(now / 9000 + seed) * 8);
+      ctx.globalAlpha = (mine ? 0.16 : alpha) * fade;
+      ctx.drawImage(img, dx, dy, w, h);
+      if (flash > 0) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = (mine ? 0.08 : 0.35) * fade * flash;
+        ctx.drawImage(img, dx, dy, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+      }
     }
     ctx.globalAlpha = 1;
   }

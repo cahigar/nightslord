@@ -112,7 +112,7 @@ export const BAL = {
     slam: { r: 150, dmg: 0.8, knock: 190 },
     nail: { speed: 620, life: 0.6, dmg: 0.9, stayT: 15, every: 5, returnR: 900, returnSpeed: 900, returnDmg: 1.1, strikeR: 60, strikeDmg: 0.6 },
     qChargesNail: 2,
-    ult: { r: 430, t: 5, dps: 7, slowMul: 0.55 },
+    ult: { r: 540, t: 5, dps: 7, slowMul: 0.55 },
     boulder: { speed: 520, life: 0.55, dmg: 1.1, meleeCheck: 80 }, // nv. 15
   },
   doppy: {
