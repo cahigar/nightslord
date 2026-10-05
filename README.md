@@ -43,7 +43,7 @@ Nota: el navegador ralentiza las pestañas que no están visibles, así que usa 
 
 `npm run dev` y `npm run demo` arrancan el servidor con `--dev`: todos los monstruos y skins quedan desbloqueados y puedes usar
 **Mayús+L** (subir al siguiente hito de nivel: 5 → 10 → 15) y **Mayús+U** (llenar la carga de la R).
-Para producción usa `npm start` (sin trucos).
+Para producción usa `npm start` (sin trucos). En producción, las **cuentas master** (los Gmail de `ADMIN_EMAILS`) tienen todo desbloqueado y también pueden usar estos trucos.
 
 Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.ts` sube cada monstruo a nivel 15 y usa todo su kit.
 
@@ -58,9 +58,10 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Definitiva (desde nivel 10) | R | R |
 | Mejoras al subir de nivel | 1 · 2 · 3 · 4 | tocar la tarjeta |
 | Saludar / Taunt | G / T | 😜 |
+| Proponer / aceptar alianza | H | |
 | Silenciar | M | |
 
-## Contenido actual (v0.8)
+## Contenido actual (v0.9)
 
 **Monstruos**
 
@@ -68,24 +69,26 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 |---|---|---|---|---|---|
 | 🧛 El Conde | Mordisco con robo de vida | Murciélagos | Niebla | Noche Carmesí | gratis |
 | 🐺 Aullador | Zarpazo amplio | Embestida | Aullido | Luna Llena | gratis |
-| ⚱️ Ramsés | Escarabajos a distancia que ralentizan | Vendas | Maldición | Tormenta del Faraón | 250 🪙 o medalla 🏹 |
-| 👻 La Dama Velada | Puñetazo fantasma | Desvestirse | Frenesí invisible | Todos somos la Dama | 400 🪙 o medalla 💀 |
-| 🧟 Paciente Cero | Mordisco infecto | Contagio (convierte a un humano en zombi aliado) | Carne fresca (cebo que atrae a sus zombis) | Salida de la tumba (horda + zombi gordo explosivo) | 350 🪙 o medalla 🍖 |
-| 🐙 K'thula | Tentáculo | Tentáculo abisal (golpe en zona que atrae) | Sumergirse (intocable, ×2 velocidad) | Marejada abisal (ola que empuja y deja charcas) | 450 🪙 o medalla 👑 |
-| 🌙 Pesadilla | Zarpa de sombra | Arrullo (cono de sueño) | Acecho (se convierte en un objeto del mapa) | Entre sueños (aparece junto a un dormido) | 400 🪙 o medalla 🕯️ |
-| 🪞 Bloody Mary | Cristal | A través del espejo | Espejo de sangre | Sal del espejo (copias) | 450 🪙 o medalla 🌕 |
-| ⚡ Reanimado | Puñetazo | Sacudida | Clavo pararrayos (2 cargas) | Tormenta galvánica (5 s) | 350 🪙 o medalla ⚰️ |
-| 🎭 Doppy | Golpe falso | Robar rostro | Engatusar | Doble perfecto | 500 🪙 |
-| 🧹 Hécuba | Poción al azar (fuego/ácido) | Poción aleatoria (fuego/ácido/rabia, 3 cargas) | Escoba | Maleficio (animalillo) | 450 🪙 |
-| 💋 Lilith | Beso robado (roba vida, enamora humanos) | Flechazo (corazón que atrae) | Alas | Pasión desatada | 450 🪙 o medalla 👋 |
-| 👻 Poltergeist | Objeto volador (sale de cualquier sitio) | Revuelo | Intangible | Drenaje | 400 🪙 o medalla 🕯️ |
-| 🌳 Raíz Negra | Ramazo | Zarzas (enredan) | Brotar (flor · torreta · muro, 2 cargas) | Bosque maldito | 450 🪙 o medalla 🏹 |
-| 🏴‍☠️ Capitán Ahogado | Sablazo espectral (cañonazos desde el barco) | Garfio | Barril de pólvora | ¡Al abordaje! | 450 🪙 |
-| 🕷️ Aracne | Mordisco venenoso | Telaraña (2 cargas) | Salto arácnido | Gran telaraña | 400 🪙 o medalla 💀 |
-| 🌾 El Segador | Guadaña | Cuervos (ciegan) | Plantarse | La Cosecha | 400 🪙 o medalla 🕯️ |
-| 🔥 Azufre | Golpe ígneo (quema) | Bola infernal | Paso ardiente | Infierno | 450 🪙 o medalla ⚰️ |
-| 🟢 Baba | Salpicadura (mancha pegajosa) | Rastro de veneno | Burbuja de ácido | Masa crítica | 350 🪙 o medalla 🍖 |
-| 👽 El Visitante | Rayo de plasma | Abducción | Baliza | Invasión | 500 🪙 o medalla 👑 |
+| ⚱️ Ramsés | Escarabajos a distancia que ralentizan | Vendas | Maldición | Tormenta del Faraón | gratis |
+| 👻 La Dama Velada | Puñetazo fantasma | Desvestirse | Frenesí invisible | Todos somos la Dama | gratis |
+| 🧟 Paciente Cero | Mordisco infecto | Contagio (convierte a un humano en zombi aliado) | Carne fresca (cebo que atrae a sus zombis) | Salida de la tumba (horda + zombi gordo explosivo) | gratis |
+| 🐙 K'thula | Tentáculo | Tentáculo abisal (golpe en zona que atrae) | Sumergirse (intocable, ×2 velocidad) | Marejada abisal (ola que empuja y deja charcas) | gratis |
+| 🌙 Pesadilla | Zarpa de sombra | Arrullo (cono de sueño) | Acecho (se convierte en un objeto del mapa) | Entre sueños (aparece junto a un dormido) | gratis |
+| 🪞 Bloody Mary | Cristal | A través del espejo | Espejo de sangre | Sal del espejo (copias) | gratis |
+| ⚡ Reanimado | Puñetazo | Sacudida | Clavo pararrayos (2 cargas) | Tormenta galvánica (5 s) | gratis |
+| 🎭 Doppy | Golpe falso | Robar rostro | Engatusar | Doble perfecto | gratis |
+| 🧹 Hécuba | Poción al azar (fuego/ácido) | Poción aleatoria (fuego/ácido/rabia, 3 cargas) | Escoba | Maleficio (animalillo) | gratis |
+| 💋 Lilith | Beso robado (roba vida, enamora humanos) | Flechazo (corazón que atrae) | Alas | Pasión desatada | gratis |
+| 👻 Poltergeist | Objeto volador (sale de cualquier sitio) | Revuelo | Intangible | Drenaje | 🪙 o medalla ⏳ Inmortal |
+| 🌳 Raíz Negra | Ramazo | Zarzas (enredan) | Brotar (flor · torreta · muro, 2 cargas) | Bosque maldito | 🪙 o medalla 🏹 Cazador de cazadores |
+| 🏴‍☠️ Capitán Ahogado | Sablazo espectral (cañonazos desde el barco) | Garfio | Barril de pólvora | ¡Al abordaje! | 🪙 o medalla 🎯 Cazarrecompensas |
+| 🕷️ Aracne | Mordisco venenoso | Telaraña (2 cargas) | Salto arácnido | Gran telaraña | 🪙 o medalla 💀 Depredador |
+| 🌾 El Segador | Guadaña | Cuervos (ciegan) | Plantarse | La Cosecha | 🪙 o medalla 🌕 Criatura ancestral |
+| 🔥 Azufre | Golpe ígneo (quema) | Bola infernal | Paso ardiente | Infierno | 🪙 o medalla ⚰️ Pesadilla de los Cazadores |
+| 🟢 Baba | Salpicadura (mancha pegajosa) | Rastro de veneno | Burbuja de ácido | Masa crítica | 🪙 o medalla 🍖 Glotón |
+| 👽 El Visitante | Rayo de plasma | Abducción | Baliza | Invasión | 🪙 o medalla 👑 Señor de la Noche |
+| 📺 Interferencia | Estática (las teles cercanas repiten el ataque) | Señal pirata (onda que hipnotiza) | Zapping (las teles hipnotizan muy rápido) | Emisión nacional (rayo de tele en tele) | 🪙 o medalla 😤 Venganza |
+| 🥒 Kappa | Garra de río | Lengua de agua (atrae) | Cuenco sagrado (cura y aguanta) | Remolino del río | 🪙 o medalla 🤝 Pacto de sangre |
 
 **Paciente Cero (invocador)**: algo menos de vida que el resto (95). El Contagio tarda unos 5 s: la vida del humano baja poco a poco y al llegar a cero se levanta como zombi. Máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
 
@@ -137,7 +140,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 
 **Mapas** (procedurales con semilla): Calle del Olmo, Transilvania, Campamento Lago Sereno.
 - **Agua en todos**: estanque y piscinas (Olmo), río con puentes (Transilvania), lago (Campamento). Se consulta con `map.water`, `waterAt(map, x, y)` y `obstacle.body`.
-- **Televisiones** como entidades localizables (`map.tvs`): en ventanas de casas y cabañas, en escaparates de tiendas de electrodomésticos y abandonadas a la intemperie.
+- **Televisiones** (`map.tvs`): en ventanas, escaparates y abandonadas a la intemperie; solo aparecen (encendidas) cuando hay una Interferencia en la sala.
 - **Bordes temáticos**: el mundo continúa fuera del área jugable (bosque denso, agua profunda, acantilados, vallas, muros, casas, cementerios) y se pierde en una niebla espesa.
 
 **Entidades**: humanos que huyen y gritan (variantes por mapa), la orden de cazadores (ver abajo), 6 power-ups (sangre, rapidez, furia, escudo, monedas, XP).
@@ -156,7 +159,19 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 
 **Recompensas**: humano 10 pts / 1 🪙 · Cazador 80 pts / 8 🪙 (Heraldo 300 pts / 25 🪙) · monstruo 50 pts + 25 % de los suyos / 5 🪙. Al morir conservas el 70 % de los puntos de sala.
 
-**Medallas**: Primera sangre, Glotón, Cazador de cazadores, Pesadilla de los Cazadores, Depredador, Inmortal, Señor de la Noche, Criatura ancestral, Buenas noches.
+**Progresión**
+- **12 monstruos gratis** desde el principio (de El Conde a Lilith). Los otros 10 se desbloquean **con monedas** (400 🪙 el primero y +200 por cada uno que compres: 400, 600, 800…) **o consiguiendo su medalla** (ver tabla).
+- **50 medallas**: 28 generales (humanos, cazadores, Heraldo, Sectario, rachas de monstruos, cazarrecompensas, venganza, alianza, traidor, supervivencia, niveles 10/15/20, partidas jugadas, 1000 monedas, coleccionista, comprar skin…) y **una única por monstruo** (alcanzar el nivel 15 con él). Cada medalla da monedas.
+- **Alianza (H)**: pulsa H cerca de otro monstruo para ofrecerla; si responde con H, confeti 🎉 y medalla 🤝. No cambia nada en el juego (podéis seguir dañándoos): quien derrota a su aliado gana la medalla **Traidor** 💔. Derrotar a quien te derrotó la última vez da la medalla **Venganza**.
+- **Invitado o cuenta**: se puede jugar sin registrarse (el progreso vive en la pestaña y se pierde al cerrar el navegador) o entrar con **Google** para guardar monedas, medallas y compras. Solo se guarda el identificador de Google y el correo; no se envían correos ni publicidad (`/privacidad.html`). Al entrar por primera vez, el progreso de invitado pasa a la cuenta.
+- **Idiomas**: castellano, euskera, inglés, francés, catalán, chino y japonés (banderitas en el menú; se detecta el idioma del navegador). Textos en `client/lang/*.ts`; el castellano es la base y lo que falte en otro idioma sale en castellano.
+- Preparado para el futuro: hueco oculto para un **banner** no invasivo en la selección de personaje (`#ad-slot` en `client/index.html`) y tienda de partículas y gorros.
+
+**Interferencia (señal maldita)**: mientras está en la sala, las televisiones del mapa se encienden (si no hay ninguna Interferencia, no se ven). Las teles cercanas repiten sus ataques. Su **Ruido** llena una barra de hipnosis: al llenarse, la víctima camina hacia ella o hacia una tele. Nv. 5: +50 % de daño a hipnotizados o casi. Nv. 15: las teles atacan en más radio.
+
+**Kappa (duende del río)**: acuático como K'thula (cruza agua profunda y en cualquier agua o charca corre más y se regenera). Q: lengua que atrae un poco. E: se agacha 2,5 s y rellena el agua de su cabeza (cura y recibe menos daño; un golpe fuerte lo interrumpe). R: remolino que arrastra al centro 6 s (cuenta como agua). Nv. 5: golpear por la espalda roba velocidad. Nv. 15: de vez en cuando una nube llueve cerca y deja una poza.
+
+**Ajustes de esta versión**: la somnolencia de Pesadilla sube más rápido y en los NPC ya no baja con el tiempo; los espejos de Bloody Mary se pueden romper a golpes; las televisiones solo existen si hay una Interferencia.
 
 ## Arquitectura
 
@@ -190,20 +205,34 @@ El juego necesita **procesos Node siempre encendidos con WebSockets** (Vercel o 
 
 **Producción recomendada**: un VPS de precio fijo (p. ej. Hetzner) con la carpeta `deploy/`:
 
-- `deploy/instalar.sh tu.dominio.com` prepara un Ubuntu 24.04 limpio (Docker, cortafuegos, HTTPS automático con Caddy, copia diaria de perfiles).
+- `deploy/instalar.sh tu.dominio.com tu@gmail.com` (el Gmail es opcional: será la cuenta master) prepara un Ubuntu 24.04 limpio (Docker, cortafuegos, HTTPS automático con Caddy, copia diaria de perfiles).
 - `deploy/docker-compose.yml`: varios procesos de juego (**shards** A, B…) en la misma máquina, cada uno con su tope `MAX_CONNECTIONS`. Las salas se crean y cierran solas según haga falta (`MIN_ROOMS` mantiene siempre alguna abierta) y su código empieza por la letra del shard.
 - `deploy/actualizar.sh`: `git pull` y reconstruye sin perder perfiles.
 - Perfiles en **SQLite** (`data/profiles.db`), compartido por todos los shards; el antiguo `profiles.json` se importa solo.
 - Tráfico comprimido (permessage-deflate): ~3-4 KB/s por jugador. `/health` (o `/A/health`) muestra jugadores, conexiones y KB/s enviados.
 
-Variables: `SHARD`, `MAX_CONNECTIONS` (200), `MAX_ROOMS` (20), `MIN_ROOMS` (1), `WS_DEFLATE` (1), `DB_FILE`, `PORT`; en el cliente, `VITE_SHARDS` (p. ej. `A,B`) y `VITE_SERVER_URL` si el cliente se aloja aparte.
+Variables: `SHARD`, `MAX_CONNECTIONS` (200), `MAX_ROOMS` (20), `MIN_ROOMS` (1), `WS_DEFLATE` (1), `DB_FILE`, `PORT`, `GOOGLE_CLIENT_ID` (inicio de sesión con Google; vacío = solo invitados), `ADMIN_EMAILS` (Gmail de las cuentas master, separados por comas); en el cliente, `VITE_SHARDS` (p. ej. `A,B`) y `VITE_SERVER_URL` si el cliente se aloja aparte.
+
+### Inicio de sesión con Google (una vez, gratis)
+
+1. Entra en <https://console.cloud.google.com/> con tu Gmail y crea un proyecto (p. ej. «Nights Lord»).
+2. **APIs y servicios → Pantalla de consentimiento de OAuth**: tipo *Externo*; nombre de la app, correo de asistencia, dominio `tu.dominio.com` y como política de privacidad `https://tu.dominio.com/privacidad.html`. Ámbitos: solo `email`, `profile` y `openid` (los básicos, no requieren verificación). Publica la app («En producción»).
+3. **Credenciales → Crear credenciales → ID de cliente de OAuth → Aplicación web**. En *Orígenes de JavaScript autorizados* pon `https://tu.dominio.com` (no hace falta URI de redirección).
+4. Copia el ID de cliente (`xxxx.apps.googleusercontent.com`) y en el servidor:
+   ```sh
+   nano /opt/nightslord/deploy/.env     # GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com
+   cd /opt/nightslord/deploy && docker compose up -d
+   ```
+5. `ADMIN_EMAILS` ya lo rellena `instalar.sh tu.dominio.com tu@gmail.com`; esa cuenta será master (todo desbloqueado) al entrar con Google.
+
+Antes de publicar, pon tu correo de contacto en `client/public/privacidad.html` (donde dice `[correo de contacto]`).
 
 Para enseñar el prototipo gratis sigue valiendo **Render** (`render.yaml`, se duerme tras 15 min sin tráfico).
 
 ## Próximos pasos sugeridos
 
-1. Persistencia real (SQLite/Turso/Supabase) en lugar del JSON.
-2. Protocolo binario y delta-snapshots para bajar el ancho de banda.
-3. Más mapas (hospital abandonado, pantano), más monstruos (criatura del lago, zombi), más taunts por personaje.
-4. Tienda con objetos cosméticos (sombreros, rastros) y power-ups activables comprados con monedas.
-5. Anti-trampas básicos y cuentas opcionales (enlazar perfil por email).
+1. Tienda de cosméticos: partículas y gorros.
+2. Banner no invasivo en la selección de personaje (`#ad-slot`).
+3. Protocolo binario y delta-snapshots para bajar el ancho de banda.
+4. Más mapas (hospital abandonado, pantano) y más monstruos.
+5. Anti-trampas básicos.
