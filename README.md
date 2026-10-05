@@ -60,7 +60,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Saludar / Taunt | G / T | 😜 |
 | Silenciar | M | |
 
-## Contenido actual (v0.7)
+## Contenido actual (v0.8)
 
 **Monstruos**
 
@@ -80,6 +80,12 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | 💋 Lilith | Beso robado (roba vida, enamora humanos) | Flechazo (corazón que atrae) | Alas | Pasión desatada | 450 🪙 o medalla 👋 |
 | 👻 Poltergeist | Objeto volador (sale de cualquier sitio) | Revuelo | Intangible | Drenaje | 400 🪙 o medalla 🕯️ |
 | 🌳 Raíz Negra | Ramazo | Zarzas (enredan) | Brotar (flor · torreta · muro, 2 cargas) | Bosque maldito | 450 🪙 o medalla 🏹 |
+| 🏴‍☠️ Capitán Ahogado | Sablazo espectral (cañonazos desde el barco) | Garfio | Barril de pólvora | ¡Al abordaje! | 450 🪙 |
+| 🕷️ Aracne | Mordisco venenoso | Telaraña (2 cargas) | Salto arácnido | Gran telaraña | 400 🪙 o medalla 💀 |
+| 🌾 El Segador | Guadaña | Cuervos (ciegan) | Plantarse | La Cosecha | 400 🪙 o medalla 🕯️ |
+| 🔥 Azufre | Golpe ígneo (quema) | Bola infernal | Paso ardiente | Infierno | 450 🪙 o medalla ⚰️ |
+| 🟢 Baba | Salpicadura (mancha pegajosa) | Rastro de veneno | Burbuja de ácido | Masa crítica | 350 🪙 o medalla 🍖 |
+| 👽 El Visitante | Rayo de plasma | Abducción | Baliza | Invasión | 500 🪙 o medalla 👑 |
 
 **Paciente Cero (invocador)**: algo menos de vida que el resto (95). El Contagio tarda unos 5 s: la vida del humano baja poco a poco y al llegar a cero se levanta como zombi. Máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
 
@@ -101,6 +107,22 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 **Poltergeist (fantasma)**: levita (pasa por encima del agua). Sus objetos (sillas, libros, platos, candelabros) no salen de él: salen disparados desde puntos al azar alrededor del objetivo. Q: lluvia de objetos sobre la zona. E: intangible 2,2 s; atraviesa ataques y obstáculos, y dentro de un obstáculo nadie lo ve (atacar lo vuelve sólido). R: 4 s drenando la vida de los enemigos cercanos y curándose lo drenado. Nv. 5: los objetos ralentizan. Nv. 15: dos objetos por ataque y más tiempo intangible.
 
 **Raíz Negra (árbol maldito)**: si se queda quieto echa raíces: regenera y recibe un 25 % menos de daño sin dejar de atacar. Q: zarzas que dañan, **enredan** (no pueden moverse, sí atacar) y dejan espinos que ralentizan. E (2 cargas): lo que brota depende de dónde apuntes: junto a él, una flor que le cura; sobre un árbol o seto del mapa, lo despierta como planta carnívora que escupe espinas; en campo abierto, un muro de raíces que no deja pasar a los enemigos (y los cazadores atacan antes que a él). R: 7 s de bosque maldito que ralentiza, enreda una y otra vez y le cura a él y a sus plantas. Nv. 15: 3 cargas, dos espinas por disparo y el ramazo enreda.
+
+**Capitán Ahogado (pirata fantasma)**: sus víctimas pueden soltar monedas o sangre (Botín maldito). Q: garfio que atrae al enemigo. E: barril de pólvora que explota a los 2,5 s o al recibir un golpe (aparta y prende los árboles). Nv. 5: anda sobre el agua en un barco fantasma y desde él ataca a cañonazos. R: 3 bucaneros fantasma luchan a su lado 12 s. Nv. 15: el garfio le impulsa hacia lo que engancha (enemigos u obstáculos) y los barriles tienen más área.
+
+**Aracne (mujer araña)**: sus mordiscos envenenan; desde el nv. 5 los mordiscos seguidos al mismo enemigo acumulan veneno. Q (2 cargas): telaraña que ralentiza y queda en el suelo 45 s (máximo 4). E: salto por encima de cualquier obstáculo. R: cubre la zona de telarañas, une con hilos las del suelo (también ralentizan), corre más dentro y suelta 6 arañitas venenosas. Nv. 15: 2 saltos y al caer aterroriza (los enemigos huyen).
+
+**El Segador (espantapájaros)**: quieto 5 s, su siguiente golpe hace +80 % (le dura hasta 3 s después de moverse). Q: cuervos en línea recta que dañan y ciegan (al jugador cegado casi no le queda vista; los cazadores pierden el objetivo). E: se planta 2,5 s inmóvil con un 65 % menos de daño y los enemigos cercanos huyen. Nv. 5: aparecen por el mapa espantapájaros iguales a él (con su nombre y nivel) que no hacen nada y asustan un poco al aparecer. R: trigo alto que tapa a quien está dentro; en él corre y pega más y es invisible hasta que ataca. Nv. 15: los cuervos vuelven y Plantarse tiene 2 cargas.
+
+**Azufre (demonio de fuego)**: inmune al fuego; sus golpes queman. Q: bola infernal que explota y deja el suelo en llamas. E: embestida corta con rastro de fuego. Nv. 5: quien ya arde recibe +40 % de sus habilidades de fuego. R: 6 s en los que cada golpe lanza una onda de fuego y ataca y corre más rápido. Nv. 15: la bola suelta llamas secundarias y el fuego le cura.
+
+**Baba (slime)**: sus golpes dejan baba pegajosa. Al perder cada 30 % de la vida se separa en 2 slimes pequeños 8 s: recibe −30 % de daño, pega −25 % y se regenera mientras quede alguno. Q: él y sus copias corren más y dejan veneno a su paso. E: burbuja de ácido que envenena y aparta. Nv. 5: los objetos que recoge y sus víctimas le curan. R: enorme 6 s con +60 % de vida; atrapa y arrastra a los enemigos y luego estalla. Nv. 15: sus mitades revientan en baba al reunirse y los charcos duran el doble.
+
+**El Visitante (alien)**: tres plasmas seguidos al mismo objetivo lo silencian 2 s. Q: un OVNI abduce al enemigo de la zona y lo deja caer. E: baliza; a los 2,5 s un OVNI dispara sobre ella y cerca de ella corre más. Nv. 5: recoger objetos recorta un 20 % sus enfriamientos. R: 7 s con tres OVNIs que disparan solos. Nv. 15: la abducción atrapa a todos los de una zona mayor y la baliza deja radiación. Sus rayos son eléctricos.
+
+**Fuego y electricidad en el escenario**: cualquier fuego (pociones, bolas infernales, barriles, botas de fuego...) prende árboles y setos: quedan calcinados 15 s y, mientras arden (8 s), queman a quien esté cerca salvo a los inmunes al fuego. Los ataques eléctricos (rayos del Reanimado y de los OVNIs) que caen cerca del agua electrocutan a quien esté dentro.
+
+**Objetos**: además de sangre, rapidez, furia, escudo, monedas y XP, aparecen 💀 Espíritus guiados (10 s lanzando calaveras que persiguen enemigos), 👢 Botas elementales (más velocidad y rastro de fuego, raíces que atrapan o agua que ralentiza) y ⚰️ Pala de enterrador (un enterrador te acompaña hasta que lo matan: ataca al enemigo más cercano y, si no ve a nadie, te sigue).
 
 **Evolución por niveles** (cada monstruo conserva su identidad):
 
