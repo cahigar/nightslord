@@ -35,6 +35,8 @@ export interface CharacterDef {
   aquatic?: boolean;
   /** Levita: pasa por encima del agua profunda (sin las ventajas de los acuáticos). */
   hover?: boolean;
+  /** Inmune al fuego (zonas en llamas, quemaduras, árboles ardiendo). */
+  fireImmune?: boolean;
 }
 
 export const CHARACTERS: Record<CharacterId, CharacterDef> = {

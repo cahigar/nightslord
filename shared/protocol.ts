@@ -33,10 +33,20 @@ export enum Flag {
   Phased = 1073741824, // intangible (Poltergeist)
 }
 
-export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp';
+/** Segundo grupo de estados (el primero ya no tiene bits libres). Va en EntSnap.f2. */
+export enum Flag2 {
+  Burning = 1, // ardiendo
+  Silenced = 2, // silenciado: no puede usar habilidades
+  Lifted = 4, // abducido (lo levanta un haz)
+  Blind = 8, // cegado por los cuervos
+  Leaping = 16, // en pleno salto
+  Engulfed = 32, // atrapado dentro del slime
+}
+
+export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp' | 'spirits' | 'boots' | 'shovel';
 export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy'
   | 'nail' | 'nailback' | 'boulder' | 'potion0' | 'potion1' | 'potion2' | 'bigpotion0' | 'bigpotion1' | 'bigpotion2'
-  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn';
+  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull';
 
 export interface EntSnap {
   i: number; // id
@@ -50,6 +60,7 @@ export interface EntSnap {
   s?: string; // skin
   h?: number; // vida 0..100
   fl?: number; // flags
+  f2?: number; // flags (Flag2)
   l?: number; // nivel
   n?: string; // nombre
   r?: number; // ángulo (proyectiles)
@@ -77,7 +88,7 @@ export type FxId =
   | 'sleep' | 'lullaby' | 'prop' | 'ambush' | 'dreamwalk' | 'shards' | 'mirror' | 'mirrorBoom' | 'maryOut'
   | 'slam' | 'spark' | 'lightning' | 'storm' | 'faceSteal' | 'charm' | 'mimic' | 'potion' | 'broom' | 'rage'
   | 'hexed' | 'hexzone' | 'wings' | 'thrall' | 'heartHit' | 'phase' | 'objSpawn' | 'drainBeam'
-  | 'rooted' | 'sprout' | 'bramble' | 'forest';
+  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock';
 
 export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
 
@@ -134,7 +145,7 @@ export type ServerMsg =
   | { t: 'profile'; profile: Profile }
   | { t: 'toast'; text: string }
   | { t: 'joined'; code: string; theme: MapThemeId; seed: number; priv: boolean; you: number }
-  | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[] }
+  | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[]; burn?: [number, number, number][] } // burn: árboles del mapa [índice, s ardiendo, s quemado]
   | { t: 'rank'; list: [string, number, CharacterId, number][]; total: number } // nombre, puntos, personaje, id
   | { t: 'died'; by: string; pts: number; lvl: number; kills: number; time: number; coins: number }
   | { t: 'medal'; id: string }

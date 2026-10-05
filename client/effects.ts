@@ -248,6 +248,8 @@ export class Effects {
       case 'wings': this.burst(x, y - 30, 16, ['#ff4a8a', '#ffd0e0', '#4a0a20'], 150, 3, ev.n ? -60 : 120, 0.6, true); this.ripple(x, y - 10, '#ff80b0', 0.4, 40); break;
       case 'thrall': this.thrallFx(ev); break;
       case 'rooted': this.rootedFx(ev); break;
+      case 'treeFire': this.burst(x, y - 20, 30, ['#ff6020', '#ffd040', '#c02010', '#3a3430'], 220, 4, -60, 0.9, true); this.ripple(x, y, '#ff8020', 0.5, (ev.r ?? 30) + 30); break;
+      case 'shock': this.shockFx(ev); break;
       case 'sprout': this.burst(x, y - 10, 22, ['#5a4632', '#2e4a24', '#a0e040', '#4a7a34'], 200, 3, 400, 0.6); this.ripple(x, y, '#a0e040', 0.5, 40); break;
       case 'bramble': this.brambleFx(ev); break;
       case 'forest': this.burst(x, y - 30, 50, ['#2e4a24', '#4a7a34', '#a0e040', '#5a4632'], 420, 4, 200, 1, false); this.ripple(x, y, '#a0e040', 0.9, ev.r ?? 320); break;
@@ -916,6 +918,24 @@ export class Effects {
     });
   }
 
+  /** Descarga sobre el agua: chispas que recorren la superficie. */
+  private shockFx(ev: FxEv) {
+    const R = ev.r ?? 260;
+    const pts = Array.from({ length: 40 }, () => { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * R; return [ev.x + Math.cos(a) * d, ev.y + Math.sin(a) * d * 0.62] as [number, number]; })
+      .filter(([px, py]) => waterAt(this.map, px, py));
+    this.add(0.6, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      for (const [px, py] of pts) {
+        if (Math.random() < 0.4) continue;
+        ctx.fillStyle = Math.random() < 0.5 ? '#c8f0ff' : '#60c8ff';
+        let x = px, y = py;
+        for (let s = 0; s < 4; s++) { x += (Math.random() - 0.5) * 14; y += (Math.random() - 0.5) * 8; ctx.fillRect(snap(x), snap(y), PIXEL, PIXEL); }
+      }
+      ctx.globalAlpha = 1;
+    });
+    this.ripple(ev.x, ev.y, '#c8f0ff', 0.5, R * 0.6);
+  }
+
   /** Zarzas: raíces con espinas que revientan del suelo. */
   private brambleFx(ev: FxEv) {
     const R = ev.r ?? 110;
@@ -1138,6 +1158,16 @@ export class Effects {
         pixelGlyph(ctx, GLYPHS[i % GLYPHS.length], x + Math.cos(a) * r * 0.9 - 4, y + Math.sin(a) * r * 0.9 * 0.62 - 4, 1.5);
       }
       pixelEllipse(ctx, x, y, r, r * 0.62, '#c060ff');
+      ctx.globalAlpha = 1;
+    } else if (kind === 'snare') {
+      // trampa de raíces de las botas de naturaleza
+      ctx.globalAlpha = 0.9 * fade;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + seed, rr = r * 0.6;
+        ctx.fillStyle = i % 2 ? '#4a7a34' : '#5a4632';
+        ctx.fillRect(snap(x + Math.cos(a) * rr), snap(y + Math.sin(a) * rr * 0.6), PIXEL * 2, PIXEL);
+        ctx.fillRect(snap(x + Math.cos(a) * rr * 0.5), snap(y + Math.sin(a) * rr * 0.3) - PIXEL, PIXEL, PIXEL * 2);
+      }
       ctx.globalAlpha = 1;
     } else if (kind === 'thorns' || kind === 'forest') {
       // espinos (Zarzas) o Bosque maldito: suelo oscuro, raíces retorcidas y, en el bosque, hojas que caen

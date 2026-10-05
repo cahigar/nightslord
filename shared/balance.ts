@@ -12,7 +12,17 @@ export const STATUS = {
   sleepPlayer: 1.6, sleepOther: 2.8, sleepMarkT: 8,
   rageNpcDmg: 8,
   hexSpeedMul: 0.7, // animalillo (maleficio): va dando saltitos
+  treeBurnT: 15, treeFlameT: 8, treeFireDps: 10, treeFireR: 45, // árboles que arden: quemados 15 s, en llamas los 8 primeros
+  shock: { r: 260, stun: 1.2, stunPlayer: 0.9, dmg: 8 }, // ataques eléctricos sobre el agua
+  fleeSpeed: 150, // los aterrorizados huyen de lo que les asusta
   clone: { hp: 60, speed: 230, dmg: 0.55, cd: 0.6 },
+};
+
+/** Objetos nuevos que aparecen por el mapa. */
+export const ITEMS = {
+  spirits: { t: 10, every: 0.7, range: 450, speed: 420, dmg: 0.5 }, // calaveras guiadas
+  boots: { t: 12, speedMul: 1.3, every: 40, fire: { r: 28, t: 2.5, dps: 6 }, nature: { r: 26, t: 4, root: 1.2 }, water: { r: 34, t: 4 } },
+  digger: { hp: 110, speed: 205, dmg: 0.6, cd: 0.9 }, // el enterrador de la pala
 };
 
 export const ULT = {

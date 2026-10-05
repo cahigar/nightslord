@@ -40,6 +40,14 @@ export interface Kit {
   powerupTimeMul?(p: Player): number;
   /** Cuando duerme a alguien (somnolencia llena). */
   onSleep?(room: Room, p: Player, target: Mob): void;
+  /** Camina sobre el agua profunda (además de los acuáticos y los que levitan). */
+  walksWater?(p: Player): boolean;
+  /** Recoge un objeto del mapa. */
+  onPickup?(room: Room, p: Player, type: string): void;
+  /** Uno de sus esbirros acaba de golpear. */
+  onMinionHit?(room: Room, p: Player, m: Minion, target: Mob): void;
+  /** Termina un salto (Player.leap). */
+  onLand?(room: Room, p: Player): void;
   /** Al alcanzar un nuevo tier de evolución (1, 2 o 3). */
   onTier?(room: Room, p: Player, tier: number): void;
 }

@@ -2,7 +2,7 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, HUNTERS, ORDER, STATUS, tierOf, ULT, type HunterType } from '../shared/balance';
+import { BAL, HUNTERS, ITEMS, ORDER, STATUS, tierOf, ULT, type HunterType } from '../shared/balance';
 import {
   BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAP_SIZE, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
@@ -11,7 +11,7 @@ import { CHARACTERS, MAX_LEVEL, UPGRADES, upgradeMax, xpForLevel, type Character
 import { distToSegment, generateMap, type GameMap, type MapThemeId } from '../shared/maps';
 import { ObstacleGrid } from '../shared/physics';
 import {
-  Anim, Flag, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type SfxId, type YouState,
+  Anim, Flag, Flag2, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type ServerMsg, type SfxId, type YouState,
 } from '../shared/protocol';
 import { mobStatus, type Hunter, type Minion, type MinionVariant, type Mob, type Npc, type Player, type PowerUp, type Projectile, type Source, type Zone, type ZoneKind } from './entities';
 import { KITS } from './kits';
@@ -29,14 +29,17 @@ const plant = (hp: number) => ({ hp, speed: 0, dmg: 0, cd: 0 }); // plantas del 
 const MINION_STATS: Record<MinionVariant, { hp: number; speed: number; dmg: number; cd: number }> = {
   ...BAL.zombie.minion, clone: STATUS.clone, thrall: BAL.succubus.thrall,
   wall: plant(TR.wall.hp), turret: plant(TR.turret.hp), flower: plant(TR.flower.hp),
+  digger: ITEMS.digger,
 };
 const PLANT_R: Partial<Record<MinionVariant, number>> = { wall: TR.wall.r, turret: TR.turret.r, flower: TR.flower.r };
 /** Esbirro inmóvil (planta): no le afectan empujones, rabia, engatusar ni maleficios. */
 const isStatic = (m: Mob) => m.kind === Kind.Minion && MINION_STATS[(m as Minion).variant].speed === 0;
 
 const POWERUP_WEIGHTS: [PowerUpType, number][] = [
-  ['blood', 30], ['xp', 25], ['coin', 18], ['speed', 10], ['fury', 9], ['shield', 8],
+  ['blood', 30], ['xp', 25], ['coin', 18], ['speed', 10], ['fury', 9], ['shield', 8], ['spirits', 5], ['boots', 5], ['shovel', 3],
 ];
+/** Vegetación del mapa que puede arder. */
+const FLAMMABLE = new Set(['tree', 'pine', 'deadtree', 'hedge']);
 
 const dist2 = (ax: number, ay: number, bx: number, by: number) => (ax - bx) ** 2 + (ay - by) ** 2;
 const angleDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
@@ -45,7 +48,8 @@ const ZB = BAL.zombie;
 const KT = BAL.kthula;
 const isAquatic = (m: Mob) => m.kind === Kind.Player && !!(m as Player).def.aquatic;
 /** Puede pisar agua profunda: los acuáticos y los que levitan (Poltergeist). */
-const walksWater = (m: Mob) => m.kind === Kind.Player && (!!(m as Player).def.aquatic || !!(m as Player).def.hover);
+const walksWater = (m: Mob) => m.kind === Kind.Player && (!!(m as Player).def.aquatic || !!(m as Player).def.hover || !!KITS[(m as Player).char].walksWater?.(m as Player));
+const fireImmune = (m: Mob) => m.kind === Kind.Player && !!(m as Player).def.fireImmune;
 
 // ---------------------------------------------------------------------------
 export class Room {
@@ -60,6 +64,8 @@ export class Room {
   minions = new Map<number, Minion>();
   private timers: { at: number; fn: () => void }[] = [];
   zones: Zone[] = [];
+  /** Árboles del mapa quemados: índice del obstáculo → hasta cuándo sigue quemado / ardiendo y quién lo prendió. */
+  burning = new Map<number, { until: number; flame: number; by: number }>();
   conns = new Map<number, Conn>();
 
   private nextId = 1;
@@ -148,7 +154,7 @@ export class Room {
       protectT: SPAWN_PROTECTION, dash: null,
       ult: 0, ultT: 0, ultExt: 0, qCharges: 1, qLock: 0, orbit: [], lastCombatT: this.time, reinvisT: 0,
       frenzyT: 0, killSpeedT: 0, hits: new Map(), lastAtkFromInvis: false, stepT: 0,
-      submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999, guise: null, flyT: 0, phaseT: 0, k: {},
+      submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999, guise: null, flyT: 0, phaseT: 0, leap: null, spiritsT: 0, spiritCd: 0, bootsT: 0, bootsKind: 0, bootsAcc: 0, k: {},
       lifeStart: this.time, lifeKills: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
       lastAttacker: '',
     };
@@ -305,6 +311,113 @@ export class Room {
     if (m.kind === Kind.Npc) { (m as Npc).fleeing = false; m.panicT = 0; m.fearT = 0; }
   }
 
+  /** Quemadura: daño continuo (los inmunes al fuego no arden). Devuelve true si ya estaba ardiendo. */
+  burn(m: Mob, t: number, dps: number, by: Player | null): boolean {
+    if (m.dead || fireImmune(m)) return false;
+    const was = m.burnT > 0;
+    m.burnDps = was ? Math.max(m.burnDps, dps) : dps;
+    m.burnT = Math.max(m.burnT, t); m.burnBy = by ? by.id : -1;
+    return was;
+  }
+
+  silence(m: Mob, t: number) { if (!m.dead) m.silenceT = Math.max(m.silenceT, t); }
+  blind(m: Mob, t: number) { if (!m.dead) { m.blindT = Math.max(m.blindT, t); if (m.kind === Kind.Hunter) (m as Hunter).target = -1; } }
+
+  /** Abducción: lo levanta un haz (indefenso) durante t segundos. */
+  lift(m: Mob, t: number) {
+    if (m.dead || m.entombT > 0 || isStatic(m)) return;
+    if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).submergeT > 0 || (m as Player).phaseT > 0)) return;
+    m.liftT = Math.max(m.liftT, t); m.stunT = Math.max(m.stunT, t); m.knock = null;
+    if (m.kind === Kind.Player) (m as Player).dash = null;
+  }
+
+  /** Miedo: huye de (x, y) durante t segundos. */
+  scare(m: Mob, t: number, x: number, y: number) {
+    if (m.dead || m.entombT > 0 || isStatic(m)) return;
+    if (m.kind === Kind.Player && ((m as Player).protectT > 0 || (m as Player).submergeT > 0)) return;
+    if (m.kind === Kind.Hunter && (m as Hunter).type === 'heraldo') return; // el heraldo no conoce el miedo
+    m.fearT = Math.max(m.fearT, t); m.fearX = x; m.fearY = y;
+    if (m.kind === Kind.Npc) { (m as Npc).fleeing = true; }
+  }
+
+  /** Huida de quien está aterrorizado con origen conocido. Devuelve true si se ha encargado del movimiento. */
+  private flee(m: Mob, speed: number, dt: number): boolean {
+    if (m.fearT <= 0 || Number.isNaN(m.fearX)) return false;
+    let dx = m.x - m.fearX, dy = m.y - m.fearY;
+    const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+    const sp = m.rootT > 0 ? 0 : speed * (m.slowT > 0 ? m.slowMul : 1);
+    const res = this.grid.move(m.x, m.y, dx * sp * dt, dy * sp * dt, m.r, walksWater(m));
+    m.x = res.x; m.y = res.y; m.moving = sp > 0; m.facing = dx >= 0 ? 1 : -1;
+    return true;
+  }
+
+  /** Salta por encima de todo hasta (tx, ty) en t segundos (aterriza siempre en un sitio libre). */
+  leapTo(p: Player, tx: number, ty: number, t: number) {
+    tx = Math.max(p.r, Math.min(MAP_SIZE - p.r, tx)); ty = Math.max(p.r, Math.min(MAP_SIZE - p.r, ty));
+    p.leap = { sx: p.x, sy: p.y, tx, ty, t: 0, T: t };
+    p.dash = null; p.knock = null;
+  }
+
+  /** Suelta un objeto del mapa en un punto (botín). */
+  dropPowerUp(x: number, y: number, type: PowerUpType) {
+    const f = this.findFreeSpot(x, y, POWERUP_RADIUS);
+    const u: PowerUp = { id: this.nextId++, x: f.x, y: f.y, type };
+    this.powerups.set(u.id, u);
+  }
+
+  /** Prende la vegetación del mapa que toque el círculo (x, y, r). */
+  ignite(x: number, y: number, r: number, by: number) {
+    const obs = this.map.obstacles;
+    for (let i = 0; i < obs.length; i++) {
+      const o = obs[i];
+      if (!FLAMMABLE.has(o.type)) continue;
+      const cx = Math.max(o.x, Math.min(o.x + o.w, x)), cy = Math.max(o.y, Math.min(o.y + o.h, y));
+      if ((cx - x) ** 2 + (cy - y) ** 2 > r * r) continue;
+      const b = this.burning.get(i);
+      if (b && b.until > this.time) continue; // ya quemado: no vuelve a arder hasta que se recupere
+      this.burning.set(i, { until: this.time + STATUS.treeBurnT, flame: this.time + STATUS.treeFlameT, by });
+      this.fx('treeFire', o.x + o.w / 2, o.y + o.h / 2, { r: Math.max(o.w, o.h) / 2 });
+      this.sfx('explode', o.x + o.w / 2, o.y + o.h / 2);
+    }
+  }
+
+  /** Árboles en llamas: dañan alrededor a quien no sea inmune al fuego. */
+  private updateBurningTrees(dt: number) {
+    if (!this.burning.size) return;
+    const obs = this.map.obstacles, R = STATUS.treeFireR;
+    for (const [i, b] of this.burning) {
+      if (b.until <= this.time) { this.burning.delete(i); continue; }
+      if (b.flame <= this.time) continue;
+      const o = obs[i];
+      const by = this.findPlayerById(b.by);
+      const hit = (m: Mob) => {
+        if (m.dead || fireImmune(m) || m.x < o.x - R || m.x > o.x + o.w + R || m.y < o.y - R || m.y > o.y + o.h + R) return;
+        const src: Source = by && by !== m ? { ...this.src(by), raw: true } : { name: 'un incendio', kind: Kind.Player, raw: true };
+        this.damage(m, STATUS.treeFireDps * dt, src, false, true);
+      };
+      for (const n of this.npcs.values()) hit(n);
+      for (const h of this.hunters.values()) hit(h);
+      for (const m of this.minions.values()) hit(m);
+      for (const p of this.players.values()) if (!p.dead && p.flyT <= 0 && p.phaseT <= 0) hit(p);
+    }
+  }
+
+  /** Ataque eléctrico: si cae cerca del agua, electrocuta a todos los que estén en ella alrededor. */
+  electrify(x: number, y: number, by: Player) {
+    const near = [[0, 0], [60, 0], [-60, 0], [0, 50], [0, -50]].some(([dx, dy]) => this.waterAt(x + dx, y + dy));
+    if (!near) return;
+    const S = STATUS.shock;
+    this.fx('shock', x, y, { r: S.r, o: by.id });
+    this.sfx('zap', x, y);
+    this.forEachEnemyNear(by, x, y, S.r, (m) => {
+      if (m.dead || !this.waterAt(m.x, m.y)) return;
+      if (m.kind === Kind.Player && ((m as Player).flyT > 0 || (m as Player).leap)) return; // por el aire no le llega
+      m.stunT = Math.max(m.stunT, m.kind === Kind.Player ? S.stunPlayer : S.stun);
+      this.damage(m, S.dmg, { ...this.src(by), raw: true });
+      this.fx('spark', m.x, m.y, { r: 30, o: by.id });
+    });
+  }
+
   /** Enreda: no puede moverse durante t segundos (sí atacar). */
   root(m: Mob, t: number) {
     if (m.dead || m.entombT > 0 || isStatic(m)) return;
@@ -390,7 +503,7 @@ export class Room {
 
   spawnMinion(owner: Player, x: number, y: number, variant: MinionVariant, look: string, lookSeed: number, life: number, chain: boolean, capOverride?: number): Minion {
     const cap = capOverride ?? (owner.ultT > 0 ? ZB.maxMinionsUlt : ZB.maxMinions);
-    const group = (v: MinionVariant) => (v === 'clone' ? 'clone' : PLANT_R[v] ? v : 'horde'); // cada tipo de planta cuenta aparte
+    const group = (v: MinionVariant) => (v === 'clone' || v === 'digger' ? v : PLANT_R[v] ? v : 'horde'); // cada tipo de planta (y el enterrador) cuenta aparte
     const mine = this.minionsOf(owner.id).filter((m) => group(m.variant) === group(variant)).sort((a, b) => a.born - b.born);
     while (mine.length >= cap) { const old = mine.shift()!; old.life = 0; this.kill(old, { name: '', kind: Kind.Minion }); }
     const st = MINION_STATS[variant];
@@ -599,6 +712,7 @@ export class Room {
     if (p.howlT > 0) s *= BAL.werewolf.howlSpeedMul;
     if (p.slowT > 0) s *= p.slowMul;
     if (p.hexT > 0) s *= STATUS.hexSpeedMul;
+    if (p.bootsT > 0) s *= ITEMS.boots.speedMul;
     s *= KITS[p.char].speedMul?.(this, p) ?? 1;
     if (p.def.aquatic) {
       const w = this.waterAt(p.x, p.y);
@@ -628,6 +742,7 @@ export class Room {
     }
     this.updateProjectiles(dt);
     this.updateZones();
+    this.updateBurningTrees(dt);
     this.updatePickups();
     this.maintainPopulation(dt);
 
@@ -655,6 +770,16 @@ export class Room {
     m.charmT = Math.max(0, m.charmT - dt);
     m.hexT = Math.max(0, m.hexT - dt);
     m.rootT = Math.max(0, m.rootT - dt);
+    m.silenceT = Math.max(0, m.silenceT - dt);
+    m.blindT = Math.max(0, m.blindT - dt);
+    if (m.liftT > 0) { m.liftT -= dt; m.stunT = Math.max(m.stunT, m.liftT); }
+    if (m.fearT <= 0) { m.fearX = NaN; m.fearY = NaN; }
+    if (m.burnT > 0) {
+      m.burnT -= dt;
+      const by = this.findPlayerById(m.burnBy);
+      this.damage(m, m.burnDps * dt, by && by !== m ? { ...this.src(by), raw: true } : { name: 'el fuego', kind: Kind.Player, raw: true }, false, true);
+      if (m.dead) return true;
+    }
     if (m.poisonT > 0) {
       m.poisonT -= dt;
       const by = this.findPlayerById(m.poisonBy);
@@ -739,11 +864,31 @@ export class Room {
         b = p.rageT > 0 && d < p.def.range + p.r + t.r + 30 ? BTN_ATTACK : 0;
       } else b = 0;
     }
+    if (p.fearT > 0 && !Number.isNaN(p.fearX)) {
+      // aterrorizado: huye de lo que le asusta
+      const dx = p.x - p.fearX, dy = p.y - p.fearY, d = Math.hypot(dx, dy) || 1;
+      mx = dx / d; my = dy / d; a = Math.atan2(dy, dx); b = 0;
+    }
+    if (p.silenceT > 0) b &= BTN_ATTACK; // silenciado: solo el ataque básico
     if (p.hexT > 0) b = 0; // animalillo: ni ataca ni usa habilidades
     const locked = this.applyStatus(p, dt);
     if (p.entombT > 0) { p.dash = null; return; }
 
-    if (p.dash) {
+    if (p.leap) {
+      // salto: vuela en arco por encima de todo
+      const L = p.leap;
+      L.t += dt;
+      const k = Math.min(1, L.t / L.T);
+      p.x = L.sx + (L.tx - L.sx) * k; p.y = L.sy + (L.ty - L.sy) * k;
+      p.moving = true;
+      if (k >= 1) {
+        p.leap = null;
+        if (this.grid.blocked(p.x, p.y, p.r, walksWater(p))) { const f = this.findFreeSpot(p.x, p.y, p.r); p.x = f.x; p.y = f.y; }
+        kit.onLand?.(this, p);
+      }
+      p.facing = L.tx >= L.sx ? 1 : -1;
+      return;
+    } else if (p.dash) {
       const res = this.grid.move(p.x, p.y, p.dash.dx * p.dash.speed * dt, p.dash.dy * p.dash.speed * dt, p.r, walksWater(p));
       p.x = res.x; p.y = res.y;
       const dash = p.dash;
@@ -779,6 +924,7 @@ export class Room {
       }
     }
     p.facing = Math.cos(a) >= 0 ? 1 : -1;
+    this.updateItems(p, dt);
 
     // pisadas: señales físicas de una presencia invisible (no cuando está desvestida del todo)
     if ((p.invisKind === 'auto' || p.invisKind === 'timed') && p.moving) {
@@ -820,6 +966,33 @@ export class Room {
     }
     if (b & BTN_R && p.tier >= 2 && p.ult >= ULT.max && p.ultT <= 0) {
       if (kit.ult(this, p, a)) { p.ult = 0; this.sfx('ult', p.x, p.y); }
+    }
+  }
+
+  /** Efectos de los objetos recogidos: calaveras guiadas y botas elementales. */
+  private updateItems(p: Player, dt: number) {
+    if (p.spiritsT > 0) {
+      p.spiritsT -= dt; p.spiritCd -= dt;
+      const S = ITEMS.spirits;
+      if (p.spiritCd <= 0) {
+        const t = this.nearestEnemy(p, p.x, p.y, S.range, -1);
+        if (t) {
+          p.spiritCd = S.every;
+          const pr = this.shoot('skull', p.id, p.x, p.y - 30, Math.atan2(t.y - p.y, t.x - p.x) + (Math.random() - 0.5) * 1.2, S.speed, 2.5, this.calcDamage(p, S.dmg));
+          pr.home = t.id; pr.ghost = true; pr.hitR = 12;
+        }
+      }
+    }
+    if (p.bootsT > 0) {
+      p.bootsT -= dt;
+      if (!p.moving) return;
+      p.bootsAcc += this.calcSpeed(p) * dt;
+      const Bt = ITEMS.boots;
+      if (p.bootsAcc < Bt.every) return;
+      p.bootsAcc = 0;
+      if (p.bootsKind === 0) this.addZone({ kind: 'fire', ax: p.x, ay: p.y, bx: p.x, by: p.y, w: Bt.fire.r * 2, until: this.time + Bt.fire.t, owner: p.id, v: Bt.fire.dps });
+      else if (p.bootsKind === 1) this.addZone({ kind: 'snare', ax: p.x, ay: p.y, bx: p.x, by: p.y, w: Bt.nature.r * 2, until: this.time + Bt.nature.t, owner: p.id });
+      else this.puddle(p.id, p.x, p.y, Bt.water.r, Bt.water.t);
     }
   }
 
@@ -1080,6 +1253,7 @@ export class Room {
     }
     if (n.disguiseT > 0) { n.disguiseT -= dt; if (n.disguiseT <= 0) { n.disguiseBy = -1; this.fx('disguise', n.x, n.y, { o: n.id, r: -1 }); } }
     if (this.applyStatus(n, dt)) return;
+    if (this.flee(n, STATUS.fleeSpeed, dt)) return;
     if (n.stunT > 0 || n.fearT > 0) { n.moving = false; return; }
     if (this.hexHop(n, dt)) return;
     if (this.rageOrCharm(n, 150, STATUS.rageNpcDmg, 0.9, 22, dt)) return;
@@ -1194,6 +1368,7 @@ export class Room {
       if (h.stunT > ORDER.herald.stunMul * 2) h.stunT = ORDER.herald.stunMul * 2;
     }
     if (this.applyStatus(h, dt)) return;
+    if (h.stunT <= 0 && this.flee(h, h.def.speed, dt)) { h.lungeT = 0; return; }
     if (h.stunT > 0 || h.fearT > 0) { h.moving = false; h.lungeT = 0; return; }
     if (this.hexHop(h, dt)) return;
     if (this.rageOrCharm(h, h.def.speed, Math.max(10, h.def.melee), h.def.meleeCd, h.def.reach, dt)) return;
@@ -1220,6 +1395,7 @@ export class Room {
       if (Math.random() < 0.1) h.strafe *= -1;
     }
 
+    if (h.blindT > 0) h.target = -1; // cegado: no ve a nadie
     const t = this.hunterTarget(h.target);
     const src: Source = { hunter: h, name: D.name, kind: Kind.Hunter };
     let mx = 0, my = 0, speed = D.speed * 0.6;
@@ -1458,6 +1634,7 @@ export class Room {
     if (!owner || owner.dead || m.life <= 0) { this.kill(m, { name: '', kind: Kind.Minion }); return; }
     if (isStatic(m)) { m.knock = null; this.applyStatus(m, dt); m.moving = false; return; } // plantas: su kit decide qué hacen
     if (this.applyStatus(m, dt)) return;
+    if (m.stunT <= 0 && this.flee(m, m.speed, dt)) return;
     if (m.stunT > 0 || m.fearT > 0) { m.moving = false; return; }
     if (m.anim === Anim.Cast && this.time < m.animUntil && m.swellT <= 0) { m.moving = false; return; } // saliendo de la tierra
     if (this.hexHop(m, dt)) return;
@@ -1516,7 +1693,8 @@ export class Room {
           m.atkCd = MINION_STATS[m.variant].cd;
           this.setAnim(m, Anim.Attack, 0.3);
           this.damage(t, this.calcDamage(owner, MINION_STATS[m.variant].dmg), { player: owner, minion: m, name: owner.name, kind: Kind.Player });
-          this.sfx(m.variant === 'clone' ? 'glass' : m.variant === 'thrall' ? 'punch' : 'bite', m.x, m.y);
+          KITS[owner.char].onMinionHit?.(this, owner, m, t);
+          this.sfx(m.variant === 'clone' ? 'glass' : m.variant === 'thrall' || m.variant === 'digger' ? 'punch' : 'bite', m.x, m.y);
           if (m.variant === 'clone') this.fx('shards', t.x, t.y, { n: 4 });
         }
         return;
@@ -1573,8 +1751,8 @@ export class Room {
           const dx = t.x - pr.x, dy = t.y - pr.y, d = Math.hypot(dx, dy) || 1;
           const sp = Math.hypot(pr.vx, pr.vy);
           pr.vx = (dx / d) * sp; pr.vy = (dy / d) * sp;
-          if (d < 24) done = true;
-          pr.life = Math.max(pr.life, 0.2);
+          if (d < 24 && t.id === pr.owner) done = true; // el clavo vuelve a su dueño; los que persiguen enemigos chocan
+          if (t.id === pr.owner) pr.life = Math.max(pr.life, 0.2);
         }
       }
       const steps = 2;
@@ -1652,6 +1830,8 @@ export class Room {
   private updateZones() {
     if (!this.zones.length) return;
     this.zones = this.zones.filter((z) => z.until > this.time);
+    // el fuego prende los árboles que toca
+    if (this.tick % 10 === 0) for (const z of this.zones) if (z.kind === 'fire') this.ignite(z.ax, z.ay, z.w / 2, z.owner);
     const V = BAL.vampire;
     for (const z of this.zones) {
       if (z.kind === 'meat' || z.kind === 'ritual' || z.kind === 'mirror' || z.kind === 'nail') continue;
@@ -1672,9 +1852,16 @@ export class Room {
           this.hex(m, m.kind === Kind.Player ? BAL.witch.ult.tPlayer : BAL.witch.ult.tOther);
         }
         else if (z.kind === 'glass') { if (this.isEnemyOf(owner, m)) this.slow(m, 0.3, BAL.mary.shardsSlow); }
+        else if (z.kind === 'snare') {
+          if (!owner || !this.isEnemyOf(owner, m) || z.hit?.size) continue;
+          (z.hit ??= new Set()).add(m.id); // la trampa de raíces atrapa al primero que la pisa
+          this.root(m, ITEMS.boots.nature.root);
+          z.until = Math.min(z.until, this.time + 0.4);
+        }
         else if (z.kind === 'thorns' || z.kind === 'forest') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, z.kind === 'thorns' ? TR.bramble.slowMul : TR.ult.slowMul); }
         else if (z.kind === 'storm' || z.kind === 'fire') {
           if (!owner || !this.isEnemyOf(owner, m) || (m.kind === Kind.Player && (m as Player).submergeT > 0)) continue;
+          if (z.kind === 'fire' && fireImmune(m)) continue;
           if (z.kind === 'storm') this.slow(m, 0.3, BAL.reanimated.ult.slowMul);
           const dps = z.kind === 'storm' ? BAL.reanimated.ult.dps : (z.v ?? BAL.witch.fire.dps);
           this.damage(m, dps * TICK_DT, { ...this.src(owner), raw: true }, false, true);
@@ -1708,7 +1895,15 @@ export class Room {
           case 'shield': p.shieldHp = 50 * pm; p.shieldT = 10 * pm * tm; break;
           case 'coin': p.coinsEarned += 5; p.conn.profile.coins += 5; store.touch(); break;
           case 'xp': this.addXp(p, 30 * pm); break;
+          case 'spirits': p.spiritsT = ITEMS.spirits.t * tm; p.spiritCd = 0; break;
+          case 'boots': p.bootsT = ITEMS.boots.t * tm; p.bootsKind = Math.floor(Math.random() * 3); p.bootsAcc = 0; break;
+          case 'shovel': {
+            const d = this.spawnMinion(p, p.x - p.facing * 40, p.y, 'digger', 'gravedigger', p.id % 97, 1e9, false, 1);
+            this.fx('emerge', d.x, d.y, { o: d.id });
+            break;
+          }
         }
+        KITS[p.char].onPickup?.(this, p, u.type);
         p.points += 5;
         this.emit({ e: 'pick', x: Math.round(u.x), y: Math.round(u.y), p: u.type }, u.x, u.y);
         this.sfx(u.type === 'coin' ? 'coin' : 'pickup', u.x, u.y);
@@ -1825,6 +2020,14 @@ export class Room {
     };
     const fl = this.mobFlags(m);
     if (fl) s.fl = fl;
+    let f2 = 0;
+    if (m.burnT > 0) f2 |= Flag2.Burning;
+    if (m.silenceT > 0) f2 |= Flag2.Silenced;
+    if (m.liftT > 0) f2 |= Flag2.Lifted;
+    if (m.blindT > 0) f2 |= Flag2.Blind;
+    if (m.kind === Kind.Player && (m as Player).leap) f2 |= Flag2.Leaping;
+    if (m.kind === Kind.Player && (m as Player).k.engulfed) f2 |= Flag2.Engulfed;
+    if (f2) s.f2 = f2;
     if (m.hp < m.maxHp) s.h = Math.max(1, Math.round((m.hp / m.maxHp) * 100));
     if (m.drowsy > 0) s.z = Math.round(m.drowsy);
     if (m.kind === Kind.Npc) {
@@ -1875,6 +2078,8 @@ export class Room {
     const R2 = VIEW_RADIUS * VIEW_RADIUS;
     const events = this.events;
     this.events = [];
+    let burn: [number, number, number][] | null = null;
+    if (this.burning.size) burn = [...this.burning].map(([i, b]) => [i, +Math.max(0, b.flame - this.time).toFixed(1), +(b.until - this.time).toFixed(1)]);
     for (const conn of this.conns.values()) {
       const me = this.players.get(conn.id);
       if (!me) continue;
@@ -1914,6 +2119,8 @@ export class Room {
       addB('frenzy', me.frenzyT); addB('haste', me.killSpeedT); addB('vuln', me.vulnT); addB('tomb', me.entombT);
       addB('weak', me.weakT); addB('dive', me.submergeT);
       addB('hex', me.hexT); addB('poison', me.poisonT); addB('root', me.rootT);
+      addB('burn', me.burnT); addB('silence', me.silenceT); addB('blind', me.blindT); addB('fear', me.fearT);
+      addB('spirits', me.spiritsT); addB(['bootsFire', 'bootsNature', 'bootsWater'][me.bootsKind], me.bootsT);
       addB('sleep', me.sleepT); addB('rage', me.rageT); addB('charm', me.charmT); addB('bleed', me.bleedT); addB('fly', me.flyT); addB('phase', me.phaseT);
       if (me.guise) buffs.push({ t: me.guise.startsWith('prop') ? 'prop' : me.guise.startsWith('char') ? 'mimic' : 'guise', r: 999 });
       if (me.char === 'mary') { const n = this.zones.filter((z) => z.kind === 'mirror' && z.owner === me.id).length; if (n) buffs.push({ t: 'mirrors', r: n }); }
@@ -1926,7 +2133,7 @@ export class Room {
       const qMax = this.qChargesMax(me);
       const you: YouState = {
         id: me.id, alive: !me.dead, x: +me.x.toFixed(1), y: +me.y.toFixed(1), ack: me.ack,
-        spd: Math.round(this.calcSpeed(me)), st: me.stunT > 0 || !!me.knock || !!me.dash || me.entombT > 0 || me.rootT > 0,
+        spd: Math.round(this.calcSpeed(me)), st: me.stunT > 0 || !!me.knock || !!me.dash || me.entombT > 0 || me.rootT > 0 || !!me.leap || (me.fearT > 0 && !Number.isNaN(me.fearX)),
         hp: Math.ceil(me.hp), mhp: me.maxHp, xp: Math.round(me.xp), xpn: xpForLevel(me.level), lvl: me.level,
         pts: Math.round(me.points), coins: me.coinsEarned,
         cd: [+me.cd[0].toFixed(2), +me.cd[1].toFixed(2), +me.cd[2].toFixed(2)],
@@ -1938,7 +2145,9 @@ export class Room {
       if (qMax > 1) { you.qc = me.qCharges; you.qcm = qMax; }
       const eMax = KITS[me.char].eCharges?.(me) ?? 1;
       if (eMax > 1) { you.ec = me.k.ec ?? eMax; you.ecm = eMax; }
-      conn.send({ t: 'snap', tk: this.tick, you, ents, ev });
+      const msg: Extract<ServerMsg, { t: 'snap' }> = { t: 'snap', tk: this.tick, you, ents, ev };
+      if (burn) msg.burn = burn;
+      conn.send(msg);
     }
   }
 

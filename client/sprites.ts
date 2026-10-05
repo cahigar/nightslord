@@ -673,7 +673,7 @@ export const FORMS: Record<CharacterId, FormFn> = {
 const SKIN_TONES = ['#f2c8a0', '#e0a882', '#c08560', '#8d5a3c', '#5e3a26', '#f5d5b8'];
 const HAIR = ['#2a1a10', '#5a3418', '#d8b050', '#141414', '#9a3a1a', '#8a8a8a', '#e8d8a0', '#3a2a50'];
 
-export type Held = 'none' | 'flashlight' | 'torch' | 'cross' | 'candle' | 'pitchfork' | 'lantern';
+export type Held = 'none' | 'flashlight' | 'torch' | 'cross' | 'candle' | 'pitchfork' | 'lantern' | 'shovel';
 
 interface NpcLook {
   top: string; top2: string; legs: string; shoe: string;
@@ -716,6 +716,7 @@ const NPC_LOOKS: Record<string, NpcLook[]> = {
   ],
   // Engatusar de Doppy: humanos irresistibles
   hunk: [{ top: '#f0f0f0', top2: '#e0c060', legs: '#2a3a6a', shoe: '#e0e0e0', styles: ['slick', 'spiky'], kind: 'tshirt', held: ['none'] }],
+  gravedigger: [{ top: '#3a3430', top2: '#6a5a48', legs: '#2a2420', shoe: '#1a1410', styles: ['cap', 'bald'], kind: 'overalls', held: ['shovel'], cap: '#2a2420' }], // el enterrador de la pala
   belle: [{ top: '#e02060', top2: '#ffd0e0', legs: '#e02060', shoe: '#e02060', styles: ['long', 'ponytail'], kind: 'dress', held: ['none'] }],
   counselor: [{ top: '#c02020', top2: '#ffffff', legs: '#e0d0a0', shoe: '#f0f0f0', styles: ['short', 'ponytail', 'cap'], kind: 'uniform', held: ['flashlight', 'none'], cap: '#c02020' }],
 };
@@ -743,6 +744,7 @@ function heldItem(b: PB, held: Held, hx: number, hy: number) {
     case 'pitchfork': b.line(hx - 1, hy + 4, hx + 2, hy - 7, '#7a5030'); b.rect(hx, hy - 9, 5, 1, '#9090a0'); for (const dx of [0, 2, 4]) b.set(hx + dx, hy - 10, '#b0b0c0'); break;
     case 'cross': b.rect(hx + 1, hy - 4, 1, 6, '#e0c040', true); b.rect(hx, hy - 3, 3, 1, '#e0c040', true); break;
     case 'candle': b.rect(hx, hy - 3, 2, 3, '#f0e8d0'); b.set(hx, hy - 4, '#ffd040', true); b.set(hx, hy - 5, '#fff0a0', true); break;
+    case 'shovel': b.line(hx - 1, hy + 4, hx + 2, hy - 8, '#6a4a28'); b.rect(hx + 1, hy - 12, 3, 4, '#8a8a94'); b.set(hx + 2, hy - 12, '#c0c0c8'); break;
     case 'lantern': b.rect(hx, hy + 1, 3, 4, '#3a3020'); b.set(hx + 1, hy + 2, '#ffc040', true); b.set(hx + 1, hy + 3, '#ffe080', true); b.set(hx + 1, hy, '#3a3020'); break;
   }
 }
@@ -990,6 +992,10 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   obj2: { art: ['.wwwww.', 'wbbbbbw', '.wwwww.'], pal: { w: '#e8ecf0', b: '#5a7aa8' } }, // plato
   obj3: { art: ['..f..', '..y..', '..c..', '..c..', '.ccc.', 'ccccc'], pal: { f: '#ffe060', y: '#ff9020', c: '#c8a040' }, glow: 'f' }, // candelabro
   thorn: { art: ['ss.....', '.ssssgp', 'ss.....'], pal: { s: '#3a6a20', g: '#a0e040', p: '#e8e0b0' }, glow: 'g' },
+  skull: { art: ['.wwww.', 'wwwwww', 'wkwwkw', 'wwwwww', '.wkkw.', '.w..w.'], pal: { w: '#e8f0e0', k: '#7a30c0' }, glow: 'k' },
+  spirits: { art: ['...pp.....', '..pwwwp...', '.pwwwwwp..', '.pwkwwkwp.', '.pwwwwwwp.', '..pwkkwp..', '...pwwp...', '..p.p.p...', '.p..p..p..', '....p.....'], pal: { p: '#7a30c0', w: '#e8f0e0', k: '#a050ff' }, glow: 'k' },
+  boots: { art: ['..bbb.....', '..bBb.....', '..bBb.....', '..bBb.....', '..bBbb....', '..bBBBbb..', '.bBBBBBBb.', '.ssssssss.', '.y.y.y.y..'], pal: { b: '#4a2a18', B: '#7a4a28', s: '#2a1a10', y: '#ffd040' }, glow: 'y' },
+  shovel: { art: ['....h.....', '....h.....', '....h.....', '....h.....', '....h.....', '...mmm....', '..mMMMm...', '..mMMMm...', '..mMMMm...', '...mmm....'], pal: { h: '#7a5030', m: '#6a6a74', M: '#a8a8b4' } },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

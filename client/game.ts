@@ -7,7 +7,7 @@ import { Ambient } from './ambient';
 import { Effects, pixelEllipse } from './effects';
 import { Terrain } from './terrain';
 import { ObstacleGrid } from '../shared/physics';
-import { Anim, Flag, Kind, type EntSnap, type GameEvent, type ServerMsg, type YouState } from '../shared/protocol';
+import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, type YouState } from '../shared/protocol';
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
@@ -20,7 +20,7 @@ interface Sample { t: number; x: number; y: number }
 interface CEnt {
   id: number; k: Kind; c: string; s?: string; n?: string; l?: number; h?: number; fl: number; f: 1 | -1; a: Anim; q: number; r?: number;
   animStart: number; samples: Sample[]; seen: number; flash: number; rx: number; ry: number;
-  o?: number; rr?: number; z?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
+  f2: number; o?: number; rr?: number; z?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
 }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number }
 interface Floater { x: number; y: number; text: string; color: string; life: number; big?: boolean }
@@ -28,7 +28,7 @@ interface Ring { x: number; y: number; r: number; life: number; max: number; col
 interface Swing { x: number; y: number; a: number; life: number; color: string }
 interface Corpse { x: number; y: number; k: Kind; c: string; s?: string; f: 1 | -1; life: number; seed: number }
 
-const PU_LABEL: Record<string, string> = { blood: '+Sangre', speed: '¡Rapidez!', fury: '¡Furia!', shield: '+Escudo', coin: '+5 monedas', xp: '+XP' };
+const PU_LABEL: Record<string, string> = { blood: '+Sangre', speed: '¡Rapidez!', fury: '¡Furia!', shield: '+Escudo', coin: '+5 monedas', xp: '+XP', spirits: '¡Espíritus!', boots: '¡Botas elementales!', shovel: '¡Un enterrador!' };
 
 export class Game {
   map!: GameMap;
@@ -40,6 +40,8 @@ export class Game {
   you: YouState | null = null;
   alive = false;
   ents = new Map<number, CEnt>();
+  /** Árboles del mapa quemados (índice → hasta cuándo arden y hasta cuándo siguen quemados, en ms). */
+  burnt = new Map<number, { flame: number; until: number }>();
 
   // predicción
   private seq = 0;
@@ -139,17 +141,19 @@ export class Game {
       seenIds.add(s.i);
       let e = this.ents.get(s.i);
       if (!e) {
-        e = { id: s.i, k: s.k, c: s.c, fl: 0, f: s.f, a: s.a, q: s.q, animStart: now, samples: [], seen: now, flash: 0, rx: s.x, ry: s.y, trail: [], tombAt: 0 };
+        e = { id: s.i, k: s.k, c: s.c, fl: 0, f2: 0, f: s.f, a: s.a, q: s.q, animStart: now, samples: [], seen: now, flash: 0, rx: s.x, ry: s.y, trail: [], tombAt: 0 };
         this.ents.set(s.i, e);
       }
       if (e.a !== s.a || e.q !== s.q) { e.animStart = now; e.a = s.a; e.q = s.q; }
       const fl = s.fl ?? 0;
       if (fl & Flag.Entombed && !(e.fl & Flag.Entombed)) e.tombAt = now;
-      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.z = s.z; e.g = s.g; e.seen = now;
+      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f2 = s.f2 ?? 0; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.z = s.z; e.g = s.g; e.seen = now;
       e.samples.push({ t: now, x: s.x, y: s.y });
       if (e.samples.length > 6) e.samples.shift();
     }
     for (const [id, e] of this.ents) if (!seenIds.has(id) && now - e.seen > 250) this.ents.delete(id);
+    this.burnt.clear();
+    for (const [i, flame, left] of m.burn ?? []) this.burnt.set(i, { flame: now + flame * 1000, until: now + left * 1000 });
     for (const ev of m.ev) this.handleEvent(ev);
   }
 
@@ -396,18 +400,29 @@ export class Game {
       return a;
     };
     const draws: { y: number; fn: () => void }[] = [];
-    for (const list of [this.map.obstacles, this.map.border]) for (const o of list) {
-      if (o.type === 'water') continue;
-      if (!(o.x - 60 < vx1 && o.x + o.w + 60 > vx0 && o.y - 160 < vy1 && o.y + o.h > vy0)) continue;
+    for (const list of [this.map.obstacles, this.map.border]) list.forEach((o, i) => {
+      if (o.type === 'water') return;
+      if (!(o.x - 60 < vx1 && o.x + o.w + 60 > vx0 && o.y - 160 < vy1 && o.y + o.h > vy0)) return;
+      const burnt = list === this.map.obstacles ? this.burnt.get(i) : undefined;
+      if (burnt && burnt.flame > now) dyn.push({ x: o.x + o.w / 2, y: o.y, r: Math.max(o.w, o.h) * 2.2, c: 'warm', flicker: true });
       draws.push({
         y: o.y + o.h, fn: () => {
           const a = artOf(o);
           const w = a.base.width * PIXEL, h = a.base.height * PIXEL;
+          if (burnt) {
+            // árbol quemado: tronco y copa calcinados; mientras arde, llamas y ascuas
+            ctx.filter = 'grayscale(0.85) brightness(0.32) sepia(0.4)';
+            ctx.drawImage(a.base, o.x + a.ox, o.y + a.oy, w, h);
+            ctx.filter = 'none';
+            if (burnt.flame > now) this.drawTreeFlames(ctx, o, a.oy, now);
+            else if (Math.random() < 0.03) this.particles.push({ x: o.x + Math.random() * o.w, y: o.y + a.oy + Math.random() * h * 0.6, vx: 0, vy: -20, life: 1, max: 1, color: '#5a5550', size: 3, grav: -10 });
+            return;
+          }
           ctx.drawImage(a.base, o.x + a.ox, o.y + a.oy, w, h);
           if (a.glow) glows.push({ img: a.glow, x: o.x + a.ox, y: o.y + a.oy, w, h, flip: false, a: 1 });
         },
       });
-    }
+    });
     // televisiones (entidades del mapa): encima de su edificio o en el suelo
     const tvFrame = Math.floor(now / 140);
     for (const tv of this.map.tvs) {
@@ -493,6 +508,14 @@ export class Game {
 
     // iluminación
     this.drawLighting(ctx, W, H, camX, camY, z, now, me, dyn, cones);
+    // cegado por los cuervos: casi no ves más allá de ti
+    if (this.you?.buffs.some((b) => b.t === 'blind')) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const sx = W / 2 + (me.x - this.cam.x) * z, sy = H / 2 + (me.y - 40 - this.cam.y) * z;
+      const g = ctx.createRadialGradient(sx, sy, 60 * z, sx, sy, 260 * z);
+      g.addColorStop(0, 'rgba(6,4,10,0)'); g.addColorStop(1, 'rgba(6,4,10,0.94)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
 
     // capa emisiva (ojos, ventanas, fuego...) por encima de la oscuridad
     world();
@@ -695,6 +718,12 @@ export class Game {
       this.effects.particles.push({ x: x + (Math.random() - 0.5) * 30, y: y - 10 - Math.random() * 70, vx: (Math.random() - 0.5) * 10, vy: -30 - Math.random() * 30, life: 0.8, max: 0.8, color: col, size: 3, grav: 0, glow: true });
     }
 
+    if (e.f2 & Flag2.Lifted) {
+      // abducido: flota dentro de un haz verde
+      lift += 34 + Math.sin(now / 120) * 4;
+      ctx.globalAlpha = 0.25; ctx.fillStyle = '#80ff90'; ctx.fillRect(Math.round((x - 24) / 3) * 3, y - 260, 48, 262); ctx.globalAlpha = 1;
+    }
+    if (e.f2 & Flag2.Leaping) lift += 30;
     const flying = isMonster && !!(e.fl & Flag.Flying);
     const flyingBroom = flying && e.c !== 'succubus' && !(e.fl & Flag.Phased); // la súcubo vuela con sus alas; el fantasma no necesita escoba
     if (flying) lift += 26 + Math.sin(now / 200 + e.id) * 3;
@@ -771,6 +800,8 @@ export class Game {
       ctx.filter = 'sepia(1) saturate(8) hue-rotate(-50deg)'; blit(fr.base); ctx.filter = 'none';
       ctx.globalCompositeOperation = 'source-over';
     }
+    if (e.f2 & Flag2.Burning && Math.random() < 0.45) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y - 10 - Math.random() * 50, vx: 0, vy: -70, life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#ff6020' : '#ffd040', size: 3, grav: 0 });
+    if (e.f2 & Flag2.Blind) for (let i = 0; i < 3; i++) { const a = now / 200 + i * 2.1; ctx.fillStyle = '#141018'; ctx.fillRect(Math.round((x + Math.cos(a) * 16) / 3) * 3, Math.round((y - h + 6 - lift + Math.sin(a) * 5) / 3) * 3, 6, 3); }
     if (e.fl & Flag.Poison && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: -20, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#80e020' : '#3a6a10', size: 3, grav: 0 });
     if (e.fl & Flag.Bleed && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: 0, life: 0.5, max: 0.5, color: '#c01020', size: 3, grav: 300 });
     ctx.globalAlpha = 1;
@@ -812,6 +843,21 @@ export class Game {
     }
   }
 
+  /** Llamas pixeladas sobre un árbol que arde. */
+  private drawTreeFlames(ctx: CanvasRenderingContext2D, o: Obstacle, oy: number, now: number) {
+    const top = o.y + oy, n = Math.max(4, Math.round(o.w / 9));
+    for (let i = 0; i < n; i++) {
+      const fx = o.x + ((i + 0.5) / n) * o.w + Math.sin(now / 150 + i) * 3;
+      const fy = top + o.h * 0.25 + ((i * 37) % 10) * (o.h * 0.06) - oy * 0.4;
+      const h = 12 + ((Math.floor(now / 90) + i * 3) % 4) * 5;
+      ctx.fillStyle = '#c02010'; ctx.fillRect(Math.round(fx / 3) * 3, Math.round((fy - h) / 3) * 3, 6, h);
+      ctx.fillStyle = '#ff8020'; ctx.fillRect(Math.round(fx / 3) * 3, Math.round((fy - h + 6) / 3) * 3, 3, h - 6);
+      ctx.fillStyle = '#ffe060'; ctx.fillRect(Math.round(fx / 3) * 3, Math.round((fy - 6) / 3) * 3, 3, 3);
+    }
+    if (Math.random() < 0.5) this.particles.push({ x: o.x + Math.random() * o.w, y: top + Math.random() * o.h * 0.4, vx: (Math.random() - 0.5) * 20, vy: -60 - Math.random() * 40, life: 0.9, max: 0.9, color: Math.random() < 0.5 ? '#ff9020' : '#ffd060', size: 3, grav: -20 });
+    if (Math.random() < 0.15) this.particles.push({ x: o.x + Math.random() * o.w, y: top, vx: 0, vy: -30, life: 1.6, max: 1.6, color: '#3a3430', size: 6, grav: -10 }); // humo
+  }
+
   private blitFrame(ctx: CanvasRenderingContext2D, img: HTMLCanvasElement, x: number, y: number, flip: boolean, scale: number, alpha: number) {
     const w = SW * PIXEL * scale, h = SH * PIXEL * scale;
     const dx = x - w / 2, dy = y - h + 9 * scale;
@@ -850,6 +896,16 @@ export class Game {
       if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, pl.base, x, y, e.f === -1, sc, 0.7); ctx.globalCompositeOperation = 'source-over'; }
       if (pl.glow) glows.push({ img: pl.glow, x: x - (SW * PIXEL * sc) / 2, y: y - SH * PIXEL * sc + 9 * sc, w: SW * PIXEL * sc, h: SH * PIXEL * sc, flip: e.f === -1, a: 0.9 });
       if (variant === 'flower' && Math.random() < 0.08) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 40, vx: 0, vy: -20, life: 0.8, max: 0.8, color: '#a0ff80', size: 3, grav: 0 });
+      return;
+    }
+    if (variant === 'digger') {
+      // el enterrador de la pala: humano con aro dorado
+      const fr = getFrame('npc', 'gravedigger', '', e.a, this.frameFor(e, now), e.l ?? 0);
+      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.ellipse(x + 3, y + 3, 18, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = e.o === this.youId ? 'rgba(255,208,64,0.75)' : 'rgba(255,110,70,0.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 18, 6, 0, 0, Math.PI * 2); ctx.stroke();
+      this.blitFrame(ctx, fr.base, x, y, e.f === -1, 1, 1);
+      if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, fr.base, x, y, e.f === -1, 1, 0.7); ctx.globalCompositeOperation = 'source-over'; }
       return;
     }
     if (variant === 'thrall') {
@@ -1002,7 +1058,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'skull' ? '#a050ff' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1066,6 +1122,7 @@ export class Game {
     // iconos de estado
     let iy = top - (e.k === Kind.Player ? 34 : 14);
     if (e.fl & Flag.Raged) { ctx.font = '14px "Press Start 2P", monospace'; ctx.fillStyle = Math.floor(now / 120) % 2 ? '#ff3020' : '#ffa020'; ctx.fillText('!!', x, iy); iy -= 18; }
+    if (e.f2 & Flag2.Silenced) { ctx.font = '14px serif'; ctx.fillText('🔇', x, iy); iy -= 18; }
     if (e.fl & Flag.Charmed) { ctx.font = '14px serif'; ctx.fillText('💗', x, iy + Math.sin(now / 150) * 3); iy -= 18; }
     if (e.fl & Flag.Prey) { this.icon(ctx, 'prey', x, iy, now); iy -= 18; }
     if (e.fl & Flag.Cursed) { this.icon(ctx, 'curse', x, iy, now); iy -= 18; }

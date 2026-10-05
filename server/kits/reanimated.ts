@@ -13,6 +13,7 @@ function strike(room: Room, p: Player, z: Zone) {
   room.fx('lightning', z.ax, z.ay, { o: p.id });
   room.sfx('thunder', z.ax, z.ay);
   room.forEachEnemyNear(p, z.ax, z.ay, B.nail.strikeR, (m) => room.damage(m, room.calcDamage(p, B.nail.strikeDmg), room.src(p)));
+  room.electrify(z.ax, z.ay, p);
   if (Math.hypot(p.x - z.ax, p.y - z.ay) > B.nail.returnR || p.dead) return;
   room.zones = room.zones.filter((o) => o !== z);
   const a = Math.atan2(p.y - z.ay, p.x - z.ax);
@@ -83,6 +84,7 @@ export const reanimatedKit: Kit = {
         const x = st.ax + Math.cos(ang) * r, y = st.ay + Math.sin(ang) * r * 0.7;
         room.fx('lightning', x, y, { o: p.id, n: 1 });
         room.forEachEnemyNear(p, x, y, 50, (m) => room.damage(m, room.calcDamage(p, 0.5), room.src(p)));
+        room.electrify(x, y, p);
       }
     }
   },
@@ -98,6 +100,7 @@ export const reanimatedKit: Kit = {
       m.stunT = Math.max(m.stunT, B.overload.stun);
     });
     room.fx('spark', p.x, p.y, { r: B.overload.r, o: p.id });
+    room.electrify(p.x, p.y, p);
     room.sfx('zap', p.x, p.y);
   },
 

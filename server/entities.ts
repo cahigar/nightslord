@@ -46,6 +46,11 @@ export interface Mob {
   poisonT: number; poisonDps: number; poisonBy: number;
   hexT: number; hexDx: number; hexDy: number; // convertido en animalillo (maleficio)
   rootT: number; // enredado: no puede moverse (pero sí atacar)
+  burnT: number; burnDps: number; burnBy: number; // ardiendo
+  silenceT: number; // silenciado: sin habilidades
+  liftT: number; // abducido: flota indefenso
+  blindT: number; // cegado
+  fearX: number; fearY: number; // de dónde huye (NaN: solo se queda paralizado)
 }
 
 export type InvisKind = 'none' | 'timed' | 'auto' | 'full';
@@ -108,6 +113,9 @@ export interface Player extends Mob {
   guise: string | null; // disfraz visible para los demás: 'prop:pine', 'npc:teen:12', 'char:werewolf:classic:Nombre:7'
   flyT: number; // volando (escoba, alas): ignora obstáculos y aterriza en un sitio libre
   phaseT: number; // intangible (Poltergeist): atraviesa ataques y obstáculos
+  leap: { sx: number; sy: number; tx: number; ty: number; t: number; T: number } | null; // salto por encima de todo
+  spiritsT: number; spiritCd: number; // objeto: calaveras guiadas
+  bootsT: number; bootsKind: number; bootsAcc: number; // objeto: botas elementales (0 fuego · 1 naturaleza · 2 agua)
   k: Record<string, number>; // estado numérico propio de cada kit
   // estadísticas de la vida actual
   lifeStart: number;
@@ -150,7 +158,7 @@ export interface Hunter extends Mob {
 }
 
 /** Esbirro (zombi de Paciente Cero). Reutilizable para futuros invocadores. */
-export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat' | 'clone' | 'thrall' | 'wall' | 'turret' | 'flower'; // thrall: humano engatusado por la súcubo · wall/turret/flower: plantas del Árbol maldito (no se mueven)
+export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat' | 'clone' | 'thrall' | 'wall' | 'turret' | 'flower' | 'digger'; // thrall: humano engatusado por la súcubo · wall/turret/flower: plantas del Árbol maldito (no se mueven)
 export interface Minion extends Mob {
   kind: Kind.Minion;
   owner: number; // id del jugador dueño
@@ -193,7 +201,7 @@ export interface Projectile {
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest';
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare';
 /** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
 export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number>; next?: number /* próximo evento (rayo del clavo) */; v?: number }
 
@@ -203,5 +211,5 @@ export type Source = { player?: Player; hunter?: Hunter; minion?: Minion; name: 
 export const mobStatus = () => ({
   stunT: 0, slowT: 0, slowMul: 1, fearT: 0, panicT: 0, vulnT: 0, vulnMul: 1, preyT: 0,
   curseMarkT: 0, curseBy: -1, entombT: 0, entombBy: -1, entombDot: 0, weakT: 0, knock: null, dead: false,
-  drowsy: 0, drowsyHold: 0, sleepT: 0, sleepMarkT: 0, rageT: 0, rageBy: -1, rageAtk: 0, rageSafe: true, poisonT: 0, poisonDps: 0, poisonBy: -1, hexT: 0, hexDx: 0, hexDy: 0, rootT: 0, bleedT: 0, bleedDps: 0, bleedBy: -1, charmT: 0, charmBy: -1,
+  drowsy: 0, drowsyHold: 0, sleepT: 0, sleepMarkT: 0, rageT: 0, rageBy: -1, rageAtk: 0, rageSafe: true, poisonT: 0, poisonDps: 0, poisonBy: -1, hexT: 0, hexDx: 0, hexDy: 0, rootT: 0, burnT: 0, burnDps: 0, burnBy: -1, silenceT: 0, liftT: 0, blindT: 0, fearX: NaN, fearY: NaN, bleedT: 0, bleedDps: 0, bleedBy: -1, charmT: 0, charmBy: -1,
 });
