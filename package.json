@@ -17,7 +17,7 @@
     "bots": "tsx tools/bots.ts"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "dependencies": {
     "ws": "^8.18.0"
