@@ -253,6 +253,8 @@ export class Effects {
       case 'fireBoom': this.burst(x, y - 20, 40, ['#ff6020', '#ffd040', '#c02010', '#ffffff'], (ev.r ?? 90) * 3, 4, 250, 0.7, true); this.ripple(x, y, '#ff8020', 0.5, ev.r ?? 90); break;
       case 'slimeSplit': this.burst(x, y - 20, ev.n === 2 ? 50 : 22, ['#60d040', '#a0ff70', '#e0ff90'], ev.n === 2 ? 320 : 160, 4, 400, 0.6); if (ev.n === 2) this.ripple(x, y, '#a0ff70', 0.6, 120); break;
       case 'slimeBoom': this.burst(x, y - 15, 30, ['#60d040', '#a0ff70', '#3a6a10', '#e0ff90'], (ev.r ?? 100) * 2.6, 4, 450, 0.6); this.ripple(x, y, '#a0ff70', 0.5, ev.r ?? 100); break;
+      case 'ufoBeam': this.ufoBeam(ev); break;
+      case 'ufoRay': this.ufoRay(ev); break;
       case 'scare': this.ripple(x, y - 20, '#ffb020', 0.6, ev.r ?? 200); this.burst(x, y - 50, 10, ['#141018', '#2a2030'], 200, 3, -40, 0.8); break;
       case 'leapLand': this.burst(x, y, 16, this.terrainColors(x, y), 180, 3, 400, 0.5); this.ripple(x, y, '#e8e8f0', 0.4, ev.r ?? 120); break;
       case 'sprout': this.burst(x, y - 10, 22, ['#5a4632', '#2e4a24', '#a0e040', '#4a7a34'], 200, 3, 400, 0.6); this.ripple(x, y, '#a0e040', 0.5, 40); break;
@@ -943,6 +945,43 @@ export class Effects {
     this.ripple(ev.x, ev.y, '#c8f0ff', 0.5, R * 0.6);
   }
 
+  /** OVNI que se queda sobre un punto con su haz de abducción. */
+  private ufoBeam(ev: FxEv) {
+    const R = ev.r ?? 70, dur = ev.d ?? 1.5;
+    const ufo = getItem('ufo');
+    this.add(dur, 'glow', (ctx, k) => {
+      const fade = Math.min(1, k * dur * 4, (1 - k) * dur * 4);
+      const uy = ev.y - 230 + Math.sin(k * 20) * 4;
+      ctx.globalAlpha = 0.28 * fade;
+      ctx.fillStyle = '#80ff90';
+      for (let yy = uy + 12; yy < ev.y; yy += PIXEL * 2) { const t = (yy - uy) / (ev.y - uy); const hw = 10 + t * R; ctx.fillRect(snap(ev.x - hw), snap(yy), snap(hw * 2), PIXEL * 2); }
+      ctx.globalAlpha = 0.6 * fade;
+      pixelEllipse(ctx, ev.x, ev.y, R, R * 0.62, '#80ff90');
+      ctx.globalAlpha = fade;
+      const w = ufo.base.width * PIXEL * 1.6, h = ufo.base.height * PIXEL * 1.6;
+      ctx.drawImage(ufo.base, ev.x - w / 2, uy - h / 2, w, h);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Rayo de un OVNI que cae del cielo sobre un punto. */
+  private ufoRay(ev: FxEv) {
+    const R = ev.r ?? 60;
+    const ufo = getItem('ufo');
+    this.add(0.45, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#c0ffd0';
+      const w = 6 + (1 - k) * 10;
+      ctx.fillRect(snap(ev.x - w / 2), snap(ev.y - 260), snap(w), 260);
+      ctx.fillStyle = '#60ff90'; ctx.fillRect(snap(ev.x - w), snap(ev.y - 260), PIXEL, 260); ctx.fillRect(snap(ev.x + w), snap(ev.y - 260), PIXEL, 260);
+      const uw = ufo.base.width * PIXEL, uh = ufo.base.height * PIXEL;
+      ctx.drawImage(ufo.base, ev.x - uw / 2, ev.y - 275 - uh / 2, uw, uh);
+      pixelEllipse(ctx, ev.x, ev.y, R * (0.5 + k), R * (0.5 + k) * 0.62, '#80ff90', 2);
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 10, 18, ['#c0ffd0', '#60ff90', '#ffffff'], 200, 3, 200, 0.5, true);
+  }
+
   /** Trigo alto de la Cosecha (se dibuja encima de los personajes y se mece con el viento). */
   drawWheat(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, life: number, now: number, seed: number) {
     const fade = Math.min(1, life * 5, (1 - life) * 6 + 0.3);
@@ -1214,6 +1253,14 @@ export class Effects {
       ctx.fillStyle = '#f0f0f8';
       const n = Math.ceil(Math.hypot(bx - x, by - y) / PIXEL);
       for (let j = 0; j <= n; j++) { const t = j / n; ctx.fillRect(snap(x + (bx - x) * t), snap(y + (by - y) * t + Math.sin(t * Math.PI) * 6), PIXEL, PIXEL); if (j % 6 === 0) ctx.fillRect(snap(x + (bx - x) * t), snap(y + (by - y) * t + Math.sin(t * Math.PI) * 6) + PIXEL * 2, PIXEL, PIXEL); }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'radiation') {
+      ctx.globalAlpha = 0.3 * fade;
+      ctx.fillStyle = '#40ff60';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.9 * fade;
+      ctx.fillStyle = '#c0ff60';
+      for (let i = 0; i < 8; i++) { const t = (now / 700 + i / 8) % 1; ctx.fillRect(snap(x + Math.cos(i * 2.4 + seed) * r * 0.7), snap(y + Math.sin(i * 1.6 + seed) * r * 0.4 - t * 30), PIXEL, PIXEL); }
       ctx.globalAlpha = 1;
     } else if (kind === 'wheat') {
       ctx.globalAlpha = 0.55 * Math.min(1, life * 5);

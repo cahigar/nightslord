@@ -3,7 +3,7 @@
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
-  | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime';
+  | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime' | 'alien';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -503,6 +503,31 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Reacción en cadena', desc: 'Sus mitades revientan en baba al reunirse y sus charcos duran el doble.' },
     ],
   },
+  alien: {
+    id: 'alien',
+    name: 'El Visitante',
+    title: 'Alien',
+    hp: 90,
+    speed: 215,
+    damage: 15,
+    range: 380,
+    arc: 0,
+    attackCd: 0.45,
+    armor: 0,
+    rangedBasic: true,
+    attackName: 'Rayo de plasma',
+    passive: 'Tres impactos seguidos de plasma sobre el mismo objetivo lo silencian 2 s (no puede usar habilidades).',
+    abilities: [
+      { key: 'Q', name: 'Abducción', desc: 'Un haz de OVNI levanta al enemigo de la zona y lo deja caer, dañándolo.', cooldown: 8 },
+      { key: 'E', name: 'Baliza', desc: 'Coloca una baliza: a los 2,5 s un OVNI dispara sobre ella (daño en área). Cerca de su baliza corre más.', cooldown: 10 },
+    ],
+    ult: { key: 'R', name: 'Invasión', desc: 'Durante 7 s pequeños OVNIs le acompañan y disparan rayos solos a los enemigos cercanos.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Tecnología superior', desc: 'Recoger objetos le recorta un 20 % los enfriamientos de Q y E.' },
+      { lvl: 10, name: 'Invasión', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Nave nodriza', desc: 'La Abducción atrapa a todos los de la zona (más grande) y la baliza deja una zona irradiada.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -625,6 +650,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Verde', price: 0, palette: { skin: '#60d040', hair: '#a0ff70', cloth: '#2a8a20', cloth2: '#185a12', accent: '#e0ff90', eye: '#141a10' } },
     { id: 'grape', name: 'Uva', price: 200, palette: { skin: '#9050d0', hair: '#c090ff', cloth: '#5a2a8a', cloth2: '#3a1a5a', accent: '#f0d0ff', eye: '#140a1a' } },
     { id: 'magma', name: 'Magma', price: 350, palette: { skin: '#e05020', hair: '#ffb040', cloth: '#8a2010', cloth2: '#4a1008', accent: '#ffe080', eye: '#1a0804' } },
+  ],
+  alien: [
+    { id: 'classic', name: 'Gris', price: 0, palette: { skin: '#a8b0b8', hair: '#8890a0', cloth: '#c8d0d8', cloth2: '#7a8490', accent: '#60ff90', eye: '#06080a' } },
+    { id: 'green', name: 'Marcianito', price: 200, palette: { skin: '#70c060', hair: '#50a040', cloth: '#40406a', cloth2: '#28284a', accent: '#ff60e0', eye: '#0a0a14' } },
+    { id: 'void', name: 'Del vacío', price: 350, palette: { skin: '#2a2a3a', hair: '#1a1a28', cloth: '#14141e', cloth2: '#0a0a12', accent: '#a080ff', eye: '#c0a0ff' } },
   ],
 };
 

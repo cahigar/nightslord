@@ -11,7 +11,7 @@ import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, 
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
-import { ANIMS, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSpiderling, npcLook, SH, SW } from './sprites';
+import { ANIMS, getBeacon, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSpiderling, npcLook, SH, SW } from './sprites';
 import { LIGHT_COLORS, lightsFor, renderDecor, renderObstacle, renderTV, type Light, type Prerendered } from './tiles';
 
 const INTERP_MS = 120;
@@ -830,6 +830,16 @@ export class Game {
     if (fr.glow && alpha > 0.3) glows.push({ img: fr.glow, x: dx, y: dy, w, h, flip, a: Math.min(1, alpha + tier * 0.1) });
 
     // ---- delante del personaje
+    if (ult && e.c === 'alien') {
+      const ufo = getItem('ufo');
+      const w2 = ufo.base.width * PIXEL, h2 = ufo.base.height * PIXEL;
+      for (let i = 0; i < BAL.alien.ult.ufos; i++) {
+        const a = now / 900 + (i / BAL.alien.ult.ufos) * Math.PI * 2;
+        const ux = x + Math.cos(a) * 130, uy = y - 150 + Math.sin(a) * 40;
+        ctx.drawImage(ufo.base, ux - w2 / 2, uy - h2 / 2, w2, h2);
+        if (ufo.glow) glows.push({ img: ufo.glow, x: ux - w2 / 2, y: uy - h2 / 2, w: w2, h: h2, flip: false, a: 1 });
+      }
+    }
     if (ult && e.c === 'vampire') this.drawBatRing(ctx, x, y, now, 6, 46, 1, glows);
     if (e.o !== undefined && tier >= 3 && e.c === 'vampire') this.drawBatRing(ctx, x, y, now, 2, 40, e.o, glows, true);
     if (ult && e.c === 'vampire' && Math.random() < 0.6) this.effects.particles.push({ x: x + (Math.random() - 0.5) * 70, y: y - Math.random() * 90, vx: 0, vy: -40, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#ff2040' : '#80101c', size: 3, grav: 0, glow: true });
@@ -920,6 +930,15 @@ export class Game {
       if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, pl.base, x, y, e.f === -1, sc, 0.7); ctx.globalCompositeOperation = 'source-over'; }
       if (pl.glow) glows.push({ img: pl.glow, x: x - (SW * PIXEL * sc) / 2, y: y - SH * PIXEL * sc + 9 * sc, w: SW * PIXEL * sc, h: SH * PIXEL * sc, flip: e.f === -1, a: 0.9 });
       if (variant === 'flower' && Math.random() < 0.08) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 40, vx: 0, vy: -20, life: 0.8, max: 0.8, color: '#a0ff80', size: 3, grav: 0 });
+      return;
+    }
+    if (variant === 'beacon') {
+      const bc = getBeacon(Math.floor(now / (e.l === 1 ? 400 : 140)) % 2);
+      const w = bc.base.width * PIXEL, h = bc.base.height * PIXEL;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(x, y + 2, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(bc.base, x - w / 2, y - h + 6, w, h);
+      if (bc.glow) glows.push({ img: bc.glow, x: x - w / 2, y: y - h + 6, w, h, flip: false, a: 1 });
+      if (e.o === this.youId) { ctx.globalAlpha = 0.25; pixelEllipse(ctx, x, y, BAL.alien.beacon.speedR, BAL.alien.beacon.speedR * 0.62, '#60ff90'); ctx.globalAlpha = 1; }
       return;
     }
     if (variant === 'slimelet') {
@@ -1150,7 +1169,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1279,7 +1298,7 @@ const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
 const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1315,6 +1334,7 @@ const TAUNTS: Record<CharacterId, string> = {
   scarecrow: '¡Bu! ...¿Asustado?',
   demon: '¿Hace calor o soy yo?',
   slime: '*blub blub*',
+  alien: 'Llévame con tu líder',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

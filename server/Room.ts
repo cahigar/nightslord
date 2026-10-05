@@ -1863,6 +1863,7 @@ export class Room {
           this.root(m, ITEMS.boots.nature.root);
           z.until = Math.min(z.until, this.time + 0.4);
         }
+        else if (z.kind === 'radiation') { if (owner && this.isEnemyOf(owner, m)) this.damage(m, BAL.alien.beacon.radDps * TICK_DT, { ...this.src(owner), raw: true }, false, true); }
         else if (z.kind === 'goo') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, BAL.slime.goo.slowMul); }
         else if (z.kind === 'venom') { if (owner && this.isEnemyOf(owner, m) && m.poisonT < 1) this.poison(m, BAL.slime.trail.poisonT, BAL.slime.trail.poisonDps, owner); }
         else if (z.kind === 'web' || z.kind === 'bigweb' || z.kind === 'thread') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, z.kind === 'web' ? BAL.spider.web.slowMul : BAL.spider.ult.slowMul); }

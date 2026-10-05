@@ -779,6 +779,50 @@ const slimeForm: FormFn = (b, p, c, anim, tier) => {
   if (tier >= 3) { b.rect(10, top - 2, 1, 2, c.hair); b.set(10, top - 3, c.accent, true); b.rect(14, top - 1, 1, 1, c.hair); } // antenitas de baba
 };
 
+const alienForm: FormFn = (b, p, c, _anim, tier) => {
+  // El Visitante: alien gris de cabeza enorme y ojos negros rasgados, mono plateado y pistola de rayos
+  const by = p.by;
+  arm(b, 10, 14 + by, p.la, 7, c.cloth2, c.skin);
+  legs(b, p, c.cloth2, shade(c.cloth, -0.1), c.cloth2, { width: 2 });
+  torso(b, by, c.cloth, { x: 9, w: 6, top: 13 });
+  b.rect(9, 17 + by, 6, 1, c.cloth2); b.set(12, 17 + by, c.accent, true); // cinturón
+  b.line(10, 14 + by, 13, 14 + by, shade(c.cloth, 0.2));
+  // cabeza: cráneo grande, barbilla estrecha
+  const X = 6 + (p.lean ?? 0), Y = by;
+  b.ellipse(X + 6, Y + 5, 6, 5, c.skin);
+  b.rect(X + 4, Y + 9, 5, 2, c.skin); b.rect(X + 5, Y + 11, 3, 1, c.skin);
+  b.rect(X + 6, Y + 12, 2, 1, shade(c.skin, -0.2)); // cuello
+  // ojos negros rasgados con brillo
+  if (!p.blink) {
+    // ojo delantero: almendra grande e inclinada
+    b.rect(X + 7, Y + 4, 4, 2, c.eye); b.rect(X + 6, Y + 5, 4, 2, c.eye); b.set(X + 11, Y + 3, c.eye); b.set(X + 6, Y + 7, c.eye);
+    // ojo trasero, en escorzo
+    b.rect(X + 2, Y + 5, 2, 2, c.eye); b.set(X + 1, Y + 4, c.eye); b.set(X + 4, Y + 7, c.eye);
+    b.set(X + 9, Y + 4, shade(c.eye, 0.7), false, true); b.set(X + 2, Y + 5, shade(c.eye, 0.5), false, true);
+  } else { b.rect(X + 6, Y + 6, 5, 1, c.eye); b.rect(X + 2, Y + 6, 2, 1, c.eye); }
+  b.set(X + 8, Y + 9, shade(c.skin, -0.4)); if (p.mouth) b.set(X + 9, Y + 9, shade(c.skin, -0.5));
+  b.set(X + 4, Y + 2, shade(c.skin, 0.25), false, true); // brillo del cráneo
+  if (tier >= 1 && !p.blink) b.set(X + 8, Y + 5, c.accent, true);
+  if (tier >= 2) { b.set(X + 6, Y - 1, c.accent, true); b.line(X + 6, Y, X + 6, Y + 1, shade(c.skin, -0.2)); } // antena
+  if (tier >= 3) for (const [x, y] of [[4, 8], [19, 12], [5, 20]]) b.set(x, y + by, c.accent, true); // drones
+  // brazo delantero con pistola de rayos
+  arm(b, 13, 14 + by, p.ra, 6, c.cloth, c.skin);
+  const hx = 13 + Math.sin(p.ra) * 7, hy = 14 + by + Math.cos(p.ra) * 7;
+  b.rect(hx, hy - 1, 3, 2, '#5a6470'); b.set(hx + 3, hy - 1, c.accent, true); b.set(hx + 1, hy + 1, '#3a4450');
+};
+
+/** Baliza del alien: poste con luz que parpadea (más rápido cuando va a caer el rayo). */
+const beaconCache: Baked[] = [];
+export function getBeacon(frame: number): Baked {
+  const f = frame % 2;
+  if (beaconCache[f]) return beaconCache[f];
+  const b = new PB(12, 20);
+  b.rect(5, 6, 2, 12, '#5a6470'); b.rect(3, 17, 6, 2, '#3a4450'); b.rect(2, 18, 8, 1, '#2a3038');
+  b.rect(4, 2, 4, 4, '#7a8490'); b.rect(5, 3, 2, 2, f ? '#60ff90' : '#208040', f === 1); b.set(5, 1, '#c8d0d8');
+  beaconCache[f] = b.finish({ outline: 'selout' });
+  return beaconCache[f];
+}
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -845,7 +889,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
-  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm, slime: slimeForm,
+  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm, slime: slimeForm, alien: alienForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -1186,6 +1230,8 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   fireball: { art: ['..ooo..', '.oyyyo.', 'oyWWWyo', 'oyWWWyo', 'oyWWWyo', '.oyyyo.', '..ooo..'], pal: { o: '#c02010', y: '#ff8020', W: '#ffe060' }, glow: 'W' },
   ember: { art: ['.o.', 'oyo', '.o.'], pal: { o: '#ff6020', y: '#ffe060' }, glow: 'y' },
   bubble: { art: ['..www..', '.wGGGw.', 'wGWGGGw', 'wGGGGGw', 'wGGGGGw', '.wGGGw.', '..www..'], pal: { w: '#c0ff90', G: '#60d040', W: '#ffffff' }, glow: 'W' },
+  plasma: { art: ['..ggg..', '.gWWWgg', 'gWWWWWg', '.gWWWgg', '..ggg..'], pal: { g: '#30c060', W: '#c0ffd0' }, glow: 'W' },
+  ufo: { art: ['....ddd....', '...dCCCd...', '.mmmmmmmmm.', 'mMyMMyMMyMm', '.mmmmmmmmm.', '...g.g.g...'], pal: { d: '#4a5a6a', C: '#a0f0ff', m: '#6a7480', M: '#a8b0b8', y: '#ffe060', g: '#60ff90' }, glow: 'y' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

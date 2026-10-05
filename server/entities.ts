@@ -202,7 +202,7 @@ export interface Projectile {
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom';
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation';
 /** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
 export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number>; next?: number /* próximo evento (rayo del clavo) */; v?: number }
 
