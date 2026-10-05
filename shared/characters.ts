@@ -2,7 +2,8 @@
 // Para añadir un monstruo nuevo: añade una entrada en CHARACTERS (stats + habilidades),
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
-export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree';
+export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
+  | 'pirate';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -381,6 +382,30 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Ancestral', desc: '3 cargas de Brotar, las torretas disparan dos espinas y el ramazo enreda.' },
     ],
   },
+  pirate: {
+    id: 'pirate',
+    name: 'Capitán Ahogado',
+    title: 'Pirata fantasma',
+    hp: 130,
+    speed: 200,
+    damage: 20,
+    range: 58,
+    arc: Math.PI * 0.6,
+    attackCd: 0.6,
+    armor: 0.1,
+    attackName: 'Sablazo espectral',
+    passive: 'Botín maldito: sus víctimas pueden soltar monedas o sangre.',
+    abilities: [
+      { key: 'Q', name: 'Garfio', desc: 'Lanza un garfio que atrae al enemigo hacia él.', cooldown: 7 },
+      { key: 'E', name: 'Barril de pólvora', desc: 'Deja un barril que explota a los 2,5 s o al recibir un golpe (y prende los árboles).', cooldown: 8 },
+    ],
+    ult: { key: 'R', name: '¡Al abordaje!', desc: 'Aparecen 3 bucaneros fantasma que luchan a su lado durante 12 s.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Barco fantasma', desc: 'Anda sobre el agua en un barco fantasma, desde el que ataca a cañonazos.' },
+      { lvl: 10, name: '¡Al abordaje!', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Lobo de mar', desc: 'El garfio le impulsa hacia lo que engancha (enemigos u obstáculos) y los barriles tienen más área.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -478,6 +503,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Roble podrido', price: 0, palette: { skin: '#5a4632', hair: '#2e4a24', cloth: '#3e3022', cloth2: '#2a2018', accent: '#a0e040', eye: '#ffb020' } },
     { id: 'autumn', name: 'Otoño', price: 200, palette: { skin: '#6a4a30', hair: '#c05a18', cloth: '#4a3424', cloth2: '#30221a', accent: '#ffb030', eye: '#ff6020' } },
     { id: 'dead', name: 'Seco', price: 350, palette: { skin: '#4a4448', hair: '#2a2630', cloth: '#363036', cloth2: '#221e24', accent: '#c060ff', eye: '#ff3060' } },
+  ],
+  pirate: [
+    { id: 'classic', name: 'Ahogado', price: 0, palette: { skin: '#8ac0c0', hair: '#2a3a40', cloth: '#1e2a48', cloth2: '#141a2e', accent: '#d8b040', eye: '#a0fff0' } },
+    { id: 'coral', name: 'Arrecife', price: 200, palette: { skin: '#a0c8b0', hair: '#5a2a2a', cloth: '#6a1a24', cloth2: '#3a0e14', accent: '#ff9070', eye: '#ffe080' } },
+    { id: 'abyss', name: 'Abismal', price: 350, palette: { skin: '#6a7ab0', hair: '#1a1a2a', cloth: '#1a1a24', cloth2: '#0a0a12', accent: '#60e0a0', eye: '#60ff90' } },
   ],
 };
 

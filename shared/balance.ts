@@ -168,6 +168,52 @@ export const BAL = {
     flower: { hp: 50, r: 12, cap: 1, healR: 220, heal: 0.04, healT1: 0.06 },
     ult: { r: 320, t: 7, every: 1.4, root: 1, dmg: 0.6, slowMul: 0.6, heal: 0.03 }, // R: Bosque maldito
   },
+  pirate: {
+    lootChance: 0.35, // pasiva: Botín maldito
+    hook: { speed: 720, life: 0.5, dmg: 0.6, pull: 110, leapT: 0.28 }, // Q: garfio (nv. 15: se impulsa hacia lo que engancha)
+    barrel: { fuse: 2.5, r: 110, rT3: 150, dmg: 1.6, knock: 160, cap: 3 }, // E: barril de pólvora
+    cannon: { speed: 620, life: 0.62, dmg: 0.9 }, // nv. 5: en el barco fantasma ataca a distancia
+    ult: { n: 3, life: 12 }, buccaneer: { hp: 70, speed: 205, dmg: 0.55, cd: 0.8 }, // R: ¡Al abordaje!
+  },
+  spider: {
+    poison: { t: 4, dps: 4, stackMul: 0.5, maxStacks: 4, window: 3 }, // pasiva y nv. 5 (veneno que se acumula)
+    web: { speed: 520, life: 0.7, dmg: 0.4, slowT: 2, slowMul: 0.45, r: 46, t: 45, max: 4, charges: 2 }, // Q: telaraña
+    leap: { range: 280, t: 0.32, fearR: 150, fearT: 1.5, chargesT3: 2 }, // E: salto arácnido
+    ult: { r: 320, t: 7, slowMul: 0.3, speedMul: 1.4, linkR: 700, n: 6, life: 9 }, // R: gran telaraña
+    spiderling: { hp: 14, speed: 260, dmg: 0.25, cd: 0.6 },
+  },
+  scarecrow: {
+    still: { t: 5, grace: 3, mul: 1.8 }, // pasiva: quieto 5 s, el siguiente golpe hace más daño
+    crows: { speed: 500, life: 0.8, dmg: 0.7, blindT: 2.5 }, // Q: cuervos (nv. 15: vuelven)
+    plant: { t: 2.5, dmgMul: 0.35, fearR: 220, fearT: 1.6, chargesT3: 2 }, // E: plantarse
+    decoy: { hp: 40, every: 8, max: 3, life: 10, fearR: 130, fearT: 1, spawnR: 650 }, // nv. 5: espantapájaros por el mapa
+    ult: { r: 330, t: 8, speedMul: 1.5, dmgMul: 1.4, reinvis: 1.2 }, // R: la Cosecha (trigo alto)
+  },
+  demon: {
+    burn: { t: 3, dps: 5 }, // básico: pequeña quemadura
+    combustMul: 1.4, // nv. 5: más daño a quien ya arde
+    fireball: { speed: 520, life: 0.8, dmg: 1.2, r: 90, zoneT: 3, dps: 8, sparks: 4 }, // Q (nv. 15: llamas secundarias)
+    dash: { t: 0.25, speedMul: 3.2, dmg: 0.6, trailT: 2.5, every: 26 }, // E: paso ardiente
+    ult: { t: 6, atkMul: 0.6, speedMul: 1.3, wave: { speed: 600, life: 0.5, dmg: 0.7 } }, // R: Infierno
+    fireHealT3: 0.05, // nv. 15: el fuego le cura
+  },
+  slime: {
+    split: { steps: [0.7, 0.4], t: 8, dmgTakenMul: 0.7, dmgMul: 0.75, regen: 0.03 }, // pasiva: se divide
+    slimelet: { hp: 35, speed: 210, dmg: 0.35, cd: 0.8 },
+    goo: { r: 34, t: 3, tT3: 6, slowMul: 0.6 }, // manchas pegajosas
+    trail: { t: 4, speedMul: 1.4, every: 30, r: 26, zoneT: 3, poisonT: 3, poisonDps: 5 }, // Q: rastro de veneno
+    bubble: { speed: 460, life: 0.8, dmg: 0.9, r: 100, knock: 140, poisonT: 4, poisonDps: 5 }, // E: burbuja de ácido
+    absorb: 0.15, // nv. 5: lo que recoge le cura
+    ult: { t: 6, hpMul: 0.6, grabR: 70, dps: 10, boomR: 170, boomDmg: 1.4, boomKnock: 200 }, // R: masa crítica
+  },
+  alien: {
+    plasma: { speed: 760, life: 0.5, dmg: 1.0 }, // básico
+    silence: { hits: 3, window: 3, t: 2 }, // pasiva
+    abduct: { range: 400, delay: 0.35, r: 70, rT3: 130, t: 1.2, dmg: 1.3 }, // Q (nv. 15: varios)
+    beacon: { hp: 40, range: 300, delay: 2.5, life: 10, r: 120, dmg: 1.6, speedR: 260, speedMul: 1.3, radT: 4, radDps: 6 }, // E
+    pickupCd: 0.2, // nv. 5: recoger objetos recorta un 20 % los enfriamientos
+    ult: { t: 7, every: 0.6, range: 380, dmg: 0.6, ufos: 3 }, // R: Invasión
+  },
 
 };
 

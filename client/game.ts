@@ -205,7 +205,7 @@ export class Game {
   /** ¿Mi personaje cruza el agua profunda? (cualquier criatura acuática). */
   private aquatic() {
     const c = this.ents.get(this.youId)?.c as CharacterId | undefined;
-    return !!(c && (CHARACTERS[c]?.aquatic || CHARACTERS[c]?.hover)); // camina (o levita) sobre el agua
+    return !!(c && (CHARACTERS[c]?.aquatic || CHARACTERS[c]?.hover || (c === 'pirate' && (this.you?.tier ?? 0) >= 1))); // camina (o levita, o navega) sobre el agua
   }
 
   renderPos() {
@@ -235,7 +235,7 @@ export class Game {
         if (ev.k !== Kind.Player || ev.c) {
           const e = [...this.ents.values()].find((x) => Math.abs(x.rx - ev.x) < 30 && Math.abs(x.ry - ev.y) < 30 && x.k === ev.k);
           if (ev.k === Kind.Minion && e?.c === 'thrall') this.corpses.push({ x: ev.x, y: ev.y, k: Kind.Npc, c: e.s ?? ev.c, f: e.f ?? 1, life: 6, seed: e.l ?? 0 });
-          else if (ev.k === Kind.Minion) { if (e && ['wall', 'turret', 'flower'].includes(e.c)) this.effects.burst(ev.x, ev.y - 20, 18, ['#5a4632', '#2e4a24', '#a0e040'], 160, 3, 400, 0.6); else if (e?.c !== 'clone') this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 }); }
+          else if (ev.k === Kind.Minion) { if (e && NO_CORPSE.has(e.c)) { /* sin cadáver */ } else if (e && ['wall', 'turret', 'flower'].includes(e.c)) this.effects.burst(ev.x, ev.y - 20, 18, ['#5a4632', '#2e4a24', '#a0e040'], 160, 3, 400, 0.6); else if (e?.c !== 'clone') this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 }); }
           else this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: ev.c, s: e?.s, f: e?.f ?? 1, life: 6, seed: e?.id ?? 0 });
           if (this.corpses.length > 60) this.corpses.shift();
         }
@@ -727,6 +727,7 @@ export class Game {
     const flying = isMonster && !!(e.fl & Flag.Flying);
     const flyingBroom = flying && e.c !== 'succubus' && !(e.fl & Flag.Phased); // la súcubo vuela con sus alas; el fantasma no necesita escoba
     if (flying) lift += 26 + Math.sin(now / 200 + e.id) * 3;
+    if (isMonster && e.c === 'pirate' && tier >= 1 && this.waterUnder(x, y)) { this.drawGhostShip(ctx, x, y, e.f, now, glows); lift += 10; }
     if (isMonster && e.c === 'poltergeist') lift += 8 + Math.sin(now / 300 + e.id) * 4; // levita
     // drenaje del Poltergeist: aura que tira de la vida de alrededor
     if (ult && e.c === 'poltergeist') {
@@ -843,6 +844,25 @@ export class Game {
     }
   }
 
+  /** Barco fantasma del Capitán Ahogado (nivel 5, sobre el agua). */
+  private drawGhostShip(ctx: CanvasRenderingContext2D, x: number, y: number, f: 1 | -1, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
+    const s = (v: number) => Math.round(v / 3) * 3;
+    const bob = Math.sin(now / 400) * 3;
+    ctx.globalAlpha = 0.82;
+    // casco
+    for (let i = 0; i < 6; i++) { const w = 96 - i * 10; ctx.fillStyle = i < 2 ? '#2a3a48' : '#1e2a36'; ctx.fillRect(s(x - w / 2), s(y - 6 + i * 3 + bob), s(w), 3); }
+    ctx.fillStyle = '#4a6a7a'; ctx.fillRect(s(x - 48), s(y - 9 + bob), 96, 3); // borda
+    ctx.fillStyle = '#80c0c0'; for (let i = -3; i <= 3; i++) ctx.fillRect(s(x + i * 12), s(y - 3 + bob), 3, 3); // portillas
+    // mástil y vela hecha jirones
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(s(x - f * 20), s(y - 96 + bob), 3, 90);
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = '#c8e0e0';
+    for (let j = 0; j < 8; j++) { const w = 30 - Math.abs(j - 4) * 3 + Math.round(Math.sin(now / 300 + j) * 2) * 3; ctx.fillRect(s(x - f * 20 - (f > 0 ? w : 0) + 3 * (f > 0 ? 0 : 1)), s(y - 90 + j * 9 + bob), s(w), 9); }
+    ctx.globalAlpha = 1;
+    if (Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 90, y: y + 2, vx: -f * 30, vy: -10, life: 0.6, max: 0.6, color: '#a0fff0', size: 3, grav: 0 });
+    void glows;
+  }
+
   /** Llamas pixeladas sobre un árbol que arde. */
   private drawTreeFlames(ctx: CanvasRenderingContext2D, o: Obstacle, oy: number, now: number) {
     const top = o.y + oy, n = Math.max(4, Math.round(o.w / 9));
@@ -896,6 +916,28 @@ export class Game {
       if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, pl.base, x, y, e.f === -1, sc, 0.7); ctx.globalCompositeOperation = 'source-over'; }
       if (pl.glow) glows.push({ img: pl.glow, x: x - (SW * PIXEL * sc) / 2, y: y - SH * PIXEL * sc + 9 * sc, w: SW * PIXEL * sc, h: SH * PIXEL * sc, flip: e.f === -1, a: 0.9 });
       if (variant === 'flower' && Math.random() < 0.08) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 40, vx: 0, vy: -20, life: 0.8, max: 0.8, color: '#a0ff80', size: 3, grav: 0 });
+      return;
+    }
+    if (variant === 'barrel') {
+      const it = getItem('barrel');
+      const w = it.base.width * PIXEL * 1.3, h = it.base.height * PIXEL * 1.3;
+      ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(x, y + 2, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+      const shake = Math.floor(now / 60) % 2 ? 1 : -1;
+      ctx.drawImage(it.base, x - w / 2 + shake, y - h + 6, w, h);
+      if (it.glow) glows.push({ img: it.glow, x: x - w / 2 + shake, y: y - h + 6, w, h, flip: false, a: 1 });
+      if (Math.random() < 0.5) this.particles.push({ x: x + 3, y: y - h + 6, vx: (Math.random() - 0.5) * 30, vy: -40, life: 0.3, max: 0.3, color: '#ffd040', size: 3, grav: 0 });
+      return;
+    }
+    if (variant === 'buccaneer') {
+      // bucanero fantasma: la tripulación del capitán, translúcida y verdosa
+      const fr = getFrame('monster', 'pirate', e.s ?? 'classic', e.a, this.frameFor(e, now), 0, 0);
+      ctx.strokeStyle = e.o === this.youId ? 'rgba(160,255,240,0.7)' : 'rgba(255,110,70,0.6)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 16, 5, 0, 0, Math.PI * 2); ctx.stroke();
+      this.blitFrame(ctx, fr.base, x, y, e.f === -1, 0.88, 0.62);
+      ctx.globalCompositeOperation = 'lighter'; ctx.filter = 'hue-rotate(60deg) saturate(2)';
+      this.blitFrame(ctx, fr.base, x, y, e.f === -1, 0.88, 0.2 + (now - e.flash < 90 ? 0.5 : 0));
+      ctx.filter = 'none'; ctx.globalCompositeOperation = 'source-over';
+      if (Math.random() < 0.15) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - Math.random() * 60, vx: 0, vy: -20, life: 0.5, max: 0.5, color: '#a0fff0', size: 3, grav: 0 });
       return;
     }
     if (variant === 'digger') {
@@ -1041,6 +1083,10 @@ export class Game {
   }
 
   private drawProjectile(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
+    if (e.c === 'hook' && e.o !== undefined) {
+      const ow = this.ents.get(e.o);
+      if (ow) { ctx.fillStyle = '#8a8a94'; const n = Math.ceil(Math.hypot(e.rx - ow.rx, e.ry - ow.ry) / 9); for (let i = 0; i < n; i++) { const t = i / n; ctx.fillRect(Math.round((ow.rx + (e.rx - ow.rx) * t) / 3) * 3, Math.round((ow.ry - 40 + (e.ry - ow.ry) * t) / 3) * 3, 3, 3); } }
+    }
     if (e.c === 'sandstorm') { this.effects.drawStorm(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     if (e.c === 'wave') { this.effects.drawWave(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     const big = e.c.startsWith('bigpotion');
@@ -1058,7 +1104,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'skull' ? '#a050ff' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1183,9 +1229,11 @@ export class Game {
 }
 
 /** Lo que no sangra al golpearlo: el Árbol maldito y sus plantas. */
-const WOODY = new Set(['tree', 'wall', 'turret', 'flower']);
+const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
+/** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
+const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1216,6 +1264,7 @@ const TAUNTS: Record<CharacterId, string> = {
   succubus: 'Mua ♥',
   poltergeist: '¡BUUU!',
   tree: '¡Yo soy... madera!',
+  pirate: '¡Arrr, marinero!',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

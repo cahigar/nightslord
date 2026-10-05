@@ -680,15 +680,16 @@ export class Effects {
 
   private fatboom(ev: FxEv) {
     const R = ev.r ?? 120;
+    const powder = ev.c === 'powder'; // barril de pólvora del pirata
     this.add(0.6, 'ground', (ctx, k) => {
       ctx.globalAlpha = 0.6 * (1 - k);
-      ctx.fillStyle = '#5a8a20';
+      ctx.fillStyle = powder ? '#3a2010' : '#5a8a20';
       ctx.beginPath(); ctx.ellipse(ev.x, ev.y, R * (0.4 + k * 0.6), R * 0.6 * (0.4 + k * 0.6), 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     });
-    this.burst(ev.x, ev.y - 30, 50, ['#a0e040', '#6a9a20', '#7a1010', '#c0ff60'], 340, 4, 260, 0.9);
-    this.burst(ev.x, ev.y - 30, 14, ['#e0ff80'], 200, 3, 0, 0.5, true);
-    this.ripple(ev.x, ev.y, '#c0ff60', 0.5, R);
+    this.burst(ev.x, ev.y - 30, 50, powder ? ['#ff8020', '#ffd040', '#3a3430', '#c02010'] : ['#a0e040', '#6a9a20', '#7a1010', '#c0ff60'], 340, 4, 260, 0.9);
+    this.burst(ev.x, ev.y - 30, 14, [powder ? '#fff0a0' : '#e0ff80'], 200, 3, 0, 0.5, true);
+    this.ripple(ev.x, ev.y, powder ? '#ffb040' : '#c0ff60', 0.5, R);
   }
 
   private meatThrow(ev: FxEv) {

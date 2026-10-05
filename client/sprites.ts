@@ -598,6 +598,40 @@ const treeForm: FormFn = (b, p, c, anim, tier) => {
   void anim;
 };
 
+const pirateForm: FormFn = (b, p, c, _anim, tier) => {
+  // Capitán Ahogado: fantasma de piel azulada, tricornio con calavera, casaca larga, garfio y pata de palo
+  const by = p.by, sw = p.sway ?? 0;
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin);
+  // pierna trasera de palo, delantera con bota
+  const pl = p.ll, pr = p.rl;
+  b.rect(9 + Math.round(pl[0] / 3), HIP, 3, 4, c.cloth2); b.line(10 + pl[0], HIP + 4, 10 + pl[0], FLOOR - pl[1], '#7a5a34'); b.set(10 + pl[0], FLOOR - pl[1], '#4a3420');
+  b.rect(12 + Math.round(pr[0] / 3), HIP, 3, 4, c.cloth2); b.rect(12 + pr[0], HIP + 4, 3, FLOOR - HIP - 5 - pr[1], '#1a1410'); b.rect(12 + pr[0], FLOOR - 1 - pr[1], 4, 2, '#1a1410');
+  // casaca con faldones
+  torso(b, by, c.cloth, { bottom: HIP + 3 });
+  b.rect(7 - sw, HIP, 2, 4, c.cloth); b.rect(15, HIP, 2, 4, shade(c.cloth, -0.15));
+  b.rect(11, 12 + by, 2, 8, '#d8d0c0'); // camisa
+  for (let y = 13; y < 21; y += 3) { b.set(10, y + by, c.accent); b.set(13, y + by, c.accent); } // botones dorados
+  b.rect(8, 19 + by, 8, 1, '#3a2418'); b.set(12, 19 + by, c.accent); // cinturón
+  // cabeza: piel ahogada, barba revuelta
+  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'short', eyeGlow: true, beard: shade(c.hair, 0.15) });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 4, Y + 4, 3, 2, '#141414'); // parche
+  b.line(X + 3, Y + 3, X + 8, Y + 2, '#141414');
+  // tricornio
+  b.rect(X - 2, Y, 14, 2, c.cloth2); b.rect(X, Y - 2, 10, 2, c.cloth2); b.set(X - 3, Y - 1, c.cloth2); b.set(X + 12, Y - 1, c.cloth2);
+  b.rect(X - 2, Y + 1, 14, 1, c.accent); // ribete
+  b.rect(X + 4, Y - 2, 2, 2, '#e8e8e0'); b.set(X + 4, Y - 1, '#141414'); // calavera
+  // algas y gotas: lleva siglos bajo el mar
+  b.set(7, 17 + by, '#3a7a5a'); b.set(8, 21, '#3a7a5a'); b.set(16, 14 + by, '#3a7a5a');
+  if (tier >= 1) b.set(X + 7, Y + 5, shade(c.eye, 0.3), true);
+  if (tier >= 2) { b.set(X + 4, Y - 2, c.eye, true); b.set(X + 5, Y - 2, c.eye, true); } // la calavera brilla
+  if (tier >= 3) for (const [x, y] of [[6, 10], [17, 18], [5, 24]]) b.set(x, y + by, c.eye, true); // fuegos fatuos
+  // brazo delantero con garfio
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, c.cloth);
+  const hx = 13 + Math.sin(p.ra) * 8, hy = 13 + by + Math.cos(p.ra) * 8;
+  b.set(hx, hy, '#c0c0c8'); b.set(hx + 1, hy + 1, '#c0c0c8'); b.set(hx + 2, hy, '#e0e0e8', false, true); b.set(hx + 2, hy - 1, '#c0c0c8');
+};
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -664,7 +698,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
-  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm,
+  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -996,6 +1030,9 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   spirits: { art: ['...pp.....', '..pwwwp...', '.pwwwwwp..', '.pwkwwkwp.', '.pwwwwwwp.', '..pwkkwp..', '...pwwp...', '..p.p.p...', '.p..p..p..', '....p.....'], pal: { p: '#7a30c0', w: '#e8f0e0', k: '#a050ff' }, glow: 'k' },
   boots: { art: ['..bbb.....', '..bBb.....', '..bBb.....', '..bBb.....', '..bBbb....', '..bBBBbb..', '.bBBBBBBb.', '.ssssssss.', '.y.y.y.y..'], pal: { b: '#4a2a18', B: '#7a4a28', s: '#2a1a10', y: '#ffd040' }, glow: 'y' },
   shovel: { art: ['....h.....', '....h.....', '....h.....', '....h.....', '....h.....', '...mmm....', '..mMMMm...', '..mMMMm...', '..mMMMm...', '...mmm....'], pal: { h: '#7a5030', m: '#6a6a74', M: '#a8a8b4' } },
+  hook: { art: ['..ss..', '.s..s.', 's....s', '.....s', '....s.', 'cccs..'], pal: { s: '#c0c0c8', c: '#6a6a74' } },
+  cannon: { art: ['.kkk.', 'kKkkk', 'kkkkk', 'kkkkk', '.kkk.'], pal: { k: '#2a2a30', K: '#8a8a94' } },
+  barrel: { art: ['.bbbbbb.', 'bmmmmmmb', 'bBBBBBBb', 'bBBkBBBb', 'bmmmmmmb', 'bBBBBBBb', 'bBBBBBBb', 'bmmmmmmb', '.bbbbbb.', '....f...', '....F...'], pal: { b: '#3a2414', B: '#7a4a28', m: '#5a5a62', k: '#1a1010', f: '#d8c8a0', F: '#ffb020' }, glow: 'F' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

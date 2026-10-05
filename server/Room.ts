@@ -30,8 +30,13 @@ const MINION_STATS: Record<MinionVariant, { hp: number; speed: number; dmg: numb
   ...BAL.zombie.minion, clone: STATUS.clone, thrall: BAL.succubus.thrall,
   wall: plant(TR.wall.hp), turret: plant(TR.turret.hp), flower: plant(TR.flower.hp),
   digger: ITEMS.digger,
+  barrel: plant(1), buccaneer: BAL.pirate.buccaneer, spiderling: BAL.spider.spiderling,
+  decoy: plant(BAL.scarecrow.decoy.hp), slimelet: BAL.slime.slimelet, beacon: plant(BAL.alien.beacon.hp),
 };
-const PLANT_R: Partial<Record<MinionVariant, number>> = { wall: TR.wall.r, turret: TR.turret.r, flower: TR.flower.r };
+/** Radio de los esbirros que no tienen el de un humano. */
+const MINION_R: Partial<Record<MinionVariant, number>> = { wall: TR.wall.r, turret: TR.turret.r, flower: TR.flower.r, barrel: 14, spiderling: 9, slimelet: 12, beacon: 12, decoy: PLAYER_RADIUS, fat: 18, tough: 16 };
+/** Esbirros con su propio tope (no cuentan con la horda de zombis). */
+const OWN_GROUP = new Set<MinionVariant>(['clone', 'digger', 'wall', 'turret', 'flower', 'barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 /** Esbirro inmóvil (planta): no le afectan empujones, rabia, engatusar ni maleficios. */
 const isStatic = (m: Mob) => m.kind === Kind.Minion && MINION_STATS[(m as Minion).variant].speed === 0;
 
@@ -503,13 +508,13 @@ export class Room {
 
   spawnMinion(owner: Player, x: number, y: number, variant: MinionVariant, look: string, lookSeed: number, life: number, chain: boolean, capOverride?: number): Minion {
     const cap = capOverride ?? (owner.ultT > 0 ? ZB.maxMinionsUlt : ZB.maxMinions);
-    const group = (v: MinionVariant) => (v === 'clone' || v === 'digger' ? v : PLANT_R[v] ? v : 'horde'); // cada tipo de planta (y el enterrador) cuenta aparte
+    const group = (v: MinionVariant) => (OWN_GROUP.has(v) ? v : 'horde');
     const mine = this.minionsOf(owner.id).filter((m) => group(m.variant) === group(variant)).sort((a, b) => a.born - b.born);
     while (mine.length >= cap) { const old = mine.shift()!; old.life = 0; this.kill(old, { name: '', kind: Kind.Minion }); }
     const st = MINION_STATS[variant];
     const m: Minion = {
       ...mobStatus(),
-      id: this.nextId++, kind: Kind.Minion, x, y, r: PLANT_R[variant] ?? (variant === 'fat' ? 18 : variant === 'tough' ? 16 : NPC_RADIUS), facing: owner.facing,
+      id: this.nextId++, kind: Kind.Minion, x, y, r: MINION_R[variant] ?? NPC_RADIUS, facing: owner.facing,
       hp: st.hp, maxHp: st.hp, anim: Anim.Cast, animSeq: 1, animUntil: this.time + 0.5, moving: false,
       owner: owner.id, variant, look, lookSeed, life, chain, target: -1, thinkT: 0, atkCd: 0.6, speed: st.speed, swellT: 0, born: this.time,
     };
@@ -2106,7 +2111,7 @@ export class Room {
       for (const u of this.powerups.values()) if (inView(u.x, u.y)) ents.push({ i: u.id, k: Kind.PowerUp, x: Math.round(u.x), y: Math.round(u.y), f: 1, a: Anim.Idle, q: 0, c: u.type });
       for (const pr of this.projectiles.values()) {
         if (!inView(pr.x, pr.y)) continue;
-        ents.push({ i: pr.id, k: Kind.Projectile, x: Math.round(pr.x), y: Math.round(pr.y), f: pr.vx >= 0 ? 1 : -1, a: Anim.Idle, q: 0, c: pr.type, r: +Math.atan2(pr.vy, pr.vx).toFixed(2) });
+        ents.push({ i: pr.id, k: Kind.Projectile, x: Math.round(pr.x), y: Math.round(pr.y), f: pr.vx >= 0 ? 1 : -1, a: Anim.Idle, q: 0, c: pr.type, r: +Math.atan2(pr.vy, pr.vx).toFixed(2), o: pr.owner });
       }
       const ev: GameEvent[] = [];
       for (const e of events) if (e.global || inView(e.x, e.y)) ev.push(e.ev);
