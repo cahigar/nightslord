@@ -2050,6 +2050,9 @@ export class Room {
     else if (m.kind === Kind.Minion) {
       const mn = m as Minion;
       s.c = mn.variant; s.s = mn.look; s.l = mn.lookSeed; s.o = mn.owner;
+      // señuelo del Segador: se envía EXACTAMENTE como su dueño
+      const ow = mn.variant === 'decoy' ? this.findPlayerById(mn.owner) : null;
+      if (ow) { s.k = Kind.Player; s.c = ow.char; s.s = ow.skin; s.n = ow.name; s.l = ow.level; s.h = s.h ?? 100; delete s.o; }
     } else {
       const p = m as Player;
       s.c = p.char; s.s = p.skin; s.n = p.name; s.l = p.level;
@@ -2126,7 +2129,8 @@ export class Room {
       addB('protect', me.protectT); addB('slow', me.slowT); addB('stun', me.stunT);
       addB('frenzy', me.frenzyT); addB('haste', me.killSpeedT); addB('vuln', me.vulnT); addB('tomb', me.entombT);
       addB('weak', me.weakT); addB('dive', me.submergeT);
-      addB('hex', me.hexT); addB('poison', me.poisonT); addB('root', me.rootT);
+      addB('hex', me.hexT); addB('poison', me.poisonT);
+      if ((me.k.plantEnd ?? 0) > this.time) addB('planted', me.k.plantEnd - this.time); else addB('root', me.rootT);
       addB('burn', me.burnT); addB('silence', me.silenceT); addB('blind', me.blindT); addB('fear', me.fearT);
       addB('spirits', me.spiritsT); addB(['bootsFire', 'bootsNature', 'bootsWater'][me.bootsKind], me.bootsT);
       addB('sleep', me.sleepT); addB('rage', me.rageT); addB('charm', me.charmT); addB('bleed', me.bleedT); addB('fly', me.flyT); addB('phase', me.phaseT);

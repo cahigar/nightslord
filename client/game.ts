@@ -470,6 +470,8 @@ export class Game {
     cones.sort((a, b) => (a.x - me.x) ** 2 + (a.y - me.y) ** 2 - ((b.x - me.x) ** 2 + (b.y - me.y) ** 2));
     cones.length = Math.min(cones.length, 5);
 
+    // trigo alto de la Cosecha: tapa a quien esté dentro
+    for (const e of this.ents.values()) if (e.k === Kind.Zone && e.c === 'wheat' && inView(e.rx, e.ry)) this.effects.drawWheat(ctx, e.rx, e.ry, e.rr ?? 300, (e.h ?? 100) / 100, now, e.id % 97);
     // proyectiles y efectos
     this.effects.draw(ctx, 'top', now);
     for (const e of this.ents.values()) if (e.k === Kind.Projectile && inView(e.rx, e.ry)) this.drawProjectile(ctx, e, now, glows);
@@ -1097,6 +1099,18 @@ export class Game {
       const ow = this.ents.get(e.o);
       if (ow) { ctx.fillStyle = '#8a8a94'; const n = Math.ceil(Math.hypot(e.rx - ow.rx, e.ry - ow.ry) / 9); for (let i = 0; i < n; i++) { const t = i / n; ctx.fillRect(Math.round((ow.rx + (e.rx - ow.rx) * t) / 3) * 3, Math.round((ow.ry - 40 + (e.ry - ow.ry) * t) / 3) * 3, 3, 3); } }
     }
+    if (e.c === 'crows' || e.c === 'crowsback') {
+      // bandada de cuervos
+      for (let i = 0; i < 7; i++) {
+        const img = getItem(`crow${Math.floor(now / 80 + i) % 2}`);
+        const ox = Math.cos(i * 2.4 + now / 300) * 18, oy = Math.sin(i * 1.7 + now / 250) * 12;
+        const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
+        ctx.drawImage(img.base, e.rx + ox - w / 2, e.ry - 40 + oy - h / 2, w, h);
+        if (img.glow) glows.push({ img: img.glow, x: e.rx + ox - w / 2, y: e.ry - 40 + oy - h / 2, w, h, flip: false, a: 1 });
+      }
+      if (Math.random() < 0.3) this.particles.push({ x: e.rx, y: e.ry - 40, vx: 0, vy: 20, life: 0.6, max: 0.6, color: '#141018', size: 3, grav: 60 });
+      return;
+    }
     if (e.c === 'sandstorm') { this.effects.drawStorm(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     if (e.c === 'wave') { this.effects.drawWave(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     const big = e.c.startsWith('bigpotion');
@@ -1243,7 +1257,7 @@ const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
 const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1276,6 +1290,7 @@ const TAUNTS: Record<CharacterId, string> = {
   tree: '¡Yo soy... madera!',
   pirate: '¡Arrr, marinero!',
   spider: 'Ven a mi tela...',
+  scarecrow: '¡Bu! ...¿Asustado?',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

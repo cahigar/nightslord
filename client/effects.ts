@@ -250,10 +250,12 @@ export class Effects {
       case 'rooted': this.rootedFx(ev); break;
       case 'treeFire': this.burst(x, y - 20, 30, ['#ff6020', '#ffd040', '#c02010', '#3a3430'], 220, 4, -60, 0.9, true); this.ripple(x, y, '#ff8020', 0.5, (ev.r ?? 30) + 30); break;
       case 'shock': this.shockFx(ev); break;
+      case 'scare': this.ripple(x, y - 20, '#ffb020', 0.6, ev.r ?? 200); this.burst(x, y - 50, 10, ['#141018', '#2a2030'], 200, 3, -40, 0.8); break;
       case 'leapLand': this.burst(x, y, 16, this.terrainColors(x, y), 180, 3, 400, 0.5); this.ripple(x, y, '#e8e8f0', 0.4, ev.r ?? 120); break;
       case 'sprout': this.burst(x, y - 10, 22, ['#5a4632', '#2e4a24', '#a0e040', '#4a7a34'], 200, 3, 400, 0.6); this.ripple(x, y, '#a0e040', 0.5, 40); break;
       case 'bramble': this.brambleFx(ev); break;
-      case 'forest': this.burst(x, y - 30, 50, ['#2e4a24', '#4a7a34', '#a0e040', '#5a4632'], 420, 4, 200, 1, false); this.ripple(x, y, '#a0e040', 0.9, ev.r ?? 320); break;
+      case 'forest': if (ev.c === 'wheat') { this.burst(x, y - 30, 60, ['#e0c050', '#c8a040', '#8a6a20'], 420, 4, 200, 1); this.ripple(x, y, '#e0c050', 0.9, ev.r ?? 320); break; }
+        this.burst(x, y - 30, 50, ['#2e4a24', '#4a7a34', '#a0e040', '#5a4632'], 420, 4, 200, 1, false); this.ripple(x, y, '#a0e040', 0.9, ev.r ?? 320); break;
       case 'phase': this.burst(x, y - 40, 16, ['#e8ecf4', '#a0e8ff', '#8a98b0'], 120, 3, -40, 0.6, true); this.ripple(x, y - 30, '#c0e8ff', 0.5, 40); break;
       case 'objSpawn': this.objSpawn(ev); break;
       case 'drainBeam': this.drainBeam(ev); break;
@@ -938,6 +940,27 @@ export class Effects {
     this.ripple(ev.x, ev.y, '#c8f0ff', 0.5, R * 0.6);
   }
 
+  /** Trigo alto de la Cosecha (se dibuja encima de los personajes y se mece con el viento). */
+  drawWheat(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, life: number, now: number, seed: number) {
+    const fade = Math.min(1, life * 5, (1 - life) * 6 + 0.3);
+    const step = 15;
+    for (let gy = -r * 0.62; gy <= r * 0.62; gy += step * 0.62) for (let gx = -r; gx <= r; gx += step) {
+      if ((gx / r) ** 2 + (gy / (r * 0.62)) ** 2 > 1) continue;
+      const h0 = hash2(gx, gy, seed);
+      const px = x + gx + (h0 - 0.5) * 10, py = y + gy;
+      const h = 36 + h0 * 22;
+      const sway = Math.round(Math.sin(now / 600 + gx / 60 + gy / 90) * 2);
+      ctx.globalAlpha = 0.88 * fade;
+      ctx.fillStyle = h0 < 0.5 ? '#a8862c' : '#c8a040';
+      ctx.fillRect(snap(px), snap(py - h), PIXEL, snap(h));
+      ctx.fillStyle = '#e0c050';
+      ctx.fillRect(snap(px) + sway * PIXEL, snap(py - h - 9), PIXEL * 2, 9); // espiga
+      ctx.fillStyle = '#f0d870';
+      ctx.fillRect(snap(px) + sway * PIXEL, snap(py - h - 9), PIXEL, PIXEL);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /** Zarzas: raíces con espinas que revientan del suelo. */
   private brambleFx(ev: FxEv) {
     const R = ev.r ?? 110;
@@ -1188,6 +1211,11 @@ export class Effects {
       ctx.fillStyle = '#f0f0f8';
       const n = Math.ceil(Math.hypot(bx - x, by - y) / PIXEL);
       for (let j = 0; j <= n; j++) { const t = j / n; ctx.fillRect(snap(x + (bx - x) * t), snap(y + (by - y) * t + Math.sin(t * Math.PI) * 6), PIXEL, PIXEL); if (j % 6 === 0) ctx.fillRect(snap(x + (bx - x) * t), snap(y + (by - y) * t + Math.sin(t * Math.PI) * 6) + PIXEL * 2, PIXEL, PIXEL); }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'wheat') {
+      ctx.globalAlpha = 0.55 * Math.min(1, life * 5);
+      ctx.fillStyle = '#5a4a1a';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     } else if (kind === 'snare') {
       // trampa de raíces de las botas de naturaleza

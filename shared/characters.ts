@@ -3,7 +3,7 @@
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
-  | 'pirate' | 'spider';
+  | 'pirate' | 'spider' | 'scarecrow';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -430,6 +430,30 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Reina de la colmena', desc: 'El salto tiene 2 cargas y al caer aterroriza a los enemigos cercanos, que huyen.' },
     ],
   },
+  scarecrow: {
+    id: 'scarecrow',
+    name: 'El Segador',
+    title: 'Espantapájaros',
+    hp: 120,
+    speed: 200,
+    damage: 21,
+    range: 70,
+    arc: Math.PI * 0.9,
+    attackCd: 0.7,
+    armor: 0.05,
+    attackName: 'Guadaña',
+    passive: 'Acecho: si se queda quieto 5 s, su siguiente golpe hace un 80 % más de daño (le dura hasta 3 s después de moverse).',
+    abilities: [
+      { key: 'Q', name: 'Cuervos', desc: 'Una bandada en línea recta que daña y ciega a quien atraviesa.', cooldown: 7 },
+      { key: 'E', name: 'Plantarse', desc: 'Se clava en el suelo: inmóvil y muy resistente 2,5 s; los enemigos cercanos huyen aterrorizados.', cooldown: 11 },
+    ],
+    ult: { key: 'R', name: 'La Cosecha', desc: 'Crece trigo alto a su alrededor 8 s: dentro es más rápido, pega más y es invisible hasta que ataca.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Campo de espantapájaros', desc: 'Aparecen por el mapa espantapájaros iguales a él que no hacen nada (máx. 3); asustan un poco al aparecer.' },
+      { lvl: 10, name: 'La Cosecha', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Bandada de retorno', desc: 'Los cuervos vuelven hacia él y Plantarse tiene 2 cargas.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -537,6 +561,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Viuda negra', price: 0, palette: { skin: '#d8ccd8', hair: '#140c18', cloth: '#1e1424', cloth2: '#0e0812', accent: '#e01830', eye: '#ff2040' } },
     { id: 'tarantula', name: 'Tarántula', price: 200, palette: { skin: '#c8a888', hair: '#3a2010', cloth: '#4a2a18', cloth2: '#2a160a', accent: '#ff8020', eye: '#ffb030' } },
     { id: 'cave', name: 'De las cuevas', price: 350, palette: { skin: '#b8e0d0', hair: '#e8f0f0', cloth: '#2a3a3a', cloth2: '#16201f', accent: '#60ffd0', eye: '#a0fff0' } },
+  ],
+  scarecrow: [
+    { id: 'classic', name: 'Saco viejo', price: 0, palette: { skin: '#c8a870', hair: '#e0c050', cloth: '#5a6a8a', cloth2: '#3a2a1a', accent: '#a02020', eye: '#ffb020' } },
+    { id: 'pumpkin', name: 'Calabaza', price: 200, palette: { skin: '#e07020', hair: '#c8a040', cloth: '#4a3a5a', cloth2: '#2a1a12', accent: '#40a030', eye: '#ffe040' } },
+    { id: 'blight', name: 'Plaga', price: 350, palette: { skin: '#8a8a7a', hair: '#6a6a50', cloth: '#2a2a2a', cloth2: '#141414', accent: '#60c040', eye: '#a0ff40' } },
   ],
 };
 

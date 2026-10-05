@@ -678,6 +678,44 @@ export function getSpiderling(frame: number): Baked {
   return spiderlingCache[f];
 }
 
+const scarecrowForm: FormFn = (b, p, c, anim, tier) => {
+  // El Segador: saco cosido por cabeza bajo un sombrero de paja, camisa a cuadros remendada, paja asomando y guadaña
+  const by = p.by, sw = p.sway ?? 0;
+  const straw = c.hair, strawD = shade(c.hair, -0.3);
+  arm(b, 10, 13 + by, p.la, 7, c.cloth, straw);
+  // piernas de palo con paja en los bajos
+  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, strawD, { width: 3 });
+  for (const [x, l] of [[9, p.ll], [12, p.rl]] as [number, [number, number]][]) { b.set(x + l[0] - 1, FLOOR - 2 - l[1], straw); b.set(x + l[0] + 3, FLOOR - 3 - l[1], straw); }
+  torso(b, by, c.cloth, { bottom: HIP + 1 });
+  for (let y = 12; y <= HIP; y += 3) b.line(8, y + by, 15, y + by, shade(c.cloth, -0.25)); // cuadros
+  for (const x of [10, 13]) b.line(x, 12 + by, x, HIP + by, shade(c.cloth, -0.25));
+  b.rect(13, 16 + by, 3, 3, c.accent); b.set(14, 17 + by, shade(c.accent, -0.3)); // remiendo
+  b.rect(8, HIP - 1 + by, 8, 1, '#5a3a1a'); // cuerda
+  b.set(7, 13 + by, straw); b.set(6, 14 + by, straw); b.set(16, 13 + by, straw); b.set(8, HIP + 1, straw); b.set(15, HIP + 2, straw); // paja que asoma
+  // cabeza de saco
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X + 1, Y + 1, 8, 9, c.skin); b.rect(X, Y + 2, 10, 6, c.skin); b.rect(X + 2, Y + 10, 6, 1, c.skin);
+  b.rect(X + 3, Y + 10, 4, 1, '#5a3a1a'); b.set(X + 2, Y + 11, straw); b.set(X + 7, Y + 11, straw); // cuello atado
+  // ojos recortados que brillan y boca cosida
+  if (!p.blink) { b.rect(X + 5, Y + 4, 2, 2, '#140c08'); b.rect(X + 8, Y + 4, 2, 2, '#140c08'); b.set(X + 6, Y + 5, c.eye, true); b.set(X + 9, Y + 5, c.eye, true); }
+  b.line(X + 4, Y + 8, X + 9, Y + 8, '#3a2414');
+  for (const x of [X + 5, X + 7, X + 9]) b.set(x, p.mouth ? Y + 9 : Y + 7, '#3a2414');
+  // sombrero de paja
+  b.rect(X - 2, Y + 1, 14, 1, straw); b.rect(X - 1, Y + 2, 1, 1, strawD); b.rect(X + 1, Y - 2, 8, 3, straw); b.rect(X + 2, Y - 3, 6, 1, strawD);
+  b.rect(X + 1, Y, 8, 1, c.accent);
+  if (tier >= 1) { b.set(X + 5, Y + 4, c.eye, true); b.set(X + 8, Y + 4, c.eye, true); }
+  if (tier >= 2) { b.set(X + 3, Y - 4, '#141018'); b.set(X + 4, Y - 4, '#141018'); b.set(X + 4, Y - 5, '#141018'); } // un cuervo posado
+  if (tier >= 3) for (const [x, y] of [[5, 12], [18, 15], [6, 22]]) b.set(x, y + by, c.eye, true); // ascuas en la paja
+  // guadaña en la mano delantera
+  arm(b, 13, 13 + by, p.ra, 7, c.cloth, straw);
+  const hx = 13 + Math.sin(p.ra) * 8, hy = 13 + by + Math.cos(p.ra) * 8;
+  const ux = Math.sin(p.ra + 0.4), uy = Math.cos(p.ra + 0.4);
+  b.line(hx - ux * 6, hy - uy * 6, hx + ux * 7, hy + uy * 7, '#5a3a1a'); // mango
+  const tx = hx - ux * 6, ty = hy - uy * 6;
+  for (let i = 0; i < 7; i++) b.set(tx + 1 + i, ty - 1 + Math.round(i * i * 0.08), i < 5 ? '#c8c8d0' : '#e8e8f0', tier >= 2 && i === 6); // hoja curva
+  void sw; void anim;
+};
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -744,7 +782,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
-  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm,
+  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -1080,6 +1118,8 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   cannon: { art: ['.kkk.', 'kKkkk', 'kkkkk', 'kkkkk', '.kkk.'], pal: { k: '#2a2a30', K: '#8a8a94' } },
   barrel: { art: ['.bbbbbb.', 'bmmmmmmb', 'bBBBBBBb', 'bBBkBBBb', 'bmmmmmmb', 'bBBBBBBb', 'bBBBBBBb', 'bmmmmmmb', '.bbbbbb.', '....f...', '....F...'], pal: { b: '#3a2414', B: '#7a4a28', m: '#5a5a62', k: '#1a1010', f: '#d8c8a0', F: '#ffb020' }, glow: 'F' },
   web: { art: ['w..w..w', '.w.w.w.', '..www..', 'wwwWwww', '..www..', '.w.w.w.', 'w..w..w'], pal: { w: '#e8e8f0', W: '#ffffff' } },
+  crow0: { art: ['k.....k', 'kk...kk', '.kkkkk.', '..kRk..', '...k...'], pal: { k: '#141018', R: '#ff3020' }, glow: 'R' },
+  crow1: { art: ['.......', '.kkkkk.', 'kkkkkkk', 'k.kRk.k', '...k...'], pal: { k: '#141018', R: '#ff3020' }, glow: 'R' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

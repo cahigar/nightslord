@@ -8,6 +8,7 @@ import { nightmareKit } from './nightmare';
 import { pirateKit } from './pirate';
 import { poltergeistKit } from './poltergeist';
 import { reanimatedKit } from './reanimated';
+import { scarecrowKit } from './scarecrow';
 import { spiderKit } from './spider';
 import { succubusKit } from './succubus';
 import { treeKit } from './tree';
@@ -35,6 +36,7 @@ export const KITS: Record<CharacterId, Kit> = {
   tree: treeKit,
   pirate: pirateKit,
   spider: spiderKit,
+  scarecrow: scarecrowKit,
 };
 setKits(KITS); // Doppy necesita los kits de los demás para imitarlos
 
