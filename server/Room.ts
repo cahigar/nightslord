@@ -427,7 +427,7 @@ export class Room {
       ...mobStatus(),
       id: this.nextId++, kind: Kind.Hunter, x: pos.x, y: pos.y, r: def.r, facing: 1, hp: def.hp, maxHp: def.hp,
       anim: Anim.Idle, animSeq: 0, animUntil: 0, moving: false, type, def,
-      lungeT: 0, lungeCd: 2, ldx: 0, ldy: 0, potionCd: 1.5, ritualT: 0, ritualCd: 8 + Math.random() * 6, fleeT: 0, ritualZone: -1,
+      lungeT: 0, lungeCd: 2, ldx: 0, ldy: 0, potionCd: 1.5, flyT: 0, flyTotal: 0, stuckT: 0, bestD: Infinity, ritualT: 0, ritualCd: 8 + Math.random() * 6, fleeT: 0, ritualZone: -1,
       target: -1, thinkT: 0, shootCd: 1, meleeCd: 0, tx: pos.x, ty: pos.y, strafe: Math.random() < 0.5 ? 1 : -1,
     };
     this.hunters.set(h.id, h);
@@ -972,8 +972,8 @@ export class Room {
       const sc = h.type === 'inquisidor' || h.type === 'heraldo' ? d - p.level * ORDER.levelBias : d;
       if (sc < score) { score = sc; best = p; }
     }
-    if (h.type !== 'heraldo') for (const n of this.npcs.values()) {
-      if (n.disguiseT <= 0) continue;
+    for (const n of this.npcs.values()) {
+      if (n.disguiseT <= 0) continue; // clones de la Dama: también para el heraldo
       const d = Math.sqrt(dist2(h.x, h.y, n.x, n.y));
       if (d < 460 && d < score && this.grid.lineOfSight(h.x, h.y, n.x, n.y)) { score = d; best = n; }
     }
@@ -1072,7 +1072,53 @@ export class Room {
       const d = Math.hypot(dx, dy);
       if (d > 8) { mx = dx / d; my = dy / d; h.facing = dx >= 0 ? 1 : -1; }
     }
+    if (h.type === 'heraldo') { this.heraldFlight(h, t, mx, my, speed, dt); return; }
     this.moveHunter(h, mx, my, speed, dt, !!t);
+  }
+
+  /** Heraldo: si no consigue acercarse (obstáculos, agua...), alza el vuelo y los atraviesa; aterriza siempre en un sitio libre. */
+  private heraldFlight(h: Hunter, t: Mob | null, mx: number, my: number, speed: number, dt: number) {
+    if (h.flyT > 0) {
+      h.flyT -= dt; h.flyTotal += dt;
+      h.moving = mx !== 0 || my !== 0;
+      h.x = Math.max(h.r, Math.min(MAP_SIZE - h.r, h.x + mx * speed * 1.3 * dt));
+      h.y = Math.max(h.r, Math.min(MAP_SIZE - h.r, h.y + my * speed * 1.3 * dt));
+      if (h.flyT <= 0) {
+        if (this.grid.blocked(h.x, h.y, h.r) && h.flyTotal < 6) h.flyT = 0.3; // sigue planeando hasta un hueco libre
+        else {
+          if (this.grid.blocked(h.x, h.y, h.r)) { const f = this.findFreeSpot(h.x, h.y, h.r); h.x = f.x; h.y = f.y; }
+          h.flyTotal = 0; h.stuckT = 0; h.bestD = Infinity;
+          this.fx('smite', h.x, h.y, { o: h.id }); // aterrizaje
+        }
+      }
+      return;
+    }
+    const before = { x: h.x, y: h.y };
+    this.moveHunter(h, mx, my, speed, dt, !!t);
+    if (!t) { h.stuckT = 0; h.bestD = Infinity; return; }
+    const d = Math.hypot(t.x - h.x, t.y - h.y);
+    const moved = Math.hypot(h.x - before.x, h.y - before.y);
+    // sin progreso hacia el objetivo durante un rato → volar
+    if (d < h.bestD - 6) { h.bestD = d; h.stuckT = 0; }
+    else if (d > h.r + t.r + h.def.reach + 10) h.stuckT += dt * (moved < speed * dt * 0.5 ? 2 : 1);
+    if (h.stuckT > 1.2) {
+      h.flyT = 2.5; h.flyTotal = 0; h.stuckT = 0; h.bestD = Infinity;
+      this.fx('descend', h.x, h.y, { o: h.id });
+    }
+  }
+
+  /** Busca el punto libre más cercano (espiral) para no quedarse atrapado al aterrizar. */
+  findFreeSpot(x: number, y: number, r: number): { x: number; y: number } {
+    if (!this.grid.blocked(x, y, r)) return { x, y };
+    for (let rad = 20; rad < 600; rad += 20) {
+      const n = Math.ceil((rad * Math.PI * 2) / 30);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const px = x + Math.cos(a) * rad, py = y + Math.sin(a) * rad;
+        if (px > r && py > r && px < MAP_SIZE - r && py < MAP_SIZE - r && !this.grid.blocked(px, py, r)) return { x: px, y: py };
+      }
+    }
+    return this.findSpawn(0, r);
   }
 
   private moveHunter(h: Hunter, mx: number, my: number, speed: number, dt: number, chasing: boolean) {
@@ -1472,6 +1518,7 @@ export class Room {
     if (m.kind === Kind.Minion && (m as Minion).swellT > 0) f |= Flag.Swollen;
     if (m.kind === Kind.Npc && (m as Npc).infectT > 0) f |= Flag.Infected;
     if (m.kind === Kind.Hunter && (m as Hunter).ritualT > 0) f |= Flag.Ritual;
+    if (m.kind === Kind.Hunter && (m as Hunter).flyT > 0) f |= Flag.Flying;
     if (m.kind === Kind.Player) {
       const p = m as Player;
       if (p.invisKind !== 'none') f |= Flag.Invisible;

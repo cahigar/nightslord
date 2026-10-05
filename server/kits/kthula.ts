@@ -81,7 +81,7 @@ export const kthulaKit: Kit = {
       if (p.jetTick <= 0 && !p.dead && p.submergeT <= 0) {
         p.jetTick = B.jetEvery;
         const a = p.input.a;
-        const x0 = p.x + Math.cos(a) * 16, y0 = p.y + Math.sin(a) * 16;
+        const x0 = p.x + Math.cos(a) * 30, y0 = p.y + Math.sin(a) * 30;
         let len = B.jetRange;
         for (let k = 30; k <= B.jetRange; k += 30) if (room.grid.blocked(p.x + Math.cos(a) * k, p.y + Math.sin(a) * k, 3, true)) { len = k; break; }
         const x1 = p.x + Math.cos(a) * len, y1 = p.y + Math.sin(a) * len;

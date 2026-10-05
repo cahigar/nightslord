@@ -67,7 +67,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | | Ataque | Q | E | R (nv. 10) | Desbloqueo |
 |---|---|---|---|---|---|
 | 🧛 El Conde | Mordisco con robo de vida | Murciélagos | Niebla | Noche Carmesí | gratis |
-| 🐺 Lobo de Luna | Zarpazo amplio | Embestida | Aullido | Luna Llena | gratis |
+| 🐺 Aullador | Zarpazo amplio | Embestida | Aullido | Luna Llena | gratis |
 | ⚱️ Ramsés | Escarabajos a distancia que ralentizan | Vendas | Maldición | Tormenta del Faraón | 250 🪙 o medalla 🏹 |
 | 👻 La Dama Velada | Puñetazo fantasma | Desvestirse | Frenesí invisible | Todos somos la Dama | 400 🪙 o medalla 💀 |
 | 🧟 Paciente Cero | Mordisco infecto | Contagio (convierte a un humano en zombi aliado) | Carne fresca (cebo que atrae a sus zombis) | Salida de la tumba (horda + zombi gordo explosivo) | 350 🪙 o medalla 🍖 |

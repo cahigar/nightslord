@@ -628,7 +628,7 @@ export class Game {
     let scale = e.k === Kind.Hunter && e.c === 'heraldo' ? 1.35 : 1;
     let lift = 0;
     if (e.k === Kind.Hunter && e.c === 'heraldo') {
-      lift = 6 + Math.sin(now / 400 + e.id) * 3; // flota
+      lift = 6 + Math.sin(now / 400 + e.id) * 3 + (e.fl & Flag.Flying ? 34 : 0); // flota (y vuela por encima de obstáculos)
       if (Math.random() < 0.3) this.effects.particles.push({ x: x + (Math.random() - 0.5) * 50, y: y - 20 - Math.random() * 80, vx: 0, vy: -20, life: 0.9, max: 0.9, color: Math.random() < 0.5 ? '#fff0a0' : '#ffffff', size: 3, grav: 0, glow: true });
     }
     if (ult && e.c === 'werewolf') {
@@ -711,7 +711,7 @@ export class Game {
       const a = e.id === this.youId ? this.aim : e.r ?? (e.f === 1 ? 0 : Math.PI);
       let len: number = BAL.kthula.jetRange;
       for (let k = 30; k <= len; k += 30) if (this.grid.blocked(x + Math.cos(a) * k, y + Math.sin(a) * k, 3, true)) { len = k; break; }
-      this.effects.drawJet(ctx, x + Math.cos(a) * 16, y - 34, a, len, now);
+      this.effects.drawJet(ctx, x + Math.cos(a) * 30, y - 58 + Math.sin(a) * 10, a, len, now); // sale de delante de la cabeza, como invocado
     }
     if (fr.glow && alpha > 0.3) glows.push({ img: fr.glow, x: dx, y: dy, w, h, flip, a: Math.min(1, alpha + tier * 0.1) });
 

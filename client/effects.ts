@@ -696,6 +696,12 @@ export class Effects {
         ctx.fillRect(snap(px + nx * k), snap(py + ny * k), PIXEL, PIXEL * 2);
       }
     }
+    // remolino de invocación en el origen
+    for (let i = 0; i < 8; i++) {
+      const aa = now / 90 + (i / 8) * Math.PI * 2;
+      ctx.fillStyle = i % 2 ? '#60e0a0' : '#c8e8f8';
+      ctx.fillRect(snap(x + Math.cos(aa) * 12), snap(y + Math.sin(aa) * 12), PIXEL, PIXEL);
+    }
     // espuma y gotas al final del chorro
     const ex = x + ca * len, ey = y + sa * len * 0.85;
     if (Math.random() < 0.8) this.spray(ex, ey + 30, a + Math.PI, 3, ['#c8e8f8', '#5aa0c8', '#2a6a8a'], 160);

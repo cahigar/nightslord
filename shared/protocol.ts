@@ -22,6 +22,7 @@ export enum Flag {
   Infected = 524288, // humano infectado (se convierte en zombi)
   Jet = 1048576, // K'thula lanzando su chorro (r = ángulo)
   Ritual = 2097152, // sectario en pleno ritual
+  Flying = 4194304, // volando por encima de obstáculos (heraldo, escoba)
 }
 
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp';

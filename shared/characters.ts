@@ -62,7 +62,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   werewolf: {
     id: 'werewolf',
-    name: 'Lobo de Luna',
+    name: 'Aullador',
     title: 'Hombre lobo',
     hp: 130,
     speed: 205,

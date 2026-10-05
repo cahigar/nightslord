@@ -124,6 +124,7 @@ export interface Hunter extends Mob {
   lungeT: number; lungeCd: number; ldx: number; ldy: number; // inquisidor
   potionCd: number; // exorcista
   ritualT: number; ritualCd: number; fleeT: number; ritualZone: number; // sectario
+  flyT: number; flyTotal: number; stuckT: number; bestD: number; // heraldo: vuela si no puede llegar
   target: number;
   thinkT: number;
   shootCd: number;
