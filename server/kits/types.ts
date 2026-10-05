@@ -26,6 +26,8 @@ export interface Kit {
   blockProjectile?(room: Room, p: Player, pr: Projectile): boolean;
   /** Cuando muere uno de sus esbirros. */
   onMinionDeath?(room: Room, p: Player, m: Minion): void;
+  /** Multiplicador del daño que recibe (antes de armaduras y escudos). */
+  damageTakenMul?(room: Room, p: Player): number;
   /** Recibe daño (después de armaduras y escudos). */
   onHurt?(room: Room, p: Player, amount: number): void;
   /** Uno de sus proyectiles termina (impacto, obstáculo o fin del recorrido). */

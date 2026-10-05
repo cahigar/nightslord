@@ -11,7 +11,7 @@ import { Anim, Flag, Kind, type EntSnap, type GameEvent, type ServerMsg, type Yo
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
-import { ANIMS, getCritter, getFrame, getItem, getSarcophagus, npcLook, SH, SW } from './sprites';
+import { ANIMS, getCritter, getFrame, getItem, getPlant, getSarcophagus, npcLook, SH, SW } from './sprites';
 import { LIGHT_COLORS, lightsFor, renderDecor, renderObstacle, renderTV, type Light, type Prerendered } from './tiles';
 
 const INTERP_MS = 120;
@@ -220,7 +220,7 @@ export class Game {
         const mine = ev.t === this.youId;
         if (ev.d > 0) {
           this.floaters.push({ x: ev.x + (Math.random() - 0.5) * 20, y: ev.y - 50, text: String(ev.d), color: mine ? '#ff4050' : ev.crit ? '#ffd040' : '#ffffff', life: 0.9, big: ev.crit });
-          const col = target?.c === 'mummy' ? '#c8b888' : target?.c === 'invisible' ? '#a0d0ff' : '#b0101a';
+          const col = target?.c === 'mummy' ? '#c8b888' : target?.c === 'invisible' || target?.c === 'poltergeist' ? '#a0d0ff' : target && WOODY.has(target.c) ? '#6a5030' : '#b0101a';
           this.burst(ev.x, ev.y - 40, 6, col, 140, 2);
           if (col === '#b0101a') this.splat(ev.x, ev.y, 3 + Math.min(6, ev.d / 6));
         }
@@ -231,12 +231,12 @@ export class Game {
         if (ev.k !== Kind.Player || ev.c) {
           const e = [...this.ents.values()].find((x) => Math.abs(x.rx - ev.x) < 30 && Math.abs(x.ry - ev.y) < 30 && x.k === ev.k);
           if (ev.k === Kind.Minion && e?.c === 'thrall') this.corpses.push({ x: ev.x, y: ev.y, k: Kind.Npc, c: e.s ?? ev.c, f: e.f ?? 1, life: 6, seed: e.l ?? 0 });
-          else if (ev.k === Kind.Minion) { if (e?.c !== 'clone') this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 }); }
+          else if (ev.k === Kind.Minion) { if (e && ['wall', 'turret', 'flower'].includes(e.c)) this.effects.burst(ev.x, ev.y - 20, 18, ['#5a4632', '#2e4a24', '#a0e040'], 160, 3, 400, 0.6); else if (e?.c !== 'clone') this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 }); }
           else this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: ev.c, s: e?.s, f: e?.f ?? 1, life: 6, seed: e?.id ?? 0 });
           if (this.corpses.length > 60) this.corpses.shift();
         }
-        this.burst(ev.x, ev.y - 40, 18, ev.k === Kind.Player ? '#8040ff' : '#b0101a', 220, 3);
-        this.splat(ev.x, ev.y, 14);
+        const woody = ev.k === Kind.Minion && !ev.c; // las plantas no sangran
+        if (!woody) { this.burst(ev.x, ev.y - 40, 18, ev.k === Kind.Player ? '#8040ff' : '#b0101a', 220, 3); this.splat(ev.x, ev.y, 14); }
         if (ev.k === Kind.Player) for (let i = 0; i < 10; i++) this.particles.push({ x: ev.x, y: ev.y - 20, vx: (Math.random() - 0.5) * 40, vy: -60 - Math.random() * 60, life: 1.6, max: 1.6, color: '#c0a0ff', size: 4, grav: -10 });
         break;
       }
@@ -673,7 +673,7 @@ export class Game {
     }
 
     // ---- elementos detrás del personaje (definitivas)
-    let scale = e.k === Kind.Hunter && e.c === 'heraldo' ? 1.35 : isMonster && e.c === 'reanimated' ? 1.18 : 1;
+    let scale = e.k === Kind.Hunter && e.c === 'heraldo' ? 1.35 : isMonster && e.c === 'reanimated' ? 1.18 : isMonster && e.c === 'tree' ? 1.22 : 1;
     let lift = 0;
     if (e.k === Kind.Hunter && e.c === 'heraldo') {
       lift = 6 + Math.sin(now / 400 + e.id) * 3 + (e.fl & Flag.Flying ? 34 : 0); // flota (y vuela por encima de obstáculos)
@@ -838,6 +838,20 @@ export class Game {
   private drawMinion(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     const x = e.rx, y = e.ry;
     const variant = e.c;
+    if (variant === 'wall' || variant === 'turret' || variant === 'flower') {
+      // plantas del Árbol maldito
+      const pl = getPlant(variant, Math.floor(now / 400 + e.id) % 2, e.l === 1);
+      const sc = variant === 'turret' && e.l === 1 ? 1.25 : variant === 'wall' ? 1.3 : 1;
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 22 * sc, 7 * sc, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = e.o === this.youId ? 'rgba(160,224,64,0.7)' : 'rgba(255,110,70,0.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 20 * sc, 7 * sc, 0, 0, Math.PI * 2); ctx.stroke();
+      this.blitFrame(ctx, pl.base, x, y, e.f === -1, sc, 1);
+      if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, pl.base, x, y, e.f === -1, sc, 0.7); ctx.globalCompositeOperation = 'source-over'; }
+      if (pl.glow) glows.push({ img: pl.glow, x: x - (SW * PIXEL * sc) / 2, y: y - SH * PIXEL * sc + 9 * sc, w: SW * PIXEL * sc, h: SH * PIXEL * sc, flip: e.f === -1, a: 0.9 });
+      if (variant === 'flower' && Math.random() < 0.08) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 40, vx: 0, vy: -20, life: 0.8, max: 0.8, color: '#a0ff80', size: 3, grav: 0 });
+      return;
+    }
     if (variant === 'thrall') {
       // humano enamorado de la súcubo: su aspecto de siempre, aro rosa y un corazón que late sobre la cabeza
       const fr = getFrame('npc', e.s ?? 'teen', '', e.a, this.frameFor(e, now), e.l ?? e.id);
@@ -988,7 +1002,7 @@ export class Game {
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1111,7 +1125,10 @@ export class Game {
   get lastSnap() { return this.lastSnapAt; }
 }
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff' };
+/** Lo que no sangra al golpearlo: el Árbol maldito y sus plantas. */
+const WOODY = new Set(['tree', 'wall', 'turret', 'flower']);
+
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1141,6 +1158,7 @@ const TAUNTS: Record<CharacterId, string> = {
   witch: '¡Jijijiji!',
   succubus: 'Mua ♥',
   poltergeist: '¡BUUU!',
+  tree: '¡Yo soy... madera!',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

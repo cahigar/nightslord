@@ -147,6 +147,17 @@ export const BAL = {
     phase: { t: 2.2, tT3: 3.2 }, // E: intangible
     ult: { r: 270, t: 4, dps: 12 }, // R: drenaje (se cura lo drenado)
   },
+  tree: {
+    rootAfter: 1.5, rootRegen: 0.03, rootArmor: 0.25, // pasiva: quieto echa raíces (regenera y aguanta más)
+    lashRootT3: 0.5, // nivel 15: el ramazo enreda
+    bramble: { range: 380, r: 110, dmg: 0.8, root: 1.4, rootT1: 2, zoneT: 4, slowMul: 0.6 }, // Q: zarzas que enredan
+    seedRange: 360, selfR: 110, charges: 2, chargesT3: 3, // E: brotar (flor junto a él · torreta en la vegetación · muro en campo abierto)
+    plantLife: 20, plantLifeT1: 30,
+    wall: { hp: 220, r: 26, cap: 2 },
+    turret: { hp: 70, r: 16, cap: 3, range: 360, cd: 1.1, dmg: 0.35, speed: 560, awakenedMul: 1.25 }, // despertada de un árbol del mapa: más fuerte
+    flower: { hp: 50, r: 12, cap: 1, healR: 220, heal: 0.04, healT1: 0.06 },
+    ult: { r: 320, t: 7, every: 1.4, root: 1, dmg: 0.6, slowMul: 0.6, heal: 0.03 }, // R: Bosque maldito
+  },
 
 };
 

@@ -242,6 +242,10 @@ export class Effects {
       case 'rage': this.rageFx(ev); break;
       case 'wings': this.burst(x, y - 30, 16, ['#ff4a8a', '#ffd0e0', '#4a0a20'], 150, 3, ev.n ? -60 : 120, 0.6, true); this.ripple(x, y - 10, '#ff80b0', 0.4, 40); break;
       case 'thrall': this.thrallFx(ev); break;
+      case 'rooted': this.rootedFx(ev); break;
+      case 'sprout': this.burst(x, y - 10, 22, ['#5a4632', '#2e4a24', '#a0e040', '#4a7a34'], 200, 3, 400, 0.6); this.ripple(x, y, '#a0e040', 0.5, 40); break;
+      case 'bramble': this.brambleFx(ev); break;
+      case 'forest': this.burst(x, y - 30, 50, ['#2e4a24', '#4a7a34', '#a0e040', '#5a4632'], 420, 4, 200, 1, false); this.ripple(x, y, '#a0e040', 0.9, ev.r ?? 320); break;
       case 'phase': this.burst(x, y - 40, 16, ['#e8ecf4', '#a0e8ff', '#8a98b0'], 120, 3, -40, 0.6, true); this.ripple(x, y - 30, '#c0e8ff', 0.5, 40); break;
       case 'objSpawn': this.objSpawn(ev); break;
       case 'drainBeam': this.drainBeam(ev); break;
@@ -886,6 +890,45 @@ export class Effects {
     });
   }
 
+  /** Raíces que trepan por alguien (enredado) o por el Árbol cuando echa raíces (n = 1). Siguen a la entidad. */
+  private rootedFx(ev: FxEv) {
+    const dur = ev.d ?? 1.2;
+    const own = ev.n === 1;
+    this.add(dur, 'top', (ctx, k) => {
+      const pos = (ev.o !== undefined ? this.entPos(ev.o) : null) ?? { x: ev.x, y: ev.y };
+      const grow = Math.min(1, k * dur * 5), fade = own ? Math.min(1, (1 - k) * 4) : Math.min(1, (1 - k) * dur * 4);
+      ctx.globalAlpha = fade;
+      for (let i = 0; i < (own ? 7 : 5); i++) {
+        const side = i % 2 ? 1 : -1, bx = pos.x + side * (6 + ((i * 5) % 12)), h = (own ? 12 : 26 + (i % 3) * 8) * grow;
+        for (let j = 0; j < h; j += PIXEL) {
+          ctx.fillStyle = j % 9 < 3 ? '#2e4a24' : '#5a4632';
+          ctx.fillRect(snap(bx + Math.sin(j / 6 + i) * 4 * -side), snap(pos.y + 2 - j), PIXEL, PIXEL);
+        }
+        if (!own && grow >= 1) { ctx.fillStyle = '#a0e040'; ctx.fillRect(snap(bx), snap(pos.y - h), PIXEL, PIXEL); }
+        if (own) { ctx.fillStyle = '#3a2c20'; ctx.fillRect(snap(bx + side * 6), snap(pos.y + 3), PIXEL * 3, PIXEL); } // raíces que se hunden en el suelo
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Zarzas: raíces con espinas que revientan del suelo. */
+  private brambleFx(ev: FxEv) {
+    const R = ev.r ?? 110;
+    this.burst(ev.x, ev.y, 26, this.terrainColors(ev.x, ev.y).concat(['#5a4632', '#2e4a24']), R * 2, 3, 500, 0.6);
+    const spikes = Array.from({ length: 14 }, (_, i) => ({ a: i * 2.4, d: R * (0.2 + ((i * 37) % 10) / 12), h: 20 + ((i * 13) % 4) * 8 }));
+    this.add(0.7, 'top', (ctx, k) => {
+      const up = k < 0.25 ? k / 0.25 : 1 - (k - 0.25) / 0.75 * 0.6;
+      ctx.globalAlpha = Math.min(1, (1 - k) * 3);
+      for (const s of spikes) {
+        const x = ev.x + Math.cos(s.a) * s.d, y = ev.y + Math.sin(s.a) * s.d * 0.62, h = s.h * up;
+        ctx.fillStyle = '#3a2c20'; ctx.fillRect(snap(x), snap(y - h), PIXEL * 2, snap(h));
+        ctx.fillStyle = '#5a4632'; ctx.fillRect(snap(x), snap(y - h), PIXEL, snap(h));
+        ctx.fillStyle = '#d8c8a0'; ctx.fillRect(snap(x) + PIXEL * 2, snap(y - h * 0.6), PIXEL, PIXEL); ctx.fillRect(snap(x) - PIXEL, snap(y - h * 0.3), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
   /** Un objeto se levanta solo antes de salir disparado (o la zona del Revuelo, si trae radio). */
   private objSpawn(ev: FxEv) {
     if (ev.r) { this.ripple(ev.x, ev.y, '#a0e8ff', 0.5, ev.r); return; }
@@ -1090,6 +1133,43 @@ export class Effects {
         pixelGlyph(ctx, GLYPHS[i % GLYPHS.length], x + Math.cos(a) * r * 0.9 - 4, y + Math.sin(a) * r * 0.9 * 0.62 - 4, 1.5);
       }
       pixelEllipse(ctx, x, y, r, r * 0.62, '#c060ff');
+      ctx.globalAlpha = 1;
+    } else if (kind === 'thorns' || kind === 'forest') {
+      // espinos (Zarzas) o Bosque maldito: suelo oscuro, raíces retorcidas y, en el bosque, hojas que caen
+      const forest = kind === 'forest';
+      ctx.globalAlpha = (forest ? 0.4 : 0.35) * fade;
+      ctx.fillStyle = forest ? '#142410' : '#20180e';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.95 * fade;
+      const n = forest ? 26 : 10;
+      for (let i = 0; i < n; i++) {
+        const a = i * 2.39 + seed, rr = r * (0.15 + ((i * 41) % 10) / 11.5);
+        const bx = x + Math.cos(a) * rr, by = y + Math.sin(a) * rr * 0.62;
+        const len = 5 + (i % 3) * 2;
+        for (let j = 0; j < len; j++) {
+          ctx.fillStyle = j % 3 ? '#3a2c20' : '#5a4632';
+          ctx.fillRect(snap(bx + j * PIXEL * (i % 2 ? 1 : -1)), snap(by + Math.sin(j + i) * 3), PIXEL, PIXEL);
+        }
+        ctx.fillStyle = '#d8c8a0'; ctx.fillRect(snap(bx), snap(by - PIXEL), PIXEL, PIXEL); // espina
+        if (forest && i % 3 === 0) {
+          // retoños que se mecen
+          const h = 9 + (i % 4) * 3, sway = Math.round(Math.sin(now / 400 + i) * 1.5);
+          ctx.fillStyle = '#2e4a24'; ctx.fillRect(snap(bx), snap(by - h), PIXEL, snap(h));
+          ctx.fillStyle = '#4a7a34'; ctx.fillRect(snap(bx) + sway * PIXEL - PIXEL, snap(by - h), PIXEL * 3, PIXEL * 2);
+          if (i % 2) { ctx.fillStyle = '#a0e040'; ctx.fillRect(snap(bx) + sway * PIXEL, snap(by - h - PIXEL), PIXEL, PIXEL); }
+        }
+      }
+      if (forest) {
+        for (let i = 0; i < 10; i++) {
+          const t = (now / 2600 + i / 10) % 1;
+          const lx = x + Math.cos(i * 2.1 + seed) * r * 0.8 + Math.sin(now / 500 + i) * 10, ly = y + Math.sin(i * 1.3 + seed) * r * 0.5 - 70 + t * 80;
+          ctx.globalAlpha = Math.min(1, (1 - t) * 3) * fade;
+          ctx.fillStyle = i % 2 ? '#4a7a34' : '#a06a28';
+          ctx.fillRect(snap(lx), snap(ly), PIXEL * 2, PIXEL);
+        }
+        ctx.globalAlpha = 0.7 * fade;
+        pixelEllipse(ctx, x, y, r, r * 0.62, '#4a7a34');
+      }
       ctx.globalAlpha = 1;
     } else if (kind === 'mirror') {
       // espejo de pie, pequeño, con marco y reflejo que parpadea

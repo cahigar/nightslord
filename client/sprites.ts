@@ -553,6 +553,94 @@ const poltergeistForm: FormFn = (b, p, c, anim, tier) => {
   if (tier >= 3) { b.rect(X + 2, Y - 1, 7, 1, c.accent, true); b.set(X + 4, Y - 2, c.accent, true); } // halo espectral
 };
 
+const treeForm: FormFn = (b, p, c, anim, tier) => {
+  // Raíz Negra: tronco que camina sobre raíces, ramas por brazos, copa en la cabeza y una cara tallada en la corteza
+  const by = p.by, sw = p.sway ?? 0;
+  const bark = c.skin, barkD = shade(c.skin, -0.3), barkL = shade(c.skin, 0.18), leaf = c.hair, leafL = shade(c.hair, 0.25), leafD = shade(c.hair, -0.3);
+  // rama trasera
+  arm(b, 9, 12 + by, p.la, 8, barkD, barkD, 2);
+  const lx = 9 + Math.sin(p.la) * 9, ly = 12 + by + Math.cos(p.la) * 9;
+  b.ellipse(lx, ly, 2, 1, leafD);
+  // raíces por pies
+  const foot = (x: number, [dx, lift]: [number, number], col: string) => {
+    for (let y = HIP; y < FLOOR - lift; y++) b.rect(x + Math.round(dx * (y - HIP) / 10), y, 3, 1, col);
+    const fx = x + dx, fy = FLOOR - lift;
+    b.rect(fx - 2, fy, 7, 1, col); b.set(fx - 3, fy + 1 - (lift ? 1 : 0), col); b.set(fx + 5, fy + 1 - (lift ? 1 : 0), col); // raíces que se abren
+  };
+  foot(8, p.ll, barkD);
+  foot(13, p.rl, bark);
+  // tronco
+  b.rect(7, 9 + by, 10, HIP - 8, bark);
+  b.rect(6, 13 + by, 1, 8, bark); b.rect(17, 12 + by, 1, 9, barkD);
+  for (const [x, y0, y1] of [[9, 10, 20], [12, 11, 21], [15, 9, 19]] as [number, number, number][]) b.line(x, y0 + by, x + (x === 12 ? 1 : 0), y1 + by, barkD); // vetas
+  b.set(10, 14 + by, barkL); b.set(14, 17 + by, barkL);
+  b.ellipse(10, 18 + by, 1, 1, shade(c.skin, -0.5)); // nudo
+  // musgo / hojas pegadas al tronco
+  b.set(7, 16 + by, leaf); b.set(16, 11 + by, leaf); b.set(8, 20 + by, leafD);
+  // copa (la cabeza)
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.ellipse(X + 5, Y + 2, 7, 4, leaf);
+  b.ellipse(X + 1, Y + 4, 3, 3, leafD); b.ellipse(X + 9, Y + 3, 3, 3, leaf);
+  for (const [x, y] of [[X + 3, Y - 1], [X + 7, Y], [X + 5, Y + 2], [X + 10, Y + 2], [X, Y + 3]]) b.set(x, y, leafL);
+  if (sw) b.set(X - 2, Y + 6 + sw, leaf); // hoja que cae
+  // cara tallada en la parte alta del tronco
+  b.rect(X + 2, Y + 7, 8, 4, bark);
+  if (!p.blink) { b.rect(X + 4, Y + 8, 2, 1, c.eye, true); b.rect(X + 7, Y + 8, 2, 1, c.eye, true); }
+  else { b.rect(X + 4, Y + 8, 2, 1, barkD); b.rect(X + 7, Y + 8, 2, 1, barkD); }
+  b.rect(X + 5, Y + 10, 3, p.mouth ? 2 : 1, '#140c08');
+  if (tier >= 1) for (const [x, y] of [[X + 2, Y + 1], [X + 9, Y]]) b.set(x, y, c.accent, true); // brotes que brillan
+  if (tier >= 2) { b.set(12, 15 + by, c.accent, true); b.set(13, 15 + by, c.accent, true); b.set(12, 16 + by, shade(c.accent, -0.2), true); } // savia que brilla en el pecho
+  if (tier >= 3) for (const [x, y] of [[X - 1, Y + 1], [X + 11, Y + 4], [X + 6, Y - 2], [X + 3, Y + 4]]) b.set(x, y, c.accent, true); // flores en la copa
+  // rama delantera (más gruesa) con ramitas
+  arm(b, 15, 12 + by, p.ra, 8, bark, barkD, 2);
+  const hx = 15 + Math.sin(p.ra) * 9, hy = 12 + by + Math.cos(p.ra) * 9;
+  b.set(hx + 1, hy - 1, barkD); b.set(hx - 1, hy + 1, barkD); b.set(hx + 1, hy + 1, leaf);
+  void anim;
+};
+
+/** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
+const plantCache = new Map<string, Baked>();
+export function getPlant(kind: string, frame: number, awake = false): Baked {
+  const f = frame % 2;
+  const key = `${kind}|${f}|${awake}`;
+  let out = plantCache.get(key);
+  if (out) return out;
+  const b = new PB(SW, SH);
+  const bark = '#5a4632', barkD = '#3a2c20', leaf = '#2e4a24', leafL = '#4a7a34', glow = '#a0e040';
+  if (kind === 'wall') {
+    // maraña de raíces y troncos retorcidos con espinas
+    for (let i = 0; i < 6; i++) {
+      const x0 = 2 + i * 4, h = 14 + ((i * 7) % 5) * 2;
+      b.line(x0, FLOOR, x0 + (i % 2 ? 2 : -1), FLOOR - h, i % 2 ? bark : barkD);
+      b.line(x0 + 1, FLOOR, x0 + 1 + (i % 2 ? 2 : -1), FLOOR - h + 1, bark);
+      b.set(x0 + (i % 2 ? 3 : -2), FLOOR - h + 4, '#d8c8a0'); // espina
+    }
+    b.line(1, FLOOR - 6, 23, FLOOR - 10, barkD); b.line(1, FLOOR - 13, 23, FLOOR - 9, bark); // raíces cruzadas
+    for (const [x, y] of [[5, 13], [12, 11], [19, 14], [9, 17]]) { b.set(x, y, leaf); b.set(x + 1, y, leafL); }
+    if (f) b.set(14, 15, glow, true);
+  } else if (kind === 'turret') {
+    // planta carnívora: tallo, hojas y una boca con dientes que escupe espinas
+    const s = awake ? 1 : 0;
+    b.line(12, FLOOR, 12, 14 - s * 2, leaf); b.line(13, FLOOR, 13, 14 - s * 2, leafL);
+    b.ellipse(8, 25, 4, 1, leaf); b.ellipse(17, 23, 4, 1, leafL); // hojas
+    const hy = 9 - s * 3 + (f ? 1 : 0);
+    b.ellipse(13, hy, 5 + s, 4 + s, '#8a1a2a'); b.ellipse(13, hy - 1, 4 + s, 2, '#c03040');
+    b.rect(15, hy - 1, 4 + s, 2 + f, '#2a0a10'); // boca
+    for (const x of [15, 17, 19]) { b.set(x, hy - 1, '#f0e0c0'); b.set(x, hy + 1 + f, '#f0e0c0'); }
+    b.set(11, hy - 2, glow, true); b.set(12, hy - 3, glow, true);
+    if (awake) { b.line(4, FLOOR, 9, FLOOR - 4, barkD); b.line(21, FLOOR, 16, FLOOR - 4, barkD); b.set(10, hy + 2, '#ffb020', true); } // raíces del árbol despertado
+  } else {
+    // flor curativa: pétalos claros con un corazón brillante que late
+    b.line(12, FLOOR, 12, 18, leaf); b.ellipse(9, 25, 3, 1, leafL); b.ellipse(15, 27, 3, 1, leaf);
+    const r = f ? 4 : 3;
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; b.ellipse(12 + Math.cos(a) * r, 14 + Math.sin(a) * r * 0.8, 2, 2, i % 2 ? '#f0d0f0' : '#e0a8e0'); }
+    b.ellipse(12, 14, 2, 2, '#ffe060'); b.set(12, 14, '#ffffff', true); b.set(11, 13, glow, true); b.set(13, 15, glow, true);
+  }
+  out = b.finish({ outline: 'selout' });
+  plantCache.set(key, out);
+  return out;
+}
+
 /** Animalillo (maleficio de la bruja): un sapo que da saltitos. */
 const critterCache: Baked[] = [];
 export function getCritter(frame: number): Baked {
@@ -576,7 +664,7 @@ export function getCritter(frame: number): Baked {
 export const FORMS: Record<CharacterId, FormFn> = {
   vampire, werewolf, mummy, invisible, zombie: zombieForm, kthula: kthulaForm,
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
-  succubus: succubusForm, poltergeist: poltergeistForm,
+  succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -901,6 +989,7 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   obj1: { art: ['rrrrrr', 'rwwwwr', 'rwwwwr', 'rrrrrr'], pal: { r: '#7a1a20', w: '#e8e0c8' } }, // libro
   obj2: { art: ['.wwwww.', 'wbbbbbw', '.wwwww.'], pal: { w: '#e8ecf0', b: '#5a7aa8' } }, // plato
   obj3: { art: ['..f..', '..y..', '..c..', '..c..', '.ccc.', 'ccccc'], pal: { f: '#ffe060', y: '#ff9020', c: '#c8a040' }, glow: 'f' }, // candelabro
+  thorn: { art: ['ss.....', '.ssssgp', 'ss.....'], pal: { s: '#3a6a20', g: '#a0e040', p: '#e8e0b0' }, glow: 'g' },
   holy: { art: ['..cc..', '..ww..', '.wBBw.', 'wBWBBw', 'wBBBBw', '.wwww.'], pal: { c: '#8a6a40', w: '#d0e8f0', B: '#60b0f0', W: '#f0ffff' }, glow: 'W' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };

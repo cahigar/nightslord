@@ -2,7 +2,7 @@
 // Para añadir un monstruo nuevo: añade una entrada en CHARACTERS (stats + habilidades),
 // una "forma" en client/sprites.ts (rasgos sobre el cuerpo base) y sus skins (paletas).
 
-export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist';
+export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -355,6 +355,30 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Furia espectral', desc: 'Lanza dos objetos por ataque y es intangible más tiempo.' },
     ],
   },
+  tree: {
+    id: 'tree',
+    name: 'Raíz Negra',
+    title: 'Árbol maldito',
+    hp: 180,
+    speed: 168,
+    damage: 22,
+    range: 62,
+    arc: Math.PI * 0.6,
+    attackCd: 0.8,
+    armor: 0.15,
+    attackName: 'Ramazo',
+    passive: 'Raíces profundas: si se queda quieto echa raíces; regenera vida y recibe un 25 % menos de daño (puede seguir atacando).',
+    abilities: [
+      { key: 'Q', name: 'Zarzas', desc: 'Las raíces revientan donde apuntas: dañan, enredan (no pueden moverse) y dejan espinos que ralentizan.', cooldown: 8 },
+      { key: 'E', name: 'Brotar', desc: 'Junto a ti: una flor que te cura. Sobre un árbol o seto: lo despierta como torreta que dispara espinas. En campo abierto: un muro de raíces que no deja pasar. 2 cargas.', cooldown: 10 },
+    ],
+    ult: { key: 'R', name: 'Bosque maldito', desc: 'Un bosque crece a tu alrededor 7 s: ralentiza, enreda una y otra vez a los enemigos y te cura a ti y a tus plantas.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Savia', desc: 'Las zarzas enredan más tiempo, sus plantas duran más y la flor cura más.' },
+      { lvl: 10, name: 'Bosque maldito', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Ancestral', desc: '3 cargas de Brotar, las torretas disparan dos espinas y el ramazo enreda.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -447,6 +471,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Sábana', price: 0, palette: { skin: '#e8ecf4', hair: '#c8d0e0', cloth: '#b8c4d8', cloth2: '#8a98b0', accent: '#a0e8ff', eye: '#141020' } },
     { id: 'grave', name: 'Sudario', price: 200, palette: { skin: '#d8ccb0', hair: '#b8aa88', cloth: '#a89a78', cloth2: '#7a6e54', accent: '#ffe080', eye: '#2a1a10' } },
     { id: 'ecto', name: 'Ectoplasma', price: 350, palette: { skin: '#a8f0b8', hair: '#70d090', cloth: '#58c078', cloth2: '#348a50', accent: '#e0ff80', eye: '#0a2010' } },
+  ],
+  tree: [
+    { id: 'classic', name: 'Roble podrido', price: 0, palette: { skin: '#5a4632', hair: '#2e4a24', cloth: '#3e3022', cloth2: '#2a2018', accent: '#a0e040', eye: '#ffb020' } },
+    { id: 'autumn', name: 'Otoño', price: 200, palette: { skin: '#6a4a30', hair: '#c05a18', cloth: '#4a3424', cloth2: '#30221a', accent: '#ffb030', eye: '#ff6020' } },
+    { id: 'dead', name: 'Seco', price: 350, palette: { skin: '#4a4448', hair: '#2a2630', cloth: '#363036', cloth2: '#221e24', accent: '#c060ff', eye: '#ff3060' } },
   ],
 };
 
