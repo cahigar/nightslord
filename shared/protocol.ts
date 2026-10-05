@@ -91,7 +91,7 @@ export type FxId =
   | 'sleep' | 'lullaby' | 'prop' | 'ambush' | 'dreamwalk' | 'shards' | 'mirror' | 'mirrorBoom' | 'maryOut'
   | 'slam' | 'spark' | 'lightning' | 'storm' | 'faceSteal' | 'charm' | 'mimic' | 'potion' | 'broom' | 'rage'
   | 'hexed' | 'hexzone' | 'wings' | 'thrall' | 'heartHit' | 'phase' | 'objSpawn' | 'drainBeam'
-  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand' | 'scare' | 'fireBoom' | 'slimeSplit' | 'slimeBoom' | 'ufoBeam' | 'ufoRay' | 'hypno' | 'tvWave' | 'tvBeam' | 'rain' | 'bowl';
+  | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand' | 'scare' | 'fireBoom' | 'slimeSplit' | 'slimeBoom' | 'ufoBeam' | 'ufoRay' | 'hypno' | 'tvWave' | 'tvBeam' | 'rain' | 'bowl' | 'confetti' | 'allyAsk';
 
 export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
 
@@ -131,7 +131,7 @@ export type ClientMsg =
   | { t: 'hello'; token?: string; name: string }
   | { t: 'join'; mode: 'random' | 'code' | 'create'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
   | { t: 'input'; q: number; mx: number; my: number; a: number; b: number; d?: number } // d: distancia al cursor
-  | { t: 'emote'; e: 'wave' | 'taunt' }
+  | { t: 'emote'; e: 'wave' | 'taunt' | 'ally' }
   | { t: 'upgrade'; u: UpgradeId }
   | { t: 'respawn'; char?: CharacterId; skin?: string }
   | { t: 'leave' }

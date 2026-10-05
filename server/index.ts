@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, type CharacterId } from '../shared/characters';
-import { CHARACTER_UNLOCK, hasCharacter, hasSkin } from '../shared/catalog';
+import { FREE_CHARS, hasCharacter, hasSkin, MEDAL_BY_ID, unlockPrice } from '../shared/catalog';
 import { NAME_MAX } from '../shared/constants';
 import type { ClientMsg, ServerMsg } from '../shared/protocol';
 import { RoomManager, SHARD } from './RoomManager';
@@ -140,7 +140,7 @@ wss.on('connection', (ws: WebSocket, req) => {
         room?.onInput(c, msg);
         break;
       case 'emote':
-        if (msg.e === 'wave' || msg.e === 'taunt') room?.onEmote(c, msg.e);
+        if (msg.e === 'wave' || msg.e === 'taunt' || msg.e === 'ally') room?.onEmote(c, msg.e);
         break;
       case 'upgrade':
         if (UPGRADES.some((u) => u.id === msg.u)) room?.onUpgrade(c, msg.u);
@@ -179,16 +179,23 @@ function validChoice(c: Conn, char: unknown, skin: unknown): { char: CharacterId
   return { char: ch, skin: sk && (DEV || hasSkin(c.profile, ch, sk)) ? sk.id : SKINS[ch][0].id };
 }
 
+/** Medalla ganada fuera de la partida (compras). */
+function awardOutside(c: Conn, id: string) {
+  if (store.award(c.profile, id)) c.send({ t: 'medal', id });
+  void MEDAL_BY_ID;
+}
+
 function buy(c: Conn, item: string) {
   const p = c.profile;
   const parts = item.split(':');
   if (parts[0] === 'char') {
     const ch = parts[1] as CharacterId;
     if (!CHARACTERS[ch] || hasCharacter(p, ch)) return;
-    const price = CHARACTER_UNLOCK[ch].price;
+    const price = unlockPrice(p);
     if (p.coins < price) return c.send({ t: 'error', msg: 'No tienes monedas suficientes.' });
     p.coins -= price;
     p.chars.push(ch);
+    if (CHARACTER_IDS.filter((x) => FREE_CHARS.includes(x) || hasCharacter(p, x)).length >= 16) awardOutside(c, 'collector');
   } else if (parts[0] === 'skin') {
     const ch = parts[1] as CharacterId;
     const sk = SKINS[ch]?.find((s) => s.id === parts[2]);
@@ -197,6 +204,7 @@ function buy(c: Conn, item: string) {
     if (p.coins < sk.price) return c.send({ t: 'error', msg: 'No tienes monedas suficientes.' });
     p.coins -= sk.price;
     p.skins.push(`${ch}:${sk.id}`);
+    awardOutside(c, 'fashion');
   } else return;
   store.touch();
   c.send({ t: 'profile', profile: p });

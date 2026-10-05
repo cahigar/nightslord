@@ -1,6 +1,6 @@
 // Punto de entrada del cliente: menús, HUD y bucle de render.
 import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, upgradeMax, type CharacterId, type UpgradeId } from '../shared/characters';
-import { CHARACTER_UNLOCK, hasCharacter, hasSkin, MEDALS, MEDAL_BY_ID, type Profile } from '../shared/catalog';
+import { CHARACTER_UNLOCK, hasCharacter, hasSkin, MEDALS, MEDAL_BY_ID, unlockPrice, type Profile } from '../shared/catalog';
 import { THEMES, type MapThemeId } from '../shared/maps';
 import { Anim, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
 import { initAudio, isMuted, startMusic, toggleMute } from './audio';
@@ -87,13 +87,15 @@ function buildChars(container: HTMLElement, small = false) {
     if (!owned) {
       const u = CHARACTER_UNLOCK[id];
       const medal = u.medal ? MEDAL_BY_ID[u.medal] : null;
-      el.insertAdjacentHTML('beforeend', `<div class="lock">🔒 ${u.price}🪙${medal ? ` o ${medal.icon}` : ''}</div>`);
-      el.title = `Desbloquear por ${u.price} monedas${medal ? ` o consiguiendo la medalla «${medal.name}»` : ''}`;
+      const price = unlockPrice(profile);
+      el.insertAdjacentHTML('beforeend', `<div class="lock">🔒 ${price}🪙${medal ? ` o ${medal.icon}` : ''}</div>`);
+      el.title = `Desbloquear por ${price} monedas${medal ? ` o consiguiendo la medalla «${medal.name}»` : ''}`;
     }
     el.onclick = () => {
       if (!owned) {
-        if (profile && profile.coins >= CHARACTER_UNLOCK[id].price && confirm(`¿Desbloquear ${def.name} por ${CHARACTER_UNLOCK[id].price} monedas?`)) net.send({ t: 'buy', item: `char:${id}` });
-        else showError(`Necesitas ${CHARACTER_UNLOCK[id].price} monedas${CHARACTER_UNLOCK[id].medal ? ` o la medalla «${MEDAL_BY_ID[CHARACTER_UNLOCK[id].medal!].name}»` : ''}.`);
+        const price = unlockPrice(profile);
+        if (profile && profile.coins >= price && confirm(`¿Desbloquear ${def.name} por ${price} monedas?`)) net.send({ t: 'buy', item: `char:${id}` });
+        else showError(`Necesitas ${price} monedas${CHARACTER_UNLOCK[id].medal ? ` o la medalla «${MEDAL_BY_ID[CHARACTER_UNLOCK[id].medal!].name}»` : ''}.`);
         return;
       }
       selChar = id;
@@ -313,6 +315,7 @@ input.onKey = (code) => {
   }
   if (code === 'KeyG') net.send({ t: 'emote', e: 'wave' });
   if (code === 'KeyT') net.send({ t: 'emote', e: 'taunt' });
+  if (code === 'KeyH') net.send({ t: 'emote', e: 'ally' });
   const up = UPGRADES.find((u) => `Digit${u.key}` === code || `Numpad${u.key}` === code);
   if (up) net.send({ t: 'upgrade', u: up.id });
 };

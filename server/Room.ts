@@ -124,6 +124,8 @@ export class Room {
     this.conns.set(conn.id, conn);
     conn.roomCode = this.code;
     conn.profile.stats.games++;
+    if (conn.profile.stats.games >= 10) store.award(conn.profile, 'games10');
+    if (conn.profile.stats.games >= 50) store.award(conn.profile, 'games50');
     store.touch();
     const p = this.spawnPlayer(conn, char, skin);
     conn.send({ t: 'joined', code: this.code, theme: this.theme, seed: this.seed, priv: this.priv, you: p.id });
@@ -133,7 +135,7 @@ export class Room {
 
   removeConn(conn: Conn) {
     const p = this.players.get(conn.id);
-    if (p) { this.recordBest(p); this.releaseMinions(p.id); }
+    if (p) { this.recordBest(p); this.releaseMinions(p.id); for (const o of this.players.values()) o.allies.delete(p.id); }
     this.players.delete(conn.id);
     this.conns.delete(conn.id);
     conn.roomCode = null;
@@ -168,7 +170,7 @@ export class Room {
       frenzyT: 0, killSpeedT: 0, hits: new Map(), lastAtkFromInvis: false, stepT: 0,
       submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999, guise: null, flyT: 0, phaseT: 0, leap: null, spiritsT: 0, spiritCd: 0, bootsT: 0, bootsKind: 0, bootsAcc: 0, k: {},
       lifeStart: this.time, lifeKills: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
-      lastAttacker: '',
+      lastAttacker: '', allies: new Set(),
     };
     this.players.set(conn.id, p);
     return p;
@@ -185,12 +187,42 @@ export class Room {
     if (p.queue.length > 6) p.queue.splice(0, p.queue.length - 3);
   }
 
-  onEmote(conn: Conn, e: 'wave' | 'taunt') {
+  /** Peticiones de alianza pendientes: quién → a quién y hasta cuándo. */
+  private allyAsk = new Map<number, { to: number; until: number }>();
+
+  onEmote(conn: Conn, e: 'wave' | 'taunt' | 'ally') {
     const p = this.players.get(conn.id);
     if (!p || p.dead || this.time < p.animUntil || p.entombT > 0) return;
+    if (e === 'ally') { this.askAlliance(p); return; }
     if (e === 'wave') { this.setAnim(p, Anim.Wave, 1.2); p.waved = true; this.sfx('wave', p.x, p.y); }
     else { this.setAnim(p, Anim.Taunt, 1.6); p.taunted = true; this.sfx('taunt', p.x, p.y); }
     if (p.waved && p.taunted) this.medal(p, 'social');
+  }
+
+  /** H: pide alianza al monstruo más cercano; si él ya te la había pedido (o responde con H), sale confeti.
+   *  La alianza no cambia nada del juego: es solo entre ellos... y se puede traicionar. */
+  private askAlliance(p: Player) {
+    let best: Player | null = null, bd = 260 ** 2;
+    for (const o of this.players.values()) {
+      if (o === p || o.dead) continue;
+      const d = dist2(p.x, p.y, o.x, o.y);
+      if (d < bd) { bd = d; best = o; }
+    }
+    this.setAnim(p, Anim.Wave, 0.8);
+    if (!best) return;
+    const o = best as Player;
+    const theirs = this.allyAsk.get(o.id);
+    if (theirs && theirs.to === p.id && theirs.until > this.time) {
+      this.allyAsk.delete(o.id);
+      p.allies.add(o.id); o.allies.add(p.id);
+      this.fx('confetti', (p.x + o.x) / 2, (p.y + o.y) / 2, { o: p.id, tx: Math.round(o.x), ty: Math.round(o.y) });
+      this.sfx('level', p.x, p.y);
+      this.medal(p, 'ally'); this.medal(o, 'ally');
+      return;
+    }
+    this.allyAsk.set(p.id, { to: o.id, until: this.time + 8 });
+    this.fx('allyAsk', p.x, p.y, { o: p.id, tx: Math.round(o.x), ty: Math.round(o.y) });
+    o.conn.send({ t: 'toast', text: `🤝 ${p.name} te ofrece una alianza: pulsa H para aceptar.` });
   }
 
   onUpgrade(conn: Conn, u: UpgradeId) {
@@ -1150,6 +1182,7 @@ export class Room {
         st.npcKills++;
         this.medal(killer, 'firstblood');
         if (st.npcKills >= 100) this.medal(killer, 'glutton');
+        if (st.npcKills >= 500) this.medal(killer, 'npc500');
       }
     } else if (m.kind === Kind.Hunter) {
       const h = m as Hunter;
@@ -1165,6 +1198,9 @@ export class Room {
         st.hunterKills++;
         this.medal(killer, 'hunter');
         if (st.hunterKills >= 25) this.medal(killer, 'slayer');
+        if (st.hunterKills >= 100) this.medal(killer, 'hunter100');
+        if (h.type === 'heraldo') this.medal(killer, 'herald');
+        if (h.type === 'sectario') this.medal(killer, 'cultist');
         this.emit({ e: 'kill', a: killer.name, v: h.def.name, ak: Kind.Player, vk: Kind.Hunter }, m.x, m.y, true);
       }
     } else if (m.kind === Kind.Player) {
@@ -1183,6 +1219,14 @@ export class Room {
         killer.lifeKills++;
         killer.conn.profile.stats.playerKills++;
         if (killer.lifeKills >= 3) this.medal(killer, 'predator');
+        if (killer.lifeKills >= 5) this.medal(killer, 'streak5');
+        const pk = killer.conn.profile.stats.playerKills;
+        if (pk >= 10) this.medal(killer, 'monster10');
+        if (pk >= 50) this.medal(killer, 'monster50');
+        if (v.id === this.bountyId) this.medal(killer, 'bounty');
+        if (killer.conn.profile.lastKiller === v.conn.profile.token) { this.medal(killer, 'revenge'); killer.conn.profile.lastKiller = undefined; }
+        if (killer.allies.has(v.id)) { this.medal(killer, 'traitor'); killer.allies.delete(v.id); this.fx('allyAsk', v.x, v.y, { o: v.id, n: -1 }); }
+        v.conn.profile.lastKiller = killer.conn.profile.token;
       }
       const by = src.name || v.lastAttacker || 'la noche';
       this.emit({ e: 'kill', a: by, v: v.name, ak: src.kind, vk: Kind.Player }, m.x, m.y, true);
@@ -1246,6 +1290,8 @@ export class Room {
       this.fx('lvl', p.x, p.y, { o: p.id });
       this.sfx('level', p.x, p.y);
       if (p.level >= 10) this.medal(p, 'level10');
+      if (p.level >= 15) { this.medal(p, 'level15'); this.medal(p, `char:${p.char}`); }
+      if (p.level >= 20) this.medal(p, 'level20');
       const tier = tierOf(p.level);
       if (tier > p.tier) {
         p.tier = tier;
@@ -1267,7 +1313,11 @@ export class Room {
 
   private checkTimedMedals() {
     const alive = this.alivePlayers();
-    for (const p of alive) if (this.time - p.lifeStart >= 300) this.medal(p, 'survivor');
+    for (const p of alive) {
+      if (this.time - p.lifeStart >= 300) this.medal(p, 'survivor');
+      if (this.time - p.lifeStart >= 600) this.medal(p, 'eternal');
+      if (p.conn.profile.coins >= 1000) this.medal(p, 'rich');
+    }
     if (alive.length >= 3) {
       const top = alive.reduce((a, b) => (b.points > a.points ? b : a));
       if (top.points >= 150) this.medal(top, 'lord');

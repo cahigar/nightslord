@@ -125,6 +125,7 @@ export interface Player extends Mob {
   waved: boolean;
   taunted: boolean;
   lastAttacker: string;
+  allies: Set<number>; // alianzas (H): solo simbólicas, se pueden traicionar
 }
 
 export interface Npc extends Mob {

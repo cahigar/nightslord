@@ -255,6 +255,8 @@ export class Effects {
       case 'slimeBoom': this.burst(x, y - 15, 30, ['#60d040', '#a0ff70', '#3a6a10', '#e0ff90'], (ev.r ?? 100) * 2.6, 4, 450, 0.6); this.ripple(x, y, '#a0ff70', 0.5, ev.r ?? 100); break;
       case 'ufoBeam': this.ufoBeam(ev); break;
       case 'rain': this.rainCloud(ev); break;
+      case 'confetti': this.confetti(ev); break;
+      case 'allyAsk': this.allyAsk(ev); break;
       case 'bowl': this.add(ev.d ?? 2.5, 'glow', (ctx, k) => { const pos = (ev.o !== undefined ? this.entPos(ev.o) : null) ?? ev; ctx.globalAlpha = 0.6; ctx.fillStyle = '#a0d8f0'; for (let i = 0; i < 3; i++) { const t = (k * 6 + i / 3) % 1; ctx.fillRect(snap(pos.x + Math.cos(i * 2.1) * 10), snap(pos.y - 70 + t * 14), PIXEL, PIXEL); } ctx.globalAlpha = 1; }); break;
       case 'hypno': this.burst(x, y - 50, 14, ['#40ff90', '#ffffff', '#ff40c0'], 100, 3, -20, 0.8, true); this.ripple(x, y - 40, '#40ff90', 0.6, 40); break;
       case 'tvWave': this.tvWave(ev); break;
@@ -957,6 +959,29 @@ export class Effects {
       for (let i = 0; i < 2; i++) { const rr = R * Math.min(1, k * 1.4 + i * 0.15); pixelEllipse(ctx, ev.x, ev.y, rr, rr * 0.62, i ? '#ffffff' : col, 2); }
       ctx.fillStyle = col;
       for (let i = 0; i < 24; i++) { const a = Math.random() * Math.PI * 2, rr = R * k * (0.8 + Math.random() * 0.2); ctx.fillRect(snap(ev.x + Math.cos(a) * rr), snap(ev.y + Math.sin(a) * rr * 0.62), PIXEL, PIXEL); }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** ¡Alianza! Confeti de colores sobre los dos monstruos. */
+  private confetti(ev: FxEv) {
+    const cols = ['#ff4060', '#ffd040', '#40e0ff', '#80ff60', '#c060ff', '#ffffff'];
+    for (const [x, y] of [[ev.x, ev.y], [ev.tx ?? ev.x, ev.ty ?? ev.y]]) {
+      for (let i = 0; i < 40; i++) {
+        const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.8, s = 200 + Math.random() * 200;
+        this.particles.push({ x, y: y - 50, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1.6, max: 1.6, color: cols[i % cols.length], size: 3 + (i % 2) * 3, grav: 380, glow: i % 3 === 0 });
+      }
+    }
+  }
+
+  /** Oferta de alianza (mano tendida sobre la cabeza) o alianza rota (n = -1). */
+  private allyAsk(ev: FxEv) {
+    const broken = ev.n === -1;
+    this.add(broken ? 1 : 2, 'top', (ctx, k) => {
+      const pos = (ev.o !== undefined ? this.entPos(ev.o) : null) ?? ev;
+      ctx.globalAlpha = Math.min(1, (1 - k) * 4);
+      ctx.font = '22px serif'; ctx.textAlign = 'center';
+      ctx.fillText(broken ? '💔' : '🤝', pos.x, pos.y - 120 - Math.sin(k * Math.PI) * 10);
       ctx.globalAlpha = 1;
     });
   }
