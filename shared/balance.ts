@@ -215,6 +215,13 @@ export const BAL = {
     hypnoDmgMul: 1.5, // nv. 5: más daño a los hipnotizados
     ult: { t: 6, every: 0.5, beamW: 30, dmg: 0.45, hypno: 20 }, // R: emisión nacional
   },
+  kappa: {
+    tongue: { speed: 640, life: 0.45, dmg: 0.6, pull: 85 }, // Q: lengua acuática
+    bowl: { t: 2.5, heal: 0.07, armorMul: 0.55, breakFrac: 0.12 }, // E: cuenco sagrado (se corta con un golpe fuerte)
+    steal: { t: 3, slowMul: 0.75, speedMul: 1.25 }, // nv. 5: robo de velocidad por la espalda
+    ult: { r: 270, t: 6, pull: 110, dps: 6 }, // R: remolino del río
+    rain: { every: 6, t: 2.2, r: 80, puddleT: 9, near: 220 }, // nv. 15: nubes que dejan pozas
+  },
   alien: {
     plasma: { speed: 760, life: 0.5, dmg: 1.0 }, // básico
     silence: { hits: 3, window: 3, t: 2 }, // pasiva

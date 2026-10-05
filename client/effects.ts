@@ -254,6 +254,8 @@ export class Effects {
       case 'slimeSplit': this.burst(x, y - 20, ev.n === 2 ? 50 : 22, ['#60d040', '#a0ff70', '#e0ff90'], ev.n === 2 ? 320 : 160, 4, 400, 0.6); if (ev.n === 2) this.ripple(x, y, '#a0ff70', 0.6, 120); break;
       case 'slimeBoom': this.burst(x, y - 15, 30, ['#60d040', '#a0ff70', '#3a6a10', '#e0ff90'], (ev.r ?? 100) * 2.6, 4, 450, 0.6); this.ripple(x, y, '#a0ff70', 0.5, ev.r ?? 100); break;
       case 'ufoBeam': this.ufoBeam(ev); break;
+      case 'rain': this.rainCloud(ev); break;
+      case 'bowl': this.add(ev.d ?? 2.5, 'glow', (ctx, k) => { const pos = (ev.o !== undefined ? this.entPos(ev.o) : null) ?? ev; ctx.globalAlpha = 0.6; ctx.fillStyle = '#a0d8f0'; for (let i = 0; i < 3; i++) { const t = (k * 6 + i / 3) % 1; ctx.fillRect(snap(pos.x + Math.cos(i * 2.1) * 10), snap(pos.y - 70 + t * 14), PIXEL, PIXEL); } ctx.globalAlpha = 1; }); break;
       case 'hypno': this.burst(x, y - 50, 14, ['#40ff90', '#ffffff', '#ff40c0'], 100, 3, -20, 0.8, true); this.ripple(x, y - 40, '#40ff90', 0.6, 40); break;
       case 'tvWave': this.tvWave(ev); break;
       case 'ufoRay': this.ufoRay(ev); break;
@@ -959,6 +961,20 @@ export class Effects {
     });
   }
 
+  /** Nube que llueve sobre un punto (Kappa nv. 15); al acabar deja una poza. */
+  private rainCloud(ev: FxEv) {
+    const R = ev.r ?? 80, dur = ev.d ?? 2;
+    this.add(dur, 'glow', (ctx, k) => {
+      const fade = Math.min(1, k * dur * 3, (1 - k) * dur * 3);
+      ctx.globalAlpha = 0.8 * fade;
+      ctx.fillStyle = '#4a5468';
+      for (let i = 0; i < 6; i++) ctx.beginPath(), ctx.ellipse(ev.x - R * 0.6 + i * R * 0.25, ev.y - 170 + Math.sin(i * 1.7) * 8, 26, 16, 0, 0, Math.PI * 2), ctx.fill();
+      ctx.fillStyle = '#a0c8f0';
+      for (let i = 0; i < 18; i++) { const t = (k * 8 + i / 18) % 1; ctx.fillRect(snap(ev.x - R + ((i * 37) % 20) / 20 * R * 2), snap(ev.y - 160 + t * 160), PIXEL, PIXEL * 3); }
+      ctx.globalAlpha = 1;
+    });
+  }
+
   /** OVNI que se queda sobre un punto con su haz de abducción. */
   private ufoBeam(ev: FxEv) {
     const R = ev.r ?? 70, dur = ev.d ?? 1.5;
@@ -1267,6 +1283,19 @@ export class Effects {
       ctx.fillStyle = '#f0f0f8';
       const n = Math.ceil(Math.hypot(bx - x, by - y) / PIXEL);
       for (let j = 0; j <= n; j++) { const t = j / n; ctx.fillRect(snap(x + (bx - x) * t), snap(y + (by - y) * t + Math.sin(t * Math.PI) * 6), PIXEL, PIXEL); if (j % 6 === 0) ctx.fillRect(snap(x + (bx - x) * t), snap(y + (by - y) * t + Math.sin(t * Math.PI) * 6) + PIXEL * 2, PIXEL, PIXEL); }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'whirl') {
+      // remolino del río: agua que gira hacia el centro
+      const rq = Math.max(12, Math.round(r / 4) * 4);
+      const img = bakePuddle(rq, (seed % 16) + 96);
+      ctx.globalAlpha = 0.85 * fade;
+      ctx.drawImage(img, snap(x - img.width * PIXEL / 2), snap(y - img.height * PIXEL / 2), img.width * PIXEL, img.height * PIXEL);
+      ctx.fillStyle = '#c8e8f8';
+      for (let arm = 0; arm < 4; arm++) for (let t = 0; t < 1; t += 0.04) {
+        const a = arm * Math.PI / 2 + t * 6 + now / 300, rr = r * (1 - t) * 0.9;
+        ctx.globalAlpha = (0.3 + t * 0.6) * fade;
+        ctx.fillRect(snap(x + Math.cos(a) * rr), snap(y + Math.sin(a) * rr * 0.62), PIXEL, PIXEL);
+      }
       ctx.globalAlpha = 1;
     } else if (kind === 'radiation') {
       ctx.globalAlpha = 0.3 * fade;

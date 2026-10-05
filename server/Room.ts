@@ -288,7 +288,7 @@ export class Room {
   /** Agua bajo un punto: 'deep' (lagos, ríos, piscinas), 'shallow' (charcas de cualquier criatura) o null. */
   waterAt(x: number, y: number): 'deep' | 'shallow' | null {
     if (this.grid.deepWater(x, y)) return 'deep';
-    for (const z of this.zones) if (z.kind === 'puddle' && (x - z.ax) ** 2 + (y - z.ay) ** 2 < (z.w / 2) ** 2) return 'shallow';
+    for (const z of this.zones) if ((z.kind === 'puddle' || z.kind === 'whirl') && (x - z.ax) ** 2 + (y - z.ay) ** 2 < (z.w / 2) ** 2) return 'shallow'; // el remolino del Kappa también es agua
     return null;
   }
 
@@ -1922,6 +1922,15 @@ export class Room {
           (z.hit ??= new Set()).add(m.id); // la trampa de raíces atrapa al primero que la pisa
           this.root(m, ITEMS.boots.nature.root);
           z.until = Math.min(z.until, this.time + 0.4);
+        }
+        else if (z.kind === 'whirl') {
+          // remolino: arrastra hacia el centro a los enemigos (su dueño se mueve libre)
+          if (!owner || !this.isEnemyOf(owner, m) || isStatic(m) || (m.kind === Kind.Player && (m as Player).flyT > 0)) continue;
+          const dx = z.ax - m.x, dy = z.ay - m.y, d = Math.hypot(dx, dy) || 1;
+          const pull = Math.min(d, BAL.kappa.ult.pull * TICK_DT);
+          const res = this.grid.move(m.x, m.y, (dx / d) * pull - (dy / d) * pull * 0.6, (dy / d) * pull + (dx / d) * pull * 0.6, m.r, walksWater(m));
+          m.x = res.x; m.y = res.y;
+          this.damage(m, BAL.kappa.ult.dps * TICK_DT, { ...this.src(owner), raw: true }, false, true);
         }
         else if (z.kind === 'radiation') { if (owner && this.isEnemyOf(owner, m)) this.damage(m, BAL.alien.beacon.radDps * TICK_DT, { ...this.src(owner), raw: true }, false, true); }
         else if (z.kind === 'goo') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, BAL.slime.goo.slowMul); }

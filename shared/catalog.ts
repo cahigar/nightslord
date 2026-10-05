@@ -46,6 +46,7 @@ export const CHARACTER_UNLOCK: Record<CharacterId, { price: number; medal?: stri
   slime: { price: 350, medal: 'glutton' },
   alien: { price: 500, medal: 'lord' },
   static: { price: 500 },
+  kappa: { price: 450 },
 };
 
 // ---------- Perfil persistente ----------

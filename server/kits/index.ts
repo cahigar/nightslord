@@ -3,6 +3,7 @@ import { alienKit } from './alien';
 import { demonKit } from './demon';
 import { doppyKit, setKits } from './doppy';
 import { invisibleKit } from './invisible';
+import { kappaKit } from './kappa';
 import { kthulaKit } from './kthula';
 import { maryKit } from './mary';
 import { mummyKit } from './mummy';
@@ -45,6 +46,7 @@ export const KITS: Record<CharacterId, Kit> = {
   slime: slimeKit,
   alien: alienKit,
   static: staticKit,
+  kappa: kappaKit,
 };
 setKits(KITS); // Doppy necesita los kits de los demás para imitarlos
 

@@ -1154,9 +1154,9 @@ export class Game {
   }
 
   private drawProjectile(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
-    if (e.c === 'hook' && e.o !== undefined) {
+    if ((e.c === 'hook' || e.c === 'tongue') && e.o !== undefined) {
       const ow = this.ents.get(e.o);
-      if (ow) { ctx.fillStyle = '#8a8a94'; const n = Math.ceil(Math.hypot(e.rx - ow.rx, e.ry - ow.ry) / 9); for (let i = 0; i < n; i++) { const t = i / n; ctx.fillRect(Math.round((ow.rx + (e.rx - ow.rx) * t) / 3) * 3, Math.round((ow.ry - 40 + (e.ry - ow.ry) * t) / 3) * 3, 3, 3); } }
+      if (ow) { ctx.fillStyle = e.c === 'tongue' ? '#e05070' : '#8a8a94'; const n = Math.ceil(Math.hypot(e.rx - ow.rx, e.ry - ow.ry) / 9); for (let i = 0; i < n; i++) { const t = i / n; ctx.fillRect(Math.round((ow.rx + (e.rx - ow.rx) * t) / 3) * 3, Math.round((ow.ry - 40 + (e.ry - ow.ry) * t) / 3) * 3, 3, 3); } }
     }
     if (e.c === 'firewave') {
       // onda de fuego: arco de llamas que avanza
@@ -1330,7 +1330,7 @@ const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
 const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90', static: '#40ff90' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90', static: '#40ff90', kappa: '#a0d8f0' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1368,6 +1368,7 @@ const TAUNTS: Record<CharacterId, string> = {
   slime: '*blub blub*',
   alien: 'Llévame con tu líder',
   static: 'No toque su televisor...',
+  kappa: '¡Cuidado con mi cuenco!',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

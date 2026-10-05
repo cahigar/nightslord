@@ -4,7 +4,7 @@
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
   | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime' | 'alien'
-  | 'static';
+  | 'static' | 'kappa';
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -554,6 +554,31 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Alta definición', desc: 'Los ataques de las teles tienen más radio.' },
     ],
   },
+  kappa: {
+    id: 'kappa',
+    name: 'Kappa',
+    title: 'Duende del río',
+    hp: 115,
+    speed: 205,
+    damage: 16,
+    range: 48,
+    arc: Math.PI / 2,
+    attackCd: 0.38,
+    armor: 0.1,
+    aquatic: true,
+    attackName: 'Zarpazo de río',
+    passive: 'Criatura del agua: cruza el agua profunda y en cualquier agua (charcas incluidas) corre más y se regenera.',
+    abilities: [
+      { key: 'Q', name: 'Lengua acuática', desc: 'Lanza la lengua y atrae ligeramente al objetivo.', cooldown: 6 },
+      { key: 'E', name: 'Cuenco sagrado', desc: 'Se agacha 2,5 s y rellena el agua de su cabeza: se cura y recibe menos daño. Un golpe fuerte lo interrumpe.', cooldown: 12 },
+    ],
+    ult: { key: 'R', name: 'Remolino del río', desc: 'Un gran remolino arrastra a los enemigos hacia el centro 6 s mientras él se mueve libre dentro.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Ladrón travieso', desc: 'Al golpear por la espalda roba parte de la velocidad del enemigo.' },
+      { lvl: 10, name: 'Remolino del río', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Dueño de la lluvia', desc: 'De vez en cuando una nube llueve cerca de él y deja una poza.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -686,6 +711,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Sin señal', price: 0, palette: { skin: '#c8c0b0', hair: '#5a4a3a', cloth: '#3a3a4a', cloth2: '#22222e', accent: '#40ff90', eye: '#e8f0f0' } },
     { id: 'retro', name: 'Retro', price: 200, palette: { skin: '#e0b090', hair: '#8a5a2a', cloth: '#7a4a28', cloth2: '#4a2a14', accent: '#ff8030', eye: '#ffe0a0' } },
     { id: 'glitch', name: 'Glitch', price: 350, palette: { skin: '#e8e8f0', hair: '#202028', cloth: '#14141c', cloth2: '#0a0a10', accent: '#ff30c0', eye: '#30ffff' } },
+  ],
+  kappa: [
+    { id: 'classic', name: 'Del río', price: 0, palette: { skin: '#5a9a4a', hair: '#2a4a2a', cloth: '#6a5a2a', cloth2: '#4a3a18', accent: '#a0d8f0', eye: '#ffe040' } },
+    { id: 'swamp', name: 'Ciénaga', price: 200, palette: { skin: '#6a7a3a', hair: '#3a3a1a', cloth: '#4a3a24', cloth2: '#2a2010', accent: '#c0e080', eye: '#ff8030' } },
+    { id: 'koi', name: 'Koi', price: 350, palette: { skin: '#e07a40', hair: '#f0f0e8', cloth: '#a03020', cloth2: '#601810', accent: '#ffffff', eye: '#141414' } },
   ],
 };
 
