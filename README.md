@@ -60,7 +60,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Saludar / Taunt | G / T | 😜 |
 | Silenciar | M | |
 
-## Contenido actual (v0.6)
+## Contenido actual (v0.7)
 
 **Monstruos**
 
@@ -76,7 +76,10 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | 🪞 Bloody Mary | Cristal | A través del espejo | Espejo de sangre | Sal del espejo (copias) | 450 🪙 o medalla 🌕 |
 | ⚡ Reanimado | Puñetazo | Sacudida | Clavo pararrayos (2 cargas) | Tormenta galvánica (5 s) | 350 🪙 o medalla ⚰️ |
 | 🎭 Doppy | Golpe falso | Robar rostro | Engatusar | Doble perfecto | 500 🪙 |
-| 🧹 Hécuba | Poción (fuego/ácido/maleficio) | Gran redoma | Escoba | Poción de rabia | 450 🪙 |
+| 🧹 Hécuba | Poción al azar (fuego/ácido) | Poción aleatoria (fuego/ácido/rabia, 3 cargas) | Escoba | Maleficio (animalillo) | 450 🪙 |
+| 💋 Lilith | Beso robado (roba vida, enamora humanos) | Flechazo (corazón que atrae) | Alas | Pasión desatada | 450 🪙 o medalla 👋 |
+| 👻 Poltergeist | Objeto volador (sale de cualquier sitio) | Revuelo | Intangible | Drenaje | 400 🪙 o medalla 🕯️ |
+| 🌳 Raíz Negra | Ramazo | Zarzas (enredan) | Brotar (flor · torreta · muro, 2 cargas) | Bosque maldito | 450 🪙 o medalla 🏹 |
 
 **Paciente Cero (invocador)**: algo menos de vida que el resto (95). El Contagio tarda unos 5 s: la vida del humano baja poco a poco y al llegar a cero se levanta como zombi. Máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
 
@@ -87,11 +90,17 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 
 **Bloody Mary (espejos)**: hasta 3 espejos (4 a nivel 15). E coloca uno y da velocidad, velocidad de ataque y robo de vida 4 s. Q viaja al más cercano y lo hace estallar. Nv. 5: 1 espejo = robo de vida, 2 = velocidad, 3 = sus golpes desangran. R: todos estallan y de cada uno sale una copia suya que ataca sola 7 s.
 
-**Reanimado (aguante)**: se regenera rápido si lleva 4 s sin recibir daño. Nv. 5: al acumular un 30 % de su vida en daño recibido suelta una descarga que aturde. E lanza un clavo que se queda 15 s; cada 5 s cae un rayo y, si estás cerca, vuelve a ti atravesando enemigos. R: 5 s de tormenta en una gran zona (ralentiza y daña; tú ves a través de las nubes). Nv. 15: sin nadie a mano, su básico lanza piedras, lápidas o troncos según el mapa.
+**Reanimado (aguante)**: se regenera rápido si lleva 4 s sin recibir daño. Nv. 5: al acumular un 30 % de su vida en daño recibido suelta una descarga que aturde. E lanza un clavo que se queda 15 s; cada 5 s cae un rayo y, si estás cerca, vuelve a ti atravesando enemigos. R: 5 s de tormenta con nubes densas en una zona muy grande (ralentiza y daña; tú ves a través de las nubes). Nv. 15: sin nadie a mano, su básico lanza piedras, lápidas o troncos según el mapa.
 
 **Doppy (engaño)**: si no lucha un rato se convierte en un humano cualquiera (los demás lo ven como un NPC más); su primer golpe aturde. Q copia al monstruo cercano: aspecto, nombre, nivel y su básico, Q y E durante 10 s (16 s a nivel 15). E: se vuelve un humano irresistible; humanos y cazadores le siguen embobados y los monstruos cercanos caminan hacia él. R: imita la definitiva del monstruo más cercano convirtiéndose en él (si no hay, una al azar).
 
-**Hécuba (bruja del pantano)**: cada poción cambia: fuego (charco en llamas), ácido (ralentiza) y maleficio (debilita y hace vulnerable). Los power-ups le hacen un 50 % más de efecto. E: vuela en escoba por encima de cualquier obstáculo y aterriza siempre en un hueco libre. R: poción de rabia en un área grande: todos atacan a lo más cercano (3 s jugadores, 5 s humanos y cazadores) y las bajas cuentan para ella.
+**Hécuba (bruja del pantano)**: su básico lanza al azar ácido (envenena unos segundos) o fuego (el suelo arde). Q: frasco grande al azar entre ácido, fuego y rabia (todos atacan a lo más cercano, ella incluida), con 3 cargas. E: vuela en escoba por encima de cualquier obstáculo y aterriza siempre en un hueco libre. R (Maleficio): un gran charco embrujado; quien lo pisa se convierte en animalillo unos segundos (no ataca ni usa habilidades) y ella recupera al instante las 3 pociones. Nv. 5: veneno y fuego duran más. Nv. 15: pociones con más área, power-ups que duran un 50 % más y puede lanzar desde la escoba.
+
+**Lilith (súcubo)**: roba vida con cada golpe. A los humanos no los mata: los enamora y luchan por ella contra cazadores, monstruos y esbirros enemigos (3 a la vez, 5 desde el nivel 5; al acabarse el hechizo vuelven en sí y el más antiguo deja paso al nuevo). Q lanza un corazón que daña, atrae y deja embobado (si alcanza a un humano, lo enamora). E: vuela con sus alas, más rápida. R: en un área grande todos atacan a lo más cercano, pero nunca a ella; las bajas cuentan para ella. Nv. 15: Flechazo con 2 cargas que atraviesa.
+
+**Poltergeist (fantasma)**: levita (pasa por encima del agua). Sus objetos (sillas, libros, platos, candelabros) no salen de él: salen disparados desde puntos al azar alrededor del objetivo. Q: lluvia de objetos sobre la zona. E: intangible 2,2 s; atraviesa ataques y obstáculos, y dentro de un obstáculo nadie lo ve (atacar lo vuelve sólido). R: 4 s drenando la vida de los enemigos cercanos y curándose lo drenado. Nv. 5: los objetos ralentizan. Nv. 15: dos objetos por ataque y más tiempo intangible.
+
+**Raíz Negra (árbol maldito)**: si se queda quieto echa raíces: regenera y recibe un 25 % menos de daño sin dejar de atacar. Q: zarzas que dañan, **enredan** (no pueden moverse, sí atacar) y dejan espinos que ralentizan. E (2 cargas): lo que brota depende de dónde apuntes: junto a él, una flor que le cura; sobre un árbol o seto del mapa, lo despierta como planta carnívora que escupe espinas; en campo abierto, un muro de raíces que no deja pasar a los enemigos (y los cazadores atacan antes que a él). R: 7 s de bosque maldito que ralentiza, enreda una y otra vez y le cura a él y a sus plantas. Nv. 15: 3 cargas, dos espinas por disparo y el ramazo enreda.
 
 **Evolución por niveles** (cada monstruo conserva su identidad):
 
