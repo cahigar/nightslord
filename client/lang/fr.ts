@@ -2,8 +2,8 @@ import { ch, type Dict } from './es';
 
 export const FR: Dict = {
   ui: {
-    docTitle: 'Le Seigneur de la Nuit .io',
-    logo: 'Le Seigneur<br />de la Nuit',
+    docTitle: 'Mooonsters',
+    logo: 'M<span class="ooo">OOO</span>NSTERS',
     language: 'Langue',
     namePh: 'Ton nom',
     coins: 'Pièces',

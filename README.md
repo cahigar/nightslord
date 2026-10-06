@@ -1,4 +1,4 @@
-# 🦇 El Señor de la Noche .io (Nights Lord)
+# 🦇 Mooonsters (antes «El Señor de la Noche .io»)
 
 Juego multijugador gratuito tipo **.io** en pixel art 2D. Eres un monstruo clásico del cine de terror: cazas humanos para hacerte más fuerte, esquivas (o cazas) a los **Cazadores** y al resto de la orden y compites con otros monstruos por ser el número 1 de la sala.
 
@@ -256,7 +256,7 @@ Variables: `SHARD`, `MAX_CONNECTIONS` (200), `MAX_ROOMS` (20), `MIN_ROOMS` (1), 
 
 ### Inicio de sesión con Google (una vez, gratis)
 
-1. Entra en <https://console.cloud.google.com/> con tu Gmail y crea un proyecto (p. ej. «Nights Lord»).
+1. Entra en <https://console.cloud.google.com/> con tu Gmail y crea un proyecto (p. ej. «Mooonsters»).
 2. **APIs y servicios → Pantalla de consentimiento de OAuth**: tipo *Externo*; nombre de la app, correo de asistencia, dominio `tu.dominio.com` y como política de privacidad `https://tu.dominio.com/privacidad.html`. Ámbitos: solo `email`, `profile` y `openid` (los básicos, no requieren verificación). Publica la app («En producción»).
 3. **Credenciales → Crear credenciales → ID de cliente de OAuth → Aplicación web**. En *Orígenes de JavaScript autorizados* pon `https://tu.dominio.com` (no hace falta URI de redirección).
 4. Copia el ID de cliente (`xxxx.apps.googleusercontent.com`) y en el servidor:

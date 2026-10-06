@@ -2,8 +2,8 @@
 import type { CharacterId } from '../../shared/characters';
 
 const UI = {
-  docTitle: 'El Señor de la Noche .io',
-  logo: 'El Señor<br />de la Noche',
+  docTitle: 'Mooonsters',
+  logo: 'M<span class="ooo">OOO</span>NSTERS',
   language: 'Idioma',
   namePh: 'Tu nombre',
   coins: 'Monedas',

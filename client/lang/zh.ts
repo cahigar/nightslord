@@ -2,8 +2,8 @@ import { ch, type Dict } from './es';
 
 export const ZH: Dict = {
   ui: {
-    docTitle: '暗夜领主 .io',
-    logo: '暗夜<br />领主',
+    docTitle: 'Mooonsters',
+    logo: 'M<span class="ooo">OOO</span>NSTERS',
     language: '语言',
     namePh: '你的名字',
     coins: '金币',

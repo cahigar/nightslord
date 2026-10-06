@@ -68,7 +68,7 @@ const server = createServer((req, res) => {
   if (!existsSync(file) || statSync(file).isDirectory()) file = join(STATIC_DIR, 'index.html');
   if (!existsSync(file)) {
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
-    res.end('Servidor de El Señor de la Noche activo. En desarrollo abre el cliente en http://localhost:5173');
+    res.end('Servidor de Mooonsters activo. En desarrollo abre el cliente en http://localhost:5173');
     return;
   }
   // los ficheros de /assets llevan hash en el nombre: se pueden cachear para siempre (CDN y navegador)
@@ -237,7 +237,7 @@ function buy(c: Conn, item: string) {
   c.send({ t: 'profile', profile: p });
 }
 
-server.listen(PORT, () => console.log(`🦇 El Señor de la Noche escuchando en http://localhost:${PORT}${DEV ? ' (modo desarrollo: Mayús+L sube nivel, Mayús+U carga la R)' : ''}`));
+server.listen(PORT, () => console.log(`🦇 Mooonsters escuchando en http://localhost:${PORT}${DEV ? ' (modo desarrollo: Mayús+L sube nivel, Mayús+U carga la R)' : ''}`));
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => { store.flush(); process.exit(0); });

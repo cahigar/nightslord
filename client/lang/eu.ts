@@ -2,8 +2,8 @@ import { ch, type Dict } from './es';
 
 export const EU: Dict = {
   ui: {
-    docTitle: 'Gauaren Jauna .io',
-    logo: 'Gauaren<br />Jauna',
+    docTitle: 'Mooonsters',
+    logo: 'M<span class="ooo">OOO</span>NSTERS',
     language: 'Hizkuntza',
     namePh: 'Zure izena',
     coins: 'Txanponak',

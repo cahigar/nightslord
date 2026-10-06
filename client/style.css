@@ -22,6 +22,7 @@ button, input, select { font-family: var(--px); font-size: 11px; color: var(--te
 
 .logo { position: relative; text-align: center; margin: 8px 0 18px; }
 .logo h1 { font-family: var(--px); font-size: clamp(22px, 5vw, 38px); line-height: 1.35; margin: 0; color: #f0e0ff; text-shadow: 3px 3px 0 var(--blood), 6px 6px 0 #000; letter-spacing: 1px; }
+.logo h1 .ooo { color: var(--gold); text-shadow: 3px 3px 0 #6a2a00, 6px 6px 0 #000; }
 .logo .io { font-family: var(--px); color: var(--gold); font-size: 16px; position: absolute; right: 12%; bottom: -6px; transform: rotate(-8deg); text-shadow: 2px 2px 0 #000; }
 .logo-moon { width: 64px; height: 64px; margin: 0 auto 10px; background: #f0e8c8; box-shadow: 0 0 40px 10px rgba(240, 220, 160, 0.35), inset -12px -6px 0 #d8c8a0; clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
 

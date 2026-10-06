@@ -2,7 +2,7 @@
   "name": "nightslord",
   "version": "0.1.0",
   "private": true,
-  "description": "El Señor de la Noche — juego multijugador tipo .io de monstruos clásicos en pixel art",
+  "description": "Mooonsters — juego multijugador tipo .io de monstruos clásicos en pixel art",
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,client -c magenta,cyan \"npm:dev:server\" \"npm:dev:client\"",

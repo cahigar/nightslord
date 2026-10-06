@@ -2,8 +2,8 @@ import { ch, type Dict } from './es';
 
 export const JA: Dict = {
   ui: {
-    docTitle: '夜の支配者 .io',
-    logo: '夜の<br />支配者',
+    docTitle: 'Mooonsters',
+    logo: 'M<span class="ooo">OOO</span>NSTERS',
     language: '言語',
     namePh: 'あなたの名前',
     coins: 'コイン',
