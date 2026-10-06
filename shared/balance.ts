@@ -263,10 +263,11 @@ export const BAL = {
   worm: {
     scale: 1.35, r: 25, knock: 150, // pasiva: Coloso (más grande y empuja más)
     accel: { t: 0.7, min: 0.45, turnDot: 0.2 }, // le cuesta arrancar y girar
-    dig: { t: 5, tT3: 8, speedMul: 1.15, healT1: 0.04, emergeR: 110, emergeDmg: 1.2, emergeKnock: 120 }, // Q: sumergirse
+    dig: { t: 5, tT3: 8, speedMul: 1.15, healT1: 0.04, emergeR: 110, emergeDmg: 0.85, emergeKnock: 120 }, // Q: sumergirse
     sense: { r: 420, rT1: 700 }, // pisadas que percibe bajo tierra (las muestra el cliente)
     sand: { r: 170, rT3: 240, t: 4, slowMul: 0.55, pull: 70 }, // E: arenas movedizas
-    ult: { t: 3.5, speedMul: 2.2, turn: 2.6, mouthR: 34, max: 5, dps: 12, spit: 1.4, spitKnock: 260 }, // R: Devorador
+    ult: { t: 3.5, speedMul: 2.2, turn: 2.6, mouthR: 34, max: 5, dps: 8, spit: 1.0, spitKnock: 260 }, // R: Devorador
+    water: { dps: 0.06, slow: 0.7 }, // el agua le daña (fracción de vida por segundo) y le frena
   },
   dino: {
     shiftCdT3: 2.5, // nv. 15: el cambio de forma recarga antes
@@ -277,19 +278,19 @@ export const BAL = {
     ult: { egg: 1, r: 260, dmg: 3.0, burnT: 4, burnDps: 9, fireT: 5 }, // R: extinción
   },
   r800: {
-    shot: { speed: 780, life: 0.45, dmg: 0.38, cd: 0.22, meleeCheck: 40 }, // básico a distancia
+    shot: { speed: 560, life: 0.6, dmg: 0.42, cd: 0.34, meleeCheck: 40 }, // básico a distancia: bolas de electricidad
     lock: { range: 650, t: 6, speedMul: 1.3, dot: 0.6, bonus: 1.7 }, // Q: adquisición de objetivo
-    burst: { t: 3, tT3: 4.5, every: 0.09, speed: 820, life: 0.5, dmg: 0.32, spread: 0.06, speedMul: 0.55 }, // E: arma integrada
+    burst: { t: 3, tT3: 4.5, every: 0.3, everyT3: 0.22, speed: 520, life: 0.9, dmg: 0.55, r: 62, rT3: 90, spread: 0.1, speedMul: 0.6 }, // E: lanzacohetes
     repair: { safeT: 4, rate: 0.03 }, boom: { delay: 1, r: 130, dmg: 2.2 }, // nv. 5
-    ult: { t: 5, len: 620, w: 44, turn: 3, dps: 10, ramp: 0.9, maxMul: 3.5, speedMul: 0.7 }, // R: protocolo de exterminio
+    ult: { t: 5, len: 620, w: 76, turn: 3, dps: 10, ramp: 0.9, maxMul: 3.5, speedMul: 0.7 }, // R: protocolo de exterminio (cañón ancho)
   },
   huntress: {
     bolt: { speed: 760, life: 0.52, dmg: 1.0 }, // básico: ballesta
     militia: { hp: 45, speed: 175, dmg: 0.45, cd: 1.0, life: 30, max: 8, xp: 14, pts: 8 }, // pasiva: humanos armados
     butt: { r: 80, arc: 0.7, arcT3: 1.3, dmg: 1.1, knock: 260 }, // Q: culatazo
-    retreat: { t: 0.22, speedMul: 3.2, invisT: 3.5 }, // E: repliegue
+    retreat: { t: 0.22, speedMul: 3.2, invisT: 3.5 }, // E: repliegue (enfriamiento en characters.ts)
     cdRefund: 0.5, // nv. 5: recupera la mitad del enfriamiento de Q y E
-    ult: { t: 3, every: 0.1, range: 440, blindT: 3, dmg: 0.7 }, // R: círculo de caza
+    ult: { t: 3, every: 0.13, n: 5, turn: 0.3, speed: 560, life: 0.75, blindT: 3, dmg: 0.6 }, // R: círculo de caza (abanico de virotes en espiral)
   },
 };
 
@@ -310,7 +311,10 @@ export const CRITTERS = { max: 7, every: 9, hp: 14, r: 10, speed: 70, flee: 270,
 // ---------------------------------------------------------------------------
 // La orden de cazadores: aparecen según el nivel medio de la sala
 // ---------------------------------------------------------------------------
-export type HunterType = 'cazador' | 'inquisidor' | 'exorcista' | 'sectario' | 'heraldo';
+export type OrderType = 'cazador' | 'inquisidor' | 'exorcista' | 'sectario' | 'heraldo';
+/** Fieras de algunos mapas (no son de la orden): cocodrilos del Nilo y dinosaurios de la jungla. */
+export type BeastType = 'croc' | 'raptor' | 'rex';
+export type HunterType = OrderType | BeastType;
 export interface HunterDef {
   name: string; hp: number; speed: number; r: number;
   melee: number; meleeCd: number; reach: number;
@@ -322,7 +326,20 @@ export const HUNTERS: Record<HunterType, HunterDef> = {
   exorcista: { name: 'Exorcista', hp: 190, speed: 140, r: 17, melee: 18, meleeCd: 1.4, reach: 24, reward: { xp: 100, pts: 110, coins: 10, ult: 40 } },
   sectario: { name: 'Sectario', hp: 45, speed: 175, r: 15, melee: 0, meleeCd: 9, reach: 0, reward: { xp: 40, pts: 40, coins: 5, ult: 15 } },
   heraldo: { name: 'Heraldo de la luz', hp: 650, speed: 105, r: 20, melee: 78, meleeCd: 1.8, reach: 46, reward: { xp: 260, pts: 300, coins: 25, ult: 60 } },
+  croc: { name: 'Cocodrilo', hp: 200, speed: 150, r: 22, melee: 26, meleeCd: 1.6, reach: 30, reward: { xp: 60, pts: 60, coins: 6, ult: 25 } },
+  raptor: { name: 'Raptor', hp: 75, speed: 245, r: 15, melee: 9, meleeCd: 0.9, reach: 22, reward: { xp: 35, pts: 35, coins: 3, ult: 15 } },
+  rex: { name: 'Tiranosaurio', hp: 600, speed: 140, r: 32, melee: 52, meleeCd: 1.7, reach: 44, reward: { xp: 240, pts: 260, coins: 22, ult: 60 } },
 };
+export const isBeast = (t: string) => t === 'croc' || t === 'raptor' || t === 'rex';
+/** Fieras: dónde viven, cuántas hay y cómo cazan. */
+export const BEASTS = {
+  croc: { max: 5, see: 300, leash: 170, swim: 235, stun: 0.3 }, // acecha en el agua y muerde a quien se acerque a la orilla
+  raptor: { max: 6, pack: 2, see: 420, leash: 900 },
+  rex: { max: 1, see: 460, leash: 1300, knock: 180, roarCd: 9, roarR: 260, fearT: 1.2 },
+  every: 12, // reaparición
+};
+/** Corriente del agua poco profunda de la jungla (empuja río abajo). */
+export const CURRENT = { push: 120 };
 export const ORDER = {
   minionPriorityR: 260, // si hay zombis tan cerca, los cazadores van primero a por ellos
   shoot: { dmg: 26, cd: 1.8, speed: 640, range: 520 }, // ballesta del cazador

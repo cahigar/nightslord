@@ -98,10 +98,16 @@ export const wormKit: Kit = {
 
   speedMul(room, p) {
     const acc = B.accel.min + (1 - B.accel.min) * (p.k.acc ?? 0);
-    return acc * (underground(p) ? B.dig.speedMul : 1);
+    return acc * (underground(p) ? B.dig.speedMul : 1) * (room.waterAt(p.x, p.y) ? B.water.slow : 1);
   },
 
   tick(room, p, dt) {
+    // el agua le daña (se le empapa la arena del cuerpo)
+    if (!p.dead && room.waterAt(p.x, p.y)) {
+      room.damage(p, p.maxHp * B.water.dps * dt, { name: 'el agua', kind: Kind.Player, raw: true }, false, true);
+      if (Math.random() < dt * 5) room.fx('sizzle', p.x, p.y, { o: p.id });
+      if (p.dead) return;
+    }
     // Coloso: arranca despacio y al girar bruscamente pierde impulso
     const { mx, my } = p.input, ml = Math.hypot(mx, my);
     if (ml > 0.1) {
@@ -150,7 +156,8 @@ export const wormKit: Kit = {
     }
   },
 
-  buffs(room, p, add) {
+  buffs(room, p, add, list) {
     if (devouring(room, p)) add('devour', p.k.devourEnd - room.time);
+    if (room.waterAt(p.x, p.y)) list.push({ t: 'wet', r: 999 });
   },
 };

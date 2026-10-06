@@ -4,17 +4,20 @@ import { MAP_SIZE } from './constants';
 import { fbm } from './noise';
 import { mulberry32, rint, rpick, rrange, type Rng } from './rng';
 
-export type MapThemeId = 'elm' | 'transylvania' | 'camp' | 'swamp';
+export type MapThemeId = 'elm' | 'transylvania' | 'camp' | 'swamp' | 'nile' | 'jungle';
 
 export type ObstacleType =
   | 'house' | 'fence' | 'tree' | 'car' | 'hedge' | 'lamp' | 'mailbox'
   | 'wall' | 'tomb' | 'crypt' | 'deadtree' | 'tower' | 'brazier' | 'well' | 'statue'
   | 'cabin' | 'pine' | 'water' | 'canoe' | 'rock' | 'firepit' | 'log'
   | 'shop' | 'barricade'
-  | 'cypress' | 'hut' | 'cauldron';
+  | 'cypress' | 'hut' | 'cauldron'
+  | 'pyramid' | 'sphinx' | 'obelisk' | 'column' | 'palm' | 'adobe'
+  | 'jtree' | 'temple' | 'ruin' | 'tent' | 'crate';
 
 export type DecorType =
-  | 'bones' | 'pumpkin' | 'candle' | 'skull' | 'tricycle' | 'cross' | 'mushroom' | 'stump' | 'lantern' | 'sign' | 'reeds' | 'totem';
+  | 'bones' | 'pumpkin' | 'candle' | 'skull' | 'tricycle' | 'cross' | 'mushroom' | 'stump' | 'lantern' | 'sign' | 'reeds' | 'totem'
+  | 'urn' | 'fern' | 'flower' | 'fossil';
 
 export interface Obstacle { x: number; y: number; w: number; h: number; type: ObstacleType; v: number; body?: number }
 export interface Decor { x: number; y: number; type: DecorType; v: number }
@@ -24,7 +27,10 @@ export interface Lake { cx: number; cy: number; rx: number; ry: number; seed: nu
 /** Agua: tipo de terreno identificable para futuros personajes (nadar, aparecer, etc.). */
 export type WaterKind = 'lake' | 'pond' | 'pool' | 'river';
 export interface WaterBody { id: number; kind: WaterKind; x: number; y: number; w: number; h: number }
-export interface River { pts: [number, number][]; w: number; seed: number; bridges: { x: number; y: number }[] }
+/** Río. shallow: agua poco profunda que se puede cruzar a pie, pero con corriente que arrastra río abajo (de pts[0] al final). */
+export interface River { pts: [number, number][]; w: number; seed: number; bridges: { x: number; y: number }[]; shallow?: boolean; vertical?: boolean }
+/** Distancias a un puente: a lo ancho del puente (a) y a lo largo, cruzando el río (c). El río vertical tiene los puentes en horizontal. */
+export const bridgeAxes = (r: River, b: { x: number; y: number }, x: number, y: number) => (r.vertical ? { a: Math.abs(y - b.y), c: Math.abs(x - b.x) } : { a: Math.abs(x - b.x), c: Math.abs(y - b.y) });
 export interface Pool { x: number; y: number; w: number; h: number }
 
 /** Televisión: entidad localizable para futuros teletransportes. host = índice del obstáculo que la contiene (-1 si está al aire libre). */
@@ -59,6 +65,8 @@ export const THEMES: Record<MapThemeId, MapTheme> = {
   transylvania: { id: 'transylvania', name: 'Transilvania', subtitle: 'El castillo espera a su señor', ambient: '#12040a', moon: 'rgba(200,90,120,' },
   camp: { id: 'camp', name: 'Campamento Lago Sereno', subtitle: 'Nadie volvió del turno de noche', ambient: '#040a14', moon: 'rgba(90,150,210,' },
   swamp: { id: 'swamp', name: 'Pantano de la Bruja', subtitle: 'El caldero lleva siglos sin apagarse', ambient: '#050e08', moon: 'rgba(120,200,120,' },
+  nile: { id: 'nile', name: 'Orillas del Nilo', subtitle: 'Algo se mueve bajo el agua', ambient: '#0e0a14', moon: 'rgba(210,180,120,' },
+  jungle: { id: 'jungle', name: 'Jungla Jurásica', subtitle: 'La expedición no volvió del templo', ambient: '#04100a', moon: 'rgba(120,210,150,' },
 };
 
 export const THEME_IDS = Object.keys(THEMES) as MapThemeId[];
@@ -69,6 +77,8 @@ export const NPC_VARIANTS: Record<MapThemeId, string[]> = {
   transylvania: ['villager', 'priest', 'maid', 'villager'],
   camp: ['camper', 'counselor', 'jock', 'nerd'],
   swamp: ['villager', 'camper', 'priest', 'maid'],
+  nile: ['fellah', 'fellah', 'tourist', 'archaeologist'],
+  jungle: ['explorer', 'explorer', 'porter', 'scientist'],
 };
 
 
@@ -123,15 +133,30 @@ export function riverValue(r: River, x: number, y: number) {
   return r.w / 2 - d + (fbm(x, y, r.seed, 120, 2) - 0.5) * 22;
 }
 
+/** Corriente del agua poco profunda en un punto (dirección río abajo) o null. Compartido para que el cliente la prediga. */
+export function currentAt(map: GameMap, x: number, y: number): { dx: number; dy: number } | null {
+  for (const r of map.rivers) {
+    if (!r.shallow || riverValue(r, x, y) <= 0) continue;
+    let best = Infinity, dx = 1, dy = 0;
+    for (let i = 1; i < r.pts.length; i++) {
+      const [ax, ay] = r.pts[i - 1], [bx, by] = r.pts[i];
+      const d = distToSegment(x, y, ax, ay, bx, by);
+      if (d < best) { best = d; const l = Math.hypot(bx - ax, by - ay) || 1; dx = (bx - ax) / l; dy = (by - ay) / l; }
+    }
+    return { dx, dy };
+  }
+  return null;
+}
+
 export function onBridge(r: River, x: number, y: number) {
-  for (const b of r.bridges) if (Math.abs(x - b.x) < 46 && Math.abs(y - b.y) < r.w) return true;
+  for (const b of r.bridges) { const k = bridgeAxes(r, b, x, y); if (k.a < 46 && k.c < r.w) return true; }
   return false;
 }
 
 /** ¿Hay agua jugable en este punto? (lagos, estanques, ríos, piscinas) */
 export function waterAt(map: GameMap, x: number, y: number) {
   for (const l of map.lakes) if (lakeValue(l, x, y) > 0) return true;
-  for (const r of map.rivers) if (riverValue(r, x, y) > 0 && !onBridge(r, x, y)) return true;
+  for (const r of map.rivers) if (riverValue(r, x, y) > 0 && !onBridge(r, x, y)) return true; // (también el poco profundo)
   for (const p of map.pools) if (x > p.x && x < p.x + p.w && y > p.y && y < p.y + p.h) return true;
   return false;
 }
@@ -225,7 +250,7 @@ function riverObstacles(r: River): Obstacle[] {
     let run = -1;
     for (let x = x0; x <= x1 + C; x += C) {
       const cx = x + C / 2, cy = y + C / 2;
-      const inside = x <= x1 && riverValue(r, cx, cy) > 6 && !r.bridges.some((b) => Math.abs(cx - b.x) < 70 && Math.abs(cy - b.y) < r.w + 20);
+      const inside = x <= x1 && riverValue(r, cx, cy) > 6 && !r.bridges.some((b) => { const k = bridgeAxes(r, b, cx, cy); return k.a < 70 && k.c < r.w + 20; });
       if (inside && run < 0) run = x;
       if (!inside && run >= 0) { out.push({ x: run, y, w: x - run, h: C, type: 'water', v: 0 }); run = -1; }
     }
@@ -270,7 +295,7 @@ function houseTV(o: Obstacle, idx: number, id: number): TV | null {
 /** Franja exterior temática: el mundo continúa, pero se entiende que no se puede pasar. */
 function buildBorder(r: Rng, theme: MapThemeId, edges: Record<Side, EdgeKind>, trails: Trail[]): Obstacle[] {
   const S = MAP_SIZE, D = BORDER_DEPTH, out: Obstacle[] = [];
-  const treeType: ObstacleType = theme === 'elm' ? 'tree' : theme === 'transylvania' ? 'deadtree' : theme === 'swamp' ? 'cypress' : 'pine';
+  const treeType: ObstacleType = theme === 'elm' ? 'tree' : theme === 'transylvania' ? 'deadtree' : theme === 'swamp' ? 'cypress' : theme === 'nile' ? 'palm' : theme === 'jungle' ? 'jtree' : 'pine';
   const nearRoad = (x: number, y: number, pad: number) => trails.some((t) => t.kind === 'road' && distToTrail(t, x, y) < t.w / 2 + pad);
   const add = (type: ObstacleType, x: number, y: number, w: number, h: number, v = rint(r, 0, 3)) => {
     if (nearRoad(x + w / 2, y + h / 2, Math.max(w, h) / 2 + 6)) return;
@@ -332,6 +357,7 @@ function buildBorder(r: Rng, theme: MapThemeId, edges: Record<Side, EdgeKind>, t
         break;
       case 'cliff':
         for (let l = len0; l < len1; l += rint(r, 50, 80)) { const [x, y] = at(l, rrange(r, 0, 26), 46, 36); add('rock', x, y, 46, 36); }
+        if (theme === 'nile') fill('rock', 44, 34, 150, 120, D, 0.25); // desierto rocoso
         break;
       case 'water':
         for (let l = len0; l < len1; l += rint(r, 160, 320)) { const [x, y] = at(l, rrange(r, 4, 20), 44, 34); add('rock', x, y, 44, 34); }
@@ -522,6 +548,92 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
       decor.push({ x: l.cx + Math.cos(a) * l.rx * 1.12, y: l.cy + Math.sin(a) * l.ry * 1.15, type: 'reeds', v: rint(r, 0, 3) });
     }
     for (let k = 0; k < 26; k++) decor.push({ x: rrange(r, 80, S - 80), y: rrange(r, 80, S - 80), type: rpick(r, ['mushroom', 'mushroom', 'bones', 'skull', 'candle', 'stump'] as const), v: rint(r, 0, 3) });
+  } else if (theme === 'nile') {
+    // El Nilo cruza el desierto de norte a sur; pirámides y esfinge en una orilla, templo en ruinas y aldea en la otra
+    const rx = S * (0.4 + r() * 0.2);
+    const river: River = { ...windingTrail(r, [rx + rrange(r, -180, 180), -BORDER_DEPTH], [rx + rrange(r, -180, 180), S + BORDER_DEPTH], 0, 'dirt', 300), w: 200, seed: seed + 21, bridges: [], vertical: true };
+    for (const pt of river.pts) pt[0] = Math.max(700, Math.min(S - 700, pt[0]));
+    // caminos de arena que cruzan el río por pasarelas
+    for (const fy of [0.22 + r() * 0.12, 0.66 + r() * 0.12]) trails.push(windingTrail(r, [-BORDER_DEPTH, fy * S], [S + BORDER_DEPTH, fy * S + rrange(r, -160, 160)], 66, 'dirt', 200));
+    findBridges(river, trails);
+    rivers.push(river);
+    const west = rx > S / 2; // las pirámides, en la orilla más ancha
+    const desert: [number, number, number, number] = west ? [MARGIN, MARGIN, rx - 380 - MARGIN, S - 2 * MARGIN] : [rx + 380, MARGIN, S - rx - 380 - MARGIN, S - 2 * MARGIN];
+    const other: [number, number, number, number] = west ? [rx + 260, MARGIN, S - rx - 260 - MARGIN, S - 2 * MARGIN] : [MARGIN, MARGIN, rx - 260 - MARGIN, S - 2 * MARGIN];
+    // templo: patio de losas con columnas, obeliscos a la entrada
+    const tw = 520, thh = 360;
+    const tx = other[0] + rrange(r, 40, Math.max(41, other[2] - tw - 40)), ty = S / 2 - thh / 2 + rint(r, -500, 500);
+    plazas.push({ x: tx, y: ty, w: tw, h: thh, kind: 'stone' });
+    P = new Placer(r, trails, (x, y) => riverValue(river, x, y) > -70 || (x > tx - 40 && x < tx + tw + 40 && y > ty - 40 && y < ty + thh + 40));
+    P.obs.push(...riverObstacles(river));
+    for (let x = tx + 20; x < tx + tw - 30; x += 96) { P.add('column', x, ty + 10, 28, 28, rint(r, 0, 3)); if (r() < 0.75) P.add('column', x, ty + thh - 40, 28, 28, rint(r, 0, 3)); }
+    for (let y = ty + 110; y < ty + thh - 110; y += 96) { P.add('column', tx + 10, y, 28, 28, 1); P.add('column', tx + tw - 38, y, 28, 28, 2); }
+    P.add('statue', tx + tw / 2 - 20, ty + thh / 2 - 20, 40, 40, 0);
+    for (let k = 0; k < 6; k++) decor.push({ x: rrange(r, tx + 60, tx + tw - 60), y: rrange(r, ty + 60, ty + thh - 60), type: rpick(r, ['urn', 'candle', 'skull'] as const), v: rint(r, 0, 3) });
+    // pirámides y esfinge
+    const sizes: [number, number][] = [[360, 260], [280, 210], [220, 170]];
+    for (const [w, h] of sizes) P.scatter('pyramid', 1, w, h, 140, desert, 60);
+    P.scatter('sphinx', 1, 210, 100, 90, desert, 60);
+    P.scatter('obelisk', 4, 26, 26, 160, desert);
+    P.scatter('obelisk', 2, 26, 26, 160, other);
+    // aldea de adobe junto al río
+    const band: [number, number, number, number] = [Math.max(MARGIN, rx - 700), MARGIN, 1400, S - 2 * MARGIN];
+    P.scatter('adobe', 9, 160, 116, 80, band, 40);
+    // palmeras en las orillas (oasis del Nilo) y papiros
+    for (let i = 0; i < river.pts.length - 1; i++) {
+      const [ax, ay] = river.pts[i], [bx, by] = river.pts[i + 1];
+      for (let t = 0; t < 1; t += 0.2) for (const side of [-1, 1]) {
+        if (r() < 0.45) continue;
+        const x = ax + (bx - ax) * t + side * rrange(r, river.w / 2 + 50, river.w / 2 + 170), y = ay + (by - ay) * t;
+        P.tryAdd('palm', x - 26, y - 26, 52, 52, 18);
+        if (r() < 0.6) decor.push({ x: ax + (bx - ax) * t + side * (river.w / 2 + 14), y, type: 'reeds', v: rint(r, 0, 3) });
+      }
+    }
+    P.cluster('palm', 24, 52, 52, 24, seed + 9, 260, 0.62);
+    P.scatter('rock', 16, 44, 34, 50);
+    for (let k = 0; k < 26; k++) decor.push({ x: rrange(r, 80, S - 80), y: rrange(r, 80, S - 80), type: rpick(r, ['bones', 'skull', 'urn', 'urn', 'bones'] as const), v: rint(r, 0, 3) });
+  } else if (theme === 'jungle') {
+    // Jungla: un río poco profundo con corriente cruza de oeste a este; templo en ruinas y campamento de la expedición
+    const ry = S * (0.38 + r() * 0.24);
+    const river: River = { ...windingTrail(r, [-BORDER_DEPTH, ry + rrange(r, -200, 200)], [S + BORDER_DEPTH, ry + rrange(r, -200, 200)], 0, 'dirt', 340), w: 190, seed: seed + 21, bridges: [], shallow: true };
+    for (const pt of river.pts) pt[1] = Math.max(600, Math.min(S - 600, pt[1]));
+    rivers.push(river);
+    const north = r() < 0.5;
+    const tY = north ? rrange(r, 260, Math.max(270, ry - 700)) : rrange(r, Math.min(S - 560, ry + 500), S - 560);
+    const tX = rrange(r, 400, S - 800);
+    plazas.push({ x: tX - 120, y: tY - 90, w: 560, h: 420, kind: 'stone' });
+    const cY = north ? rrange(r, Math.min(S - 500, ry + 480), S - 500) : rrange(r, 300, Math.max(310, ry - 600));
+    const cX = rrange(r, 400, S - 700);
+    plazas.push({ x: cX - 60, y: cY - 60, w: 440, h: 340, kind: 'dirt' });
+    // una laguna profunda y senderos (cruzan el río vadeando)
+    const lake: Lake = { cx: rrange(r, 500, S - 500), cy: north ? rrange(r, Math.min(S - 400, ry + 700), S - 400) : rrange(r, 400, Math.max(410, ry - 700)), rx: rrange(r, 200, 280), ry: rrange(r, 150, 210), seed: seed + 11 };
+    if (Math.hypot(lake.cx - cX, lake.cy - cY) > 600 && Math.hypot(lake.cx - tX, lake.cy - tY) > 600) lakes.push(lake);
+    trails.push(windingTrail(r, [cX + 160, cY + 110], [tX + 160, tY + 120], 56, 'dirt', 300));
+    trails.push(windingTrail(r, [cX + 160, cY + 110], [north ? cX : cX, north ? S - 40 : 40], 50, 'dirt', 260));
+    trails.push(windingTrail(r, [tX + 160, tY + 120], [rpick(r, [40, S - 40]), tY + rrange(r, -300, 300)], 50, 'dirt', 260));
+    P = new Placer(r, trails, (x, y) => riverValue(river, x, y) > -40 || lakes.some((l) => lakeValue(l, x, y) > -0.2)
+      || (x > tX - 120 && x < tX + 440 && y > tY - 90 && y < tY + 330) || (x > cX - 60 && x < cX + 380 && y > cY - 60 && y < cY + 280));
+    for (const l of lakes) P.obs.push(...lakeObstacles(l));
+    // templo escalonado en ruinas, con bloques caídos
+    P.add('temple', tX, tY, 320, 220, 0);
+    for (const [dx, dy] of [[-90, 40], [350, 60], [-70, 250], [380, 250]]) P.add('ruin', tX + dx, tY + dy, 70, 40, rint(r, 0, 3));
+    for (const [dx, dy] of [[-40, 260], [340, 270]]) P.add('column', tX + dx, tY + dy, 28, 28, 3);
+    // campamento: tiendas, hoguera y cajas de material
+    P.add('firepit', cX + 135, cY + 92, 50, 36, 0);
+    for (const [dx, dy] of [[0, 0], [250, 10], [10, 190], [250, 190]]) P.add('tent', cX + dx, cY + dy, 96, 66, rint(r, 0, 3));
+    for (const [dx, dy] of [[120, 10], [170, 210], [-40, 120]]) P.add('crate', cX + dx, cY + dy, 30, 26, rint(r, 0, 3));
+    decor.push({ x: cX + 200, y: cY + 150, type: 'lantern', v: 0 }, { x: cX + 60, y: cY + 140, type: 'lantern', v: 0 }, { x: cX + 330, y: cY - 30, type: 'sign', v: 0 });
+    // selva densa: árboles gigantes, palmeras y ruinas sueltas
+    P.cluster('jtree', 220, 64, 64, 18, seed + 5, 380, 0.38);
+    P.cluster('palm', 40, 52, 52, 22, seed + 7, 300, 0.55);
+    P.scatter('ruin', 8, 70, 40, 60);
+    P.scatter('rock', 12, 44, 34, 40);
+    P.scatter('log', 8, 80, 24, 40);
+    for (let k = 0; k < 90; k++) decor.push({ x: rrange(r, 80, S - 80), y: rrange(r, 80, S - 80), type: rpick(r, ['fern', 'fern', 'fern', 'flower', 'flower', 'fossil', 'mushroom'] as const), v: rint(r, 0, 3) });
+    for (let i = 0; i < river.pts.length - 1; i++) for (const side of [-1, 1]) {
+      const [ax, ay] = river.pts[i];
+      decor.push({ x: ax + rrange(r, -80, 80), y: ay + side * (river.w / 2 + rrange(r, 8, 30)), type: rpick(r, ['reeds', 'fern'] as const), v: rint(r, 0, 3) });
+    }
   } else {
     // Lago irregular
     const lake: Lake = { cx: rrange(r, 1000, 2200), cy: rrange(r, 900, 1400), rx: rrange(r, 420, 560), ry: rrange(r, 300, 400), seed: seed + 11 };
@@ -572,12 +684,13 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
   // ---- masas de agua (identificables para futuros personajes)
   const water: WaterBody[] = [];
   let wid = 1;
-  for (const l of lakes) water.push({ id: wid++, kind: theme === 'elm' || theme === 'swamp' ? 'pond' : 'lake', x: Math.round(l.cx - l.rx * 1.3), y: Math.round(l.cy - l.ry * 1.3), w: Math.round(l.rx * 2.6), h: Math.round(l.ry * 2.6) });
+  for (const l of lakes) water.push({ id: wid++, kind: theme === 'elm' || theme === 'swamp' || theme === 'jungle' ? 'pond' : 'lake', x: Math.round(l.cx - l.rx * 1.3), y: Math.round(l.cy - l.ry * 1.3), w: Math.round(l.rx * 2.6), h: Math.round(l.ry * 2.6) });
   for (const p of pools) water.push({ id: wid++, kind: 'pool', ...p });
   for (const rv of rivers) {
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const [x, y] of rv.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
-    water.push({ id: wid++, kind: 'river', x: Math.max(0, Math.round(x0)), y: Math.round(y0 - rv.w), w: Math.round(Math.min(S, x1) - Math.max(0, x0)), h: Math.round(y1 - y0 + rv.w * 2) });
+    const bx0 = Math.max(0, x0 - rv.w), by0 = Math.max(0, y0 - rv.w);
+    water.push({ id: wid++, kind: 'river', x: Math.round(bx0), y: Math.round(by0), w: Math.round(Math.min(S, x1 + rv.w) - bx0), h: Math.round(Math.min(S, y1 + rv.w) - by0) });
   }
   for (const o of obstacles) if (o.type === 'water') {
     const b = water.find((w) => o.x + o.w / 2 >= w.x && o.x + o.w / 2 <= w.x + w.w && o.y + o.h / 2 >= w.y && o.y + o.h / 2 <= w.y + w.h);
@@ -604,7 +717,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     }
   });
   // televisores abandonados a la intemperie (inquietantes)
-  const outdoor = theme === 'transylvania' ? 9 : theme === 'camp' || theme === 'swamp' ? 8 : 4; // solo se ven si hay una Interferencia en la sala
+  const outdoor = theme === 'transylvania' ? 9 : theme === 'camp' || theme === 'swamp' || theme === 'nile' || theme === 'jungle' ? 8 : 4; // solo se ven si hay una Interferencia en la sala
   for (let k = 0, tries = 0; k < outdoor && tries < 80; tries++) {
     const x = rrange(r, 200, S - 200), y = rrange(r, 200, S - 200);
     if (!P.free(x - 20, y - 20, 40, 34, 20)) continue;
@@ -619,6 +732,8 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     transylvania: ['cliff', 'forest', 'wall', 'graves'],
     camp: ['forest', 'forest', 'water', 'cliff'],
     swamp: ['forest', 'water', 'forest', 'graves'],
+    nile: ['cliff', 'forest', 'cliff', 'water'],
+    jungle: ['forest', 'forest', 'water', 'cliff'],
   };
   const edges = {} as Record<Side, EdgeKind>;
   let usedWater = false, usedCliff = false;

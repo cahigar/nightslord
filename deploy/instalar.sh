@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Instalación en un VPS limpio con Ubuntu 24.04 (Hetzner, Hostinger VPS, Oracle...). Ejecutar como root:
-#   curl -fsSL https://raw.githubusercontent.com/cahigar/nightslord/main/deploy/instalar.sh | bash -s juego.midominio.com tu@gmail.com
-# (el segundo dato, opcional, es el Gmail de la cuenta master). El ID de Google se añade luego en /opt/nightslord/deploy/.env
+#   curl -fsSL https://raw.githubusercontent.com/cahigar/nightslord/main/deploy/instalar.sh | bash -s juego.midominio.com tu@gmail.com [rama]
+# (el segundo dato, opcional, es el Gmail de la cuenta master; el tercero, la rama de GitHub que se instala, por defecto main).
+# El ID de Google se añade luego en /opt/nightslord/deploy/.env
 set -euo pipefail
 DOMAIN="${1:-}"
 ADMIN="${2:-}"
+BRANCH="${3:-main}"
 [ -z "$DOMAIN" ] && { echo "Uso: instalar.sh tu.dominio.com [gmail-master]"; exit 1; }
 
 echo "== Actualizando el sistema"
@@ -25,7 +27,7 @@ command -v docker >/dev/null || curl -fsSL https://get.docker.com | sh
 
 echo "== Código del juego"
 mkdir -p /opt && cd /opt
-[ -d nightslord ] || git clone https://github.com/cahigar/nightslord.git
+[ -d nightslord ] || git clone -b "$BRANCH" https://github.com/cahigar/nightslord.git
 cd nightslord/deploy
 if [ ! -f .env ]; then
   { echo "DOMAIN=$DOMAIN"; echo "ADMIN_EMAILS=$ADMIN"; echo "GOOGLE_CLIENT_ID="; } > .env

@@ -422,6 +422,208 @@ const cauldron: Draw = (b, W, H, up) => {
   b.rect(1, cy - 4, 2, 2, '#2c2a30'); b.rect(W - 3, cy - 4, 2, 2, '#2c2a30'); // asas
 };
 
+
+// ---------------------------------------------------------------------------
+// Orillas del Nilo
+// ---------------------------------------------------------------------------
+const SAND = '#c8a868', SAND_D = '#9a7e48', SAND_L = '#e0c888', GOLD = '#f0c040';
+
+const pyramid: Draw = (b, W, H, up, o, r) => {
+  // pirámide escalonada de bloques de arenisca con remate de oro y entrada oscura
+  const base = up + H - 1, apex = Math.max(0, base - Math.round(W * 0.62));
+  const cx = Math.floor(W / 2);
+  for (let y = apex; y <= base; y++) {
+    const half = Math.round(((y - apex) / (base - apex)) * (W / 2));
+    const step = (y - apex) % 4 === 3;
+    b.rect(cx - half, y, half, 1, step ? SAND_D : SAND); // cara iluminada
+    b.rect(cx, y, half, 1, step ? shade(SAND_D, -0.15) : shade(SAND, -0.16)); // cara en sombra
+    if (!step) for (let x = cx - half + ((y >> 2) % 2) * 3; x < cx + half; x += 6) b.set(x, y, shade(SAND, -0.08)); // juntas de bloques
+  }
+  b.line(cx, apex, cx, base, SAND_L); // arista
+  for (let k = 0; k < W * 1.2; k++) { const x = Math.floor(r() * W), y = apex + Math.floor(r() * (base - apex)); if (b.get(x, y)) b.set(x, y, r() < 0.5 ? SAND_D : SAND_L); }
+  // remate dorado
+  for (let y = 0; y < 5; y++) b.rect(cx - y, apex + y, y * 2 + 1, 1, y < 2 ? '#fff0a0' : GOLD, y < 3 && o.v % 2 === 0);
+  // entrada
+  b.rect(cx - 3, base - 9, 6, 9, '#2a1a0e'); b.rect(cx - 4, base - 10, 8, 1, SAND_D); b.rect(cx - 2, base - 8, 4, 8, '#140a06');
+  // arena acumulada al pie
+  for (let x = 0; x < W; x++) { const h = 1 + Math.round(Math.abs(Math.sin(x * 0.3 + o.v)) * 2); b.rect(x, base - h + 1, 1, h, x % 3 ? SAND_L : SAND); }
+};
+
+const sphinx: Draw = (b, W, H, up) => {
+  // esfinge tumbada: cuerpo de león, garras delante y cabeza con tocado a rayas
+  const base = up + H - 1;
+  const bodyTop = base - 16;
+  b.rect(2, bodyTop, W - 22, 14, SAND); b.rect(2, bodyTop, W - 22, 2, SAND_L); b.rect(2, base - 3, W - 22, 2, SAND_D);
+  b.ellipse(4, bodyTop + 6, 4, 6, SAND); // anca
+  b.line(1, base - 2, 0, base - 8, SAND_D); // cola
+  for (let x = 6; x < W - 22; x += 7) b.set(x, bodyTop + 6, SAND_D); // costillas talladas
+  // garras extendidas
+  b.rect(W - 26, base - 5, 24, 5, SAND); b.rect(W - 26, base - 5, 24, 1, SAND_L);
+  for (const x of [W - 4, W - 6]) b.set(x, base - 1, SAND_D);
+  // cabeza con tocado
+  const hx = W - 20, hy = bodyTop - 14;
+  b.rect(hx - 2, hy + 4, 14, 18, '#3a6aa0'); for (let y = hy + 5; y < hy + 22; y += 2) b.rect(hx - 2, y, 14, 1, '#e0c040'); // tocado a rayas
+  b.rect(hx + 1, hy, 8, 4, '#3a6aa0'); b.rect(hx + 1, hy, 8, 1, '#e0c040');
+  b.rect(hx + 2, hy + 4, 7, 10, SAND); b.rect(hx + 2, hy + 4, 7, 1, SAND_L); // rostro
+  b.rect(hx + 3, hy + 7, 2, 1, '#2a1a0e'); b.rect(hx + 6, hy + 7, 2, 1, '#2a1a0e'); b.set(hx + 4, hy + 7, '#5ae0e0', true); b.set(hx + 7, hy + 7, '#5ae0e0', true);
+  b.rect(hx + 4, hy + 11, 3, 1, SAND_D); b.rect(hx + 4, hy + 14, 3, 3, '#3a6aa0'); // barba postiza
+  b.set(hx + 8, hy + 9, SAND_D); // nariz rota
+};
+
+const obelisk: Draw = (b, W, H, up, o) => {
+  // obelisco con jeroglíficos y punta dorada
+  const cx = Math.floor(W / 2), base = up + H - 1;
+  for (let y = 4; y <= base; y++) { const half = y < base - 3 ? 2 + Math.floor((y - 4) / 18) : 4; b.rect(cx - half, y, half * 2 + 1, 1, y < base - 3 ? SAND : SAND_D); b.set(cx + half, y, shade(SAND, -0.18)); }
+  for (let y = 0; y < 4; y++) b.rect(cx - y, y + 1, y * 2 + 1, 1, GOLD, y < 2);
+  for (let y = 8; y < base - 6; y += 3) b.set(cx - 1 + (y % 2), y, o.v % 2 ? '#5ae0e0' : '#7a5a30', o.v % 2 === 1);
+};
+
+const column: Draw = (b, W, H, up, o, _r, theme) => {
+  // columna: egipcia con capitel de papiro y bandas pintadas; en la jungla, columna rota cubierta de musgo
+  const cx = Math.floor(W / 2), base = up + H - 1;
+  const jungle = theme === 'jungle' || o.v === 3;
+  const stone = jungle ? '#8a8a7a' : SAND, stoneD = jungle ? '#5a5a4e' : SAND_D;
+  const top = jungle ? up - 12 + (o.v % 2) * 6 : 4;
+  b.rect(cx - 3, top, 7, base - top, stone); b.rect(cx + 2, top, 2, base - top, shade(stone, -0.15));
+  b.rect(cx - 4, base - 2, 9, 2, stoneD);
+  if (!jungle) {
+    b.rect(cx - 5, top - 3, 11, 3, SAND_L); b.rect(cx - 4, top - 4, 9, 1, '#4a8a50'); // capitel de papiro
+    for (const y of [top + 4, top + 7, base - 6]) { b.rect(cx - 3, y, 7, 1, '#3a6aa0'); b.rect(cx - 3, y + 1, 7, 1, '#c03020'); }
+  } else {
+    b.set(cx - 3, top, null); b.set(cx + 3, top + 1, stoneD); b.set(cx - 2, top - 1, stone); // rotura
+    for (let k = 0; k < 10; k++) b.set(cx - 3 + ((k * 5) % 7), top + 2 + ((k * 7) % (base - top - 2)), k % 2 ? '#3a6a2a' : '#4a8a34'); // musgo
+    b.rect(cx + 5, base - 2, 3, 2, stoneD); // cascote
+  }
+};
+
+const palm: Draw = (b, W, H, up, o, r) => {
+  // palmera: tronco curvo anillado, penacho de hojas y cocos
+  const baseX = Math.floor(W / 2) + 2, baseY = up + H - 2;
+  const lean = o.v % 2 ? 1 : -1;
+  let tx = baseX, ty = baseY;
+  for (let i = 0; i < 26; i++) {
+    tx = baseX + Math.round(lean * (i / 26) ** 2 * 7); ty = baseY - i;
+    b.rect(tx - 1, ty, 3, 1, i % 3 === 0 ? '#5a4024' : '#7a5a34');
+  }
+  const leaves = ['#2a5a24', '#3a7a2e', '#4a8a34'];
+  for (let k = 0; k < 7; k++) {
+    const a = -Math.PI / 2 + (k - 3) * 0.48 + (r() - 0.5) * 0.15;
+    const len = 11 + Math.floor(r() * 3);
+    for (let j = 1; j <= len; j++) {
+      const droop = (j / len) ** 2 * 6;
+      const x = tx + Math.round(Math.cos(a) * j), y = ty + Math.round(Math.sin(a) * j * 0.7 + droop);
+      b.set(x, y, leaves[(j + k) % 3]); if (j > 2 && j < len - 1) { b.set(x, y + 1, leaves[0]); if (j % 2) b.set(x + (Math.cos(a) > 0 ? -1 : 1), y + 2, leaves[1]); }
+    }
+  }
+  for (const [dx, dy] of [[-1, 2], [1, 2], [0, 3]]) b.set(tx + dx, ty + dy, '#5a3a18');
+};
+
+const adobe: Draw = (b, W, H, up, o, r) => {
+  // casa de adobe de tejado plano con cántaros en la azotea
+  const F = 14, base = up + H, top = base - F;
+  const lit = isLit(o);
+  const mud = ['#b08858', '#a07a4e', '#c09868'][o.v % 3], mudD = shade(mud, -0.22);
+  b.rect(0, 0, W, top, shade(mud, 0.12)); // azotea
+  b.rect(0, 0, W, 1, shade(mud, -0.1)); b.rect(0, top - 2, W, 2, mudD);
+  for (let k = 0; k < W; k++) b.set(Math.floor(r() * W), Math.floor(r() * (top - 2)), shade(mud, 0.2));
+  b.rect(3, 3, 5, 4, '#8a5a30'); b.rect(4, 2, 3, 1, '#6a4020'); // cántaro
+  if (o.v % 2) { b.rect(W - 12, 2, 8, 6, '#d8d0c0'); b.rect(W - 12, 2, 8, 1, '#a09880'); } // tela tendida
+  b.rect(0, top, W, F, mud);
+  for (let k = 0; k < W; k++) { const x = Math.floor(r() * W), y = top + Math.floor(r() * F); b.set(x, y, r() < 0.5 ? mudD : shade(mud, 0.1)); }
+  for (let wx = 5; wx < W - 8; wx += 12) { b.rect(wx, top + 3, 4, 4, lit && r() < 0.8 ? '#ffc060' : '#2a1a0e', lit); b.rect(wx - 1, top + 2, 6, 1, mudD); }
+  const dx = Math.floor(W / 2) - 3;
+  b.rect(dx, base - 10, 7, 10, '#2a1a0e'); b.rect(dx, base - 10, 7, 1, mudD); b.rect(dx + 1, base - 9, 5, 9, ['#3a5a8a', '#6a3a20', '#2a6a5a'][o.v % 3]);
+  b.rect(0, base - 1, W, 1, mudD);
+};
+
+// ---------------------------------------------------------------------------
+// Jungla jurásica
+// ---------------------------------------------------------------------------
+const jtree: Draw = (b, W, H, up, o, r) => {
+  // árbol gigante de la selva: raíces tabulares, tronco grueso, copa enorme a capas y lianas
+  const cx = Math.floor(W / 2) + 4, baseY = up + H - 2;
+  const bark = '#4a3a26', barkD = '#2e2418', barkL = '#6a5634';
+  b.rect(cx - 3, baseY - 22, 7, 22, bark); b.rect(cx - 3, baseY - 22, 2, 22, barkL); b.rect(cx + 3, baseY - 22, 1, 22, barkD);
+  for (const d of [-7, -5, 5, 8]) { b.line(cx + Math.sign(d) * 3, baseY - 9, cx + d, baseY, barkD); b.line(cx + Math.sign(d) * 2, baseY - 8, cx + d - Math.sign(d), baseY, bark); } // raíces
+  const greens = o.v % 2 ? ['#123018', '#1c4422', '#28582c', '#3a7036'] : ['#14301a', '#1e4026', '#2a5430', '#3c6c3a'];
+  for (let layer = 0; layer < 3; layer++) {
+    const y = baseY - 30 - layer * 6, rw = 14 - layer * 3;
+    for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; b.ellipse(cx + Math.cos(a) * rw * 0.7, y + Math.sin(a) * 3, 6, 4, greens[layer]); }
+    b.ellipse(cx, y - 1, rw * 0.7, 4, greens[layer + 1]);
+  }
+  for (let i = 0; i < 40; i++) { const x = cx + Math.round((r() - 0.5) * 30), y = baseY - 40 + Math.round((r() - 0.5) * 22); if (b.get(x, y)) b.set(x, y, r() < 0.5 ? greens[3] : greens[0]); }
+  // lianas colgando
+  for (let k = 0; k < 6; k++) {
+    const x = cx - 12 + Math.floor(r() * 25), y0 = baseY - 28 + Math.floor(r() * 4), len = 5 + Math.floor(r() * 10);
+    for (let y = 0; y < len; y++) b.set(x + (y > len / 2 ? 1 : 0), y0 + y, y === len - 1 ? '#5a8a3a' : '#2e5a24');
+  }
+  if (o.v === 2) { b.set(cx - 8, baseY - 26, '#ff4080', true); b.set(cx + 9, baseY - 30, '#ffd040', true); } // flores que brillan
+};
+
+const temple: Draw = (b, W, H, up, o, r) => {
+  // templo escalonado en ruinas: cuatro gradas, escalinata central, santuario arriba con runas verdes
+  const base = up + H - 1, top = 4;
+  const stone = '#7a7a68', stoneD = '#4e4e42', stoneL = '#9a9a86';
+  const tiers = 4, th = Math.floor((base - top - 10) / tiers);
+  for (let t = 0; t < tiers; t++) {
+    const y0 = base - (t + 1) * th, inset = t * Math.floor(W / 9);
+    b.rect(inset, y0, W - inset * 2, th, stone); b.rect(inset, y0, W - inset * 2, 1, stoneL); b.rect(inset, y0 + th - 1, W - inset * 2, 1, stoneD);
+    for (let x = inset + 2; x < W - inset - 2; x += 5) b.set(x, y0 + Math.floor(th / 2), stoneD);
+  }
+  // santuario
+  const sw = Math.floor(W / 3), sx = Math.floor((W - sw) / 2), sy = base - tiers * th - 10;
+  b.rect(sx, Math.max(top, sy), sw, 10, stone); b.rect(sx - 1, Math.max(top, sy) - 1, sw + 2, 2, stoneL);
+  b.rect(sx + Math.floor(sw / 2) - 3, Math.max(top, sy) + 3, 6, 7, '#0a0a08'); // puerta
+  for (const dx of [2, sw - 3]) b.set(sx + dx, Math.max(top, sy) + 4, '#60ff90', true); // runas
+  // escalinata central
+  const stw = Math.floor(W / 6), stx = Math.floor((W - stw) / 2);
+  for (let y = sy + 10; y < base; y += 2) { b.rect(stx, y, stw, 1, stoneL); b.rect(stx, y + 1, stw, 1, stoneD); }
+  // musgo, lianas y grietas
+  for (let k = 0; k < W * 2; k++) { const x = Math.floor(r() * W), y = Math.floor(r() * base); if (b.get(x, y)) b.set(x, y, r() < 0.6 ? '#3a6a2a' : '#2a4a20'); }
+  for (let k = 0; k < 8; k++) { const x = Math.floor(r() * W), y0 = sy + Math.floor(r() * 20), len = 4 + Math.floor(r() * 10); for (let y = 0; y < len; y++) if (b.get(x, y0 + y)) b.set(x, y0 + y, '#2e5a24'); }
+  for (let k = 0; k < 5; k++) { const x = 4 + Math.floor(r() * (W - 8)), y = base - 2 - Math.floor(r() * tiers * th); b.set(x, y, '#60ff90', true); } // runas que brillan
+};
+
+const ruin: Draw = (b, W, H, up, o, r) => {
+  // muro de piedra derrumbado con musgo
+  const base = up + H - 1;
+  const stone = o.v % 2 ? '#8a8a78' : '#7a7a6a', stoneD = shade(stone, -0.3);
+  for (let x = 0; x < W; x++) {
+    const h = 6 + Math.round(Math.abs(Math.sin(x * 0.5 + o.v * 2)) * 8) + (x > W / 2 ? 2 : 0);
+    b.rect(x, base - h - H + 4, 1, h + H - 4, stone);
+    if ((x + o.v) % 4 === 0) b.set(x, base - h - H + 4, stoneD);
+  }
+  for (let y = 0; y < base; y += 4) for (let x = (y % 8) ? 2 : 0; x < W; x += 5) if (b.get(x, y)) b.set(x, y, stoneD);
+  for (let k = 0; k < W; k++) { const x = Math.floor(r() * W), y = Math.floor(r() * base); if (b.get(x, y)) b.set(x, y, r() < 0.5 ? '#3a6a2a' : '#4a8a34'); }
+  b.rect(W - 4, base - 2, 4, 2, stoneD); b.rect(-1, base - 1, 3, 1, stoneD); // cascotes
+};
+
+const tent: Draw = (b, W, H, up, o, r) => {
+  // tienda de lona de la expedición, con la entrada abierta y un farol dentro
+  const base = up + H - 1, peak = 2;
+  const canvas = ['#b8a878', '#8a8a5a', '#a07850'][o.v % 3], canvasD = shade(canvas, -0.25);
+  for (let y = peak; y <= base; y++) {
+    const half = Math.round(((y - peak) / (base - peak)) * (W / 2));
+    b.rect(Math.floor(W / 2) - half, y, half, 1, canvas); b.rect(Math.floor(W / 2), y, half, 1, canvasD);
+  }
+  b.line(Math.floor(W / 2), peak, Math.floor(W / 2), base, shade(canvas, 0.2)); // cumbrera
+  const dw = 5;
+  for (let y = base - 10; y <= base; y++) { const half = Math.round(((y - (base - 10)) / 10) * dw); b.rect(Math.floor(W / 2) - half, y, half * 2, 1, '#2a1e10'); }
+  b.set(Math.floor(W / 2), base - 3, '#ffc040', true); b.set(Math.floor(W / 2) - 1, base - 2, '#ffe080', true);
+  b.line(0, base, -2, base + 2, '#5a4030'); b.line(W - 1, base, W + 1, base + 2, '#5a4030'); // vientos
+  for (let k = 0; k < 6; k++) b.set(Math.floor(r() * W), peak + 4 + Math.floor(r() * (base - peak - 4)), canvasD);
+};
+
+const crate: Draw = (b, W, H, up, o) => {
+  // caja de madera con marcas de la expedición
+  const base = up + H - 1, top = 2;
+  const wood = '#8a6a3a', woodD = '#5a4224';
+  b.rect(0, top, W, base - top + 1, wood); b.rect(0, top, W, 2, shade(wood, 0.2));
+  b.rect(0, top, 1, base - top + 1, woodD); b.rect(W - 1, top, 1, base - top + 1, woodD); b.rect(0, base, W, 1, woodD);
+  b.line(1, top + 2, W - 2, base - 1, woodD); // travesaño
+  if (o.v % 2) { b.rect(2, top + 4, 3, 2, '#c02020'); } else b.set(3, top + 5, '#202020');
+};
+
 const DRAWS: Partial<Record<Obstacle['type'], { up: number; draw: Draw; pad?: number }>> = {
   shop: { up: 12, draw: shop }, barricade: { up: 8, draw: barricade },
   house: { up: 16, draw: house }, cabin: { up: 14, draw: cabin },
@@ -433,6 +635,9 @@ const DRAWS: Partial<Record<Obstacle['type'], { up: number; draw: Draw; pad?: nu
   brazier: { up: 10, draw: brazier }, well: { up: 14, draw: well },
   rock: { up: 4, draw: rock }, canoe: { up: 1, draw: canoe }, firepit: { up: 10, draw: firepit }, log: { up: 1, draw: log_ },
   cypress: { up: 26, draw: cypress, pad: 9 }, hut: { up: 22, draw: hut }, cauldron: { up: 8, draw: cauldron },
+  pyramid: { up: 70, draw: pyramid }, sphinx: { up: 26, draw: sphinx }, obelisk: { up: 44, draw: obelisk }, column: { up: 34, draw: column, pad: 4 },
+  palm: { up: 34, draw: palm, pad: 12 }, adobe: { up: 12, draw: adobe },
+  jtree: { up: 46, draw: jtree, pad: 12 }, temple: { up: 60, draw: temple }, ruin: { up: 10, draw: ruin }, tent: { up: 16, draw: tent, pad: 3 }, crate: { up: 6, draw: crate },
 };
 
 export function renderObstacle(o: Obstacle, theme: string): Prerendered {
@@ -520,6 +725,16 @@ export function renderDecor(d: Decor): Baked {
       b.ellipse(7, 3, 2, 2, '#e0d8c8'); b.set(6, 3, '#101010'); b.set(8, 3, '#101010');
       b.set(4, 5, '#c060ff', true); b.set(10, 5, '#80ff60', true); b.line(4, 5, 4, 8, '#8a7a5a'); b.line(10, 5, 10, 8, '#8a7a5a');
       break;
+    case 'urn': b.ellipse(7, 9, 3, 3, '#a0603a'); b.rect(6, 4, 3, 2, '#a0603a'); b.rect(5, 4, 5, 1, '#7a4428'); b.rect(5, 9, 5, 1, '#3a6aa0'); b.set(6, 8, '#d08860'); break;
+    case 'fern':
+      for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.55; for (let j = 1; j < 7; j++) { const x = 7 + Math.round(Math.cos(a) * j), y = 12 + Math.round(Math.sin(a) * j * 0.9 + (j / 7) ** 2 * 3); b.set(x, y, j % 2 ? '#2e6a28' : '#4a8a34'); } }
+      break;
+    case 'flower':
+      b.line(7, 12, 7, 7, '#2e6a28'); b.set(5, 10, '#3a7a30'); b.set(9, 9, '#3a7a30');
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) b.set(7 + dx, 6 + dy, d.v % 2 ? '#ff3060' : '#ff8020');
+      b.set(7, 6, '#ffe060', true);
+      break;
+    case 'fossil': b.ellipse(7, 9, 4, 3, '#c8c0a8'); b.ellipse(7, 9, 2, 1, '#8a8270'); b.set(7, 9, '#5a5446'); b.line(3, 9, 11, 9, '#a8a088'); break;
     case 'sign': b.rect(7, 6, 1, 7, '#4a3020'); b.rect(2, 2, 11, 5, '#6a4428'); b.rect(3, 4, 2, 1, '#e0d0a0'); b.rect(6, 4, 2, 1, '#e0d0a0'); b.rect(9, 4, 3, 1, '#e0d0a0'); b.set(12, 3, '#a01010'); break;
   }
   c = b.finish({ outline: 'selout' });
@@ -538,6 +753,7 @@ export function lightsFor(map: GameMap): Light[] {
     if (d.type === 'pumpkin') lights.push({ x: d.x + DX, y: d.y + 24, r: 90, c: 'warm', flicker: true });
     if (d.type === 'lantern') lights.push({ x: d.x + DX, y: d.y + 24, r: 150, c: 'warm', flicker: true });
     if (d.type === 'mushroom' && d.v % 2 === 0) lights.push({ x: d.x + DX, y: d.y + 21, r: 50, c: 'green' });
+    if (d.type === 'flower') lights.push({ x: d.x + DX, y: d.y + 18, r: 34, c: 'warm' });
     if (d.type === 'totem') lights.push({ x: d.x + DX, y: d.y + 12, r: 60, c: 'green', flicker: true });
   }
   for (const o of map.obstacles) {
@@ -553,6 +769,10 @@ export function lightsFor(map: GameMap): Light[] {
       case 'statue': lights.push({ x: cx, y: o.y - 30, r: 40, c: 'warm' }); break;
       case 'cauldron': lights.push({ x: cx, y: o.y, r: 260, c: 'green', flicker: true }); break;
       case 'hut': lights.push({ x: o.x + 30, y: o.y + o.h + 10, r: 160, c: 'green', flicker: true }); break;
+      case 'adobe': if (isLit(o)) lights.push({ x: cx, y: o.y + o.h + 10, r: 150, c: 'warm' }); break;
+      case 'tent': lights.push({ x: cx, y: o.y + o.h, r: 120, c: 'warm', flicker: true }); break;
+      case 'temple': lights.push({ x: cx, y: o.y + 20, r: 220, c: 'green', flicker: true }); break;
+      case 'pyramid': if (o.v % 2 === 0) lights.push({ x: cx, y: o.y - 160, r: 90, c: 'warm' }); break;
     }
   }
   for (const l of map.lakes) lights.push({ x: l.cx, y: l.cy, r: Math.max(l.rx, l.ry) * 1.1, c: 'cold' });

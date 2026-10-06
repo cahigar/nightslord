@@ -16,6 +16,8 @@ const VARIANTS: Record<string, string[]> = {
   transylvania: ['villager', 'priest', 'maid'],
   camp: ['camper', 'counselor', 'jock', 'nerd'],
   swamp: ['villager', 'camper', 'priest'],
+  nile: ['fellah', 'tourist', 'archaeologist'],
+  jungle: ['explorer', 'porter', 'scientist'],
 };
 // orden fijo de personajes para guardar el imitado como número en p.k
 const IDS = CHARACTER_IDS;

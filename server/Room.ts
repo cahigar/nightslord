@@ -2,13 +2,13 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, CLASS, CRITTERS, HUNTERS, ITEMS, ORDER, STATUS, tierOf, ULT, type HunterType } from '../shared/balance';
+import { BAL, BEASTS, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
 import {
   BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAP_SIZE, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
 } from '../shared/constants';
 import { CHARACTERS, MAX_LEVEL, UPGRADES, upgradeMax, xpForLevel, type CharacterId, type UpgradeId } from '../shared/characters';
-import { distToSegment, generateMap, NPC_VARIANTS, tvLinks, tvSpot, type GameMap, type MapThemeId } from '../shared/maps';
+import { currentAt, distToSegment, generateMap, NPC_VARIANTS, tvLinks, tvSpot, type GameMap, type MapThemeId } from '../shared/maps';
 import { ObstacleGrid } from '../shared/physics';
 import {
   Anim, Flag, Flag2, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type ServerMsg, type SfxId, type TvState, type YouState,
@@ -28,6 +28,13 @@ const CRITTER_KINDS: Record<MapThemeId, string[]> = {
   transylvania: ['c_bat', 'c_rat', 'c_crow', 'c_bat'],
   camp: ['c_toad', 'c_bat', 'c_crow'],
   swamp: ['c_toad', 'c_bat', 'c_rat', 'c_toad'],
+  nile: ['c_scarab', 'c_bat', 'c_rat', 'c_scarab'],
+  jungle: ['c_toad', 'c_bat', 'c_parrot', 'c_parrot'],
+};
+/** Fieras que viven en cada mapa (cuántas como mucho). */
+const BEAST_PLAN: Partial<Record<MapThemeId, Partial<Record<BeastType, number>>>> = {
+  nile: { croc: BEASTS.croc.max },
+  jungle: { raptor: BEASTS.raptor.max, rex: BEASTS.rex.max },
 };
 /** ¿Es una alimaña? */
 export const isCritter = (m: Mob) => m.kind === Kind.Npc && (m as Npc).variant.startsWith('c_');
@@ -57,7 +64,7 @@ const POWERUP_WEIGHTS: [PowerUpType, number][] = [
   ['blood', 30], ['xp', 25], ['coin', 18], ['speed', 10], ['fury', 9], ['shield', 8], ['spirits', 5], ['boots', 5], ['shovel', 3],
 ];
 /** Vegetación del mapa que puede arder. */
-const FLAMMABLE = new Set(['tree', 'pine', 'deadtree', 'hedge', 'cypress']);
+const FLAMMABLE = new Set(['tree', 'pine', 'deadtree', 'hedge', 'cypress', 'palm', 'jtree']);
 
 const dist2 = (ax: number, ay: number, bx: number, by: number) => (ax - bx) ** 2 + (ay - by) ** 2;
 const angleDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
@@ -102,6 +109,7 @@ export class Room {
   private powerupRespawnT = 0;
   emptySince = Date.now();
   private critterT = 2;
+  private beastT = BEASTS.every;
   bountyId = -1;
 
   constructor(public code: string, public theme: MapThemeId, public priv: boolean, private onPlayerCountChange?: () => void) {
@@ -110,6 +118,7 @@ export class Room {
     this.grid = new ObstacleGrid(this.map);
     for (let i = 0; i < 45; i++) this.spawnNpc();
     for (let i = 0; i < 4; i++) this.spawnHunter('cazador');
+    for (const [type, n] of Object.entries(BEAST_PLAN[theme] ?? {}) as [BeastType, number][]) for (let i = 0; i < n * 2 && this.beastCount(type) < n; i++) this.spawnBeast(type);
     for (let i = 0; i < 28; i++) this.spawnPowerUp();
     let last = performance.now();
     let acc = 0;
@@ -337,7 +346,28 @@ export class Room {
   waterAt(x: number, y: number): 'deep' | 'shallow' | null {
     if (this.grid.deepWater(x, y)) return 'deep';
     for (const z of this.zones) if ((z.kind === 'puddle' || z.kind === 'whirl') && (x - z.ax) ** 2 + (y - z.ay) ** 2 < (z.w / 2) ** 2) return 'shallow'; // el remolino del Kappa también es agua
+    if (this.currentAt(x, y)) return 'shallow'; // río poco profundo de la jungla
     return null;
+  }
+
+  /** Corriente del río poco profundo en un punto (dirección río abajo) o null. */
+  currentAt(x: number, y: number) { return currentAt(this.map, x, y); }
+
+  /** La corriente arrastra río abajo a todo el que pisa el agua poco profunda (menos a quien vuela o nada). */
+  private applyCurrents(dt: number) {
+    if (!this.map.rivers.some((r) => r.shallow)) return;
+    const push = (m: Mob) => {
+      if (m.dead || m.entombT > 0 || isStatic(m)) return;
+      if (m.kind === Kind.Player) { const p = m as Player; if (p.flyT > 0 || p.leap || p.dash || p.def.aquatic || p.def.hover || p.submergeT > 0 || p.phaseT > 0) return; }
+      const c = this.currentAt(m.x, m.y);
+      if (!c) return;
+      const res = this.grid.move(m.x, m.y, c.dx * CURRENT.push * dt, c.dy * CURRENT.push * dt, m.r, walksWater(m));
+      m.x = res.x; m.y = res.y;
+    };
+    for (const p of this.players.values()) push(p);
+    for (const n of this.npcs.values()) push(n);
+    for (const h of this.hunters.values()) push(h);
+    for (const mn of this.minions.values()) push(mn);
   }
 
   // ------------------------------------------------------------------ estados reutilizables (sueño, sangrado, rabia, engatusar)
@@ -592,7 +622,7 @@ export class Room {
   spawnMinion(owner: Player, x: number, y: number, variant: MinionVariant, look: string, lookSeed: number, life: number, chain: boolean, capOverride?: number): Minion {
     const cap = capOverride ?? (owner.ultT > 0 ? ZB.maxMinionsUlt : ZB.maxMinions);
     const mine = this.minionsOf(owner.id).filter((m) => capGroup(m.variant) === capGroup(variant)).sort((a, b) => a.born - b.born);
-    while (mine.length >= cap) { const old = mine.shift()!; old.life = 0; this.kill(old, { name: '', kind: Kind.Minion }); }
+    while (mine.length >= cap) { const old = mine.shift()!; old.life = 0; if (old.variant === 'militia') this.disarmMilitia(old); else this.kill(old, { name: '', kind: Kind.Minion }); }
     const st = MINION_STATS[variant];
     const m: Minion = {
       ...mobStatus(),
@@ -609,6 +639,7 @@ export class Room {
     for (const m of this.minions.values()) {
       if (m.owner !== ownerId) continue;
       if (m.variant === 'thrall') this.freeThrall(m);
+      else if (m.variant === 'militia') this.disarmMilitia(m);
       else { this.fx('infect', m.x, m.y, { o: m.id, n: -1 }); this.minions.delete(m.id); }
     }
     this.zones = this.zones.filter((z) => z.owner !== ownerId);
@@ -622,6 +653,16 @@ export class Room {
     n.hp = Math.max(1, Math.min(n.maxHp, (m.hp / m.maxHp) * n.maxHp));
     n.panicT = 2;
     this.fx('thrall', n.x, n.y, { o: n.id, n: -1 });
+  }
+
+  /** Un humano armado por la Cazadora suelta el arma: vuelve a ser un humano normal (no muere). */
+  disarmMilitia(m: Minion) {
+    this.minions.delete(m.id);
+    m.dead = true;
+    const [variant, held] = m.look.split('#');
+    const n = this.spawnNpc({ x: m.x, y: m.y }, variant);
+    n.hp = Math.max(1, Math.min(n.maxHp, (m.hp / m.maxHp) * n.maxHp));
+    this.fx('disarm', n.x, n.y, { o: n.id, c: held ?? 'torch' });
   }
 
   /** ¿Es m enemigo del jugador p? (no lo es él mismo ni sus esbirros) */
@@ -781,6 +822,135 @@ export class Room {
     if (type === 'heraldo') { this.fx('descend', h.x, h.y, { o: h.id }); this.sfx('smite', h.x, h.y); }
   }
 
+  /** Fiera nueva: el cocodrilo nace en el agua profunda; los dinosaurios, en tierra (los raptores, en manada). */
+  private spawnBeast(type: BeastType, at?: { x: number; y: number }) {
+    const def = HUNTERS[type];
+    let pos = at ?? null;
+    if (!pos && type === 'croc') {
+      for (let i = 0; i < 300 && !pos; i++) {
+        const x = 150 + Math.random() * (MAP_SIZE - 300), y = 150 + Math.random() * (MAP_SIZE - 300);
+        if (!this.grid.deepWater(x, y) || !this.grid.deepWater(x + 30, y) || !this.grid.deepWater(x - 30, y)) continue;
+        if ([...this.players.values()].some((p) => !p.dead && dist2(x, y, p.x, p.y) < 500 * 500)) continue;
+        pos = { x, y };
+      }
+      if (!pos) return null; // no hay agua en este mapa
+    }
+    pos ??= this.findSpawn(800, def.r + 2);
+    const h: Hunter = {
+      ...mobStatus(),
+      id: this.nextId++, kind: Kind.Hunter, x: pos.x, y: pos.y, r: def.r, facing: 1, hp: def.hp, maxHp: def.hp,
+      anim: Anim.Idle, animSeq: 0, animUntil: 0, moving: false, type, def,
+      lungeT: 0, lungeCd: 2, ldx: 0, ldy: 0, potionCd: 0, flyT: 0, flyTotal: 0, stuckT: 0, bestD: Infinity, ritualT: 0, ritualCd: 0, fleeT: 0, ritualZone: -1,
+      target: -1, thinkT: Math.random(), shootCd: 0, meleeCd: 0, tx: pos.x, ty: pos.y, strafe: Math.random() < 0.5 ? 1 : -1,
+      hx: pos.x, hy: pos.y, roarCd: 0, lurk: type === 'croc',
+    };
+    this.hunters.set(h.id, h);
+    // los raptores cazan en manada
+    if (type === 'raptor' && !at) {
+      let n = 1;
+      for (let i = 0; i < 12 && n < BEASTS.raptor.pack; i++) {
+        const x = pos.x + (Math.random() - 0.5) * 140, y = pos.y + (Math.random() - 0.5) * 140;
+        if (this.grid.blocked(x, y, def.r + 2)) continue;
+        if (this.beastCount('raptor') >= BEASTS.raptor.max) break;
+        const o = this.spawnBeast('raptor', { x, y });
+        if (o) { o.hx = pos.x; o.hy = pos.y; n++; }
+      }
+    }
+    return h;
+  }
+
+  private beastCount(type: BeastType) { let n = 0; for (const h of this.hunters.values()) if (h.type === type) n++; return n; }
+
+  /** ¿Hay agua profunda a menos de r de este punto? */
+  private nearDeepWater(x: number, y: number, r: number) {
+    if (this.grid.deepWater(x, y)) return true;
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; for (const d of [r * 0.5, r]) if (this.grid.deepWater(x + Math.cos(a) * d, y + Math.sin(a) * d)) return true; }
+    return false;
+  }
+
+  /** IA de las fieras: no son de la orden; atacan a cualquier monstruo (también a la Cazadora) que se acerque a su territorio. */
+  private updateBeast(h: Hunter, dt: number) {
+    const D = h.def, croc = h.type === 'croc', rex = h.type === 'rex';
+    const hx = h.hx ?? h.x, hy = h.hy ?? h.y;
+    const leash = croc ? 0 : h.type === 'raptor' ? BEASTS.raptor.leash : BEASTS.rex.leash;
+    const see = croc ? BEASTS.croc.see : h.type === 'raptor' ? BEASTS.raptor.see : BEASTS.rex.see;
+    const inWater = this.grid.deepWater(h.x, h.y);
+    const valid = (t: Mob | null): t is Mob => {
+      if (!t || t.dead || t.entombT > 0) return false;
+      if (t.kind === Kind.Player && this.hiddenPlayer(t as Player, true)) return false;
+      if (t.kind === Kind.Minion && (t as Minion).camo) return false;
+      if (croc) return this.nearDeepWater(t.x, t.y, BEASTS.croc.leash); // el cocodrilo no se aleja de la orilla
+      return dist2(hx, hy, t.x, t.y) < leash * leash;
+    };
+    h.roarCd = Math.max(0, (h.roarCd ?? 0) - dt);
+    h.thinkT -= dt;
+    if (h.thinkT <= 0) {
+      h.thinkT = 0.3;
+      let t = this.hunterTarget(h.target);
+      if (!valid(t) || dist2(h.x, h.y, t.x, t.y) > (see * 1.6) ** 2) t = null;
+      if (!t) {
+        let bd = see * see;
+        const consider = (m: Mob) => { if (!valid(m)) return; const d = dist2(h.x, h.y, m.x, m.y); if (d < bd) { bd = d; t = m; } };
+        for (const p of this.players.values()) consider(p);
+        for (const m of this.minions.values()) consider(m);
+      }
+      const tt = t as Mob | null;
+      if (tt && h.target !== tt.id && rex && (h.roarCd ?? 0) <= 0) {
+        // rugido: asusta un momento a quien esté cerca
+        h.roarCd = BEASTS.rex.roarCd;
+        this.setAnim(h, Anim.Cast, 0.6);
+        this.fx('roar', h.x, h.y, { o: h.id, r: BEASTS.rex.roarR });
+        this.sfx('howl', h.x, h.y);
+        for (const p of this.players.values()) if (!p.dead && dist2(p.x, p.y, h.x, h.y) < BEASTS.rex.roarR ** 2) this.scare(p, BEASTS.rex.fearT, h.x, h.y);
+      }
+      h.target = tt ? tt.id : -1;
+      if (!tt) {
+        if (h.hp < h.maxHp) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.04);
+        if (Math.random() < 0.15 || dist2(h.x, h.y, h.tx, h.ty) < 400) {
+          // pasea cerca de su guarida (el cocodrilo, siempre por el agua)
+          for (let i = 0; i < 10; i++) {
+            const R = croc ? 260 : 380;
+            const x = hx + (Math.random() - 0.5) * R * 2, y = hy + (Math.random() - 0.5) * R * 2;
+            if (croc ? this.grid.deepWater(x, y) : !this.grid.blocked(x, y, h.r)) { h.tx = x; h.ty = y; break; }
+          }
+        }
+      }
+    }
+    if (h.blindT > 0) h.target = -1;
+    const t = this.hunterTarget(h.target);
+    let mx = 0, my = 0, speed = D.speed * 0.55;
+    if (croc) speed = (inWater ? BEASTS.croc.swim : D.speed) * (h.target >= 0 ? 1 : 0.4);
+    if (t && !t.dead) {
+      const dx = t.x - h.x, dy = t.y - h.y, d = Math.hypot(dx, dy) || 1;
+      mx = dx / d; my = dy / d; h.facing = dx >= 0 ? 1 : -1;
+      if (!croc) speed = D.speed;
+      h.lurk = false;
+      if (d < h.r + t.r + D.reach && h.meleeCd <= 0) {
+        h.meleeCd = D.meleeCd;
+        this.setAnim(h, Anim.Attack, 0.35);
+        const src: Source = { hunter: h, name: D.name, kind: Kind.Hunter };
+        this.damage(t, D.melee, src);
+        if (croc) { if (t.stunT <= 0) t.stunT = BEASTS.croc.stun; this.fx('chomp', t.x, t.y, { o: h.id }); this.sfx('bite', h.x, h.y); } // la dentellada aturde (sin encadenar)
+        else if (rex) { this.knockback(t, mx, my, BEASTS.rex.knock); this.fx('chomp', t.x, t.y, { o: h.id, n: 1 }); this.sfx('bite', h.x, h.y); }
+        else this.sfx('bite', h.x, h.y);
+      }
+      if (d < h.r + t.r + 4) { mx = 0; my = 0; }
+    } else {
+      const dx = h.tx - h.x, dy = h.ty - h.y, d = Math.hypot(dx, dy);
+      if (d > 8) { mx = dx / d; my = dy / d; h.facing = dx >= 0 ? 1 : -1; }
+      if (croc && inWater) h.lurk = true;
+    }
+    if (h.slowT > 0) speed *= h.slowMul;
+    if (h.rootT > 0) { h.moving = false; return; }
+    h.moving = mx !== 0 || my !== 0;
+    if (!h.moving) return;
+    const res = this.grid.move(h.x, h.y, mx * speed * dt, my * speed * dt, h.r, croc);
+    // el cocodrilo no sale más allá de la orilla
+    if (croc && !this.nearDeepWater(res.x, res.y, BEASTS.croc.leash)) { h.target = -1; h.tx = hx; h.ty = hy; return; }
+    if (res.hit && h.target < 0) { h.tx = h.x; h.ty = h.y; }
+    h.x = res.x; h.y = res.y;
+  }
+
   /** Objeto al azar (según los pesos del mapa). */
   randomPowerUp(): PowerUpType {
     let total = 0;
@@ -883,6 +1053,7 @@ export class Room {
     for (const n of this.npcs.values()) this.updateNpc(n, dt);
     for (const h of this.hunters.values()) this.updateHunter(h, dt);
     for (const m of this.minions.values()) this.updateMinion(m, dt);
+    this.applyCurrents(dt);
     if (this.timers.length) {
       const due = this.timers.filter((t) => t.at <= this.time);
       this.timers = this.timers.filter((t) => t.at > this.time);
@@ -1159,7 +1330,7 @@ export class Room {
     if (m.entombT > 0) {
       if (!src.player || src.player.id !== m.entombBy) return 0;
     }
-    if (src.hunter && m.kind === Kind.Player && (m as Player).char === 'huntress') return 0; // la orden no hiere a la Cazadora
+    if (src.hunter && !isBeast(src.hunter.type) && m.kind === Kind.Player && (m as Player).char === 'huntress') return 0; // la orden no hiere a la Cazadora
     if (src.player && !src.minion && !src.raw) amount = KITS[src.player.char].onDealDamage?.(this, src.player, m, amount) ?? amount;
     // debilitado (zona contaminada)
     const atk: Mob | undefined = src.minion ?? src.player ?? src.hunter;
@@ -1273,6 +1444,18 @@ export class Room {
       const h = m as Hunter;
       c = h.type;
       this.hunters.delete(m.id);
+      if (isBeast(h.type)) {
+        // fiera abatida: buena recompensa (no cuenta como cazador)
+        if (killer) {
+          const rw = h.def.reward;
+          this.reward(killer, rw.xp * share, rw.pts * share, src.minion ? Math.ceil(rw.coins / 2) : rw.coins);
+          this.chargeUlt(killer, rw.ult * share);
+          if (h.type === 'rex') this.emit({ e: 'kill', a: killer.name, v: h.def.name, ak: Kind.Player, vk: Kind.Hunter }, m.x, m.y, true);
+          if (!src.minion) KITS[killer.char].onKill?.(this, killer, m);
+        }
+        this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c }, m.x, m.y);
+        return;
+      }
       this.zones = this.zones.filter((z) => !(z.kind === 'ritual' && z.owner === h.id)); // ritual interrumpido
       this.hunterRespawnT = Math.max(this.hunterRespawnT, 6);
       if (killer) {
@@ -1523,8 +1706,8 @@ export class Room {
     return this.minions.get(id) ?? null;
   }
 
-  private hiddenPlayer(p: Player) {
-    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0 || p.phaseT > 0 || this.isHiddenGuise(p) || p.char === 'huntress'; // la orden no ataca a la Cazadora
+  private hiddenPlayer(p: Player, beast = false) {
+    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0 || p.phaseT > 0 || this.isHiddenGuise(p) || (!beast && p.char === 'huntress'); // la orden no ataca a la Cazadora (las fieras sí)
   }
 
   /** Elige objetivo. Los zombis cercanos van primero (si no, el Paciente Cero los farmea con su horda). */
@@ -1572,6 +1755,7 @@ export class Room {
     if (h.stunT > 0 || h.fearT > 0) { h.moving = false; h.lungeT = 0; return; }
     if (this.hexHop(h, dt)) return;
     if (this.rageOrCharm(h, h.def.speed, Math.max(10, h.def.melee), h.def.meleeCd, h.def.reach, dt)) return;
+    if (isBeast(h.type)) { this.updateBeast(h, dt); return; }
     if (h.type === 'sectario') { this.updateCultist(h, dt); return; }
     const D = h.def;
 
@@ -1832,6 +2016,7 @@ export class Room {
     m.atkCd = Math.max(0, m.atkCd - dt);
     const owner = this.findPlayerById(m.owner);
     if (m.variant === 'thrall' && owner && !owner.dead && m.life <= 0) { this.freeThrall(m); return; } // se le pasa el enamoramiento
+    if (m.variant === 'militia' && (!owner || owner.dead || m.life <= 0)) { this.disarmMilitia(m); return; } // se desarman, no mueren
     if (!owner || owner.dead || m.life <= 0) { this.kill(m, { name: '', kind: Kind.Minion }); return; }
     if (isStatic(m)) { m.knock = null; this.applyStatus(m, dt); m.moving = false; return; } // plantas: su kit decide qué hacen
     if (this.applyStatus(m, dt)) return;
@@ -2224,7 +2409,7 @@ export class Room {
   }
 
   /** Cuántos cazadores de cada tipo quiere la sala según el nivel medio y el número de jugadores. */
-  hunterWants(): Record<HunterType, number> {
+  hunterWants(): Record<OrderType, number> {
     const alive = this.alivePlayers();
     const pc = alive.length;
     const avg = pc ? alive.reduce((s, p) => s + p.level, 0) / pc : 0;
@@ -2233,7 +2418,7 @@ export class Room {
     const n15 = alive.filter((p) => p.level >= ORDER.ritual.minLevel).length;
     const C = ORDER.caps;
     const clamp = (v: number, max: number) => Math.max(1, Math.min(max, v));
-    const want: Record<HunterType, number> = {
+    const want: Record<OrderType, number> = {
       inquisidor: avg >= ORDER.inquisidorAvg ? clamp(Math.round(pc * 0.25), C.inquisidor) : 0,
       exorcista: avg >= ORDER.exorcistaAvg ? clamp(Math.floor(pc / 4), C.exorcista) : 0,
       sectario: n15 > 0 ? clamp(Math.ceil(n15 / 3), C.sectario) : 0,
@@ -2245,9 +2430,9 @@ export class Room {
     return want;
   }
 
-  private hunterCounts(): Record<HunterType, number> {
-    const c: Record<HunterType, number> = { cazador: 0, inquisidor: 0, exorcista: 0, sectario: 0, heraldo: 0 };
-    for (const h of this.hunters.values()) c[h.type]++;
+  private hunterCounts(): Record<OrderType, number> {
+    const c: Record<OrderType, number> = { cazador: 0, inquisidor: 0, exorcista: 0, sectario: 0, heraldo: 0 };
+    for (const h of this.hunters.values()) if (!isBeast(h.type)) c[h.type as OrderType]++;
     return c;
   }
 
@@ -2255,12 +2440,14 @@ export class Room {
   private cullHunters() {
     const want = this.hunterWants(), have = this.hunterCounts();
     for (const h of this.hunters.values()) {
-      if (have[h.type] <= want[h.type] || h.target >= 0 || h.ritualT > 0) continue;
+      if (isBeast(h.type)) continue; // las fieras no se retiran
+      const ty = h.type as OrderType;
+      if (have[ty] <= want[ty] || h.target >= 0 || h.ritualT > 0) continue;
       let seen = false;
       for (const p of this.players.values()) if (!p.dead && dist2(p.x, p.y, h.x, h.y) < 1000 * 1000) { seen = true; break; }
       if (seen) continue;
       this.hunters.delete(h.id);
-      have[h.type]--;
+      have[ty]--;
     }
   }
 
@@ -2278,9 +2465,15 @@ export class Room {
       const want = this.hunterWants();
       const have = this.hunterCounts();
       // primero los de más nivel que falten, después cazadores normales
-      const order: HunterType[] = ['heraldo', 'sectario', 'exorcista', 'inquisidor', 'cazador'];
+      const order: OrderType[] = ['heraldo', 'sectario', 'exorcista', 'inquisidor', 'cazador'];
       const next = order.find((t) => have[t] < want[t]);
       if (next) { this.spawnHunter(next); this.hunterRespawnT = next === 'cazador' ? 4 : 6; }
+    }
+    // fieras del mapa
+    this.beastT -= dt;
+    if (this.beastT <= 0) {
+      this.beastT = BEASTS.every;
+      for (const [type, n] of Object.entries(BEAST_PLAN[this.theme] ?? {}) as [BeastType, number][]) if (this.beastCount(type) < n) { this.spawnBeast(type); break; }
     }
     this.powerupRespawnT -= dt;
     if (this.powerups.size < 28 && this.powerupRespawnT <= 0) {
@@ -2359,7 +2552,7 @@ export class Room {
         s.h = s.h ?? 100;
         if (s.fl) s.fl &= ~(Flag.Feared | Flag.Panic);
       }
-    } else if (m.kind === Kind.Hunter) s.c = (m as Hunter).type;
+    } else if (m.kind === Kind.Hunter) { s.c = (m as Hunter).type; if ((m as Hunter).lurk) s.o = 1; } // cocodrilo al acecho bajo el agua
     else if (m.kind === Kind.Minion) {
       const mn = m as Minion;
       s.c = mn.variant; s.s = mn.look; s.l = mn.lookSeed; s.o = mn.owner;

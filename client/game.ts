@@ -2,8 +2,8 @@
 import { CHARACTERS, type CharacterId } from '../shared/characters';
 import { pixelizeShapes } from './pixelshapes';
 import { MAP_SIZE, PIXEL, TICK_DT } from '../shared/constants';
-import { BORDER_DEPTH, generateMap, THEMES, tvLinks, tvSpot, type GameMap, type MapThemeId, type Obstacle } from '../shared/maps';
-import { BAL, tierOf } from '../shared/balance';
+import { BORDER_DEPTH, currentAt, generateMap, THEMES, tvLinks, tvSpot, type GameMap, type MapThemeId, type Obstacle } from '../shared/maps';
+import { BAL, CURRENT, isBeast, tierOf } from '../shared/balance';
 import { Ambient } from './ambient';
 import { Effects, pixelEllipse } from './effects';
 import { t as tr, tc, th as thunter, tpu } from './i18n';
@@ -13,7 +13,8 @@ import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, 
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
-import { ANIMS, getBeacon, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSkeleton, getSpiderling, getVermin, npcLook, SH, SW } from './sprites';
+import { ANIMS, getBeacon, getBeast, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSkeleton, getSpiderling, getVermin, npcLook, shade, SH, SW } from './sprites';
+import { getSkin } from '../shared/characters';
 import { LIGHT_COLORS, lightsFor, renderDecor, renderObstacle, renderTV, type Light, type Prerendered } from './tiles';
 
 const INTERP_MS = 120;
@@ -196,7 +197,7 @@ export class Game {
     this.pending.push({ q, mx, my });
     if (this.pending.length > 40) this.pending.shift();
     this.pred.px = this.pred.x; this.pred.py = this.pred.y; this.pred.t = performance.now();
-    if (!this.you.st && (mx || my)) {
+    if (!this.you.st && (mx || my || currentAt(this.map, this.pred.x, this.pred.y))) {
       const r = this.predMove(this.pred.x, this.pred.y, mx * this.you.spd * TICK_DT, my * this.you.spd * TICK_DT, this.aquatic(), !!this.you.fly);
       this.pred.x = r.x; this.pred.y = r.y;
     }
@@ -220,7 +221,11 @@ export class Game {
   private predMove(x: number, y: number, dx: number, dy: number, aqua: boolean, fly: boolean) {
     if (fly) return { x: Math.max(18, Math.min(MAP_SIZE - 18, x + dx)), y: Math.max(18, Math.min(MAP_SIZE - 18, y + dy)) };
     const c = this.ents.get(this.youId)?.c as CharacterId | undefined;
-    return this.grid.move(x, y, dx, dy, (c && CHARACTERS[c]?.radius) || 18, aqua);
+    const rad = (c && CHARACTERS[c]?.radius) || 18;
+    const r = this.grid.move(x, y, dx, dy, rad, aqua);
+    // corriente del río poco profundo (jungla): también se predice
+    const cur = aqua ? null : currentAt(this.map, r.x, r.y);
+    return cur ? this.grid.move(r.x, r.y, cur.dx * CURRENT.push * TICK_DT, cur.dy * CURRENT.push * TICK_DT, rad, aqua) : r;
   }
 
   /** ¿Hay agua (profunda o charca) bajo este punto? */
@@ -381,6 +386,18 @@ export class Game {
       ctx.fillRect(Math.round(g.x / 3) * 3, Math.round(g.y / 3) * 3, 9 + Math.round(a * 6), 3);
     }
     ctx.globalAlpha = 1;
+    // corriente del río poco profundo: vetas de espuma que bajan con el agua
+    if (this.terrain.streaks.length) {
+      ctx.fillStyle = '#9ad8c8';
+      for (const g of this.terrain.streaks) {
+        const k = (this.time * 0.5 + g.ph) % 1, d = k * 90;
+        const x = g.x + g.dx * d, y = g.y + g.dy * d;
+        if (!inView(x, y)) continue;
+        ctx.globalAlpha = Math.sin(k * Math.PI) * 0.55;
+        ctx.fillRect(Math.round(x / 3) * 3, Math.round(y / 3) * 3, Math.abs(g.dx) > 0.5 ? 12 : 3, Math.abs(g.dx) > 0.5 ? 3 : 12);
+      }
+      ctx.globalAlpha = 1;
+    }
 
     // manchas de sangre persistentes
     for (const d of this.decals) {
@@ -412,7 +429,11 @@ export class Game {
       if (!inView(c.x, c.y)) continue;
       ctx.globalAlpha = Math.min(1, c.life / 1.5);
       const kind = c.k === Kind.Player ? 'monster' : c.k === Kind.Hunter ? 'hunter' : c.k === Kind.Minion ? 'zombie' : 'npc';
-      if (c.c && !(c.k === Kind.Minion && c.s === 'fat')) {
+      if (c.k === Kind.Hunter && isBeast(c.c)) {
+        // fiera abatida: panza arriba
+        const im = getBeast(c.c, 'idle', 0).base, w = im.width * PIXEL, h = im.height * PIXEL;
+        ctx.save(); ctx.translate(c.x, c.y - h / 2 + 6); ctx.scale(c.f, -1); ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore();
+      } else if (c.c && !(c.k === Kind.Minion && c.s === 'fat')) {
         const fr = getFrame(kind, c.c, c.s ?? 'classic', Anim.Dead, 0, c.seed % 97).base;
         ctx.save(); ctx.translate(c.x, c.y - 8); ctx.rotate((Math.PI / 2) * c.f); ctx.scale(c.f, 1);
         ctx.drawImage(fr, (-SW * PIXEL) / 2, (-SH * PIXEL) / 2 - 12, SW * PIXEL, SH * PIXEL);
@@ -705,7 +726,7 @@ export class Game {
     }
     // ---- alimañas del mapa
     if (e.k === Kind.Npc && e.c.startsWith('c_')) {
-      const fly = e.c === 'c_bat' || e.c === 'c_crow';
+      const fly = e.c === 'c_bat' || e.c === 'c_crow' || e.c === 'c_parrot';
       const moving = e.a === Anim.Walk;
       const img = getVermin(e.c, fly ? Math.floor(now / (moving ? 70 : 220) + e.id) % 2 : moving ? Math.floor(now / 90 + e.id) % 2 : 0);
       const lift = fly ? (moving || e.c === 'c_bat' ? 26 + Math.sin(now / 150 + e.id) * 6 : 0) : 0;
@@ -759,6 +780,8 @@ export class Game {
       return;
     }
     if (e.k === Kind.Minion) { this.drawMinion(ctx, e, now, glows); return; }
+    // ---- fieras del mapa: cocodrilo del Nilo, raptores y tiranosaurio
+    if (e.k === Kind.Hunter && isBeast(e.c)) { this.drawBeast(ctx, e, now, glows); return; }
     const isMonster = e.k === Kind.Player;
     const tier = isMonster ? tierOf(e.l ?? 1) : 0;
     const ult = isMonster && !!(e.fl & Flag.Ult);
@@ -780,7 +803,7 @@ export class Game {
     }
 
     // ---- elementos detrás del personaje (definitivas)
-    let scale = e.k === Kind.Hunter && e.c === 'heraldo' ? 1.35 : isMonster && e.c === 'reanimated' ? 1.18 : isMonster && e.c === 'tree' ? 1.22 : isMonster && e.c === 'worm' ? BAL.worm.scale : isMonster && e.c === 'dino' && e.o === 1 ? 1.2 : 1;
+    let scale = e.k === Kind.Hunter && e.c === 'heraldo' ? 1.35 : isMonster && e.c === 'reanimated' ? 1.18 : isMonster && e.c === 'tree' ? 1.22 : isMonster && e.c === 'worm' ? BAL.worm.scale : isMonster && e.c === 'dino' ? DINO_SCALE[e.o ?? 0] ?? 1.3 : 1;
     if (ult && e.c === 'slime') scale = 1.9 + Math.sin(now / 160) * 0.05; // Masa crítica
     let lift = 0;
     if (e.k === Kind.Hunter && e.c === 'heraldo') {
@@ -825,6 +848,8 @@ export class Game {
       ctx.globalAlpha = 1;
     }
     if (flying && !flyingBroom && Math.random() < 0.35) this.effects.particles.push({ x: x - e.f * 20, y: y - lift - 30, vx: -e.f * 40, vy: -10, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#ff4a8a' : '#ffd0e0', size: 3, grav: 0, glow: true });
+    // Gusarena: jorobas del cuerpo que asoman de la arena detrás de la cabeza
+    if (isMonster && e.c === 'worm' && !invis) this.drawWormTrail(ctx, e, now);
     // sombra
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath(); ctx.ellipse(x + 3, y + 3, Math.max(8, 20 * scale - lift * 0.4), 7 * scale, 0, 0, Math.PI * 2); ctx.fill();
@@ -884,11 +909,16 @@ export class Game {
       for (const z of this.ents.values()) if (z.k === Kind.Zone && z.c === 'laser' && z.o === e.id && z.bx !== undefined) ga = Math.atan2((z.by ?? z.ry) - z.ry, z.bx - z.rx);
       const ux = Math.cos(ga), uy = Math.sin(ga), nx = -uy, ny = ux;
       const gx = x + ux * 10, gy = y - 34 - lift;
-      for (let d = 0; d < 44; d += PIXEL) for (let q = -6; q <= 6; q += PIXEL) {
-        ctx.fillStyle = d > 36 ? '#ff3040' : Math.abs(q) > 4 ? '#20242a' : q < 0 ? '#8a9098' : '#5a6068';
-        if (d > 30 && Math.abs(q) > 3) continue; // cañón más estrecho
+      // cañón enorme y ancho: culata con aletas, cuerpo con rendijas rojas y boca ancha que brilla
+      for (let d = -6; d < 60; d += PIXEL) for (let q = -13; q <= 13; q += PIXEL) {
+        const aq = Math.abs(q);
+        if (d < 6 && aq > 7) continue;
+        if (d >= 6 && d < 46 && aq > 10) continue;
+        if (d >= 46 && aq > 13) continue;
+        ctx.fillStyle = d >= 50 ? (aq < 8 ? '#ffe0e0' : '#ff3040') : aq > 8 ? '#20242a' : d % 12 < 3 && aq < 6 ? '#ff3040' : q < -2 ? '#9aa0a8' : '#5a6068';
         ctx.fillRect(Math.round((gx + ux * d + nx * q) / PIXEL) * PIXEL, Math.round((gy + uy * d + ny * q) / PIXEL) * PIXEL, PIXEL, PIXEL);
       }
+      if (Math.random() < 0.5) this.effects.particles.push({ x: gx + ux * 58, y: gy + uy * 58, vx: ux * 80 + (Math.random() - 0.5) * 60, vy: uy * 80 + (Math.random() - 0.5) * 60, life: 0.25, max: 0.25, color: '#ffb0b0', size: PIXEL, grav: 0, glow: true });
     }
     // Convergencia de Unidad: su cuerpo parpadea antes de explotar
     if (isMonster && e.fl & Flag.Swollen && Math.floor(now / 90) % 2) {
@@ -1323,6 +1353,74 @@ export class Game {
     }
   }
 
+  /** Fieras: cocodrilo (al acecho solo asoman los ojos), raptor y tiranosaurio. */
+  private drawBeast(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
+    const x = e.rx, y = e.ry;
+    const lurk = e.c === 'croc' && e.o === 1;
+    const state = lurk ? 'lurk' : e.a === Anim.Attack ? 'attack' : e.a === Anim.Cast && e.c === 'rex' ? 'cast' : e.a === Anim.Walk ? 'walk' : 'idle';
+    const fr = Math.floor(now / (state === 'walk' ? (e.c === 'raptor' ? 75 : 150) : 300)) + e.id;
+    const img = getBeast(e.c, state, fr);
+    const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
+    const flip = e.f === -1;
+    let dx = x - w / 2, dy: number;
+    if (lurk) {
+      // ondas en el agua alrededor de los ojos
+      const k = (now / 1400 + e.id * 0.3) % 1;
+      ctx.globalAlpha = 0.5 * (1 - k);
+      pixelEllipse(ctx, x + (flip ? -18 : 18), y + 2, 14 + k * 26, 5 + k * 9, '#a0d0e0');
+      ctx.globalAlpha = 1;
+      dy = y - h + 6;
+    } else {
+      const deep = this.grid.deepWater(x, y);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.beginPath(); ctx.ellipse(x + 3, y + 3, w * 0.36, Math.max(7, h * 0.08), 0, 0, Math.PI * 2); ctx.fill();
+      dy = y - h + (e.c === 'croc' ? (deep ? 24 : 12) : e.c === 'rex' ? 10 : 9);
+      if (e.c === 'rex' && state === 'walk' && Math.random() < 0.15) this.effects.particles.push({ x: x + (Math.random() - 0.5) * 60, y: y + 2, vx: (Math.random() - 0.5) * 60, vy: -30, life: 0.5, max: 0.5, color: '#5a4a30', size: PIXEL, grav: 120 });
+    }
+    dx = Math.round(dx / PIXEL) * PIXEL; dy = Math.round(dy / PIXEL) * PIXEL;
+    const blit = (im: HTMLCanvasElement) => {
+      if (flip) { ctx.save(); ctx.translate(x * 2, 0); ctx.scale(-1, 1); ctx.drawImage(im, dx, dy, w, h); ctx.restore(); }
+      else ctx.drawImage(im, dx, dy, w, h);
+    };
+    blit(img.base);
+    if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.7; blit(img.base); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; }
+    if (img.glow) glows.push({ img: img.glow, x: dx, y: dy, w, h, flip, a: 1 });
+    // el cocodrilo nadando: agua que le cubre las patas
+    if (!lurk && e.c === 'croc' && this.grid.deepWater(x, y)) { ctx.globalAlpha = 0.55; ctx.fillStyle = '#0e2236'; ctx.fillRect(dx, y - 10, w, 14); ctx.globalAlpha = 1; }
+  }
+
+  /** Gusarena: al reptar, el cuerpo asoma en jorobas de arena por donde acaba de pasar. */
+  private wormPaths = new Map<number, { x: number; y: number }[]>();
+  private drawWormTrail(ctx: CanvasRenderingContext2D, e: CEnt, now: number) {
+    let path = this.wormPaths.get(e.id);
+    if (!path) { path = [{ x: e.rx, y: e.ry }]; this.wormPaths.set(e.id, path); }
+    const last = path[path.length - 1];
+    if (Math.hypot(e.rx - last.x, e.ry - last.y) > 18) { path.push({ x: e.rx, y: e.ry }); if (path.length > 7) path.shift(); }
+    else if (e.a !== Anim.Walk && path.length > 1 && Math.floor(now / 250) % 2 && Math.random() < 0.1) path.shift(); // quieto: las jorobas se hunden
+    const pal = getSkin('worm', e.s ?? 'classic').palette;
+    const ring = shade(pal.skin, -0.32), top = shade(pal.skin, 0.18);
+    const P = PIXEL;
+    for (let i = 0; i < path.length - 1; i++) {
+      const age = path.length - 1 - i;
+      if (age < 2 || age % 2) continue;
+      const pt = path[i], k = Math.max(0.35, 1 - age / 8);
+      const cx = Math.round(pt.x / P) * P, gy = Math.round(pt.y / P) * P;
+      const rw = Math.round(8 * k + 3), rh = Math.round(7 * k + 2);
+      // arena removida alrededor
+      for (let j = 0; j < 3; j++) { const hw = rw + 3 - j; ctx.fillStyle = j === 1 ? '#c8a060' : '#a8844a'; ctx.fillRect(cx - hw * P, gy - j * P, hw * 2 * P, P); }
+      // arco del cuerpo anillado
+      for (let c = -rw; c <= rw; c++) {
+        const hgt = Math.round(Math.sqrt(Math.max(0, 1 - (c / (rw + 0.5)) ** 2)) * rh);
+        for (let t = 0; t < 3; t++) {
+          const yy = hgt - t; if (yy < 1) continue;
+          ctx.fillStyle = t === 0 ? top : (c + Math.floor(now / 120)) % 3 === 0 ? ring : pal.skin;
+          ctx.fillRect(cx + c * P, gy - P - yy * P, P, P);
+        }
+      }
+      if (e.a === Anim.Walk && Math.random() < 0.15) this.effects.particles.push({ x: cx + (Math.random() - 0.5) * rw * P * 2, y: gy - 2, vx: (Math.random() - 0.5) * 50, vy: -50, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#c8a060' : '#7a5e34', size: P, grav: 260 });
+    }
+  }
+
   private drawProjectile(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     if ((e.c === 'hook' || e.c === 'tongue') && e.o !== undefined) {
       const ow = this.ents.get(e.o);
@@ -1367,9 +1465,15 @@ export class Game {
     const big = e.c.startsWith('bigpotion');
     const spin = e.c === 'egg' || e.c === 'fireball' || e.c === 'ember' || e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion') || e.c.startsWith('obj');
     const id = e.c === 'bat' ? `bat${Math.floor(now / 90) % 2}` : e.c === 'scarab' ? `scarab${Math.floor(now / 60) % 2}`
-      : e.c === 'boulder' ? `boulder${({ elm: 0, transylvania: 1, camp: 2, swamp: 2 } as Record<string, number>)[this.theme] ?? 0}` : big ? e.c.slice(3) : e.c;
+      : e.c === 'boulder' ? `boulder${({ elm: 0, transylvania: 1, camp: 2, swamp: 2, nile: 0, jungle: 2 } as Record<string, number>)[this.theme] ?? 0}` : big ? e.c.slice(3) : e.c;
     const img = getItem(id);
-    const sc = big ? 1.8 : e.c === 'boulder' ? 1.4 : 1;
+    const sc = big ? 1.8 : e.c === 'boulder' ? 1.4 : e.c === 'bigsilver' ? 1.5 : e.c === 'zapball' ? 1.2 : 1;
+    if (e.c === 'zapball') {
+      // chispas eléctricas que saltan alrededor de la bola
+      ctx.fillStyle = Math.random() < 0.5 ? '#ffffff' : '#80d8ff';
+      for (let i = 0; i < 3; i++) { const a = Math.random() * Math.PI * 2, r0 = 10 + Math.random() * 10; ctx.fillRect(Math.round((e.rx + Math.cos(a) * r0) / PIXEL) * PIXEL, Math.round((e.ry - 40 + Math.sin(a) * r0) / PIXEL) * PIXEL, PIXEL, PIXEL); }
+    }
+    if (e.c === 'rocket' && Math.random() < 0.9) this.particles.push({ x: e.rx - Math.cos(e.r ?? 0) * 16, y: e.ry - 40 - Math.sin(e.r ?? 0) * 16, vx: (Math.random() - 0.5) * 30, vy: -20, life: 0.5, max: 0.5, color: Math.random() < 0.3 ? '#ff8020' : '#6a6a70', size: PIXEL * 2, grav: -20 });
     const w = img.base.width * PIXEL * sc, h = img.base.height * PIXEL * sc;
     const py = e.ry - 40; // a la altura de las manos (también los escarabajos de Ramsés)
     ctx.save();
@@ -1378,8 +1482,9 @@ export class Game {
     else ctx.rotate(spin ? Math.floor(now / 90) * (Math.PI / 2) : e.c === 'heart' || e.c === 'wbubble' || e.c === 'orb' || e.c === 'eye' ? 0 : Math.round((e.r ?? 0) / (Math.PI / 4)) * (Math.PI / 4)); // giros en pasos (sin rotación suave)
     ctx.drawImage(img.base, -w / 2, -h / 2, w, h);
     ctx.restore();
+    if (e.c === 'silver' || e.c === 'bigsilver') glows.push({ img: img.base, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 0.55 }); // la plata brilla
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bullet' ? '#ffd060' : e.c === 'egg' ? '#e8e0c8' : e.c === 'wbubble' ? '#a0d8f8' : e.c === 'orb' ? '#80ff60' : e.c === 'eye' ? '#ff40c0' : e.c === 'bonearrow' ? '#d8d0c0' : e.c === 'noise' ? '#e8f0f0' : e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bullet' ? '#ffd060' : e.c === 'zapball' ? '#a0e8ff' : e.c === 'silver' || e.c === 'bigsilver' ? '#f0f4ff' : e.c === 'rocket' ? '#ffb040' : e.c === 'egg' ? '#e8e0c8' : e.c === 'wbubble' ? '#a0d8f8' : e.c === 'orb' ? '#80ff60' : e.c === 'eye' ? '#ff40c0' : e.c === 'bonearrow' ? '#d8d0c0' : e.c === 'noise' ? '#e8f0f0' : e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1417,7 +1522,8 @@ export class Game {
       this.bar(ctx, x, top - 3, 46, e.h ?? 100, me ? '#40e060' : '#e03040');
     } else if (e.k === Kind.Hunter) {
       const info = HUNTER_LABEL[e.c] ?? HUNTER_LABEL.cazador;
-      const ty = top - (e.c === 'heraldo' ? 28 : 0);
+      if (e.c === 'croc' && e.o === 1) return; // cocodrilo al acecho: no se ve
+      const ty = top - (e.c === 'heraldo' ? 28 : e.c === 'rex' ? 54 : 0) + (e.c === 'croc' ? 44 : 0);
       ctx.font = '9px "Press Start 2P", monospace';
       ctx.fillStyle = '#000'; ctx.fillText(thunter(e.c), x + 1, ty - 1);
       ctx.fillStyle = info.color; ctx.fillText(thunter(e.c), x, ty - 2);
@@ -1492,7 +1598,7 @@ export class Game {
       c.fillRect(o.x * s, o.y * s, Math.max(1, o.w * s), Math.max(1, o.h * s));
     }
     for (const e of this.ents.values()) {
-      if (e.k === Kind.Hunter) { const big = e.c === 'heraldo'; c.fillStyle = (HUNTER_LABEL[e.c] ?? HUNTER_LABEL.cazador).color; c.fillRect(e.rx * s - (big ? 3 : 2), e.ry * s - (big ? 3 : 2), big ? 6 : 4, big ? 6 : 4); }
+      if (e.k === Kind.Hunter) { if (e.c === 'croc' && e.o === 1) continue; const big = e.c === 'heraldo' || e.c === 'rex'; c.fillStyle = (HUNTER_LABEL[e.c] ?? HUNTER_LABEL.cazador).color; c.fillRect(e.rx * s - (big ? 3 : 2), e.ry * s - (big ? 3 : 2), big ? 6 : 4, big ? 6 : 4); }
       else if (e.k === Kind.Player && e.id !== this.youId) { c.fillStyle = '#ff3050'; c.fillRect(e.rx * s - 2, e.ry * s - 2, 4, 4); }
       else if (e.k === Kind.Minion && e.o === this.youId) { c.fillStyle = '#80ff60'; c.fillRect(e.rx * s - 1, e.ry * s - 1, 2, 2); }
     }
@@ -1514,7 +1620,7 @@ const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
-  tree: [52, 52], pine: [52, 52], deadtree: [52, 52], cypress: [56, 56], tomb: [28, 34], lamp: [16, 16], statue: [40, 40], mailbox: [14, 14], rock: [46, 36], log: [80, 24], well: [44, 44],
+  tree: [52, 52], pine: [52, 52], deadtree: [52, 52], cypress: [56, 56], palm: [52, 52], jtree: [64, 64], obelisk: [26, 26], crate: [30, 26], tomb: [28, 34], lamp: [16, 16], statue: [40, 40], mailbox: [14, 14], rock: [46, 36], log: [80, 24], well: [44, 44],
 };
 const PROP_ART = new Map<string, Prerendered>();
 
@@ -1524,7 +1630,12 @@ const HUNTER_LABEL: Record<string, { name: string; color: string }> = {
   exorcista: { name: 'EXORCISTA', color: '#80c8ff' },
   sectario: { name: 'SECTARIO', color: '#c060ff' },
   heraldo: { name: 'HERALDO', color: '#fff0a0' },
+  croc: { name: 'COCODRILO', color: '#a0c060' },
+  raptor: { name: 'RAPTOR', color: '#e0a040' },
+  rex: { name: 'T-REX', color: '#ff6030' },
 };
+/** Tamaño de cada forma del Dinozombie (raptor, tricerátops, pterodáctilo, huevo). */
+const DINO_SCALE = [1.35, 1.55, 1.4, 1.25];
 
 const TAUNTS: Record<CharacterId, string> = {
   vampire: '¡Bleh, bleh!',

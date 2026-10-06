@@ -27,7 +27,7 @@ npm run bots -- 8 ws://localhost:3000/ws ABCD   # a una sala concreta
 
 Visores para diseñar:
 - Sprites (todas las animaciones y skins): <http://localhost:5173/#sprites>
-- Mapas completos sin oscuridad: <http://localhost:5173/#mapa=camp:1234> (tema `elm`, `transylvania` o `camp` y la semilla que quieras)
+- Mapas completos sin oscuridad: <http://localhost:5173/#mapa=camp:1234> (tema `elm`, `transylvania`, `camp`, `swamp`, `nile` o `jungle` y la semilla que quieras)
 
 Producción local / demo: `npm run demo` (compila y arranca) → <http://localhost:3000>
 
@@ -61,7 +61,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Proponer / aceptar alianza | H | |
 | Silenciar | M | |
 
-## Contenido actual (v0.12)
+## Contenido actual (v0.13)
 
 **Monstruos**
 
@@ -145,7 +145,9 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 
 **La R se carga con bajas**, no con el tiempo: humano +4 %, otro monstruo +25 %, Cazador +40 % (Sectario +15 %, Heraldo +60 %) (al llegar al nivel 10 empieza con un 30 %). Todos los números están en `shared/balance.ts`.
 
-**Mapas** (procedurales con semilla): Calle del Olmo, Transilvania, Campamento Lago Sereno y **Pantano de la Bruja** (charcas de agua negra, cipreses con musgo, la choza de la bruja con su caldero y tótems).
+**Mapas** (procedurales con semilla): Calle del Olmo, Transilvania, Campamento Lago Sereno, **Pantano de la Bruja** (charcas de agua negra, cipreses con musgo, la choza de la bruja con su caldero y tótems), **Orillas del Nilo** y **Jungla Jurásica**.
+- **Orillas del Nilo**: desierto con dunas, el Nilo cruzándolo de norte a sur con pasarelas, pirámides, esfinge, obeliscos, templo de columnas, aldea de adobe y palmeras. En el río acechan **cocodrilos** (solo asoman los ojos) que muerden y aturden a quien se acerque a la orilla; no se alejan del agua.
+- **Jungla Jurásica**: selva densa con un **río poco profundo** que se cruza a pie pero cuya **corriente arrastra** río abajo (también se predice en el cliente), templo escalonado en ruinas, campamento de exploradores y una laguna. La habitan **raptores** en manada y un **tiranosaurio** que ruge y asusta; no son zombis y atacan a cualquier monstruo (también a la Cazadora). Las fieras dan buena recompensa al morir.
 - **Agua en todos**: estanque y piscinas (Olmo), río con puentes (Transilvania), lago (Campamento). Se consulta con `map.water`, `waterAt(map, x, y)` y `obstacle.body`.
 - **Televisiones** (`map.tvs`): en ventanas, escaparates y abandonadas a la intemperie; solo aparecen (encendidas) cuando hay una Interferencia en la sala.
 - **Bordes temáticos**: el mundo continúa fuera del área jugable (bosque denso, agua profunda, acantilados, vallas, muros, casas, cementerios) y se pierde en una niebla espesa.
@@ -198,9 +200,11 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 
 **Dinozombie (cambiaformas)**: la Q alterna Velociraptor (mordiscos rápidos, corre más al perseguir; E: salto sobre un objetivo con daño en área), Tricerátops (cornada lenta y amplia, mucha resistencia y casi inmune a ralentizar o aturdir; E: carga larga que empuja y aturde) y Pterodáctilo (huevos a distancia, vuela sobre agua y obstáculos; E: remolino que empuja). R: se vuelve huevo intocable y cae un asteroide que quema una gran zona; sale con otra forma. Nv. 5: cambiar de forma cura y da un bonus breve. Nv. 15: mejores E y cambio de forma más rápido.
 
-**R-800 (perseguidor)**: golpes hidráulicos o, si no hay nadie a mano, disparos rápidos. Inmune a miedo, enamoramiento e hipnosis; las ralentizaciones le afectan la mitad. Q: fija al enemigo más cercano 6 s (lo ve aunque sea invisible, corre más hacia él y el siguiente golpe hace +70 %). E: ráfaga de 3 s hacia el puntero caminando más despacio. Nv. 5: se repara sin recibir daño y al morir explota al segundo. R: 5 s de arma enorme y láser rojo guiado cuyo daño sube cuanto más tiempo sigue sobre el mismo objetivo. Nv. 15: salta solo al siguiente objetivo y la ráfaga dura más y atraviesa.
+**R-800 (perseguidor)**: esqueleto mecánico de un solo ojo; puñetazos eléctricos o, si no hay nadie a mano, bolas de energía eléctrica (algo más lentas). Inmune a miedo, enamoramiento e hipnosis; las ralentizaciones le afectan la mitad. Q: fija al enemigo más cercano 6 s (lo ve aunque sea invisible, corre más hacia él y el siguiente golpe hace +70 %). E: lanzacohetes de 3 s hacia el puntero (explotan en área) caminando más despacio. Nv. 5: se repara sin recibir daño y al morir explota al segundo. R: 5 s de cañón enorme y láser rojo muy ancho guiado cuyo daño sube cuanto más tiempo sigue sobre el mismo objetivo. Nv. 15: salta solo al siguiente objetivo y los cohetes duran más, salen más seguidos y explotan más grande.
 
-**La Cazadora (desertora de la orden)**: no mata humanos: al herirlos les da antorchas u horcas (nv. 15 también arcos) y se vuelven milicia que va a su aire contra los monstruos; cada uno le da experiencia. La orden de cazadores no la ataca. Q: culatazo que empuja (nv. 15: en cono). E: salto corto e invisibilidad. Nv. 5: matar o armar recupera enfriamientos. R: gira disparando contra todos los enemigos cercanos y los ciega.
+**La Cazadora (desertora de la orden)**: mujer de negro con sombrero de cazadora y ballesta de plata (virotes de plata brillantes). No mata humanos: al herirlos les da antorchas u horcas (nv. 15 también arcos) y se vuelven milicia que va a su aire contra los monstruos; cada uno le da experiencia y, al acabarse, se desarman y vuelven a ser humanos (no mueren). La orden de cazadores no la ataca. Q: culatazo que empuja (nv. 15: en cono). E: salto corto e invisibilidad (enfriamiento 7 s). Nv. 5: matar o armar recupera enfriamientos. R: gira sobre sí misma disparando grandes virotes de plata en espiral en todas direcciones; ciegan.
+
+**Ajustes v0.13**: la Gusarena hace menos daño, el agua le hace daño y le frena, y al reptar ondula y deja jorobas de arena detrás. Los dinosaurios del Dinozombie se ven más grandes y mejor animados (raptor con carrera, tricerátops con gola y cuatro patas, pterodáctilo con tres posiciones de aleteo).
 
 **Ajustes v0.12**: el rayo del Último conjuro del Nigromante es mucho más ancho y vistoso y dura 4,5 s. Aracne: cada 3 básicos sale una arañita que da 3 mordiscos y se deshace, y los hilos largos de la gran telaraña aturden 3 s. Capitán Ahogado: su R ahora es *Mar de los ahogados*, una gran poza de 10 s; navegando en ella dispara cañonazos en 4 direcciones y más rápido. La Baba (y sus copias) ahora es un cubo de gelatina.
 
@@ -238,9 +242,9 @@ tools/    bots de carga y simtest (prueba de kits sin red)
 
 El juego necesita **procesos Node siempre encendidos con WebSockets** (Vercel o un hosting compartido no sirven para el servidor).
 
-**Producción recomendada**: un VPS de precio fijo (p. ej. Hetzner) con la carpeta `deploy/`:
+**Producción recomendada**: un VPS de precio fijo (Hostinger VPS KVM 1, Hetzner…) con la carpeta `deploy/`. El hosting web compartido de Hostinger no sirve para el servidor del juego (necesita un proceso siempre encendido con WebSockets):
 
-- `deploy/instalar.sh tu.dominio.com tu@gmail.com` (el Gmail es opcional: será la cuenta master) prepara un Ubuntu 24.04 limpio (Docker, cortafuegos, HTTPS automático con Caddy, copia diaria de perfiles).
+- `deploy/instalar.sh tu.dominio.com tu@gmail.com [rama]` (el Gmail es opcional: será la cuenta master; la rama, por defecto `main`) prepara un Ubuntu 24.04 limpio (Docker, cortafuegos, HTTPS automático con Caddy, copia diaria de perfiles).
 - `deploy/docker-compose.yml`: varios procesos de juego (**shards** A, B…) en la misma máquina, cada uno con su tope `MAX_CONNECTIONS`. Las salas se crean y cierran solas según haga falta (`MIN_ROOMS` mantiene siempre alguna abierta) y su código empieza por la letra del shard.
 - `deploy/actualizar.sh`: `git pull` y reconstruye sin perder perfiles.
 - Perfiles en **SQLite** (`data/profiles.db`), compartido por todos los shards; el antiguo `profiles.json` se importa solo.

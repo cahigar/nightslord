@@ -170,6 +170,8 @@ export class Effects {
       case 'elm': return n < 0.4 ? ['#5a4632', '#3a2c20', '#7a6046'] : ['#a0501a', '#c07020', '#3a6a2a', '#8a2a14'];
       case 'transylvania': return n < 0.42 ? ['#5a5660', '#3a3640', '#7a7680'] : ['#5a5236', '#3a3424', '#2e4a2e'];
       case 'swamp': return n < 0.4 ? ['#2b231c', '#3a2c20', '#1a1512'] : ['#2a361d', '#212b18', '#3a4a24'];
+      case 'nile': return ['#c8a868', '#9a7e48', '#e0c888'];
+      case 'jungle': return n < 0.32 ? ['#2b231c', '#3a2c20'] : ['#14301a', '#2e6a28', '#3a2c20'];
       default: return n < 0.3 ? ['#5a4632', '#463626'] : ['#5a4022', '#2c5236', '#463522'];
     }
   }
@@ -295,6 +297,13 @@ export class Effects {
       case 'arm': this.burst(x, y - 40, 16, ev.c === 'torch' ? ['#ff9020', '#ffe060', '#ffffff'] : ['#e0c060', '#c0c0c8', '#ffffff'], 130, 3, -40, 0.6, true); this.ripple(x, y - 20, '#e0c060', 0.4, 36); break;
       case 'buttStroke': this.buttStroke(ev); break;
       case 'shapeshift': this.burst(x, y - 30, 30, ['#c0ff60', '#6a8a4a', '#e8e0c8', '#c02020'], 200, 3, 100, 0.6, true); this.ripple(x, y - 20, '#c0ff60', 0.5, 60); break;
+      case 'zapHit': this.zapHit(ev); break;
+      case 'rocketBoom': this.rocketBoom(ev); break;
+      case 'sizzle': this.burst(x, y - 30, 6, ['#e0e8f0', '#c8a060', '#ffffff'], 60, 3, -60, 0.6); break;
+      case 'roar': this.roar(ev); break;
+      case 'chomp': this.chomp(ev); break;
+      case 'disarm': this.burst(x, y - 30, 12, ev.c === 'torch' ? ['#ff9020', '#5a4030', '#ffe060'] : ['#9090a0', '#7a5030', '#c0c0c8'], 120, 3, 400, 0.5); this.ripple(x, y - 10, '#c0c0c8', 0.3, 26); break;
+      case 'huntSpin': this.huntSpin(ev); break;
       case 'critterPop': this.burst(x, y - 16, 14, ['#ffe080', '#ffffff', '#c0a040'], 140, 3, 200, 0.6, true); this.ripple(x, y, '#ffe080', 0.4, 30); break;
       case 'summon': this.lightPillar(x, y, ev.n ? 1 : 0.8, ev.n ? '#ff4060' : '#c060ff'); this.burst(x, y - 30, 24, ['#c060ff', '#ff4060', '#2e1a3a'], 200, 3, 0, 0.8, true); break;
     }
@@ -1357,6 +1366,75 @@ export class Effects {
       ctx.globalAlpha = 1;
     });
     this.burst(ev.x, ev.y - 30, 10, ['#ffe0a0', '#ffffff', '#8a6a40'], 200, 3, 200, 0.4);
+  }
+
+  /** Golpe eléctrico del R-800: arcos que saltan del impacto. */
+  private zapHit(ev: FxEv) {
+    const x0 = ev.x, y0 = ev.y - 36;
+    const arcs = Array.from({ length: 4 }, () => { const pts: [number, number][] = [[x0, y0]]; let px = x0, py = y0; const a = Math.random() * Math.PI * 2; for (let i = 0; i < 5; i++) { px += Math.cos(a) * 7 + (Math.random() - 0.5) * 9; py += Math.sin(a) * 6 + (Math.random() - 0.5) * 9; pts.push([px, py]); } return pts; });
+    this.add(0.22, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      for (const pts of arcs) for (const [px, py] of pts) { ctx.fillStyle = Math.random() < 0.5 ? '#ffffff' : '#80d8ff'; ctx.fillRect(snap(px), snap(py), PIXEL, PIXEL); }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(x0, y0, 8, ['#ffffff', '#a0e8ff', '#3a8aff'], 170, 2, 0, 0.3, true);
+  }
+
+  /** Explosión de cohete: bola de fuego, humo y metralla. */
+  private rocketBoom(ev: FxEv) {
+    const R = ev.r ?? 62;
+    this.add(0.35, 'glow', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      pixelEllipse(ctx, ev.x, ev.y - 10, R * (0.4 + k * 0.7), R * (0.3 + k * 0.45), k < 0.4 ? '#ffffff' : '#ffb040');
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 14, 18, ['#ff6020', '#ffe060', '#ffffff', '#c02010'], R * 3.2, 3, 200, 0.45, true);
+    this.burst(ev.x, ev.y - 14, 10, ['#4a4a50', '#6a6a70', '#2a2a30'], R * 1.4, 4, -60, 0.9);
+    this.ripple(ev.x, ev.y, '#ffb040', 0.35, R);
+  }
+
+  /** Rugido del tiranosaurio: ondas que hacen temblar el suelo. */
+  private roar(ev: FxEv) {
+    const R = ev.r ?? 260;
+    for (let i = 0; i < 3; i++) setTimeout(() => this.ripple(ev.x, ev.y, '#ffd0a0', 0.6, R * (0.5 + i * 0.25)), i * 140);
+    this.burst(ev.x, ev.y - 60, 14, ['#fff0c0', '#ffffff'], 260, 3, 0, 0.5);
+  }
+
+  /** Dentellada de una fiera (cocodrilo o T-rex): mandíbulas pixeladas que se cierran. */
+  private chomp(ev: FxEv) {
+    const big = ev.n === 1, x = ev.x, y = ev.y - 30, W = big ? 30 : 22;
+    this.add(0.25, 'top', (ctx, k) => {
+      const close = Math.min(1, k * 3);
+      ctx.globalAlpha = 1 - k;
+      for (const s of [-1, 1]) {
+        const yy = y + s * (W * 0.7) * (1 - close);
+        for (let i = -W; i <= W; i += PIXEL) {
+          ctx.fillStyle = '#f0ead0';
+          ctx.fillRect(snap(x + i), snap(yy), PIXEL, PIXEL);
+          if ((i / PIXEL) % 2 === 0) ctx.fillRect(snap(x + i), snap(yy - s * PIXEL), PIXEL, PIXEL); // dientes
+        }
+      }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(x, y, big ? 16 : 10, ['#b0101a', '#ff3040', '#6a0a10'], 160, 3, 400, 0.5);
+  }
+
+  /** Círculo de caza: anillo de plata que gira alrededor de la Cazadora mientras dispara. */
+  private huntSpin(ev: FxEv) {
+    const dur = ev.d ?? 3;
+    this.add(dur, 'glow', (ctx, k, now) => {
+      const pos = ev.o !== undefined ? this.entPos(ev.o) : null;
+      if (!pos) return;
+      ctx.globalAlpha = Math.min(1, (1 - k) * 5) * 0.8;
+      const R = 46;
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + now / 120;
+        ctx.fillStyle = i % 4 === 0 ? '#ffffff' : '#c8ccd8';
+        ctx.fillRect(snap(pos.x + Math.cos(a) * R), snap(pos.y - 6 + Math.sin(a) * R * 0.5), PIXEL * (i % 4 === 0 ? 2 : 1), PIXEL);
+      }
+      if (Math.random() < 0.5) this.particles.push({ x: pos.x + (Math.random() - 0.5) * 80, y: pos.y - Math.random() * 60, vx: 0, vy: -30, life: 0.4, max: 0.4, color: '#f0f4ff', size: PIXEL, grav: 0, glow: true });
+      ctx.globalAlpha = 1;
+    });
   }
 
   /** Remolino del pterodáctilo: embudo de viento pixelado. */

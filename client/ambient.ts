@@ -21,7 +21,7 @@ export class Ambient {
     this.fog.width = N; this.fog.height = N;
     const c = this.fog.getContext('2d')!;
     const img = c.createImageData(N, N);
-    const tint = map.theme === 'camp' ? [150, 175, 200] : map.theme === 'transylvania' ? [170, 150, 170] : map.theme === 'swamp' ? [130, 180, 120] : [160, 160, 190];
+    const tint = map.theme === 'camp' ? [150, 175, 200] : map.theme === 'transylvania' ? [170, 150, 170] : map.theme === 'swamp' ? [130, 180, 120] : map.theme === 'nile' ? [190, 170, 130] : map.theme === 'jungle' ? [120, 180, 140] : [160, 160, 190];
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       // ruido periódico: mezcla de las 4 esquinas para que el patrón encaje al repetir
       const u = x / N, v = y / N;
@@ -38,13 +38,15 @@ export class Ambient {
   update(dt: number, camX: number, camY: number, vw: number, vh: number) {
     this.t += dt;
     // generar motas cerca de la cámara
-    const want = this.map.theme === 'camp' || this.map.theme === 'swamp' ? 70 : 50;
+    const want = this.map.theme === 'camp' || this.map.theme === 'swamp' || this.map.theme === 'jungle' ? 70 : 50;
     while (this.motes.length < want) {
       const x = camX + Math.random() * vw, y = camY + Math.random() * vh;
       let kind: Mote['kind'];
       let color: string;
       const rnd = Math.random();
       if (this.map.theme === 'swamp') { kind = rnd < 0.5 ? 'firefly' : 'spore'; color = kind === 'firefly' ? '#a0ff60' : '#80a070'; }
+      else if (this.map.theme === 'nile') { kind = rnd < 0.65 ? 'leaf' : 'spore'; color = kind === 'leaf' ? ['#c8a868', '#a08050', '#e0c888'][Math.floor(Math.random() * 3)] : '#d8c8a0'; } // arena que vuela
+      else if (this.map.theme === 'jungle') { kind = rnd < 0.45 ? 'firefly' : rnd < 0.75 ? 'leaf' : 'spore'; color = kind === 'firefly' ? ['#a0ff80', '#ffe060', '#80e0ff'][Math.floor(Math.random() * 3)] : kind === 'leaf' ? ['#2e6a28', '#4a8a34', '#6a9a30'][Math.floor(Math.random() * 3)] : '#a0c0a0'; }
       else if (this.map.theme === 'camp') { kind = rnd < 0.7 ? 'firefly' : 'spore'; color = kind === 'firefly' ? '#d8ff60' : '#a0b0c0'; }
       else if (this.map.theme === 'elm') { kind = rnd < 0.55 ? 'leaf' : rnd < 0.8 ? 'firefly' : 'spore'; color = kind === 'leaf' ? ['#a0501a', '#c07020', '#8a2a14'][Math.floor(Math.random() * 3)] : kind === 'firefly' ? '#e0ff80' : '#9090b0'; }
       else { kind = rnd < 0.6 ? 'spore' : 'ember'; color = kind === 'ember' ? '#ff7020' : '#c0a0c0'; }

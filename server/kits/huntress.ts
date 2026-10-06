@@ -1,11 +1,12 @@
 // 🏹 La Cazadora: veterana desertora de la orden. Control, reclutamiento y hostigamiento.
-// - Ballesta (básico): disparo preciso a distancia.
+// - Ballesta de plata (básico): virote de plata brillante a distancia.
 // - Armar a la población (pasiva): no mata humanos; al herirlos les da antorchas u horcas y se vuelven aliados
-//   que van a su aire contra los monstruos (cada uno le da experiencia). La orden de cazadores no la ataca.
+//   que van a su aire contra los monstruos (cada uno le da experiencia). Al acabarse, se desarman (no mueren).
+//   La orden de cazadores no la ataca.
 // - Culatazo (Q): golpe cercano que empuja con fuerza (nv. 15: a todos en un cono).
 // - Repliegue (E): salto corto y se vuelve invisible unos segundos (atacar la descubre).
 // - Experiencia de campo (nv. 5): matar a un enemigo o armar a un humano recupera enfriamiento de Q y E.
-// - Círculo de caza (R): gira disparando contra todos los enemigos cercanos; los impactos ciegan.
+// - Círculo de caza (R): gira sobre sí misma disparando grandes virotes de plata en todas direcciones (espiral); ciegan.
 // - Nv. 15: también reparte arcos.
 import { BAL } from '../../shared/balance';
 import { Anim, Kind } from '../../shared/protocol';
@@ -22,9 +23,10 @@ function refund(p: Player) {
 }
 
 function shootBolt(room: Room, p: Player, a: number, blind: boolean) {
-  const pr = room.shoot('bolt', p.id, p.x + Math.cos(a) * 18, p.y + Math.sin(a) * 18, a, B.bolt.speed, B.bolt.life, room.calcDamage(p, blind ? B.ult.dmg : B.bolt.dmg));
-  pr.hitR = 10;
-  if (blind) pr.v = 1;
+  const S = blind ? B.ult : B.bolt;
+  const pr = room.shoot(blind ? 'bigsilver' : 'silver', p.id, p.x + Math.cos(a) * 18, p.y - 4 + Math.sin(a) * 18, a, S.speed, S.life, room.calcDamage(p, S.dmg));
+  pr.hitR = blind ? 16 : 10;
+  if (blind) { pr.v = 1; pr.pierce = true; pr.hitSet = new Set(); }
 }
 
 /** Arma a un humano: deja de ser presa y se une a la caza de monstruos (a su aire). */
@@ -86,8 +88,9 @@ export const huntressKit: Kit = {
   },
 
   ult(room, p) {
-    p.k.circleEnd = room.time + B.ult.t; p.k.circleNext = room.time; p.k.spin = p.input.a; p.k.spinI = 0;
+    p.k.circleEnd = room.time + B.ult.t; p.k.circleNext = room.time; p.k.spin = p.input.a;
     room.setAnim(p, Anim.Cast, 0.4);
+    room.fx('huntSpin', p.x, p.y, { o: p.id, d: B.ult.t });
     room.sfx('ult', p.x, p.y);
     p.ultT = B.ult.t;
     return true;
@@ -103,7 +106,7 @@ export const huntressKit: Kit = {
   },
 
   onProjectileHit(room, p, pr, m) {
-    if (pr.type === 'bolt' && pr.v === 1 && !m.dead) { m.blindT = Math.max(m.blindT, B.ult.blindT); room.fx('heartHit', m.x, m.y, { o: m.id, c: 'blind' }); }
+    if (pr.type === 'bigsilver' && !m.dead) { m.blindT = Math.max(m.blindT, B.ult.blindT); room.fx('heartHit', m.x, m.y, { o: m.id, c: 'blind' }); }
   },
 
   onKill(_room, p) { refund(p); },
@@ -111,16 +114,12 @@ export const huntressKit: Kit = {
   tick(room, p) {
     if (!circling(room, p) || room.time < (p.k.circleNext ?? 0)) return;
     p.k.circleNext = room.time + B.ult.every;
-    // gira y dispara a cada enemigo cercano por turnos (si no hay nadie, en círculo)
-    const list: Mob[] = [];
-    room.forEachEnemyNear(p, p.x, p.y, B.ult.range, (m) => { if (!m.dead && !(m.kind === Kind.Npc && !(m as Npc).variant.startsWith('c_'))) list.push(m); });
-    p.k.spin = (p.k.spin ?? 0) + 0.9;
-    let a = p.k.spin;
-    if (list.length) { const t = list[(p.k.spinI = ((p.k.spinI ?? 0) + 1)) % list.length]; a = Math.atan2(t.y - p.y, t.x - p.x); }
-    p.facing = Math.cos(p.k.spin) >= 0 ? 1 : -1;
+    // gira sobre sí misma y dispara un abanico de virotes de plata en todas direcciones (dibuja una espiral)
+    p.k.spin = (p.k.spin ?? 0) + B.ult.turn;
+    for (let i = 0; i < B.ult.n; i++) shootBolt(room, p, p.k.spin + (i / B.ult.n) * Math.PI * 2, true);
+    p.facing = Math.floor(p.k.spin / (Math.PI / 2)) % 2 ? 1 : -1;
     room.setAnim(p, Anim.Attack, 0.12);
-    shootBolt(room, p, a, true);
-    if (Math.random() < 0.5) room.sfx('bolt', p.x, p.y);
+    if (Math.random() < 0.6) room.sfx('bolt', p.x, p.y);
     p.lastCombatT = room.time;
   },
 

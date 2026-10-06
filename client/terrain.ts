@@ -1,7 +1,7 @@
 // Terreno procedural en pixel art, generado por trozos (chunks) bajo demanda.
 // Cada píxel de arte (PIXEL px de mundo) se decide con ruido fBm + tramado Bayer, caminos, agua y sombras.
 import { MAP_SIZE, PIXEL } from '../shared/constants';
-import { BORDER_DEPTH, lakeValue, onBridge, riverValue, type GameMap, type Obstacle, type Side, type Trail } from '../shared/maps';
+import { BORDER_DEPTH, bridgeAxes, lakeValue, onBridge, riverValue, type GameMap, type Obstacle, type Side, type Trail } from '../shared/maps';
 import { fbm, hashAt } from '../shared/noise';
 
 export const CHUNK = 96; // píxeles de arte por chunk
@@ -39,6 +39,9 @@ const M = {
   plank: ramp('#2e1e12', '#3e2a18', '#4e3820', '#5e4628'),
   abyss: ramp('#020104', '#05030a', '#0a0612', '#100a1a'),
   cliff: ramp('#1a1618', '#262024', '#322a2e', '#3e363a'),
+  dune: ramp('#3e3424', '#4a3e2a', '#584a32', '#66563a'),
+  jgrass: ramp('#0f2414', '#14301a', '#1a3c20', '#224a26'),
+  shallow: ramp('#123634', '#184440', '#20524c', '#2c6258'),
 };
 type Mat = keyof typeof M;
 
@@ -48,7 +51,10 @@ const THEME_GROUND: Record<string, ThemeGround> = {
   transylvania: { base: (n, d) => (n < 0.3 ? 'gravel' : n < 0.42 ? 'dirt' : d > 0.64 ? 'moss' : 'deadgrass') },
   camp: { base: (n, d) => (n < 0.3 ? 'dirt' : n > 0.62 ? 'needles' : d > 0.6 ? 'grass' : 'forest') },
   swamp: { base: (n, d) => (n < 0.36 ? 'mud' : n < 0.44 ? 'dirt' : d > 0.58 ? 'moss' : n > 0.66 ? 'forest' : 'bog') },
+  nile: { base: (n, d) => (n < 0.32 ? 'sand' : d > 0.66 && n > 0.62 ? 'deadgrass' : 'dune') },
+  jungle: { base: (n, d) => (n < 0.3 ? 'mud' : n < 0.38 ? 'moss' : d > 0.6 ? 'forest' : 'jgrass') },
 };
+const muddy = (t: string) => t === 'transylvania' || t === 'swamp' || t === 'jungle';
 
 export class Terrain {
   private chunks = new Map<number, HTMLCanvasElement>();
@@ -56,6 +62,8 @@ export class Terrain {
   private nx = Math.ceil(MAP_SIZE / CW);
   private ext = Math.ceil(BORDER_DEPTH / CW) + 1; // chunks extra fuera del mapa (el mundo continúa)
   waterGlints: { x: number; y: number; ph: number }[] = [];
+  /** Vetas de espuma que la corriente arrastra río abajo (río poco profundo de la jungla). */
+  streaks: { x: number; y: number; ph: number; dx: number; dy: number }[] = [];
 
   constructor(private map: GameMap) {
     // puntos de brillo sobre el agua (animados en el render)
@@ -72,6 +80,13 @@ export class Terrain {
       const seg = r.pts[Math.floor(hashAt(i, 3, map.seed) * (r.pts.length - 1))];
       const x = seg[0] + (hashAt(i, 5, map.seed) - 0.5) * 260, y = seg[1] + (hashAt(5, i, map.seed) - 0.5) * 80;
       if (riverValue(r, x, y) > 8 && !onBridge(r, x, y)) this.waterGlints.push({ x, y, ph: hashAt(i, 9, map.seed) * 6.28 });
+    }
+    for (const r of map.rivers) if (r.shallow) for (let i = 0; i < 700; i++) {
+      const k = Math.floor(hashAt(i, 7, map.seed) * (r.pts.length - 1));
+      const [ax, ay] = r.pts[k], [bx, by] = r.pts[k + 1], t = hashAt(7, i, map.seed);
+      const l = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / l, ny = (bx - ax) / l, off = (hashAt(i, 11, map.seed) - 0.5) * r.w * 0.8;
+      const x = ax + (bx - ax) * t + nx * off, y = ay + (by - ay) * t + ny * off;
+      if (riverValue(r, x, y) > 10) this.streaks.push({ x, y, ph: hashAt(i, 13, map.seed), dx: (bx - ax) / l, dy: (by - ay) / l });
     }
     for (const p of map.pools) for (let i = 0; i < 6; i++) this.waterGlints.push({ x: p.x + 10 + hashAt(i, p.x, 1) * (p.w - 30), y: p.y + 8 + hashAt(p.y, i, 2) * (p.h - 16), ph: i });
   }
@@ -196,7 +211,7 @@ export class Terrain {
         const v = lakeValue(l, x, y);
         if (v > 0.04) { mat = 'water'; tone = Math.max(0, Math.min(0.99, 0.85 - v * 1.6 + b * 0.12 + (d - 0.5) * 0.3)); }
         else if (v > 0.0) { mat = 'foam'; tone = 0.5 + b; }
-        else if (v > -0.07) { mat = map.theme === 'transylvania' || map.theme === 'swamp' ? 'mud' : 'sand'; tone = 0.4 + (v + 0.07) * 6 + b * 0.3; }
+        else if (v > -0.07) { mat = muddy(map.theme) ? 'mud' : 'sand'; tone = 0.4 + (v + 0.07) * 6 + b * 0.3; }
         else if (v > -0.13 && b > (v + 0.13) * 6 - 0.5) mat = 'mud';
       }
 
@@ -205,11 +220,17 @@ export class Terrain {
         const v = riverValue(r, x, y);
         if (v > -16 && onBridge(r, x, y)) {
           mat = 'plank';
-          tone = (Math.floor(x / 12) % 2 ? 0.55 : 0.75) + b * 0.15;
-          if (Math.abs(x - r.bridges.reduce((a, bb) => (Math.abs(bb.x - x) < Math.abs(a - x) ? bb.x : a), -9999)) > 40) tone = 0.15; // barandilla
+          tone = (Math.floor((r.vertical ? y : x) / 12) % 2 ? 0.55 : 0.75) + b * 0.15;
+          if (Math.min(...r.bridges.map((bb) => bridgeAxes(r, bb, x, y).a)) > 40) tone = 0.15; // barandilla
+        } else if (r.shallow && v > 0) {
+          // agua poco profunda con corriente: vetas de espuma alargadas y piedras del fondo
+          mat = 'shallow';
+          tone = 0.45 + Math.sin((x + y * 0.3) / 26 + fbm(x, y, seed + 5, 60, 2) * 6) * 0.25 + b * 0.15;
+          if (hashAt(gx >> 1, gy >> 1, seed + 3) < 0.03) { mat = 'gravel'; tone = 0.6; }
+          if (v < 8) { mat = 'foam'; tone = 0.5 + b; }
         } else if (v > 4) { mat = 'water'; tone = Math.max(0, Math.min(0.99, 0.7 - (v / r.w) * 1.2 + b * 0.12 + (d - 0.5) * 0.3)); }
         else if (v > 0) { mat = 'foam'; tone = 0.4 + b; }
-        else if (v > -14) { mat = 'mud'; tone = 0.5 + v / 40 + b * 0.3; }
+        else if (v > -14) { mat = map.theme === 'nile' ? 'sand' : 'mud'; tone = 0.5 + v / 40 + b * 0.3; }
       }
       // piscinas con borde de baldosas
       for (const pl of pools) {
@@ -228,7 +249,7 @@ export class Terrain {
           const wob = (fbm(x, y, seed + 31, 80, 2) - 0.5) * 30;
           if (dOut > 18 + wob) { mat = 'water'; tone = Math.max(0, 0.6 - (dOut - 18) / 400 + b * 0.12); }
           else if (dOut > 4 + wob) { mat = 'foam'; tone = 0.4 + b; }
-          else if (dOut > -26 + wob) { mat = map.theme === 'transylvania' || map.theme === 'swamp' ? 'mud' : 'sand'; tone = 0.45 + b * 0.3; }
+          else if (dOut > -26 + wob) { mat = muddy(map.theme) ? 'mud' : 'sand'; tone = 0.45 + b * 0.3; }
         } else if (kind === 'cliff') {
           const wob = (fbm(x, y, seed + 37, 60, 2) - 0.5) * 26;
           if (dOut > 40 + wob) { mat = 'abyss'; tone = Math.max(0, 0.8 - (dOut - 40) / 120 + b * 0.2); }
@@ -255,7 +276,10 @@ export class Terrain {
       const px = Math.floor(hashAt(i, cx * 31 + cy, seed + 13) * CHUNK), py = Math.floor(hashAt(cy * 17 + cx, i, seed + 14) * CHUNK);
       const mat = mats[py * CHUNK + px];
       const h = hashAt(px, py, seed + 15);
-      if (mat === 'grass' || mat === 'lawn' || mat === 'forest' || mat === 'moss' || mat === 'bog') {
+      if (mat === 'dune') {
+        // ondas de la arena
+        if (h < 0.5) { put(px, py, M.dune[0]); put(px + 1, py, M.dune[0]); put(px + 2, py - 1, M.dune[3]); }
+      } else if (mat === 'grass' || mat === 'lawn' || mat === 'forest' || mat === 'moss' || mat === 'bog' || mat === 'jgrass') {
         const g = M[mat];
         put(px, py, g[3]); put(px, py - 1, g[3]); put(px + 1, py, g[2]);
         if (h < 0.12 && map.theme !== 'transylvania' && map.theme !== 'swamp') put(px, py - 2, FLOWERS[Math.floor(h * 33) % 4]);
@@ -278,9 +302,9 @@ export class Terrain {
 
     // sombras de obstáculos (luz de luna desde arriba-izquierda)
     const shadowOf = (o: Obstacle) => {
-      const tall = ['house', 'cabin', 'crypt', 'wall', 'tower', 'shop', 'hut'].includes(o.type);
-      const round = ['tree', 'pine', 'deadtree', 'rock', 'well', 'statue', 'brazier', 'lamp', 'firepit', 'mailbox', 'tomb', 'cypress', 'cauldron'].includes(o.type);
-      if (o.type === 'water') return null;
+      const tall = ['house', 'cabin', 'crypt', 'wall', 'tower', 'shop', 'hut', 'adobe', 'temple', 'pyramid', 'sphinx', 'tent', 'ruin'].includes(o.type);
+      const round = ['tree', 'pine', 'deadtree', 'rock', 'well', 'statue', 'brazier', 'lamp', 'firepit', 'mailbox', 'tomb', 'cypress', 'cauldron', 'palm', 'jtree', 'obelisk', 'column', 'crate'].includes(o.type);
+      if (o.type === 'water' || o.type === 'pyramid') return null;
       if (tall) return { kind: 'rect' as const, x: o.x + 10, y: o.y + 8, w: o.w + 14, h: o.h + 10 };
       if (round) return { kind: 'ell' as const, x: o.x + o.w / 2 + 8, y: o.y + o.h - 2, rx: o.w * 0.75 + 6, ry: Math.max(10, o.h * 0.4) };
       return { kind: 'rect' as const, x: o.x + 4, y: o.y + 6, w: o.w + 6, h: o.h + 4 };

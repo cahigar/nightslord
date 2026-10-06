@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Actualiza el juego a la última versión de GitHub sin perder perfiles.
+# Actualiza el juego a la última versión de GitHub (de la rama instalada) sin perder perfiles.
 set -euo pipefail
 cd /opt/nightslord && git pull --ff-only
 cd deploy && docker compose up -d --build

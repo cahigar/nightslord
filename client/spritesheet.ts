@@ -1,6 +1,6 @@
 import { CHARACTER_IDS, SKINS } from '../shared/characters';
 import { Anim } from '../shared/protocol';
-import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
+import { ANIMS, getBeast, getFrame, getItem, getVermin, SH, SW } from './sprites';
 
 const ANIM_NAMES: [Anim, string][] = [
   [Anim.Idle, 'idle'], [Anim.Walk, 'walk'], [Anim.Attack, 'attack'], [Anim.Cast, 'cast'],
@@ -18,7 +18,7 @@ export function showSpriteSheet() {
   for (const v of ['teen#torch', 'villager#pitchfork', 'camper#bow']) rows.push({ label: v, kind: 'npc', variant: v, skin: '', seed: 7 });
   for (const t of ['cazador', 'inquisidor', 'exorcista', 'sectario', 'heraldo']) rows.push({ label: t, kind: 'hunter', variant: t, skin: '' });
   for (const [i, v] of (['normal', 'fast', 'tough', 'fat'] as const).entries()) rows.push({ label: `zombi ${v}`, kind: 'zombie', variant: ['camper', 'teen', 'jock', 'villager'][i], skin: v, seed: i * 17 + 3 });
-  for (const [i, v] of ['teen', 'teen', 'neighbor', 'jock', 'nerd', 'villager', 'villager', 'priest', 'maid', 'camper', 'camper', 'counselor'].entries()) rows.push({ label: v, kind: 'npc', variant: v, skin: '', seed: i * 13 + 5 });
+  for (const [i, v] of ['teen', 'teen', 'neighbor', 'jock', 'nerd', 'villager', 'villager', 'priest', 'maid', 'camper', 'camper', 'counselor', 'fellah', 'fellah', 'tourist', 'archaeologist', 'explorer', 'explorer', 'porter', 'scientist'].entries()) rows.push({ label: v, kind: 'npc', variant: v, skin: '', seed: i * 13 + 5 });
   // filtro opcional: #sprites=worm,dino → solo esas filas
   const only = decodeURIComponent(location.hash.split('=')[1] ?? '').split(',').filter(Boolean);
   if (only.length) rows.splice(0, rows.length, ...rows.filter((r) => only.some((o) => r.label.startsWith(o))));
@@ -48,8 +48,29 @@ export function showSpriteSheet() {
       col++;
     }
   });
-  const items = ['blood', 'speed', 'fury', 'shield', 'coin', 'xp', 'bat0', 'bat1', 'bandage', 'bolt'];
+  const items = ['blood', 'speed', 'fury', 'shield', 'coin', 'xp', 'bolt', 'zapball', 'rocket', 'silver', 'bigsilver'];
   items.forEach((id, i) => { const img = getItem(id).base; c.drawImage(img, 140 + i * 60, 30 + rows.length * ch + 10, img.width * 4, img.height * 4); });
+  // fieras y alimañas nuevas (#sprites=fieras)
+  if (only.includes('fieras')) {
+    cv.height = 1400;
+    c.imageSmoothingEnabled = false;
+    let y = 40;
+    for (const t of ['croc', 'raptor', 'rex']) {
+      let x = 140;
+      c.fillStyle = '#fff'; c.fillText(t, 6, y + 40);
+      for (const st of ['idle', 'walk', 'walk', 'attack', 'cast', 'lurk']) {
+        if (st === 'lurk' && t !== 'croc') continue;
+        if (st === 'cast' && t !== 'rex') continue;
+        const img = getBeast(t, st, st === 'walk' && x > 300 ? 1 : 0);
+        c.drawImage(img.base, x, y, img.base.width * 3, img.base.height * 3);
+        if (img.glow) { c.globalCompositeOperation = 'lighter'; c.drawImage(img.glow, x, y, img.base.width * 3, img.base.height * 3); c.globalCompositeOperation = 'source-over'; }
+        x += img.base.width * 3 + 20;
+      }
+      y += t === 'rex' ? 170 : 120;
+    }
+    let x = 140;
+    for (const v of ['c_scarab', 'c_parrot']) for (const f of [0, 1]) { const img = getVermin(v, f); c.drawImage(img.base, x, y, img.base.width * 4, img.base.height * 4); x += 90; }
+  }
 }
 
 /** Visor de mapas (abre /#mapa o /#mapa=camp:1234): todo el mapa a 1 píxel de arte por píxel, sin oscuridad. */

@@ -107,7 +107,7 @@ function torso(b: PB, by: number, main: string, opts: { top?: number; bottom?: n
   b.clear(x, top + by); b.clear(x + w - 1, top + by); // hombros redondeados
 }
 
-type HairStyle = 'short' | 'long' | 'bald' | 'cap' | 'bun' | 'spiky' | 'ponytail' | 'afro' | 'mohawk' | 'beanie' | 'pigtails' | 'slick';
+type HairStyle = 'short' | 'long' | 'bald' | 'cap' | 'bun' | 'spiky' | 'ponytail' | 'afro' | 'mohawk' | 'beanie' | 'pigtails' | 'slick' | 'pith' | 'turban';
 
 interface HeadOpts { skin: string; hair: string; eye: string; style: HairStyle; glasses?: string; cap?: string; eyeGlow?: boolean; beard?: string }
 
@@ -146,6 +146,18 @@ function humanHead(b: PB, p: Pose, o: HeadOpts) {
     case 'beanie': b.rect(X, Y - 1, 10, 4, o.cap ?? '#3a5aa0'); b.rect(X, Y + 2, 10, 1, shade(o.cap ?? '#3a5aa0', 0.2)); b.set(X + 4, Y - 2, '#f0f0f0'); b.rect(X, Y + 3, 3, 2, H); break;
     case 'cap': b.rect(X, Y - 1, 9, 3, o.cap ?? '#c03030'); b.rect(X + 8, Y + 1, 4, 1, shade(o.cap ?? '#c03030', -0.2)); b.rect(X, Y + 2, 3, 3, H); break;
     case 'bald': b.rect(X + 1, Y + 3, 3, 3, H); b.set(X + 6, Y + 1, shade(o.skin, 0.3), false, true); break;
+    case 'pith': { // salacot de explorador
+      const k = o.cap ?? '#c8b888';
+      b.rect(X, Y - 2, 10, 4, k); b.rect(X + 1, Y - 3, 8, 1, k); b.set(X + 6, Y - 3, shade(k, 0.25), false, true);
+      b.rect(X - 1, Y + 1, 12, 1, shade(k, -0.18)); b.rect(X, Y + 1, 10, 1, '#5a4030');
+      b.rect(X, Y + 2, 3, 3, H); break;
+    }
+    case 'turban': { // turbante
+      const k = o.cap ?? '#e8e0d0';
+      b.rect(X, Y - 2, 10, 4, k); b.rect(X + 1, Y - 3, 7, 1, k);
+      b.line(X, Y, X + 9, Y - 2, shade(k, -0.18)); b.line(X, Y + 1, X + 9, Y - 1, shade(k, -0.08));
+      b.rect(X, Y + 2, 3, 3, H); b.rect(X - 1, Y + 1, 2, 4, k); break;
+    }
   }
   if (o.beard) { b.rect(X + 3, Y + 7, 6, 3, o.beard); b.rect(X + 4, Y + 10, 4, 1, o.beard); b.set(X + 8, Y + 8, '#4a0a12'); }
   if (o.glasses) { b.rect(X + 5, Y + 5, 3, 1, o.glasses); b.set(X + 6, Y + 5, '#c0e0ff', false, true); b.rect(X + 3, Y + 5, 2, 1, o.glasses); }
@@ -1067,6 +1079,19 @@ export function getVermin(kind: string, frame: number): Baked {
     b.ellipse(8, 10, 4, 2, g); b.rect(11, 9, 3, 2, G); b.set(14, 10, '#d08090'); b.set(12, 9, '#ff2030', true); b.set(11, 8, '#d08090');
     b.line(4, 10, 1, 9 + f, '#c08090'); // cola
     b.set(6 + f, 12, G); b.set(10 - f, 12, G);
+  } else if (kind === 'c_scarab') {
+    // escarabajo pelotero con su bola
+    const g = '#1a3a3a', G = '#2a8a7a';
+    b.ellipse(10, 10, 4, 2, g); b.ellipse(10, 9, 3, 1, G); b.set(11, 9, '#e0c040', true); b.rect(14, 9, 2, 2, g);
+    for (const x of [7, 10, 13]) b.set(x + (f ? 1 : 0), 12, '#0a1a1a');
+    b.ellipse(4 - f, 10, 2, 2, '#6a5030'); b.set(3 - f, 9, '#8a6a40'); // bola
+  } else if (kind === 'c_parrot') {
+    // loro de colores
+    const r = '#d02020', y = '#f0c020', bl = '#2060d0';
+    b.ellipse(8, 9, 3, 2, r); b.rect(10, 6, 3, 3, r); b.set(13, 7, '#e0e0e0'); b.set(13, 8, '#2a2a2a'); b.set(11, 6, '#ffffff'); b.set(12, 7, '#101010');
+    b.line(5, 10, 1, 12, bl); b.line(5, 9, 2, 11, y); // cola
+    if (f) { b.line(7, 8, 4, 3, y); b.line(9, 8, 8, 3, bl); } else { b.line(6, 9, 10, 11, y); b.line(7, 10, 11, 12, bl); }
+    b.set(8, 12, '#4a4a4a'); b.set(10, 12, '#4a4a4a');
   } else {
     // sapo
     const g = '#4a7a32', G = '#7aa050';
@@ -1079,6 +1104,138 @@ export function getVermin(kind: string, frame: number): Baked {
   out = b.finish({ outline: 'selout' });
   vermCache.set(key, out);
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Fieras de los mapas: cocodrilo del Nilo, raptor y tiranosaurio de la jungla
+// ---------------------------------------------------------------------------
+const beastCache = new Map<string, Baked>();
+/** Fiera (estado: 'idle' | 'walk' | 'attack' | 'lurk'), con su fotograma. Mira a la derecha. */
+export function getBeast(type: string, state: string, frame: number): Baked {
+  const f = frame % 4;
+  const key = `${type}|${state}|${f}`;
+  let out = beastCache.get(key);
+  if (out) return out;
+  const walk = state === 'walk', atk = state === 'attack';
+  let b: PB;
+  if (type === 'croc') {
+    const g = '#2e3e22', G = '#4a5e30', L = '#6a7a40', belly = '#b0a878', tooth = '#f0ead0';
+    if (state === 'lurk') {
+      // solo asoman los ojos y la punta del morro
+      b = new PB(46, 8);
+      b.rect(30, 3, 4, 2, G); b.set(31, 3, '#e8c030', true); b.set(32, 3, '#101008');
+      b.rect(35, 4, 3, 1, g); b.rect(42, 4, 3, 1, G); b.set(43, 4, '#101008');
+      for (const x of [12, 18, 24]) b.set(x + (f & 1), 5, g); // escamas del lomo
+      out = b.finish({ outline: 'selout' });
+      beastCache.set(key, out);
+      return out;
+    }
+    b = new PB(48, 20);
+    const sw = walk ? (f & 1 ? 1 : -1) : 0;
+    // cola en zigzag con crestas
+    for (let x = 0; x <= 12; x++) {
+      const y = 11 + Math.round(Math.sin(x * 0.45 + f * 0.8) * (walk ? 1.2 : 0.4));
+      b.rect(x, y, 1, x < 4 ? 1 : 2 + (x > 8 ? 1 : 0), x % 2 ? G : g);
+      if (x % 2 === 0) b.set(x, y - 1, L);
+    }
+    // patas cortas y abiertas
+    for (const [x, k] of [[15, 1], [20, -1], [30, -1], [35, 1]] as [number, number][]) {
+      const d = sw * k;
+      b.rect(x + d, 14, 2, 3, g); b.rect(x + d - 1, 17, 4, 1, G); b.set(x + d + 3, 17, tooth);
+    }
+    // cuerpo acorazado
+    b.ellipse(25, 12, 13, 4, G); b.rect(14, 14, 22, 1, belly); b.rect(13, 9, 24, 1, g);
+    for (let x = 14; x <= 36; x += 3) { b.set(x, 8, L); b.set(x + 1, 8, g); } // escudos del lomo
+    for (let x = 16; x <= 34; x += 4) b.set(x, 11, g);
+    // cabeza larga y plana
+    const jaw = atk ? 4 : 0;
+    b.rect(36, 9 - jaw, 11, 2, G); b.rect(36, 8 - jaw, 4, 1, G); b.set(38, 7 - jaw, L); // mandíbula superior
+    b.rect(37, 8 - jaw, 2, 2, '#101008'); b.set(37, 8 - jaw, '#e8c030', true); // ojo
+    b.set(45, 9 - jaw, g); // narina
+    b.rect(36, 12, 11, 2, G); b.rect(37, 13, 9, 1, belly); // mandíbula inferior
+    if (atk) {
+      b.rect(37, 7, 10, 5, '#5a1010'); b.rect(38, 8, 8, 3, '#8a2020');
+      for (let x = 37; x <= 46; x += 2) { b.set(x, 7, tooth); b.set(x + 1, 11, tooth); }
+    } else {
+      b.rect(36, 11, 11, 1, '#1a2010');
+      for (let x = 37; x <= 46; x += 3) { b.set(x, 11, tooth); b.set(x + 1, 12, tooth); } // dientes que asoman
+    }
+  } else if (type === 'rex') {
+    b = new PB(52, 48);
+    const g = '#4a4428', G = '#6a5e34', L = '#8a7a48', belly = '#b8a878', stripe = '#3a2a18', tooth = '#f4eed8';
+    const step = walk ? (f & 1 ? 1 : -1) : 0, bob = walk && (f & 1) ? 1 : 0, roar = state === 'cast';
+    // cola larga
+    for (let x = 0; x <= 16; x++) {
+      const y = 16 + bob + Math.round((16 - x) * -0.15 + Math.sin(x * 0.35 + f) * (walk ? 1 : 0.5));
+      const th = Math.max(1, Math.round(x * 0.4));
+      b.rect(x, y, 1, th, x % 3 === 0 ? stripe : G); b.set(x, y + th, belly);
+    }
+    // pata trasera (lejana)
+    const leg = (x: number, d: number, col: string) => {
+      b.ellipse(x + 3, 28 + bob, 4, 5, col); b.rect(x + 2 + d, 32 + bob, 3, 12 - bob, col); b.set(x + 2 + d, 36, shade(col, 0.15));
+      b.rect(x + d, 44, 8, 2, shade(col, -0.2)); for (const k of [0, 3, 6]) b.set(x + d + k + 1, 46, tooth);
+    };
+    leg(18, -step * 2, g);
+    // cuerpo enorme
+    b.ellipse(25, 22 + bob, 13, 9, G); b.ellipse(27, 25 + bob, 9, 5, belly);
+    for (let x = 16; x <= 32; x += 4) b.line(x, 14 + bob, x + 2, 20 + bob, stripe); // rayas
+    leg(25, step * 2, G);
+    // cuello y cabeza gigante
+    b.rect(32, 12 + bob, 8, 10, G);
+    const hx = 34, hy = 4 + bob;
+    b.rect(hx, hy, 16, 8, G); b.rect(hx + 1, hy - 1, 10, 1, L); b.rect(hx - 1, hy + 2, 2, 5, G);
+    b.rect(hx + 4, hy + 2, 3, 2, '#101008'); b.set(hx + 5, hy + 2, '#ff4020', true); b.set(hx + 4, hy + 1, stripe); b.set(hx + 6, hy + 1, stripe); // ojo y ceja
+    b.set(hx + 14, hy + 1, g); // narina
+    const open = atk || roar ? 5 : 1;
+    b.rect(hx + 2, hy + 8, 14, open, '#5a1010');
+    if (open > 1) b.rect(hx + 3, hy + 9, 12, open - 2, '#8a2020');
+    for (let x = hx + 3; x <= hx + 15; x += 2) { b.set(x, hy + 8, tooth); b.set(x + 1, hy + 7 + open, tooth); }
+    b.rect(hx + 1, hy + 8 + open, 14, 3, G); b.rect(hx + 2, hy + 10 + open, 12, 1, belly); // mandíbula inferior
+    // bracitos ridículos
+    b.line(36, 22 + bob, 39, 25 + bob, g); b.set(40, 26 + bob, tooth); b.set(39, 26 + bob, tooth);
+    if (roar) for (const [x, y] of [[50, 6], [51, 10], [50, 14]]) b.set(x, y + bob, '#fff0c0', true);
+  } else {
+    // raptor salvaje (no zombi): plumas de colores y rayas
+    b = new PB(SW, SH);
+    const pose = walk ? ANIMS[Anim.Walk].frames[(f * 2) % 6] : atk ? ANIMS[Anim.Attack].frames[2] : ANIMS[Anim.Idle].frames[f % 6];
+    drawWildRaptor(b, pose, walk ? Anim.Walk : atk ? Anim.Attack : Anim.Idle);
+  }
+  out = b.finish({ outline: 'selout' });
+  beastCache.set(key, out);
+  return out;
+}
+
+function drawWildRaptor(b: PB, p: Pose, anim: Anim) {
+  const walk = anim === Anim.Walk, atk = anim === Anim.Attack;
+  const ph = walk ? p.ll[0] : 0;
+  const Y = p.by + (walk && Math.abs(ph) < 2 ? -1 : 0);
+  const skin = '#8a6a3a', dark = '#5a4024', light = '#c8a870', stripe = '#3a2614', feather = '#2a8a8a', feather2 = '#e06020', claw = '#f0ead0';
+  for (let x = 0; x <= 9; x++) {
+    const y = 12 + Y + Math.round((9 - x) * 0.12 + (walk ? Math.sin(x * 0.5 + ph) * 0.7 : 0));
+    b.rect(x, y, 1, x < 3 ? 1 : 2, x % 2 ? skin : stripe);
+    if (x < 3) b.set(x, y - 1, feather);
+    if (x >= 3) b.set(x, y + 2, light);
+  }
+  const leg = (dx: number, lift: number, col: string) => {
+    const kx = 11 + Math.round(dx * 0.5), ax = 10 + dx, ay = 29 - lift;
+    b.line(10, 19 + Y, kx, 23 + Y, col); b.line(11, 19 + Y, kx + 1, 23 + Y, col); b.line(10, 20 + Y, kx - 1, 23 + Y, col);
+    b.line(kx, 23 + Y, ax, ay, col); b.line(kx + 1, 23 + Y, ax + 1, ay, shade(col, -0.15));
+    b.rect(ax, ay + 1, 4, 1, col); b.set(ax + 4, ay + 1, claw); b.set(ax + 1, ay - 1, claw); b.set(ax + 2, ay - 2, claw);
+  };
+  leg(walk ? -ph : 0, walk && ph > 0 ? 1 : 0, dark);
+  b.ellipse(12, 16 + Y, 6, 4, skin); b.rect(8, 19 + Y, 8, 1, light);
+  for (const x of [9, 12, 15]) b.line(x, 13 + Y, x - 1, 16 + Y, stripe); // rayas
+  leg(walk ? ph : 0, walk && ph < 0 ? 1 : 0, skin);
+  b.line(16, 15 + Y, 18, 10 + Y, skin); b.line(17, 15 + Y, 19, 10 + Y, skin);
+  for (const [x, y] of [[15, 11], [14, 12], [16, 9], [13, 13], [15, 13]]) b.set(x, y + Y, (x + y) % 2 ? feather : feather2); // plumas
+  const hx = 17 + (p.lean ?? 0) + (atk ? 1 : 0), hy = 6 + Y;
+  b.rect(hx, hy, 6, 3, skin); b.rect(hx + 5, hy + 1, 2, 2, skin); b.rect(hx + 1, hy - 1, 3, 1, stripe);
+  b.set(hx - 1, hy + 1, feather); b.set(hx, hy - 1, feather2); b.set(hx - 1, hy - 1, feather);
+  if (atk) { b.rect(hx + 1, hy + 3, 6, 1, '#4a0a0a'); b.line(hx + 1, hy + 4, hx + 6, hy + 6, skin); for (const x of [2, 4, 6]) { b.set(hx + x, hy + 3, claw); b.set(hx + x - 1, hy + 5, claw); } }
+  else { b.rect(hx + 1, hy + 3, 6, 1, dark); for (const x of [2, 4, 6]) b.set(hx + x, hy + 3, claw); }
+  b.set(hx + 2, hy + 1, '#ffd020', true); b.set(hx + 3, hy + 1, '#101008');
+  const ra = Math.round(Math.cos(p.ra));
+  b.line(16, 16 + Y, 18, 18 + Y + ra, dark); b.set(19, 19 + Y + ra, claw); b.set(18, 19 + Y + ra, feather);
 }
 
 /** El enterrador de la pala: encorvado, flaco, sombrero de ala ancha, ojos que brillan y sonrisa cosida. */
@@ -1119,158 +1276,272 @@ function drawGravedigger(b: PB, p: Pose) {
 
 
 const wormForm: FormFn = (b, p, c, anim, tier) => {
-  // Gusarena: gusano colosal que asoma de la arena; cuerpo grueso y anillado, placas en el lomo y una boca redonda llena de dientes
-  const by = p.by, sw = p.sway ?? 0;
+  // Gusarena: gusano colosal que avanza abriéndose paso por la arena. Al moverse el cuerpo ondula hacia delante,
+  // la cabeza embiste y la arena salta delante y detrás; quieto, asoma erguido y oscila.
+  const walk = anim === Anim.Walk, by = p.by, sw = p.sway ?? 0;
+  const ph = walk ? p.ll[0] : sw; // fase de la ondulación
   const open = anim === Anim.Attack || anim === Anim.Cast || !!p.mouth;
-  const topY = 12 + by;
+  const surge = walk ? 2 + Math.round(Math.sin(ph * 0.9) * 1.5) : 0; // al avanzar se inclina hacia delante
+  const topY = 12 + by + surge;
   const belly = shade(c.skin, 0.18), back = shade(c.skin, -0.18), ring = shade(c.skin, -0.32);
   for (let y = FLOOR - 1; y >= topY; y--) {
     const t = (FLOOR - 1 - y) / (FLOOR - 1 - topY);
-    const cx = 11 + Math.round(Math.sin(t * 2.2 + sw * 0.5) * 1.5 + t * 2);
+    const wave = walk ? Math.sin(t * 3.4 - ph * 1.1) * 2.2 : Math.sin(t * 2.2 + sw * 0.5) * 1.5;
+    const cx = 11 + Math.round(wave + t * (2 + surge * 1.4));
     const half = Math.round(8.5 - t * 2.5);
-    const isRing = (y - by) % 5 === 0;
+    const isRing = (y - by + (walk ? ph + 3 : 0)) % 5 === 0; // los anillos corren hacia atrás al avanzar
     b.rect(cx - half, y, half * 2 + 1, 1, isRing ? ring : c.skin);
-    if (!isRing) { b.rect(cx - half, y, 2, 1, back); b.rect(cx + half - 2, y, 3, 1, belly); } // lomo en sombra, vientre claro
-    if ((y - by) % 5 === 2) { b.set(cx - half - 1, y, c.cloth); b.set(cx - half, y - 1, c.cloth); } // placas dorsales
+    if (!isRing) { b.rect(cx - half, y, 2, 1, back); b.rect(cx + half - 2, y, 3, 1, belly); }
+    if ((y - by) % 5 === 2) { b.set(cx - half - 1, y, c.cloth); b.set(cx - half, y - 1, c.cloth); }
   }
-  // cabeza: más ancha que el cuello, inclinada hacia delante
-  const hx = 14 + (p.lean ?? 0), hy = topY - 1;
+  // cabeza: más ancha que el cuello, embiste hacia delante al reptar
+  const hx = 14 + (p.lean ?? 0) + Math.round(surge * 1.2), hy = topY - 1;
   b.ellipse(hx, hy, 7, 6, c.skin); b.ellipse(hx - 3, hy - 3, 4, 2, c.hair); b.rect(hx - 6, hy + 3, 8, 1, ring);
-  for (const [x, y] of [[-6, -2], [-5, -5], [-2, -6]]) b.set(hx + x, hy + y, c.cloth); // púas de la nuca
+  for (const [x, y] of [[-6, -2], [-5, -5], [-2, -6]]) b.set(hx + x, hy + y, c.cloth);
   if (open) {
     b.ellipse(hx + 4, hy + 1, 4, 5, '#1a0606'); b.ellipse(hx + 4, hy + 1, 2, 3, '#4a0a0a');
     b.set(hx + 4, hy + 1, c.accent, true); b.set(hx + 5, hy + 2, c.accent, true);
     for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; b.set(hx + 4 + Math.round(Math.cos(a) * 4.2), hy + 1 + Math.round(Math.sin(a) * 5.2), '#f0e8d0'); }
   } else {
-    b.rect(hx + 3, hy - 2, 4, 6, c.hair); // labios cerrados en cruz
+    b.rect(hx + 3, hy - 2, 4, 6, c.hair);
     b.line(hx + 3, hy + 1, hx + 7, hy + 1, ring); b.line(hx + 5, hy - 2, hx + 5, hy + 4, ring);
     for (const [x, y] of [[7, -1], [7, 3], [4, -3], [4, 5]]) b.set(hx + x, hy + y, '#f0e8d0');
   }
-  if (!p.blink) for (const [x, y] of [[-1, -3], [1, -4], [-3, -2]]) b.set(hx + x, hy + y, c.eye, true); // ojillos
-  // arena que se abre alrededor de la base
-  for (let x = 0; x < 24; x++) { const h = 1 + ((x * 7 + sw) % 3 === 0 ? 1 : 0) + (x > 3 && x < 20 ? 1 : 0); b.rect(x, FLOOR + 1 - h, 1, h, x % 3 ? '#c8a060' : '#a8844a'); }
+  if (!p.blink) for (const [x, y] of [[-1, -3], [1, -4], [-3, -2]]) b.set(hx + x, hy + y, c.eye, true);
+  // arena: ola delante (empujada por el cuerpo) y estela detrás; quieto, un anillo de arena removida
+  for (let x = 0; x < 24; x++) {
+    let h = 1 + ((x * 7 + sw) % 3 === 0 ? 1 : 0) + (x > 3 && x < 20 ? 1 : 0);
+    if (walk) h += x > 17 ? 2 + ((x + ph) & 1) : x < 5 ? ((x + ph) & 1) : 0;
+    b.rect(x, FLOOR + 1 - h, 1, h, (x + (walk ? ph : 0)) % 3 ? '#c8a060' : '#a8844a');
+  }
+  if (walk) for (const [x, y] of [[21 + (ph & 1), 24], [23, 22 - (ph & 1)], [19, 23], [1 - (ph & 1), 26]]) b.set(x, y + (ph & 1), '#d8b070'); // granos que saltan
   if (tier >= 2) for (const [x, y] of [[8, 20], [12, 26]]) b.set(x, y + by, c.accent, true);
-  if (tier >= 3) for (let i = 0; i < 3; i++) b.set(hx - 5 + i * 2, hy - 7, c.accent, true); // cresta que brilla
+  if (tier >= 3) for (let i = 0; i < 3; i++) b.set(hx - 5 + i * 2, hy - 7, c.accent, true);
 };
 
-/** Dinozombie: raptor, tricerátops, pterodáctilo y huevo (la forma la decide el servidor). */
+/** Dinozombie: raptor, tricerátops, pterodáctilo y huevo (la forma la decide el servidor). Se dibujan más grandes en el juego. */
 const dinoRaptor: FormFn = (b, p, c, anim, tier) => {
-  const by = p.by, run = p.ll[0] !== 0 || p.rl[0] !== 0;
-  const skin = c.skin, dark = shade(c.skin, -0.3);
-  // cola hacia atrás
-  b.line(2, 15 + by - (p.sway ?? 0) % 2, 8, 17 + by, dark); b.line(1, 14 + by, 8, 16 + by, skin);
-  // patas traseras con garra
-  const leg = (x: number, d: number, col: string) => { b.line(x, 20 + by, x + d, 25, col); b.line(x + d, 25, x + d - 1, 30, col); b.rect(x + d - 1, 30, 3, 1, '#2a2018'); b.set(x + d + 2, 29, '#e8e0c8'); };
-  leg(9, run ? -2 : 0, dark); leg(12, run ? 2 : 0, skin);
-  // cuerpo inclinado y costillas al aire
-  b.ellipse(12, 17 + by, 6, 4, skin); b.rect(10, 16 + by, 5, 3, c.cloth);
-  for (const x of [10, 12, 14]) b.line(x, 16 + by, x, 18 + by, '#e8e0c8');
-  // cuello y cabeza alargada
-  b.line(16, 15 + by, 18, 10 + by, skin); b.line(17, 15 + by, 19, 10 + by, skin);
-  const hx = 17 + (p.lean ?? 0), hy = 7 + by;
-  b.rect(hx, hy, 6, 3, skin); b.rect(hx + 1, hy - 1, 3, 1, c.hair);
-  b.rect(hx + 2, hy + 3, 4, p.mouth || anim === Anim.Attack ? 2 : 1, p.mouth || anim === Anim.Attack ? '#4a0a0a' : dark);
-  if (p.mouth || anim === Anim.Attack) { b.set(hx + 3, hy + 3, '#f0e8d0'); b.set(hx + 5, hy + 3, '#f0e8d0'); }
-  b.set(hx + 2, hy + 1, c.eye, true);
-  // bracitos
-  b.line(15, 17 + by, 17, 19 + by + Math.round(Math.cos(p.ra)), dark); b.set(17, 20 + by, '#e8e0c8');
-  b.set(12, 14 + by, c.accent); b.set(9, 18 + by, c.accent); // heridas
-  if (tier >= 1) b.set(hx + 3, hy + 1, c.eye, true);
-  if (tier >= 3) for (const x of [9, 11, 13]) b.set(x, 12 + by, c.accent, true); // púas que brillan
-};
-const dinoTrike: FormFn = (b, p, c, anim, tier) => {
-  const by = p.by + 1, step = (p.ll[0] !== 0 ? 1 : 0);
-  const skin = c.skin, dark = shade(c.skin, -0.3);
-  b.line(1, 20 + by, 5, 19 + by, dark); // cola corta
-  b.ellipse(10, 20 + by, 8, 6, skin); b.rect(4, 22 + by, 13, 2, dark);
-  for (const [x, d] of [[4, step], [8, -step], [13, step], [16, -step]]) { b.rect(x + d, 25 + by, 3, 6 - by, x % 2 ? dark : skin); b.rect(x + d, 30, 3, 1, '#2a2018'); }
-  // gola enorme, cuernos y pico
-  const hx = 16 + (p.lean ?? 0), hy = 14 + by;
-  b.ellipse(hx - 1, hy - 3, 4, 6, c.hair); b.ellipse(hx - 1, hy - 3, 3, 5, c.cloth);
-  for (const [x, y] of [[-3, -7], [-1, -8], [1, -7]]) b.set(hx + x, hy + y, '#e8e0c8'); // borde óseo
-  b.rect(hx, hy, 6, 4, skin); b.rect(hx + 5, hy + 2, 2, 2, '#c0a880'); // pico
-  b.line(hx + 2, hy, hx + 7, hy - 4, '#f0e8d0'); b.line(hx + 4, hy, hx + 8, hy - 3, '#f0e8d0'); b.set(hx + 6, hy + 1, '#f0e8d0'); // cuernos
-  if (anim === Anim.Attack) { b.set(hx + 8, hy - 5, '#ffffff', true); b.set(hx + 9, hy - 4, '#ffffff', true); }
-  b.set(hx + 2, hy + 1, c.eye, true);
-  for (const x of [7, 10, 13]) b.line(x, 18 + by, x, 21 + by, '#e8e0c8'); // costillas
-  b.set(9, 17 + by, c.accent);
-  if (tier >= 3) for (const x of [7, 11]) b.set(x, 15 + by, c.accent, true);
-};
-const dinoPtero: FormFn = (b, p, c, anim, tier) => {
-  const by = p.by - 2, flap = (p.sway ?? 0) % 2 || anim === Anim.Attack ? 1 : 0;
-  const skin = c.skin, wing = c.cloth, dark = shade(c.skin, -0.3);
-  // alas membranosas (arriba o abajo según el aleteo)
-  for (let i = 0; i < 10; i++) {
-    const yy = flap ? 12 + by - Math.round(i * 0.6) : 14 + by + Math.round(i * 0.4);
-    b.line(11 - i, yy, 11 - i, yy + 4 - Math.round(i * 0.35), i % 3 === 0 ? dark : wing);
-    b.line(13 + i, yy, 13 + i, yy + 4 - Math.round(i * 0.35), i % 3 === 0 ? dark : wing);
+  const walk = anim === Anim.Walk, atk = anim === Anim.Attack || !!p.mouth;
+  const ph = walk ? p.ll[0] : 0; // -3..3 en la carrera
+  const Y = p.by + (walk && Math.abs(ph) < 2 ? -1 : 0);
+  const skin = c.skin, dark = shade(skin, -0.32), light = shade(skin, 0.2), bone = '#e8e0c8', flesh = c.accent, feather = c.hair;
+  // cola larga y rígida (con vértebras al aire en la punta)
+  for (let x = 0; x <= 9; x++) {
+    const y = 12 + Y + Math.round((9 - x) * 0.12 + (walk ? Math.sin(x * 0.5 + ph) * 0.7 : Math.sin(x * 0.4 + (p.sway ?? 0)) * 0.4));
+    b.rect(x, y, 1, x < 3 ? 1 : 2, x < 3 ? bone : x % 2 ? skin : dark);
+    if (x >= 3) b.set(x, y + 2, x < 7 ? light : skin);
   }
-  b.line(1, flap ? 6 + by : 18 + by, 11, 12 + by, dark); b.line(23, flap ? 6 + by : 18 + by, 13, 12 + by, dark); // huesos del ala
-  // cuerpo y patitas recogidas
-  b.ellipse(12, 15 + by, 2, 4, skin); b.set(11, 20 + by, dark); b.set(13, 20 + by, dark);
-  // cabeza con cresta y pico largo
-  const hx = 13 + (p.lean ?? 0), hy = 9 + by;
-  b.rect(hx, hy, 4, 3, skin); b.line(hx - 1, hy, hx - 4, hy - 3, c.hair); b.line(hx, hy - 1, hx - 3, hy - 4, c.hair);
-  b.line(hx + 3, hy + 1, hx + 8, hy + 2, '#c0a060'); b.line(hx + 3, hy + 2, hx + (p.mouth ? 7 : 8), hy + (p.mouth ? 4 : 2), '#a08040');
-  b.set(hx + 1, hy + 1, c.eye, true);
-  b.set(12, 14 + by, '#e8e0c8'); b.set(12, 16 + by, '#e8e0c8'); // costillas
-  if (tier >= 3) b.set(hx - 4, hy - 3, c.accent, true);
+  // patas: muslo fuerte, espinilla fina, pie con garra en hoz
+  const leg = (dx: number, lift: number, col: string) => {
+    const kx = 11 + Math.round(dx * 0.5), ax = 10 + dx, ay = 29 - lift;
+    b.line(10, 19 + Y, kx, 23 + Y, col); b.line(11, 19 + Y, kx + 1, 23 + Y, col); b.line(10, 20 + Y, kx - 1, 23 + Y, col); // muslo
+    b.line(kx, 23 + Y, ax, ay, col); b.line(kx + 1, 23 + Y, ax + 1, ay, shade(col, -0.15)); // espinilla
+    b.rect(ax, ay + 1, 4, 1, col); b.set(ax + 4, ay + 1, bone); // pie
+    b.set(ax + 1, ay - 1, bone); b.set(ax + 2, ay - 2, bone); // garra en hoz levantada
+  };
+  leg(walk ? -ph : 0, walk && ph > 0 ? 1 : 0, dark);
+  // cuerpo inclinado
+  b.ellipse(12, 16 + Y, 6, 4, skin); b.rect(8, 19 + Y, 8, 1, light); b.rect(8, 13 + Y, 7, 1, dark);
+  // costillas al aire en el costado (podrido)
+  b.rect(10, 15 + Y, 5, 3, '#2a0e0e');
+  for (const x of [10, 12, 14]) b.line(x, 15 + Y, x, 17 + Y, bone);
+  b.set(9, 14 + Y, flesh); b.set(15, 18 + Y, flesh);
+  leg(walk ? ph : 0, walk && ph < 0 ? 1 : 0, skin);
+  // cuello y plumas desgreñadas
+  b.line(16, 15 + Y, 18, 10 + Y, skin); b.line(17, 15 + Y, 19, 10 + Y, skin); b.line(15, 14 + Y, 17, 10 + Y, dark);
+  for (const [x, y] of [[15, 11], [14, 12], [16, 9], [13, 13]]) b.set(x, y + Y, feather);
+  // cabeza larga con dientes
+  const hx = 17 + (p.lean ?? 0) + (atk ? 1 : 0), hy = 6 + Y;
+  b.rect(hx, hy, 6, 3, skin); b.rect(hx + 5, hy + 1, 2, 2, skin); b.rect(hx + 1, hy - 1, 3, 1, dark);
+  b.set(hx - 1, hy + 1, feather); b.set(hx, hy - 1, feather);
+  if (atk) {
+    b.rect(hx + 1, hy + 3, 6, 1, '#4a0a0a'); b.line(hx + 1, hy + 4, hx + 6, hy + 6, skin); // mandíbula abierta
+    for (const x of [2, 4, 6]) { b.set(hx + x, hy + 3, bone); b.set(hx + x - 1, hy + 5, bone); }
+  } else {
+    b.rect(hx + 1, hy + 3, 6, 1, dark);
+    for (const x of [2, 4, 6]) b.set(hx + x, hy + 3, bone);
+  }
+  b.set(hx + 2, hy + 1, c.eye, true); b.set(hx + 3, hy + 1, '#1a1a10');
+  b.set(hx + 4, hy, flesh); // herida en el morro
+  // bracitos con garras
+  const ra = Math.round(Math.cos(p.ra));
+  b.line(16, 16 + Y, 18, 18 + Y + ra, dark); b.set(19, 19 + Y + ra, bone); b.set(18, 19 + Y + ra, bone);
+  if (tier >= 3) for (const x of [9, 11, 13]) b.set(x, 12 + Y, c.accent, true);
 };
-const dinoEgg: FormFn = (b, _p, c) => {
-  b.ellipse(12, 24, 6, 7, '#e8e0c8'); b.ellipse(11, 22, 3, 3, '#f8f4e8');
-  for (const [x, y] of [[9, 26], [14, 21], [15, 27], [10, 20], [13, 29]]) b.set(x, y, c.skin);
-  b.line(8, 24, 11, 22, '#7a6a50'); b.line(11, 22, 13, 25, '#7a6a50'); // grieta
-  b.rect(4, 30, 16, 2, '#3a2a1a');
+
+const dinoTrike: FormFn = (b, p, c, anim, tier) => {
+  const walk = anim === Anim.Walk, atk = anim === Anim.Attack;
+  const ph = walk ? p.ll[0] : 0;
+  const Y = p.by + 1, skin = c.skin, dark = shade(skin, -0.3), light = shade(skin, 0.18), bone = '#f0e8d0';
+  b.line(0, 21 + Y, 3, 19 + Y, dark); b.line(0, 22 + Y, 3, 20 + Y, skin); // cola corta
+  // patas traseras (detrás del cuerpo)
+  const step = (k: number) => (walk ? (k ? Math.sign(ph) : -Math.sign(ph)) : 0);
+  for (const [x, k] of [[4, 0], [13, 1]] as [number, number][]) { const l = step(k) > 0 ? 1 : 0; b.rect(x, 24 + Y, 3, 7 - Y - l, dark); b.rect(x - 1, 30 - l, 5, 1, '#2a2018'); }
+  // cuerpo enorme y acorazado
+  b.ellipse(10, 20 + Y, 9, 6, skin);
+  b.rect(3, 23 + Y, 15, 2, light); // vientre
+  for (let x = 3; x <= 16; x += 3) b.set(x, 14 + Y + (x > 6 && x < 14 ? 0 : 1), dark); // placas del lomo
+  // flanco podrido con costillas
+  b.rect(7, 18 + Y, 6, 4, '#2a0e0e');
+  for (const x of [7, 9, 11]) b.line(x, 18 + Y, x, 21 + Y, bone);
+  b.set(13, 19 + Y, c.accent); b.set(5, 17 + Y, c.accent);
+  // patas delanteras
+  for (const [x, k] of [[7, 1], [15, 0]] as [number, number][]) { const l = step(k) > 0 ? 1 : 0; b.rect(x, 24 + Y, 3, 7 - Y - l, skin); b.rect(x - 1, 30 - l, 5, 1, '#2a2018'); b.set(x + 3, 30 - l, bone); }
+  // gola ósea enorme con borde de púas
+  const hx = 17 + (p.lean ?? 0) + (atk ? 1 : 0), hy = 15 + Y + (atk ? 2 : 0);
+  const frill = shade(skin, -0.22), frillIn = shade(skin, 0.06);
+  b.ellipse(hx - 3, hy - 2, 4, 6, frill); b.ellipse(hx - 3, hy - 2, 2, 4, frillIn);
+  for (let i = 0; i < 6; i++) { const a = -Math.PI * 0.95 + i * 0.4; b.set(hx - 3 + Math.round(Math.cos(a) * 5), hy - 2 + Math.round(Math.sin(a) * 7), bone); }
+  b.set(hx - 4, hy - 4, '#2a0e0e'); b.set(hx - 3, hy - 6, c.accent); b.set(hx - 2, hy - 2, c.accent); // agujeros y heridas
+  // cara, pico y cuernos
+  b.rect(hx - 1, hy, 7, 5, skin); b.rect(hx - 1, hy + 4, 6, 1, dark); b.rect(hx, hy, 5, 1, light);
+  b.rect(hx + 5, hy + 2, 2, 3, '#c0a880'); b.set(hx + 6, hy + 4, '#8a7050'); // pico
+  b.line(hx + 2, hy - 1, hx + 7, hy - 6, bone); b.set(hx + 2, hy, shade(bone, -0.25)); // cuerno largo
+  b.line(hx + 4, hy, hx + 8, hy - 3, shade(bone, -0.1)); // el otro cuerno (detrás)
+  b.set(hx + 6, hy + 1, bone); // cuerno nasal
+  if (atk) { b.set(hx + 7, hy - 7, '#ffffff', true); b.set(hx + 8, hy - 6, '#ffffff', true); }
+  b.set(hx + 2, hy + 1, c.eye, true);
+  if (tier >= 3) for (const x of [7, 11, 15]) b.set(x, 14 + Y, c.accent, true);
+};
+
+const dinoPtero: FormFn = (b, p, c, anim, tier) => {
+  // pterodáctilo: alas enormes y raídas que baten (arriba, en cruz y abajo)
+  const walk = anim === Anim.Walk;
+  const fr = walk ? Math.floor((p.ll[0] + 3) / 2) : (p.sway ?? 0);
+  const state = anim === Anim.Attack ? 2 : fr % 3; // 0 arriba · 1 en cruz · 2 abajo
+  const Y = p.by - 2 + (state === 2 ? 1 : 0);
+  const skin = c.skin, wing = c.cloth, wingD = shade(c.cloth, -0.25), dark = shade(skin, -0.3), bone = '#e8e0c8';
+  const tipY = state === 0 ? 3 : state === 1 ? 12 : 21;
+  // membrana: del hombro (12,13) a la punta del ala y de vuelta al cuerpo
+  for (const side of [-1, 1]) {
+    const sx = 12 + side, ex = side < 0 ? 0 : 23;
+    for (let i = 0; i <= 11; i++) {
+      const x = sx + side * i, t = i / 11;
+      const top = Math.round(13 + Y + (tipY - 13) * t + (state === 1 ? -Math.sin(t * Math.PI) * 2 : 0));
+      const bottom = Math.round(16 + Y + (tipY + 2 - 16) * t * t);
+      for (let y = Math.min(top, bottom); y <= Math.max(top, bottom); y++) {
+        if ((x * 5 + y * 3) % 11 === 0 && i > 3) continue; // agujeros (zombi)
+        b.set(x, y, (y - top) % 3 === 2 ? wingD : wing);
+      }
+      b.set(x, top, i % 4 === 0 ? bone : dark); // hueso del dedo
+    }
+    b.set(ex, tipY + Y, bone);
+  }
+  // cuerpo, costillas y patitas colgando
+  b.ellipse(12, 15 + Y, 2, 4, skin); b.set(12, 14 + Y, bone); b.set(12, 16 + Y, bone);
+  b.line(11, 19 + Y, 10, 22 + Y, dark); b.line(13, 19 + Y, 14, 22 + Y, dark); b.set(10, 23 + Y, bone); b.set(14, 23 + Y, bone);
+  // cabeza: cresta hacia atrás y pico largo
+  const hx = 13 + (p.lean ?? 0), hy = 9 + Y;
+  b.rect(hx, hy, 4, 3, skin);
+  b.line(hx - 1, hy, hx - 5, hy - 3, c.hair); b.line(hx, hy - 1, hx - 4, hy - 4, c.hair); b.set(hx - 5, hy - 4, c.hair);
+  b.line(hx + 3, hy + 1, hx + 9, hy + 2, '#c0a060'); b.line(hx + 3, hy + 2, hx + (p.mouth ? 8 : 9), hy + (p.mouth ? 4 : 2), '#a08040');
+  if (p.mouth) b.set(hx + 5, hy + 3, '#4a0a0a');
+  b.set(hx + 1, hy + 1, c.eye, true);
+  if (tier >= 3) { b.set(hx - 5, hy - 3, c.accent, true); b.set(hx - 3, hy - 4, c.accent, true); }
+};
+
+const dinoEgg: FormFn = (b, p, c) => {
+  // huevo fósil agrietado: venas que brillan y algo que se mueve dentro
+  const wob = (p.sway ?? 0) % 2;
+  b.ellipse(12 + wob, 23, 7, 8, '#e0d8c0'); b.ellipse(10 + wob, 20, 3, 4, '#f8f4e8');
+  for (const [x, y] of [[8, 26], [15, 20], [16, 27], [9, 19], [13, 29], [11, 24]]) b.set(x + wob, y, c.skin);
+  b.line(7 + wob, 23, 10 + wob, 21, '#6a5a40'); b.line(10 + wob, 21, 12 + wob, 25, '#6a5a40'); b.line(12 + wob, 25, 16 + wob, 23, '#6a5a40'); // grietas
+  b.set(9 + wob, 22, c.accent, true); b.set(11 + wob, 23, c.accent, true); b.set(14 + wob, 24, c.accent, true); // brillo de dentro
+  b.set(12 + wob, 22, c.eye, true);
+  b.rect(3, 30, 18, 2, '#3a2a1a'); b.rect(5, 29, 3, 1, '#5a4a30'); b.rect(16, 29, 3, 1, '#5a4a30');
 };
 export const DINO_FORMS = [dinoRaptor, dinoTrike, dinoPtero, dinoEgg];
 
 const r800Form: FormFn = (b, p, c, anim, tier) => {
-  // R-800: androide blindado, casco liso con visor horizontal, núcleo en el pecho y cañón en el antebrazo
-  const by = p.by;
-  const metal = c.skin, plate = c.cloth, dark = c.cloth2;
-  arm(b, 10, 13 + by, p.la, 7, shade(plate, -0.2), metal, 3);
-  legs(b, p, dark, plate, '#141418', { width: 4, boots: shade(metal, -0.3) });
-  torso(b, by, plate, { x: 7, w: 10, top: 11 });
-  b.rect(8, 13 + by, 8, 4, metal); b.rect(9, 14 + by, 6, 2, shade(metal, -0.15)); // peto
-  b.rect(11, 14 + by, 2, 2, c.accent, true); // núcleo
-  b.line(8, 18 + by, 15, 18 + by, dark); b.line(9, 20 + by, 14, 20 + by, dark); // placas abdominales
-  b.rect(5, 11 + by, 4, 3, metal); b.rect(15, 11 + by, 4, 3, metal); // hombreras
-  // casco liso con visor
-  const X = 7 + (p.lean ?? 0), Y = 1 + by;
-  b.rect(X + 1, Y + 1, 9, 9, metal); b.rect(X, Y + 2, 11, 6, metal); b.rect(X + 2, Y, 7, 1, shade(metal, 0.2));
-  b.rect(X + 3, Y + 4, 8, 2, '#100c10'); b.rect(X + 4, Y + 4, 6, 1, c.eye, true); // visor
-  if (!p.blink) b.set(X + 9, Y + 5, c.eye, true);
-  b.rect(X + 4, Y + 8, 5, 1, dark); for (const x of [5, 7]) b.set(X + x, Y + 8, shade(metal, 0.25)); // rejilla
-  b.rect(X, Y + 3, 2, 3, dark); b.set(X, Y + 4, c.accent, tier >= 1); // oreja-antena
-  if (tier >= 2) b.set(X + 2, Y, c.accent, true);
-  if (tier >= 3) for (const [x, y] of [[6, 16], [17, 16]]) b.set(x, y + by, c.accent, true);
-  // brazo con cañón integrado
+  // R-800: esqueleto mecánico encorvado y escuálido. Cabeza alargada con un único ojo rojo enorme, mandíbula de
+  // dientes de acero, tubos que salen del lomo, costillas de metal con el núcleo brillando entre las rendijas,
+  // garras largas en la mano libre y un cañón eléctrico en el otro brazo.
+  const by = p.by + 1; // va encorvado
+  const metal = c.skin, plate = c.cloth, dark = c.cloth2, glow = c.eye, core = c.accent;
+  const atk = anim === Anim.Attack;
+  // tubos y antenas del lomo (por detrás)
+  b.line(7, 12 + by, 4, 6 + by, metal); b.line(8, 12 + by, 6, 5 + by, dark); b.set(4, 5 + by, core, true); b.set(6, 4 + by, glow, true);
+  b.line(6, 14 + by, 2, 11 + by, dark); b.set(2, 10 + by, core, true);
+  // brazo trasero: largo, con garras
+  arm(b, 10, 13 + by, p.la, 8, dark, metal, 3);
+  const lx = 10 + Math.sin(p.la) * 8, ly = 13 + by + Math.cos(p.la) * 8;
+  b.set(lx + 1, ly + 1, '#d0d4dc'); b.set(lx - 1, ly + 1, '#d0d4dc'); b.set(lx, ly + 2, '#d0d4dc'); // garras
+  // piernas con pistones
+  legs(b, p, dark, plate, '#141418', { width: 3, boots: shade(metal, -0.35) });
+  for (const x of [10, 13]) { b.set(x + 1, 23, '#d0d4dc'); b.set(x + 1, 24, '#8a9098'); }
+  // torso: costillas de metal y el núcleo que se ve por las rendijas
+  torso(b, by, plate, { x: 8, w: 8, top: 11 });
+  b.rect(9, 12 + by, 6, 6, dark);
+  for (let y = 12; y <= 17; y += 2) { b.rect(9, y + by, 6, 1, metal); b.set(14, y + by, shade(metal, 0.25)); }
+  for (const [x, y] of [[10, 13], [12, 13], [11, 15], [13, 15], [10, 17]]) b.set(x, y + by, core, true);
+  b.rect(11, 14 + by, 2, 2, core, true); b.set(11, 14 + by, '#ffffff', true);
+  b.rect(10, 18 + by, 4, 3, dark); b.line(10, 19 + by, 13, 19 + by, metal); // cintura de vértebras
+  b.rect(5, 10 + by, 4, 3, metal); b.rect(15, 10 + by, 4, 3, metal); // hombreras con remaches
+  b.set(6, 10 + by, '#e0e4ec', false, true); b.set(17, 10 + by, '#e0e4ec', false, true); b.line(5, 9 + by, 6, 7 + by, dark); b.line(18, 9 + by, 17, 7 + by, dark);
+  // cabeza alargada, inclinada hacia delante
+  const X = 8 + (p.lean ?? 0), Y = 1 + by;
+  b.rect(X + 1, Y + 1, 8, 7, metal); b.rect(X, Y + 2, 2, 4, dark); b.rect(X + 2, Y, 6, 1, shade(metal, 0.2));
+  b.rect(X + 6, Y + 3, 5, 5, metal); // morro
+  b.line(X + 2, Y + 1, X + 2, Y + 4, dark); b.line(X + 4, Y + 1, X + 4, Y + 2, dark); // ranuras del cráneo
+  // ojo único enorme
+  b.rect(X + 5, Y + 2, 4, 4, '#100608'); b.rect(X + 6, Y + 3, 2, 2, glow, true);
+  if (!p.blink) { b.set(X + 6, Y + 3, '#ffffff', true); b.set(X + 9, Y + 4, glow, true); }
+  // mandíbula de dientes de acero (se abre al atacar)
+  const jaw = atk || !!p.mouth ? 1 : 0;
+  b.rect(X + 5, Y + 7, 6, 1 + jaw, '#100608');
+  for (const x of [5, 7, 9]) { b.set(X + x + 1, Y + 7, '#e0e4ec'); b.set(X + x, Y + 8 + jaw, '#e0e4ec'); }
+  b.rect(X + 4, Y + 8 + jaw, 6, 1, metal);
+  // cables colgando del cuello
+  b.line(X + 3, Y + 8, X + 2, Y + 11, dark); b.set(X + 2, Y + 12, core, true);
+  if (tier >= 2) b.set(X + 3, Y - 1, glow, true);
+  if (tier >= 3) for (const [x, y] of [[6, 16], [17, 16]]) b.set(x, y + by, core, true);
+  // brazo con cañón eléctrico
   arm(b, 14, 13 + by, p.ra, 7, plate, metal, 3);
   const hx = 14 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
-  b.rect(hx, hy - 1, 4, 2, dark); b.set(hx + 4, hy - 1, anim === Anim.Attack ? '#ffe080' : '#3a3a40', anim === Anim.Attack);
+  b.rect(hx - 1, hy - 2, 6, 3, dark); b.rect(hx, hy - 2, 4, 1, metal);
+  b.set(hx + 5, hy - 1, atk ? '#ffffff' : '#60c0ff', true); b.set(hx + 5, hy - 2, atk ? '#a0e8ff' : '#2a4a60', atk);
+  if (atk) { b.set(hx + 6, hy - 2, '#a0e8ff', true); b.set(hx + 6, hy, '#a0e8ff', true); b.set(hx + 7, hy - 1, '#ffffff', true); }
 };
 
 const huntressForm: FormFn = (b, p, c, anim, tier) => {
-  // La Cazadora: capa con capucha echada, coleta, armadura de cuero, cinturón de virotes y ballesta
+  // La Cazadora: mujer joven y guapa, sombrero de cazadora de ala ancha con pluma, melena larga, ropa negra
+  // (abrigo largo, corsé con hebillas de plata, botas altas) y una ballesta de plata.
   const by = p.by, sw = p.sway ?? 0;
-  b.rect(6 - (sw % 2), 13 + by, 3, 12, c.cloth2); for (const y of [22, 24]) b.clear(6 - (sw % 2), y + by); // capa
-  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin, 2, true);
-  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, '#1a1410', { boots: '#3a2a1a' });
-  torso(b, by, c.cloth);
-  b.line(8, 12 + by, 15, 19 + by, '#5a3a20'); // bandolera
-  for (const k of [0, 2, 4]) b.set(9 + k, 13 + by + k, '#e0e0e8', false, true); // virotes
-  b.rect(8, 19 + by, 8, 1, '#2a1a10'); b.set(12, 19 + by, c.accent, false, true);
-  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'ponytail' });
+  const black = c.cloth, black2 = c.cloth2, edge = shade(c.cloth, 0.35), silver = c.accent;
+  // faldones del abrigo (por detrás)
+  b.rect(6 - (sw % 2), 15 + by, 3, 13 - by, black2); b.set(6 - (sw % 2), 27, edge);
+  b.rect(15, 18 + by, 2, 9 - by, black2);
+  arm(b, 10, 13 + by, p.la, 7, black2, c.skin, 2, true);
+  legs(b, p, shade(black2, 0.05), black2, '#0a080c', { boots: '#24202a' });
+  for (const x of [9, 12]) b.set(x + 1, 25, edge); // caña de las botas
+  // torso: corsé negro con cordones de plata, cintura estrecha
+  torso(b, by, black, { w: 7, x: 8, top: 12 });
+  b.rect(8, 12 + by, 7, 1, edge);
+  for (let y = 14; y <= 18; y += 2) { b.set(11, y + by, silver, false, true); b.set(12, y + 1 + by, silver, false, true); }
+  b.rect(8, 19 + by, 7, 1, '#0a080c'); b.set(11, 19 + by, silver, true, true); // cinturón con hebilla
+  b.line(8, 12 + by, 14, 18 + by, '#2a2228'); for (const k of [0, 2, 4]) b.set(9 + k, 13 + by + k, '#e8ecf4', false, true); // virotes de plata
+  b.rect(8, 20 + by, 7, 3, black); b.rect(7, 22 + by, 9, 1, black2); // falda corta del abrigo
+  // cabeza: rostro fino, labios rojos, pestañas
+  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'long' });
   const X = 7 + (p.lean ?? 0), Y = 2 + by;
-  b.rect(X - 1, Y + 9, 6, 2, c.cloth2); // capucha echada
-  b.line(X + 6, Y + 7, X + 9, Y + 7, shade(c.skin, -0.25)); // cicatriz
-  if (tier >= 1) b.set(X + 1, Y - 1, c.accent); // pluma
-  if (tier >= 3) { b.set(X + 1, Y - 2, c.accent, true); b.set(X, Y - 3, c.accent); }
-  // ballesta
+  b.set(X + 6, Y + 4, '#1a1014'); b.set(X + 8, Y + 4, '#1a1014'); // pestañas
+  b.rect(X + 7, Y + 8, 2, 1, '#c02040'); b.set(X + 8, Y + 9, '#801028'); // labios
+  b.set(X + 7, Y + 7, '#f0a8a0'); // colorete
+  b.rect(X - 1, Y + 9, 3, 3, c.hair); // melena sobre el hombro
+  // sombrero de cazadora: copa baja con hendidura, ala ancha que cae por los lados, cinta de plata y pluma
+  b.rect(X - 2, Y + 1, 14, 1, black); b.set(X - 3, Y + 2, black); b.set(X + 12, Y + 2, black); // ala
+  b.rect(X - 1, Y + 2, 3, 1, black2); // sombra del ala sobre el pelo
+  b.rect(X + 1, Y - 1, 8, 2, black); b.rect(X + 2, Y - 2, 6, 1, black); b.set(X + 5, Y - 2, black2); // copa con hendidura
+  b.rect(X + 1, Y, 8, 1, silver); b.set(X + 3, Y - 1, edge, false, true);
+  b.line(X + 1, Y - 1, X - 2, Y - 5, tier >= 1 ? silver : '#c02030'); b.line(X + 2, Y - 1, X - 1, Y - 5, tier >= 1 ? '#ffffff' : '#e04050'); // pluma
+  if (tier >= 3) { b.set(X - 2, Y - 6, silver, true); b.set(X - 1, Y - 6, silver, true); }
+  // ballesta de plata
   const hx = 13 + Math.sin(p.ra) * 6, hy = 13 + by + Math.cos(p.ra) * 6;
-  arm(b, 13, 13 + by, p.ra, 6, c.cloth, c.skin, 2, true);
-  b.rect(hx, hy - 1, 7, 2, '#6a4020'); b.set(hx + 7, hy - 1, '#d0d0e0', false, true);
-  b.line(hx + 4, hy - 5, hx + 4, hy + 3, '#3a2a1a'); b.line(hx + 4, hy - 5, hx + 1, hy - 1, anim === Anim.Attack ? '#ffffff' : '#c0b090'); b.line(hx + 4, hy + 3, hx + 1, hy, anim === Anim.Attack ? '#ffffff' : '#c0b090');
+  arm(b, 13, 13 + by, p.ra, 6, black, c.skin, 2, true);
+  const shine = anim === Anim.Attack;
+  b.rect(hx, hy - 1, 7, 2, '#3a3440'); b.rect(hx + 1, hy - 1, 5, 1, '#c8ccd8'); b.set(hx + 7, hy - 1, '#ffffff', true, true);
+  b.line(hx + 4, hy - 5, hx + 4, hy + 3, '#d8dce8'); b.line(hx + 4, hy - 5, hx + 1, hy - 1, shine ? '#ffffff' : '#a0a4b0'); b.line(hx + 4, hy + 3, hx + 1, hy, shine ? '#ffffff' : '#a0a4b0');
+  b.set(hx + 4, hy - 5, silver, true); b.set(hx + 4, hy + 3, silver, true);
 };
 
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
@@ -1396,6 +1667,30 @@ const NPC_LOOKS: Record<string, NpcLook[]> = {
   gravedigger: [{ top: '#3a3430', top2: '#6a5a48', legs: '#2a2420', shoe: '#1a1410', styles: ['cap', 'bald'], kind: 'overalls', held: ['shovel'], cap: '#2a2420' }], // el enterrador de la pala
   belle: [{ top: '#e02060', top2: '#ffd0e0', legs: '#e02060', shoe: '#e02060', styles: ['long', 'ponytail'], kind: 'dress', held: ['none'] }],
   counselor: [{ top: '#c02020', top2: '#ffffff', legs: '#e0d0a0', shoe: '#f0f0f0', styles: ['short', 'ponytail', 'cap'], kind: 'uniform', held: ['flashlight', 'none'], cap: '#c02020' }],
+  // Orillas del Nilo
+  fellah: [
+    { top: '#e0d8c0', top2: '#a89878', legs: '#e0d8c0', shoe: '#6a4a2a', styles: ['turban'], kind: 'robe', held: ['torch', 'lantern', 'none'], cap: '#f0ece0' },
+    { top: '#5a7aa0', top2: '#c0c8d8', legs: '#5a7aa0', shoe: '#4a3020', styles: ['turban'], kind: 'robe', held: ['lantern', 'none'], cap: '#e8e0d0' },
+    { top: '#2a2a3a', top2: '#c0a040', legs: '#2a2a3a', shoe: '#2a1a10', styles: ['long', 'bun'], kind: 'dress', held: ['lantern', 'none'] },
+  ],
+  tourist: [
+    { top: '#e04060', top2: '#ffe060', legs: '#d8c8a0', shoe: '#f0f0f0', styles: ['cap', 'short'], kind: 'tshirt', held: ['flashlight', 'none'], glasses: 0.8, cap: '#f0f0f0' },
+    { top: '#40b0c0', top2: '#ffffff', legs: '#3a5a8a', shoe: '#e0e0e0', styles: ['ponytail', 'long', 'cap'], kind: 'tshirt', held: ['flashlight', 'none'], glasses: 0.6, cap: '#e0c060' },
+  ],
+  archaeologist: [
+    { top: '#a8946a', top2: '#e8e0c8', legs: '#7a6a4a', shoe: '#4a3020', styles: ['pith'], kind: 'jacket', held: ['lantern', 'shovel', 'flashlight'], glasses: 0.4 },
+  ],
+  // Jungla jurásica
+  explorer: [
+    { top: '#a89060', top2: '#e8dcc0', legs: '#6a5a3a', shoe: '#3a2a18', styles: ['pith'], kind: 'uniform', held: ['torch', 'flashlight', 'lantern'] },
+    { top: '#7a8a5a', top2: '#d8d0b0', legs: '#5a4a30', shoe: '#3a2a18', styles: ['pith', 'ponytail'], kind: 'tunic', held: ['flashlight', 'torch'], cap: '#d0c090' },
+  ],
+  porter: [
+    { top: '#e8e0d0', top2: '#a03020', legs: '#5a4a3a', shoe: '#2a1a10', styles: ['bald', 'short', 'beanie'], kind: 'tshirt', held: ['lantern', 'none'], cap: '#a03020' },
+  ],
+  scientist: [
+    { top: '#f0f0f4', top2: '#a0b0c0', legs: '#3a3a4a', shoe: '#2a2a30', styles: ['short', 'bun', 'slick'], kind: 'robe', held: ['flashlight', 'none'], glasses: 1 },
+  ],
 };
 
 /** Aspecto determinista de un NPC (lo usa también el juego para saber qué luz lleva). */
@@ -1702,6 +1997,12 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   egg: { art: ['.www.', 'wWwsw', 'wwsww', 'swwww', '.wws.'], pal: { w: '#e8e0c8', W: '#ffffff', s: '#6a8a4a' } },
   bullet: { art: ['yyyY'], pal: { y: '#ffb030', Y: '#ffffe0' }, glow: 'Y' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
+  // R-800: bola de energía eléctrica y cohete
+  zapball: { art: ['c..c..c', '.cbbbc.', '.bBWBb.', 'cbWWWbc', '.bBWBb.', '.cbbbc.', 'c..c..c'], pal: { c: '#a0f0ff', b: '#2a70ff', B: '#80c8ff', W: '#ffffff' }, glow: 'W' },
+  rocket: { art: ['.ff.......', 'fFkkmmmmr.', 'fFkkmMMmrr', 'fFkkmmmmr.', '.ff.......'], pal: { f: '#ff6020', F: '#ffe060', k: '#2a2a30', m: '#7a8088', M: '#c0c4cc', r: '#d02020' }, glow: 'F' },
+  // La Cazadora: virotes de plata (el de la definitiva, grande)
+  silver: { art: ['.......s..', 'f.ggggggsW', 'f.......s.'], pal: { g: '#a8acb8', s: '#e8ecf8', W: '#ffffff', f: '#d8dce8' }, glow: 'W' },
+  bigsilver: { art: ['..........s....', 'f.........sS...', 'ffggggggggsSSSW', 'f.........sS...', '..........s....'], pal: { g: '#b8bcc8', s: '#c8ccd8', S: '#f0f4ff', W: '#ffffff', f: '#e8ecf4' }, glow: 'W' },
 };
 
 const itemCache = new Map<string, Baked>();

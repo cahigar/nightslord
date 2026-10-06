@@ -1,12 +1,13 @@
 // 🤖 R-800: androide perseguidor con arsenal integrado.
-// - Impacto hidráulico (básico): golpes muy fuertes cuerpo a cuerpo; si no hay nadie a mano, disparos rápidos más flojos.
+// - Puño eléctrico (básico): golpes muy fuertes cuerpo a cuerpo que descargan electricidad; si no hay nadie a mano,
+//   dispara bolas de energía eléctrica.
 // - Máquina implacable (pasiva): inmune al miedo, al enamoramiento y a la hipnosis; las ralentizaciones le afectan la mitad.
 // - Adquisición de objetivo (Q): fija al enemigo más cercano; lo ve aunque se vuelva invisible, corre más hacia él
 //   y su siguiente golpe le hace mucho más daño.
-// - Arma integrada (E): ráfaga de 3 s hacia el puntero; mientras dispara camina más despacio.
+// - Lanzacohetes integrado (E): 3 s disparando cohetes hacia el puntero que explotan al impactar; camina más despacio.
 // - Autorreparación (nv. 5): se repara si lleva un rato sin recibir daño. Al morir explota al cabo de 1 s.
 // - Protocolo de exterminio (R): 5 s de láser ancho guiado cuyo daño sube cuanto más tiempo siga sobre el objetivo.
-// - Nv. 15: si elimina a su objetivo fijado, fija al siguiente; la ráfaga dura más y atraviesa.
+// - Nv. 15: si elimina a su objetivo fijado, fija al siguiente; los cohetes duran más, salen más seguidos y explotan más grande.
 import { BAL } from '../../shared/balance';
 import { distToSegment } from '../../shared/maps';
 import { Anim } from '../../shared/protocol';
@@ -33,11 +34,30 @@ function acquire(room: Room, p: Player, except = -1) {
   return true;
 }
 
-function bullet(room: Room, p: Player, a: number, dmg: number, pierce: boolean) {
+/** Bola de energía eléctrica (básico a distancia). */
+function zapball(room: Room, p: Player, a: number) {
+  const S = B.shot;
+  const pr = room.shoot('zapball', p.id, p.x + Math.cos(a) * 22, p.y + Math.sin(a) * 22, a, S.speed, S.life, room.calcDamage(p, S.dmg));
+  pr.hitR = 11;
+}
+
+/** Cohete del lanzacohetes integrado: explota al impactar o al acabar su recorrido. */
+function rocket(room: Room, p: Player, a: number) {
   const S = B.burst;
-  const pr = room.shoot('bullet', p.id, p.x + Math.cos(a) * 22, p.y + Math.sin(a) * 22, a, S.speed, S.life, room.calcDamage(p, dmg));
-  pr.hitR = 8;
-  if (pierce) { pr.pierce = true; pr.hitSet = new Set(); }
+  const pr = room.shoot('rocket', p.id, p.x + Math.cos(a) * 24, p.y - 6 + Math.sin(a) * 24, a, S.speed, S.life, room.calcDamage(p, 0.15));
+  pr.hitR = 12;
+}
+
+function explodeRocket(room: Room, p: Player, x: number, y: number) {
+  const S = B.burst, R = p.tier >= 3 ? S.rT3 : S.r;
+  room.forEachEnemyNear(p, x, y, R, (m) => {
+    if (m.dead) return;
+    room.damage(m, room.calcDamage(p, S.dmg * room.powMult(p)), room.src(p));
+    const d = Math.hypot(m.x - x, m.y - y) || 1;
+    if (!m.dead) room.knockback(m, (m.x - x) / d, (m.y - y) / d, 70);
+  });
+  room.fx('rocketBoom', x, y, { r: R });
+  room.sfx('explode', x, y);
 }
 
 export const r800Kit: Kit = {
@@ -46,15 +66,16 @@ export const r800Kit: Kit = {
     const near = room.nearestEnemy(p, p.x, p.y, p.def.range + p.r + B.shot.meleeCheck, -1);
     if (near) {
       const res = room.meleeSwing(p, a, { sfx: 'punch' });
-      for (const h of res.hits) if (!h.m.dead) room.knockback(h.m, Math.cos(a), Math.sin(a), 60);
+      for (const h of res.hits) { room.fx('zapHit', h.m.x, h.m.y, { o: h.m.id }); if (!h.m.dead) room.knockback(h.m, Math.cos(a), Math.sin(a), 60); }
+      room.sfx('zap', p.x, p.y);
       return;
     }
-    // nadie a mano: disparos rápidos y flojos
+    // nadie a mano: bolas de energía eléctrica
     room.breakStealth(p);
-    room.setAnim(p, Anim.Attack, 0.2);
-    bullet(room, p, a, B.shot.dmg, false);
+    room.setAnim(p, Anim.Attack, 0.25);
+    zapball(room, p, a);
     p.cd[0] = B.shot.cd;
-    room.sfx('bolt', p.x, p.y);
+    room.sfx('zap', p.x, p.y);
   },
 
   ability(room, p, slot) {
@@ -92,6 +113,13 @@ export const r800Kit: Kit = {
     return m;
   },
 
+  onProjectileHit(room, p, pr, m) {
+    if (pr.type === 'zapball') room.fx('zapHit', m.x, m.y, { o: m.id });
+  },
+  onProjectileEnd(room, p, pr) {
+    if (pr.type === 'rocket') explodeRocket(room, p, pr.x, pr.y);
+  },
+
   onDealDamage(room, p, t, amount) {
     if (p.k.lockBonus && t.id === locked(room, p)) { p.k.lockBonus = 0; room.fx('lockOn', t.x, t.y, { o: t.id, d: 0, n: 1 }); return amount * B.lock.bonus; }
     return amount;
@@ -122,11 +150,12 @@ export const r800Kit: Kit = {
     // objetivo fijado que desaparece
     const lk = locked(room, p);
     if (lk >= 0) { const t = mobById(room, lk); if (!t || t.dead) p.k.lockEnd = 0; }
-    // ráfaga
+    // lanzacohetes
     if (firing(room, p) && room.time >= (p.k.burstNext ?? 0)) {
-      p.k.burstNext = room.time + B.burst.every;
-      bullet(room, p, p.input.a + (Math.random() - 0.5) * B.burst.spread * 2, B.burst.dmg, p.tier >= 3);
-      if (Math.random() < 0.35) room.sfx('bolt', p.x, p.y);
+      p.k.burstNext = room.time + (p.tier >= 3 ? B.burst.everyT3 : B.burst.every);
+      rocket(room, p, p.input.a + (Math.random() - 0.5) * B.burst.spread * 2);
+      room.setAnim(p, Anim.Attack, 0.15);
+      room.sfx('dash', p.x, p.y);
       p.lastCombatT = room.time;
     }
     // láser del protocolo de exterminio
