@@ -4,7 +4,8 @@
 
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
   | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime' | 'alien'
-  | 'static' | 'kappa' | 'reaper' | 'unit' | 'necro';
+  | 'static' | 'kappa' | 'reaper' | 'unit' | 'necro'
+  | 'worm' | 'dino' | 'r800' | 'huntress';
 
 /** Clase del monstruo: cambia vida, armadura, regeneración y robo de vida (ver CLASS en balance.ts). */
 export type Role = 'melee' | 'assassin' | 'summoner' | 'ranged' | 'hybrid';
@@ -44,6 +45,8 @@ export interface CharacterDef {
   fireImmune?: boolean;
   /** Clase (por defecto 'hybrid'). */
   role?: Role;
+  /** Radio de colisión (por defecto PLAYER_RADIUS). */
+  radius?: number;
 }
 
 export const CHARACTERS: Record<CharacterId, CharacterDef> = {
@@ -417,10 +420,10 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { key: 'Q', name: 'Garfio', desc: 'Lanza un garfio que atrae al enemigo hacia él.', cooldown: 7 },
       { key: 'E', name: 'Barril de pólvora', desc: 'Deja un barril que explota a los 2,5 s o al recibir un golpe (y prende los árboles).', cooldown: 8 },
     ],
-    ult: { key: 'R', name: '¡Al abordaje!', desc: 'Aparecen 3 bucaneros fantasma que luchan a su lado durante 12 s.', cooldown: 0 },
+    ult: { key: 'R', name: 'Mar de los ahogados', desc: 'Crea una gran poza 10 s. Navegando en ella con su barco fantasma, cada ataque dispara cañonazos en 4 direcciones y más rápido.', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Barco fantasma', desc: 'Anda sobre el agua en un barco fantasma, desde el que ataca a cañonazos.' },
-      { lvl: 10, name: '¡Al abordaje!', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 10, name: 'Mar de los ahogados', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
       { lvl: 15, name: 'Lobo de mar', desc: 'El garfio le impulsa hacia lo que engancha (enemigos u obstáculos) y los barriles tienen más área.' },
     ],
   },
@@ -437,12 +440,12 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackCd: 0.45,
     armor: 0,
     attackName: 'Mordisco venenoso',
-    passive: 'Sus mordiscos envenenan (quitan vida durante unos segundos).',
+    passive: 'Sus mordiscos envenenan (quitan vida durante unos segundos). Cada 3 ataques sale una arañita que da 3 mordiscos y se deshace.',
     abilities: [
       { key: 'Q', name: 'Telaraña', desc: 'Proyectil que ralentiza y se queda en el suelo 45 s ralentizando (máximo 4). 2 cargas.', cooldown: 6 },
       { key: 'E', name: 'Salto arácnido', desc: 'Salta rápidamente a un punto cercano por encima de cualquier obstáculo.', cooldown: 8 },
     ],
-    ult: { key: 'R', name: 'Gran telaraña', desc: 'Cubre la zona de telarañas y une con hilos las del suelo: los enemigos quedan muy lentos, ella corre más y salen arañitas venenosas.', cooldown: 0 },
+    ult: { key: 'R', name: 'Gran telaraña', desc: 'Cubre la zona de telarañas y une con hilos largos las del suelo (quien los toca queda aturdido 3 s): los enemigos quedan muy lentos, ella corre más y salen arañitas venenosas.', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Veneno', desc: 'Los mordiscos seguidos al mismo enemigo acumulan veneno (hasta ×2,5).' },
       { lvl: 10, name: 'Gran telaraña', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
@@ -674,9 +677,111 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     ],
     ult: { key: 'R', name: 'Portales del osario', desc: '7 s: puños y pies de hueso gigantes caen del cielo alrededor del punto elegido, aplastando y empujando a los enemigos.', cooldown: 0 },
     evolution: [
-      { lvl: 5, name: 'Último conjuro', desc: 'Alzar huesos con 2 cargas. Al morir, al cabo de 1 s vuelve 3 s como fantasma inmóvil y maneja un largo rayo que quema hasta desintegrarse.' },
+      { lvl: 5, name: 'Último conjuro', desc: 'Alzar huesos con 2 cargas. Al morir, al cabo de 1 s vuelve 4,5 s como fantasma inmóvil y maneja un rayo enorme que quema hasta desintegrarse.' },
       { lvl: 10, name: 'Portales del osario', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
       { lvl: 15, name: 'Ejército de hueso', desc: 'Hasta 5 esqueletos a la vez, un 30 % más grandes y con más vida.' },
+    ],
+  },
+  worm: {
+    id: 'worm',
+    radius: 25,
+    name: 'Gusarena',
+    title: 'Gusano de las dunas',
+    role: 'melee',
+    hp: 175,
+    speed: 182,
+    damage: 34,
+    range: 78,
+    arc: Math.PI * 0.6,
+    attackCd: 1.0,
+    armor: 0.1,
+    attackName: 'Mordisco sísmico',
+    passive: 'Coloso: más grande que el resto, con más vida y empuje, pero le cuesta girar y arrancar.',
+    abilities: [
+      { key: 'Q', name: 'Sumergirse', desc: 'Se entierra (intocable): bajo tierra solo percibe las pisadas de quien se mueve cerca. Otra Q para emerger mordiendo; si no, sale a los 5 s.', cooldown: 7 },
+      { key: 'E', name: 'Arenas movedizas', desc: 'Un círculo de arena a su alrededor durante 4 s que ralentiza y arrastra a los enemigos hacia él.', cooldown: 11 },
+    ],
+    ult: { key: 'R', name: 'Devorador', desc: 'Avanza sin parar 3,5 s: engulle a quien choque con su boca (silenciados), los arrastra quitándoles vida y al final los escupe.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Vibraciones', desc: 'Percibe pisadas desde más lejos y se cura poco a poco bajo tierra.' },
+      { lvl: 10, name: 'Devorador', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Rey de las dunas', desc: 'Aguanta más tiempo bajo tierra y las arenas movedizas son más grandes.' },
+    ],
+  },
+  dino: {
+    id: 'dino',
+    name: 'Dinozombie',
+    title: 'Cambiaformas jurásico',
+    role: 'hybrid',
+    hp: 135,
+    speed: 208,
+    damage: 19,
+    range: 56,
+    arc: Math.PI * 0.6,
+    attackCd: 0.5,
+    armor: 0.05,
+    attackName: 'Según la forma',
+    passive: 'Tres formas: Velociraptor (mordiscos rápidos; corre más al perseguir), Tricerátops (cornada amplia; muy resistente y casi no le frenan ni aturden) y Pterodáctilo (huevos a distancia; vuela por encima del agua y los obstáculos).',
+    abilities: [
+      { key: 'Q', name: 'Cambio de forma', desc: 'Pasa a la siguiente forma: Velociraptor → Tricerátops → Pterodáctilo.', cooldown: 5 },
+      { key: 'E', name: 'Instinto', desc: 'Raptor: salta sobre el enemigo más cercano al puntero (daño en área). Tricerátops: carga larga que empuja y aturde. Pterodáctilo: lanza un remolino que daña poco y empuja.', cooldown: 7 },
+    ],
+    ult: { key: 'R', name: 'Extinción', desc: 'Se convierte en huevo (intocable) y al segundo cae un asteroide que quema una gran zona y hace mucho daño. Sale del huevo con una forma nueva.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Carne prehistórica', desc: 'Cambiar de forma cura un poco y da un bonus breve: el raptor corre más, el tricerátops se acoraza y el pterodáctilo ataca más rápido.' },
+      { lvl: 10, name: 'Extinción', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Rey lagarto', desc: 'Cada forma mejora su E y el cambio de forma recarga antes.' },
+    ],
+  },
+  r800: {
+    id: 'r800',
+    name: 'R-800',
+    title: 'Androide perseguidor',
+    role: 'melee',
+    hp: 150,
+    speed: 196,
+    damage: 26,
+    range: 52,
+    arc: Math.PI / 2,
+    attackCd: 0.75,
+    armor: 0.1,
+    attackName: 'Impacto hidráulico',
+    passive: 'Máquina implacable: inmune al miedo, al enamoramiento y a la hipnosis; las ralentizaciones le afectan la mitad. Si no hay nadie a mano, su ataque son disparos rápidos más flojos.',
+    abilities: [
+      { key: 'Q', name: 'Adquisición de objetivo', desc: 'Fija al enemigo más cercano 6 s: lo ve aunque se vuelva invisible o se meta en la niebla, corre más hacia él y su siguiente golpe le hace mucho más daño.', cooldown: 9 },
+      { key: 'E', name: 'Arma integrada', desc: 'Ráfaga de 3 s de disparos en línea recta hacia el puntero. Mientras dispara camina más despacio.', cooldown: 10 },
+    ],
+    ult: { key: 'R', name: 'Protocolo de exterminio', desc: '5 s: saca un arma enorme, se pone rojo y dispara un láser ancho que maneja con el puntero; su daño sube cuanto más tiempo siga sobre el mismo objetivo.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Autorreparación', desc: 'Tras unos segundos sin recibir daño se repara poco a poco. Al morir explota al cabo de 1 s.' },
+      { lvl: 10, name: 'Protocolo de exterminio', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Modelo avanzado', desc: 'Si elimina a su objetivo fijado, fija al siguiente él solo; la ráfaga dura más y atraviesa.' },
+    ],
+  },
+  huntress: {
+    id: 'huntress',
+    name: 'La Cazadora',
+    title: 'Veterana desertora',
+    role: 'ranged',
+    hp: 110,
+    speed: 214,
+    damage: 17,
+    range: 380,
+    arc: 0,
+    attackCd: 0.5,
+    armor: 0.05,
+    rangedBasic: true,
+    attackName: 'Ballesta',
+    passive: 'Armar a la población: no mata humanos; al herirlos les da antorchas y horcas y se vuelven aliados que van a su aire contra los monstruos (cada uno le da experiencia). La orden de cazadores no la ataca.',
+    abilities: [
+      { key: 'Q', name: 'Culatazo', desc: 'Golpe cercano con la ballesta que empuja con fuerza.', cooldown: 5 },
+      { key: 'E', name: 'Repliegue', desc: 'Salto corto y se vuelve invisible unos segundos. Atacar la descubre.', cooldown: 11 },
+    ],
+    ult: { key: 'R', name: 'Círculo de caza', desc: '3 s girando y disparando la ballesta contra todos los enemigos cercanos; cada impacto los ciega unos segundos.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Experiencia de campo', desc: 'Cada vez que mata a un enemigo o arma a un humano recupera parte del enfriamiento de Q y E.' },
+      { lvl: 10, name: 'Círculo de caza', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Milicia', desc: 'Puede dar arcos a los humanos y el culatazo empuja a varios enemigos en un cono.' },
     ],
   },
 };
@@ -832,6 +937,26 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
   { id: 'blood', name: 'Ritual de sangre', price: 200, palette: { skin: '#c8a8a0', hair: '#2a0a0a', cloth: '#4a0e14', cloth2: '#24060a', accent: '#ff4030', eye: '#ff6040' } },
   { id: 'frost', name: 'Escarcha', price: 350, palette: { skin: '#c8d8e8', hair: '#e8f0f8', cloth: '#1e2a48', cloth2: '#101830', accent: '#80d0ff', eye: '#c0f0ff' } },
 ],
+  worm: [
+    { id: 'classic', name: 'Dunas', price: 0, palette: { skin: '#c8a060', hair: '#8a6a38', cloth: '#a07a40', cloth2: '#5a4020', accent: '#ff8040', eye: '#ffd040' } },
+    { id: 'ash', name: 'Ceniza', price: 200, palette: { skin: '#6a6470', hair: '#3a3640', cloth: '#4a4450', cloth2: '#24202a', accent: '#ff4030', eye: '#ff6040' } },
+    { id: 'bone', name: 'Hueso', price: 350, palette: { skin: '#e0d8c0', hair: '#a8a088', cloth: '#c0b898', cloth2: '#7a7260', accent: '#60e0ff', eye: '#a0f0ff' } },
+  ],
+  dino: [
+    { id: 'classic', name: 'Podrido', price: 0, palette: { skin: '#6a8a4a', hair: '#3a5a2a', cloth: '#a8b890', cloth2: '#5a3a2a', accent: '#c02020', eye: '#e8ff60' } },
+    { id: 'lava', name: 'Volcánico', price: 200, palette: { skin: '#5a3a30', hair: '#2a1a14', cloth: '#a06040', cloth2: '#3a1a10', accent: '#ff7020', eye: '#ffd040' } },
+    { id: 'fossil', name: 'Fósil', price: 350, palette: { skin: '#d8ccb0', hair: '#a89878', cloth: '#e8e0c8', cloth2: '#7a6a50', accent: '#60ffa0', eye: '#80ff60' } },
+  ],
+  r800: [
+    { id: 'classic', name: 'Cromo', price: 0, palette: { skin: '#a8b0b8', hair: '#5a6068', cloth: '#3a4048', cloth2: '#20242a', accent: '#ff2030', eye: '#ff3040' } },
+    { id: 'gold', name: 'Prototipo', price: 200, palette: { skin: '#d8b860', hair: '#8a6a20', cloth: '#4a3a20', cloth2: '#241a0e', accent: '#40e0ff', eye: '#60f0ff' } },
+    { id: 'stealth', name: 'Sigilo', price: 350, palette: { skin: '#3a3c44', hair: '#1a1c22', cloth: '#22242a', cloth2: '#101216', accent: '#60ff60', eye: '#80ff80' } },
+  ],
+  huntress: [
+    { id: 'classic', name: 'Veterana', price: 0, palette: { skin: '#d8a880', hair: '#8a3a1a', cloth: '#4a3a2a', cloth2: '#2a2018', accent: '#c0c0c8', eye: '#3a6a30' } },
+    { id: 'winter', name: 'Invierno', price: 200, palette: { skin: '#f0d0b8', hair: '#e8e8f0', cloth: '#d8dce8', cloth2: '#6a7080', accent: '#80c0ff', eye: '#4060a0' } },
+    { id: 'crimson', name: 'Carmesí', price: 350, palette: { skin: '#c89070', hair: '#1a1014', cloth: '#6a1018', cloth2: '#300810', accent: '#e0c060', eye: '#a01020' } },
+  ],
 };
 
 export function getSkin(char: CharacterId, skinId: string): SkinDef {

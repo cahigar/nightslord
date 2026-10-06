@@ -1,4 +1,5 @@
 // 🕷️ Aracne, la mujer araña: movilidad y captura.
+// - Cría (pasiva): cada 3 ataques sale una arañita que da 3 mordiscos y se deshace.
 // - Veneno (pasiva): sus mordiscos envenenan; desde el nivel 5 los golpes seguidos al mismo enemigo acumulan veneno.
 // - Telaraña (Q, 2 cargas): proyectil que ralentiza y queda en el suelo 45 s (máximo 4).
 // - Salto arácnido (E): salta por encima de todo hasta un punto cercano (nv. 15: 2 cargas y al caer aterroriza).
@@ -31,6 +32,15 @@ export const spiderKit: Kit = {
   basic(room, p, a) {
     const res = room.meleeSwing(p, a, { sfx: 'bite' });
     for (const h of res.hits) if (!h.m.dead) envenom(room, p, h.m);
+    // cada 3 ataques sale una arañita que da 3 mordiscos y se deshace
+    p.k.brood = (p.k.brood ?? 0) + 1;
+    if (p.k.brood >= B.brood.every) {
+      p.k.brood = 0;
+      const f = room.findFreeSpot(p.x + Math.cos(a) * 24, p.y + Math.sin(a) * 18, 9);
+      const m = room.spawnMinion(p, f.x, f.y, 'spiderling', '', p.id % 7, B.brood.life, false, B.ult.n * 2 + 4);
+      m.hits = B.brood.hits;
+      room.fx('sprout', m.x, m.y, { c: 'web' });
+    }
   },
 
   ability(room, p, slot, a) {

@@ -286,6 +286,15 @@ export class Effects {
       case 'boneSlam': this.boneSlam(ev); break;
       case 'raise': this.raise(ev); break;
       case 'ghostRise': this.ghostRise(ev); break;
+      case 'lockOn': this.lockOn(ev); break;
+      case 'asteroid': this.asteroid(ev); break;
+      case 'hatch': this.burst(x, y - 20, 24, ['#e8e0c8', '#f8f4e8', '#6a8a4a'], 200, 3, 400, 0.6); this.ripple(x, y, '#e8e0c8', 0.4, 50); break;
+      case 'burrow': this.burrow(ev); break;
+      case 'quake': this.burst(x, y, Math.min(40, 10 + (ev.r ?? 50) / 6), ['#c8a060', '#a8844a', '#7a5e34', ...this.terrainColors(x, y)], (ev.r ?? 50) * 2.2, 3, 450, 0.55); this.ripple(x, y, '#c8a060', 0.45, ev.r ?? 50); break;
+      case 'spit': this.spray(x, y - 20, ev.r ?? 0, 24, ['#c8a060', '#a07a40', '#5a2a1a', '#ffd040'], 340); break;
+      case 'arm': this.burst(x, y - 40, 16, ev.c === 'torch' ? ['#ff9020', '#ffe060', '#ffffff'] : ['#e0c060', '#c0c0c8', '#ffffff'], 130, 3, -40, 0.6, true); this.ripple(x, y - 20, '#e0c060', 0.4, 36); break;
+      case 'buttStroke': this.buttStroke(ev); break;
+      case 'shapeshift': this.burst(x, y - 30, 30, ['#c0ff60', '#6a8a4a', '#e8e0c8', '#c02020'], 200, 3, 100, 0.6, true); this.ripple(x, y - 20, '#c0ff60', 0.5, 60); break;
       case 'critterPop': this.burst(x, y - 16, 14, ['#ffe080', '#ffffff', '#c0a040'], 140, 3, 200, 0.6, true); this.ripple(x, y, '#ffe080', 0.4, 30); break;
       case 'summon': this.lightPillar(x, y, ev.n ? 1 : 0.8, ev.n ? '#ff4060' : '#c060ff'); this.burst(x, y - 30, 24, ['#c060ff', '#ff4060', '#2e1a3a'], 200, 3, 0, 0.8, true); break;
     }
@@ -1274,6 +1283,96 @@ export class Effects {
     this.ripple(ev.x, ev.y, '#80ff60', 0.6, 60);
   }
 
+  /** Mira de R-800 sobre su objetivo fijado (n=1: impacto del golpe extra, n=2: cuenta atrás de la explosión). */
+  private lockOn(ev: FxEv) {
+    if (ev.n === 1) { this.burst(ev.x, ev.y - 40, 16, ['#ff3040', '#ffffff'], 180, 3, 0, 0.4, true); return; }
+    const dur = ev.d ?? 6;
+    this.add(Math.max(0.5, dur), 'glow', (ctx, k, now) => {
+      const pos = (ev.o !== undefined && ev.o >= 0 ? this.entPos(ev.o) : null) ?? (ev.o === -1 ? ev : null);
+      if (!pos) return;
+      const pulse = Math.floor(now / 160) % 2;
+      const R = ev.n === 2 ? 50 + k * 60 : 26 + pulse * 3 + (1 - Math.min(1, k * 8)) * 30;
+      ctx.globalAlpha = Math.min(1, (1 - k) * 6);
+      ctx.fillStyle = '#ff3040';
+      const cx = snap(pos.x), cy = snap(pos.y - 40);
+      for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        ctx.fillRect(cx + sx * R - (sx > 0 ? PIXEL * 3 : 0), cy + sy * R * 0.8, PIXEL * 4, PIXEL);
+        ctx.fillRect(cx + sx * R - (sx > 0 ? 0 : 0), cy + sy * R * 0.8 - (sy > 0 ? PIXEL * 3 : 0), PIXEL, PIXEL * 4);
+      }
+      ctx.fillRect(cx - PIXEL, cy - PIXEL, PIXEL * 2, PIXEL * 2);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Extinción: un asteroide en llamas cae sobre el huevo del Dinozombie. */
+  private asteroid(ev: FxEv) {
+    const dur = ev.d ?? 1, R = ev.r ?? 260;
+    this.add(dur, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.25 + k * 0.45;
+      ctx.fillStyle = '#000000';
+      ctx.beginPath(); ctx.ellipse(ev.x, ev.y, R * (0.3 + k * 0.7), R * (0.3 + k * 0.7) * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.7;
+      pixelEllipse(ctx, ev.x, ev.y, R, R * 0.6, '#ff6020', 2);
+      ctx.globalAlpha = 1;
+    });
+    this.add(dur, 'glow', (ctx, k) => {
+      // la roca cae en diagonal dejando una estela de fuego
+      const sx = ev.x + 420 * (1 - k), sy = ev.y - 40 - 620 * (1 - k);
+      for (let i = 0; i < 18; i++) {
+        const t = i / 18;
+        ctx.globalAlpha = (1 - t) * 0.9;
+        ctx.fillStyle = i < 4 ? '#ffffff' : i < 9 ? '#ffd040' : '#ff6020';
+        const w = (18 - i) * 1.2;
+        ctx.fillRect(snap(sx + t * 140 - w / 2), snap(sy - t * 200 - w / 2), snap(w), snap(w));
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#4a3020'; ctx.fillRect(snap(sx - 21), snap(sy - 21), 42, 42);
+      ctx.fillStyle = '#6a4a30'; ctx.fillRect(snap(sx - 15), snap(sy - 18), 24, 18);
+      ctx.fillStyle = '#ff9030'; ctx.fillRect(snap(sx - 21), snap(sy + 12), 42, 9);
+    });
+  }
+
+  /** La Gusarena se hunde (n=0), revienta la arena al salir (n=1) o levanta polvo al avanzar (n=2). */
+  private burrow(ev: FxEv) {
+    const sand = ['#c8a060', '#a8844a', '#7a5e34', '#5a4428'];
+    if (ev.n === 2) { this.burst(ev.x, ev.y - 4, 4, sand, 80, 3, 300, 0.4); return; }
+    if (ev.n === 1) {
+      this.burst(ev.x, ev.y - 20, 50, [...sand, '#f0e8d0'], (ev.r ?? 110) * 3, 4, 600, 0.8);
+      this.ripple(ev.x, ev.y, '#c8a060', 0.6, ev.r ?? 110);
+      this.add(0.5, 'ground', (ctx, k) => { ctx.globalAlpha = 1 - k; ctx.fillStyle = '#3a2a16'; ctx.beginPath(); ctx.ellipse(ev.x, ev.y, 46, 20, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; });
+      return;
+    }
+    this.burst(ev.x, ev.y - 10, 30, sand, 200, 3, 500, 0.6);
+    this.ripple(ev.x, ev.y, '#a8844a', 0.5, 60);
+  }
+
+  /** Culatazo de la Cazadora: golpe seco en arco (n=1: cono amplio). */
+  private buttStroke(ev: FxEv) {
+    const a = ev.r ?? 0, wide = ev.n === 1;
+    this.add(0.2, 'top', (ctx, k) => {
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#ffe0a0';
+      const half = wide ? 1.3 : 0.6;
+      for (let i = 0; i <= 10; i++) { const aa = a - half + (i / 10) * half * 2, rr = 26 + k * 30; ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y - 30 + Math.sin(aa) * rr * 0.8), PIXEL * 2, PIXEL * 2); }
+      ctx.globalAlpha = 1;
+    });
+    this.burst(ev.x, ev.y - 30, 10, ['#ffe0a0', '#ffffff', '#8a6a40'], 200, 3, 200, 0.4);
+  }
+
+  /** Remolino del pterodáctilo: embudo de viento pixelado. */
+  drawTwister(ctx: CanvasRenderingContext2D, x: number, y: number, now: number) {
+    for (let i = 0; i < 14; i++) {
+      const t = i / 14, w = 8 + t * 34, yy = y - t * 70;
+      for (let j = 0; j < 3; j++) {
+        const a = now / 70 + i * 0.7 + j * 2.1;
+        ctx.globalAlpha = 0.5 + 0.4 * Math.sin(a);
+        ctx.fillStyle = j === 0 ? '#e8f0f8' : j === 1 ? '#a8c0d8' : '#6a8aa8';
+        ctx.fillRect(snap(x + Math.cos(a) * w), snap(yy), PIXEL * 2, PIXEL);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /** OVNI que se queda sobre un punto con su haz de abducción. */
   private ufoBeam(ev: FxEv) {
     const R = ev.r ?? 70, dur = ev.d ?? 1.5;
@@ -1596,6 +1695,39 @@ export class Effects {
         ctx.fillRect(snap(x + Math.cos(a) * rr), snap(y + Math.sin(a) * rr * 0.62), PIXEL, PIXEL);
       }
       ctx.globalAlpha = 1;
+    } else if (kind === 'quicksand') {
+      // arenas movedizas: arena tramada que gira hacia el centro
+      ctx.globalAlpha = 0.55 * fade;
+      ctx.fillStyle = '#a8844a';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c8a060';
+      ctx.beginPath(); ctx.ellipse(x, y, r * 0.7, r * 0.62 * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.85 * fade;
+      for (let arm = 0; arm < 5; arm++) for (let t = 0; t < 1; t += 0.05) {
+        const a = arm * (Math.PI * 2 / 5) + t * 5 - now / 500, rr = r * (1 - t) * 0.95;
+        ctx.fillStyle = (Math.floor(t * 20) + arm) % 2 ? '#7a5e34' : '#e0c080';
+        ctx.fillRect(snap(x + Math.cos(a) * rr), snap(y + Math.sin(a) * rr * 0.62), PIXEL, PIXEL);
+      }
+      ctx.globalAlpha = 0.8 * fade;
+      pixelEllipse(ctx, x, y, r, r * 0.62, '#7a5e34', 2);
+      ctx.globalAlpha = 1;
+    } else if (kind === 'laser') {
+      // láser del Protocolo de exterminio: rojo, con núcleo blanco que vibra
+      const ex = bx ?? x, ey = by ?? y;
+      const len = Math.hypot(ex - x, ey - y) || 1, ux = (ex - x) / len, uy = (ey - y) / len, nx = -uy, ny = ux;
+      const yo = -34;
+      for (const [k, col] of [[1, '#8a0a14'], [0.65, '#ff3040'], [0.3, '#fff0f0']] as [number, string][]) {
+        ctx.fillStyle = col;
+        for (let d = 0; d < len; d += PIXEL) {
+          const half = r * k * (0.8 + 0.2 * Math.sin(d / 14 - now / 30));
+          ctx.globalAlpha = (k === 1 ? 0.6 : 0.9) * fade;
+          for (let q = -half; q < half; q += PIXEL) ctx.fillRect(snap(x + ux * d + nx * q), snap(y + yo + uy * d + ny * q), PIXEL, PIXEL);
+        }
+      }
+      ctx.globalAlpha = fade;
+      pixelEllipse(ctx, ex, ey + yo, r * 0.8 + Math.sin(now / 40) * 4, r * 0.5, '#ffb0b0', 2);
+      if (Math.random() < 0.9) this.particles.push({ x: ex + (Math.random() - 0.5) * r, y: ey + yo, vx: (Math.random() - 0.5) * 200, vy: -40 - Math.random() * 150, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#ff3040' : '#ffe0a0', size: PIXEL, grav: 300, glow: true });
+      ctx.globalAlpha = 1;
     } else if (kind === 'portal') {
       // portal del osario: agujero oscuro con anillo de huesos y runas verdes que giran
       ctx.globalAlpha = 0.85 * fade;
@@ -1613,20 +1745,36 @@ export class Effects {
       for (let i = 0; i < 5; i++) { const t = (now / 900 + i / 5) % 1; ctx.globalAlpha = (1 - t) * fade; ctx.fillRect(snap(x + Math.cos(i * 2.3 + seed) * r * 0.3), snap(y - t * 40), PIXEL, PIXEL); }
       ctx.globalAlpha = 1;
     } else if (kind === 'lastspell') {
-      // fantasma del Nigromante y su largo rayo
-      const ex = bx ?? x, ey = by ?? y;
-      const fr = getFrame('monster', 'necro', 'classic', Anim.Cast, Math.floor(now / 120) % 4, 0, 1).base;
-      const w = SW * PIXEL, h = SH * PIXEL;
-      ctx.globalAlpha = (0.45 + Math.sin(now / 70) * 0.1) * fade;
-      ctx.drawImage(fr, snap(x - w / 2), snap(y - h + 9 - 10 - Math.sin(now / 300) * 4), w, h);
-      const n = Math.ceil(Math.hypot(ex - x, ey - (y - 30)) / PIXEL);
-      for (let i = 0; i < n; i++) {
-        const t = i / n, j = Math.sin(t * 30 - now / 40) * 3;
-        const px = x + (ex - x) * t, py = y - 30 + (ey - y + 30) * t + j;
-        ctx.globalAlpha = (0.6 + Math.random() * 0.4) * fade;
-        ctx.fillStyle = '#2a8a20'; ctx.fillRect(snap(px), snap(py) - PIXEL * 2, PIXEL, PIXEL * 5);
-        ctx.fillStyle = '#c0ff90'; ctx.fillRect(snap(px), snap(py), PIXEL, PIXEL);
+      // fantasma del Nigromante y su gran rayo (ancho, con núcleo blanco, chispas y runas)
+      const ex = bx ?? x, ey = by ?? y, oy = y - 30;
+      const fr = getFrame('monster', 'necro', 'classic', Anim.Cast, Math.floor(now / 120) % 4, 0, 3).base;
+      const w = SW * PIXEL * 1.15, h = SH * PIXEL * 1.15;
+      const bob = Math.sin(now / 300) * 4;
+      ctx.globalAlpha = (0.55 + Math.sin(now / 70) * 0.1) * fade;
+      ctx.drawImage(fr, snap(x - w / 2), snap(y - h + 9 - 14 - bob), w, h);
+      const len = Math.hypot(ex - x, ey - oy), ux = (ex - x) / (len || 1), uy = (ey - oy) / (len || 1), nx = -uy, ny = ux;
+      const W = r * 2 * (0.85 + Math.sin(now / 60) * 0.15);
+      const n = Math.ceil(len / PIXEL);
+      const layers: [number, string, number][] = [[1, '#1a5a10', 0.55], [0.72, '#3aa020', 0.8], [0.45, '#80ff60', 0.95], [0.2, '#f0ffe0', 1]];
+      for (const [k, col, al] of layers) {
+        ctx.fillStyle = col;
+        for (let i = 0; i < n; i += 1) {
+          const t = i / n, wob = Math.sin(t * 22 - now / 35) * W * 0.08 * (1 - k);
+          const half = (W * k) / 2 * (0.75 + 0.25 * Math.sin(t * 9 + now / 50));
+          const cx = x + ux * len * t + nx * wob, cy = oy + uy * len * t + ny * wob;
+          ctx.globalAlpha = al * fade * (t < 0.05 ? t * 20 : 1);
+          ctx.fillRect(snap(cx + nx * -half), snap(cy + ny * -half), PIXEL, PIXEL);
+          ctx.fillRect(snap(cx + nx * half), snap(cy + ny * half), PIXEL, PIXEL);
+          for (let q = -half; q < half; q += PIXEL) ctx.fillRect(snap(cx + nx * q), snap(cy + ny * q), PIXEL, PIXEL);
+        }
       }
+      // runas que viajan por el rayo y estallido en la punta
+      ctx.fillStyle = '#e0ffc0';
+      for (let k = 0; k < 6; k++) { const t = ((now / 500 + k / 6) % 1); ctx.globalAlpha = fade; pixelGlyph(ctx, GLYPHS[k % GLYPHS.length], x + ux * len * t - 4, oy + uy * len * t - 4, 1.5); }
+      ctx.globalAlpha = 0.8 * fade;
+      pixelEllipse(ctx, ex, ey, W * 0.7 + Math.sin(now / 40) * 6, W * 0.45, '#c0ff90', 2);
+      pixelEllipse(ctx, x, oy, 22 + Math.sin(now / 50) * 4, 14, '#80ff60', 2);
+      if (Math.random() < 0.8) this.particles.push({ x: ex + (Math.random() - 0.5) * W, y: ey + (Math.random() - 0.5) * W * 0.6, vx: (Math.random() - 0.5) * 160, vy: -60 - Math.random() * 120, life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#80ff60' : '#f0ffe0', size: PIXEL, grav: 200, glow: true });
       ctx.globalAlpha = 1;
     } else if (kind === 'radiation') {
       ctx.globalAlpha = 0.3 * fade;

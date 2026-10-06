@@ -755,28 +755,35 @@ const demonForm: FormFn = (b, p, c, anim, tier) => {
 };
 
 const slimeForm: FormFn = (b, p, c, anim, tier) => {
-  // Baba: gota gelatinosa que rebota; se aplasta al caer y se estira al saltar
+  // Baba: cubo gelatinoso (vista 3/4) que rebota; se aplasta al caer y se estira al saltar
   const sw = p.sway ?? 0;
   const squash = anim === Anim.Walk ? (p.by < 0 ? -2 : 1) : anim === Anim.Attack ? 1 : 0;
-  const top = 10 - squash * 2 + Math.max(0, -p.by), hw = 8 + squash;
-  for (let y = top; y <= FLOOR; y++) {
-    const t = (y - top) / (FLOOR - top);
-    const half = Math.round(hw * Math.sqrt(Math.min(1, 0.25 + t * 1.6)) * (t > 0.85 ? 1 - (t - 0.85) * 1.2 : 1));
-    b.rect(12 - half, y, half * 2, 1, t < 0.25 ? c.hair : t > 0.75 ? c.cloth : c.skin);
-  }
-  // brillos y burbujas dentro
-  b.rect(8, top + 2, 2, 2, '#ffffff', false); b.set(10, top + 1, c.accent, false, true);
-  for (const [x, y] of [[14, 22], [9, 25], [16, 27], [11, 19]]) b.set(x, y, c.accent, false, true);
+  const w = 15 + squash * 2, h = 15 - squash * 2 + Math.max(0, -p.by), d = 4;
+  const left = 12 - Math.round((w + d) / 2), top = FLOOR + 1 - h;
+  const front = c.skin, side = shade(c.skin, -0.22), lid = c.hair, edge = shade(c.hair, 0.25);
+  // cara superior (paralelogramo hacia arriba y a la derecha)
+  for (let i = 0; i < d; i++) b.rect(left + i + 1, top - 1 - i, w, 1, lid);
+  b.line(left + d, top - d, left + w + d - 1, top - d, edge);
+  // cara lateral (derecha, en sombra)
+  for (let i = 0; i < d; i++) b.rect(left + w + i, top - i, 1, h, side);
+  // cara frontal con la parte de abajo más densa
+  b.rect(left, top, w, h, front);
+  b.rect(left, top + h - 3, w, 3, c.cloth);
+  b.line(left, top, left + w - 1, top, edge); // arista superior iluminada
+  b.line(left, top, left, top + h - 1, shade(front, 0.15));
+  // brillo y burbujas dentro de la gelatina
+  b.rect(left + 2, top + 2, 2, 2, '#ffffff'); b.set(left + 4, top + 1, c.accent, false, true);
+  for (const [x, y] of [[w - 4, h - 6], [3, h - 4], [w - 2, h - 9], [6, 6]]) b.set(left + x, top + y, c.accent, false, true);
   // goterones en la base
-  b.set(4 - sw % 2, FLOOR, c.cloth); b.set(20 + sw % 2, FLOOR, c.cloth);
+  b.set(left - 1 - (sw % 2), FLOOR, c.cloth); b.set(left + w + d - 1 + (sw % 2), FLOOR, c.cloth);
   // cara
-  const ex = 13 + (p.lean ?? 0), ey = top + 7;
+  const ex = left + Math.round(w / 2) - 2 + (p.lean ?? 0), ey = top + Math.max(3, Math.round(h * 0.3));
   if (!p.blink) { b.rect(ex, ey, 2, 3, c.eye); b.rect(ex + 4, ey, 2, 3, c.eye); b.set(ex, ey, '#ffffff', false, true); b.set(ex + 4, ey, '#ffffff', false, true); }
   else { b.rect(ex, ey + 1, 2, 1, c.eye); b.rect(ex + 4, ey + 1, 2, 1, c.eye); }
   if (p.mouth) b.rect(ex + 1, ey + 5, 4, 2, c.eye); else b.rect(ex + 1, ey + 5, 4, 1, c.eye);
   if (tier >= 1) b.set(ex + 5, ey, c.accent, true);
-  if (tier >= 2) for (const [x, y] of [[9, 25], [16, 27]]) b.set(x, y, c.accent, true); // núcleo que brilla
-  if (tier >= 3) { b.rect(10, top - 2, 1, 2, c.hair); b.set(10, top - 3, c.accent, true); b.rect(14, top - 1, 1, 1, c.hair); } // antenitas de baba
+  if (tier >= 2) for (const [x, y] of [[3, h - 4], [w - 4, h - 6]]) b.set(left + x, top + y, c.accent, true); // núcleo que brilla
+  if (tier >= 3) { b.rect(left + d + 3, top - d - 2, 1, 2, lid); b.set(left + d + 3, top - d - 3, c.accent, true); b.rect(left + w, top - d - 1, 1, 1, lid); } // antenitas de baba
 };
 
 const alienForm: FormFn = (b, p, c, _anim, tier) => {
@@ -1110,6 +1117,162 @@ function drawGravedigger(b: PB, p: Pose) {
   b.set(hx - 1, hy, skinD); b.set(hx, hy + 1, skinD); // dedos largos
 }
 
+
+const wormForm: FormFn = (b, p, c, anim, tier) => {
+  // Gusarena: gusano colosal que asoma de la arena; cuerpo grueso y anillado, placas en el lomo y una boca redonda llena de dientes
+  const by = p.by, sw = p.sway ?? 0;
+  const open = anim === Anim.Attack || anim === Anim.Cast || !!p.mouth;
+  const topY = 12 + by;
+  const belly = shade(c.skin, 0.18), back = shade(c.skin, -0.18), ring = shade(c.skin, -0.32);
+  for (let y = FLOOR - 1; y >= topY; y--) {
+    const t = (FLOOR - 1 - y) / (FLOOR - 1 - topY);
+    const cx = 11 + Math.round(Math.sin(t * 2.2 + sw * 0.5) * 1.5 + t * 2);
+    const half = Math.round(8.5 - t * 2.5);
+    const isRing = (y - by) % 5 === 0;
+    b.rect(cx - half, y, half * 2 + 1, 1, isRing ? ring : c.skin);
+    if (!isRing) { b.rect(cx - half, y, 2, 1, back); b.rect(cx + half - 2, y, 3, 1, belly); } // lomo en sombra, vientre claro
+    if ((y - by) % 5 === 2) { b.set(cx - half - 1, y, c.cloth); b.set(cx - half, y - 1, c.cloth); } // placas dorsales
+  }
+  // cabeza: más ancha que el cuello, inclinada hacia delante
+  const hx = 14 + (p.lean ?? 0), hy = topY - 1;
+  b.ellipse(hx, hy, 7, 6, c.skin); b.ellipse(hx - 3, hy - 3, 4, 2, c.hair); b.rect(hx - 6, hy + 3, 8, 1, ring);
+  for (const [x, y] of [[-6, -2], [-5, -5], [-2, -6]]) b.set(hx + x, hy + y, c.cloth); // púas de la nuca
+  if (open) {
+    b.ellipse(hx + 4, hy + 1, 4, 5, '#1a0606'); b.ellipse(hx + 4, hy + 1, 2, 3, '#4a0a0a');
+    b.set(hx + 4, hy + 1, c.accent, true); b.set(hx + 5, hy + 2, c.accent, true);
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; b.set(hx + 4 + Math.round(Math.cos(a) * 4.2), hy + 1 + Math.round(Math.sin(a) * 5.2), '#f0e8d0'); }
+  } else {
+    b.rect(hx + 3, hy - 2, 4, 6, c.hair); // labios cerrados en cruz
+    b.line(hx + 3, hy + 1, hx + 7, hy + 1, ring); b.line(hx + 5, hy - 2, hx + 5, hy + 4, ring);
+    for (const [x, y] of [[7, -1], [7, 3], [4, -3], [4, 5]]) b.set(hx + x, hy + y, '#f0e8d0');
+  }
+  if (!p.blink) for (const [x, y] of [[-1, -3], [1, -4], [-3, -2]]) b.set(hx + x, hy + y, c.eye, true); // ojillos
+  // arena que se abre alrededor de la base
+  for (let x = 0; x < 24; x++) { const h = 1 + ((x * 7 + sw) % 3 === 0 ? 1 : 0) + (x > 3 && x < 20 ? 1 : 0); b.rect(x, FLOOR + 1 - h, 1, h, x % 3 ? '#c8a060' : '#a8844a'); }
+  if (tier >= 2) for (const [x, y] of [[8, 20], [12, 26]]) b.set(x, y + by, c.accent, true);
+  if (tier >= 3) for (let i = 0; i < 3; i++) b.set(hx - 5 + i * 2, hy - 7, c.accent, true); // cresta que brilla
+};
+
+/** Dinozombie: raptor, tricerátops, pterodáctilo y huevo (la forma la decide el servidor). */
+const dinoRaptor: FormFn = (b, p, c, anim, tier) => {
+  const by = p.by, run = p.ll[0] !== 0 || p.rl[0] !== 0;
+  const skin = c.skin, dark = shade(c.skin, -0.3);
+  // cola hacia atrás
+  b.line(2, 15 + by - (p.sway ?? 0) % 2, 8, 17 + by, dark); b.line(1, 14 + by, 8, 16 + by, skin);
+  // patas traseras con garra
+  const leg = (x: number, d: number, col: string) => { b.line(x, 20 + by, x + d, 25, col); b.line(x + d, 25, x + d - 1, 30, col); b.rect(x + d - 1, 30, 3, 1, '#2a2018'); b.set(x + d + 2, 29, '#e8e0c8'); };
+  leg(9, run ? -2 : 0, dark); leg(12, run ? 2 : 0, skin);
+  // cuerpo inclinado y costillas al aire
+  b.ellipse(12, 17 + by, 6, 4, skin); b.rect(10, 16 + by, 5, 3, c.cloth);
+  for (const x of [10, 12, 14]) b.line(x, 16 + by, x, 18 + by, '#e8e0c8');
+  // cuello y cabeza alargada
+  b.line(16, 15 + by, 18, 10 + by, skin); b.line(17, 15 + by, 19, 10 + by, skin);
+  const hx = 17 + (p.lean ?? 0), hy = 7 + by;
+  b.rect(hx, hy, 6, 3, skin); b.rect(hx + 1, hy - 1, 3, 1, c.hair);
+  b.rect(hx + 2, hy + 3, 4, p.mouth || anim === Anim.Attack ? 2 : 1, p.mouth || anim === Anim.Attack ? '#4a0a0a' : dark);
+  if (p.mouth || anim === Anim.Attack) { b.set(hx + 3, hy + 3, '#f0e8d0'); b.set(hx + 5, hy + 3, '#f0e8d0'); }
+  b.set(hx + 2, hy + 1, c.eye, true);
+  // bracitos
+  b.line(15, 17 + by, 17, 19 + by + Math.round(Math.cos(p.ra)), dark); b.set(17, 20 + by, '#e8e0c8');
+  b.set(12, 14 + by, c.accent); b.set(9, 18 + by, c.accent); // heridas
+  if (tier >= 1) b.set(hx + 3, hy + 1, c.eye, true);
+  if (tier >= 3) for (const x of [9, 11, 13]) b.set(x, 12 + by, c.accent, true); // púas que brillan
+};
+const dinoTrike: FormFn = (b, p, c, anim, tier) => {
+  const by = p.by + 1, step = (p.ll[0] !== 0 ? 1 : 0);
+  const skin = c.skin, dark = shade(c.skin, -0.3);
+  b.line(1, 20 + by, 5, 19 + by, dark); // cola corta
+  b.ellipse(10, 20 + by, 8, 6, skin); b.rect(4, 22 + by, 13, 2, dark);
+  for (const [x, d] of [[4, step], [8, -step], [13, step], [16, -step]]) { b.rect(x + d, 25 + by, 3, 6 - by, x % 2 ? dark : skin); b.rect(x + d, 30, 3, 1, '#2a2018'); }
+  // gola enorme, cuernos y pico
+  const hx = 16 + (p.lean ?? 0), hy = 14 + by;
+  b.ellipse(hx - 1, hy - 3, 4, 6, c.hair); b.ellipse(hx - 1, hy - 3, 3, 5, c.cloth);
+  for (const [x, y] of [[-3, -7], [-1, -8], [1, -7]]) b.set(hx + x, hy + y, '#e8e0c8'); // borde óseo
+  b.rect(hx, hy, 6, 4, skin); b.rect(hx + 5, hy + 2, 2, 2, '#c0a880'); // pico
+  b.line(hx + 2, hy, hx + 7, hy - 4, '#f0e8d0'); b.line(hx + 4, hy, hx + 8, hy - 3, '#f0e8d0'); b.set(hx + 6, hy + 1, '#f0e8d0'); // cuernos
+  if (anim === Anim.Attack) { b.set(hx + 8, hy - 5, '#ffffff', true); b.set(hx + 9, hy - 4, '#ffffff', true); }
+  b.set(hx + 2, hy + 1, c.eye, true);
+  for (const x of [7, 10, 13]) b.line(x, 18 + by, x, 21 + by, '#e8e0c8'); // costillas
+  b.set(9, 17 + by, c.accent);
+  if (tier >= 3) for (const x of [7, 11]) b.set(x, 15 + by, c.accent, true);
+};
+const dinoPtero: FormFn = (b, p, c, anim, tier) => {
+  const by = p.by - 2, flap = (p.sway ?? 0) % 2 || anim === Anim.Attack ? 1 : 0;
+  const skin = c.skin, wing = c.cloth, dark = shade(c.skin, -0.3);
+  // alas membranosas (arriba o abajo según el aleteo)
+  for (let i = 0; i < 10; i++) {
+    const yy = flap ? 12 + by - Math.round(i * 0.6) : 14 + by + Math.round(i * 0.4);
+    b.line(11 - i, yy, 11 - i, yy + 4 - Math.round(i * 0.35), i % 3 === 0 ? dark : wing);
+    b.line(13 + i, yy, 13 + i, yy + 4 - Math.round(i * 0.35), i % 3 === 0 ? dark : wing);
+  }
+  b.line(1, flap ? 6 + by : 18 + by, 11, 12 + by, dark); b.line(23, flap ? 6 + by : 18 + by, 13, 12 + by, dark); // huesos del ala
+  // cuerpo y patitas recogidas
+  b.ellipse(12, 15 + by, 2, 4, skin); b.set(11, 20 + by, dark); b.set(13, 20 + by, dark);
+  // cabeza con cresta y pico largo
+  const hx = 13 + (p.lean ?? 0), hy = 9 + by;
+  b.rect(hx, hy, 4, 3, skin); b.line(hx - 1, hy, hx - 4, hy - 3, c.hair); b.line(hx, hy - 1, hx - 3, hy - 4, c.hair);
+  b.line(hx + 3, hy + 1, hx + 8, hy + 2, '#c0a060'); b.line(hx + 3, hy + 2, hx + (p.mouth ? 7 : 8), hy + (p.mouth ? 4 : 2), '#a08040');
+  b.set(hx + 1, hy + 1, c.eye, true);
+  b.set(12, 14 + by, '#e8e0c8'); b.set(12, 16 + by, '#e8e0c8'); // costillas
+  if (tier >= 3) b.set(hx - 4, hy - 3, c.accent, true);
+};
+const dinoEgg: FormFn = (b, _p, c) => {
+  b.ellipse(12, 24, 6, 7, '#e8e0c8'); b.ellipse(11, 22, 3, 3, '#f8f4e8');
+  for (const [x, y] of [[9, 26], [14, 21], [15, 27], [10, 20], [13, 29]]) b.set(x, y, c.skin);
+  b.line(8, 24, 11, 22, '#7a6a50'); b.line(11, 22, 13, 25, '#7a6a50'); // grieta
+  b.rect(4, 30, 16, 2, '#3a2a1a');
+};
+export const DINO_FORMS = [dinoRaptor, dinoTrike, dinoPtero, dinoEgg];
+
+const r800Form: FormFn = (b, p, c, anim, tier) => {
+  // R-800: androide blindado, casco liso con visor horizontal, núcleo en el pecho y cañón en el antebrazo
+  const by = p.by;
+  const metal = c.skin, plate = c.cloth, dark = c.cloth2;
+  arm(b, 10, 13 + by, p.la, 7, shade(plate, -0.2), metal, 3);
+  legs(b, p, dark, plate, '#141418', { width: 4, boots: shade(metal, -0.3) });
+  torso(b, by, plate, { x: 7, w: 10, top: 11 });
+  b.rect(8, 13 + by, 8, 4, metal); b.rect(9, 14 + by, 6, 2, shade(metal, -0.15)); // peto
+  b.rect(11, 14 + by, 2, 2, c.accent, true); // núcleo
+  b.line(8, 18 + by, 15, 18 + by, dark); b.line(9, 20 + by, 14, 20 + by, dark); // placas abdominales
+  b.rect(5, 11 + by, 4, 3, metal); b.rect(15, 11 + by, 4, 3, metal); // hombreras
+  // casco liso con visor
+  const X = 7 + (p.lean ?? 0), Y = 1 + by;
+  b.rect(X + 1, Y + 1, 9, 9, metal); b.rect(X, Y + 2, 11, 6, metal); b.rect(X + 2, Y, 7, 1, shade(metal, 0.2));
+  b.rect(X + 3, Y + 4, 8, 2, '#100c10'); b.rect(X + 4, Y + 4, 6, 1, c.eye, true); // visor
+  if (!p.blink) b.set(X + 9, Y + 5, c.eye, true);
+  b.rect(X + 4, Y + 8, 5, 1, dark); for (const x of [5, 7]) b.set(X + x, Y + 8, shade(metal, 0.25)); // rejilla
+  b.rect(X, Y + 3, 2, 3, dark); b.set(X, Y + 4, c.accent, tier >= 1); // oreja-antena
+  if (tier >= 2) b.set(X + 2, Y, c.accent, true);
+  if (tier >= 3) for (const [x, y] of [[6, 16], [17, 16]]) b.set(x, y + by, c.accent, true);
+  // brazo con cañón integrado
+  arm(b, 14, 13 + by, p.ra, 7, plate, metal, 3);
+  const hx = 14 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
+  b.rect(hx, hy - 1, 4, 2, dark); b.set(hx + 4, hy - 1, anim === Anim.Attack ? '#ffe080' : '#3a3a40', anim === Anim.Attack);
+};
+
+const huntressForm: FormFn = (b, p, c, anim, tier) => {
+  // La Cazadora: capa con capucha echada, coleta, armadura de cuero, cinturón de virotes y ballesta
+  const by = p.by, sw = p.sway ?? 0;
+  b.rect(6 - (sw % 2), 13 + by, 3, 12, c.cloth2); for (const y of [22, 24]) b.clear(6 - (sw % 2), y + by); // capa
+  arm(b, 10, 13 + by, p.la, 7, shade(c.cloth, -0.2), c.skin, 2, true);
+  legs(b, p, shade(c.cloth2, -0.1), c.cloth2, '#1a1410', { boots: '#3a2a1a' });
+  torso(b, by, c.cloth);
+  b.line(8, 12 + by, 15, 19 + by, '#5a3a20'); // bandolera
+  for (const k of [0, 2, 4]) b.set(9 + k, 13 + by + k, '#e0e0e8', false, true); // virotes
+  b.rect(8, 19 + by, 8, 1, '#2a1a10'); b.set(12, 19 + by, c.accent, false, true);
+  humanHead(b, p, { skin: c.skin, hair: c.hair, eye: c.eye, style: 'ponytail' });
+  const X = 7 + (p.lean ?? 0), Y = 2 + by;
+  b.rect(X - 1, Y + 9, 6, 2, c.cloth2); // capucha echada
+  b.line(X + 6, Y + 7, X + 9, Y + 7, shade(c.skin, -0.25)); // cicatriz
+  if (tier >= 1) b.set(X + 1, Y - 1, c.accent); // pluma
+  if (tier >= 3) { b.set(X + 1, Y - 2, c.accent, true); b.set(X, Y - 3, c.accent); }
+  // ballesta
+  const hx = 13 + Math.sin(p.ra) * 6, hy = 13 + by + Math.cos(p.ra) * 6;
+  arm(b, 13, 13 + by, p.ra, 6, c.cloth, c.skin, 2, true);
+  b.rect(hx, hy - 1, 7, 2, '#6a4020'); b.set(hx + 7, hy - 1, '#d0d0e0', false, true);
+  b.line(hx + 4, hy - 5, hx + 4, hy + 3, '#3a2a1a'); b.line(hx + 4, hy - 5, hx + 1, hy - 1, anim === Anim.Attack ? '#ffffff' : '#c0b090'); b.line(hx + 4, hy + 3, hx + 1, hy, anim === Anim.Attack ? '#ffffff' : '#c0b090');
+};
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -1178,6 +1341,7 @@ export const FORMS: Record<CharacterId, FormFn> = {
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
   succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm, slime: slimeForm, alien: alienForm, static: staticForm, kappa: kappaForm,
   reaper: reaperForm, unit: unitForm, necro: necroForm,
+  worm: wormForm, dino: dinoRaptor, r800: r800Form, huntress: huntressForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -1186,7 +1350,7 @@ export const FORMS: Record<CharacterId, FormFn> = {
 const SKIN_TONES = ['#f2c8a0', '#e0a882', '#c08560', '#8d5a3c', '#5e3a26', '#f5d5b8'];
 const HAIR = ['#2a1a10', '#5a3418', '#d8b050', '#141414', '#9a3a1a', '#8a8a8a', '#e8d8a0', '#3a2a50'];
 
-export type Held = 'none' | 'flashlight' | 'torch' | 'cross' | 'candle' | 'pitchfork' | 'lantern' | 'shovel';
+export type Held = 'none' | 'flashlight' | 'torch' | 'cross' | 'candle' | 'pitchfork' | 'lantern' | 'shovel' | 'bow';
 
 interface NpcLook {
   top: string; top2: string; legs: string; shoe: string;
@@ -1258,6 +1422,7 @@ function heldItem(b: PB, held: Held, hx: number, hy: number) {
     case 'cross': b.rect(hx + 1, hy - 4, 1, 6, '#e0c040', true); b.rect(hx, hy - 3, 3, 1, '#e0c040', true); break;
     case 'candle': b.rect(hx, hy - 3, 2, 3, '#f0e8d0'); b.set(hx, hy - 4, '#ffd040', true); b.set(hx, hy - 5, '#fff0a0', true); break;
     case 'shovel': b.line(hx - 1, hy + 4, hx + 2, hy - 8, '#6a4a28'); b.rect(hx + 1, hy - 12, 3, 4, '#8a8a94'); b.set(hx + 2, hy - 12, '#c0c0c8'); break;
+    case 'bow': b.line(hx + 1, hy - 6, hx + 3, hy, '#6a4a28'); b.line(hx + 3, hy, hx + 1, hy + 6, '#6a4a28'); b.line(hx + 1, hy - 6, hx + 1, hy + 6, '#d0c8b0'); b.set(hx + 4, hy, '#c0c0c8'); break;
     case 'lantern': b.rect(hx, hy + 1, 3, 4, '#3a3020'); b.set(hx + 1, hy + 2, '#ffc040', true); b.set(hx + 1, hy + 3, '#ffe080', true); b.set(hx + 1, hy, '#3a3020'); break;
   }
 }
@@ -1267,7 +1432,11 @@ const ZOMBIE_SKIN: Record<ZombieKind, string> = { normal: '#6a9a50', fast: '#9aa
 
 function drawNpc(b: PB, p: Pose, variant: string, seed: number, zombie?: ZombieKind, anim: Anim = Anim.Idle) {
   if (variant === 'gravedigger' && !zombie) { drawGravedigger(b, p); return; }
+  // humanos armados por la Cazadora: 'teen#torch'
+  const [base, forced] = variant.split('#');
+  variant = base;
   const n = npcLook(variant, seed);
+  if (forced) n.held = forced as Held;
   if (zombie && (anim === Anim.Idle || anim === Anim.Walk)) p = { ...p, la: 1.35 + p.la * 0.2, ra: 1.5 + p.ra * 0.2, mouth: true };
   const L = n.L, by = p.by;
   const skin = zombie ? mix(n.skin, ZOMBIE_SKIN[zombie] ?? ZOMBIE_SKIN.normal, 0.65) : n.skin;
@@ -1465,8 +1634,10 @@ export function getFrame(kind: 'monster' | 'npc' | 'hunter' | 'zombie', variant:
   const pose = def.frames[frame % def.frames.length];
   const b = new PB(SW, SH);
   if (kind === 'monster') {
-    const ch = variant as CharacterId;
-    (FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim, tier);
+    // Dinozombie: 'dino0'..'dino3' = raptor, tricerátops, pterodáctilo, huevo
+    const dinoForm = /^dino[0-3]$/.test(variant) ? +variant[4] : -1;
+    const ch = (dinoForm >= 0 ? 'dino' : variant) as CharacterId;
+    (dinoForm >= 0 ? DINO_FORMS[dinoForm] : FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim, tier);
   } else if (kind === 'hunter') drawHunterType(b, pose, variant);
   else if (kind === 'zombie') drawNpc(b, pose, variant, sd, (skin as ZombieKind) || 'normal', anim);
   else drawNpc(b, pose, variant, sd);
@@ -1528,6 +1699,8 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   eye: { art: ['.www.', 'wpPpw', 'wPkPw', 'wpPpw', '.www.'], pal: { w: '#f4f0f8', p: '#ff40c0', P: '#ff90e0', k: '#100810' }, glow: 'P' },
   orb: { art: ['..ggg..', '.gkkkg.', 'gkGWGkg', 'gkWWWkg', 'gkGWGkg', '.gkkkg.', '..ggg..'], pal: { g: '#3a1a4a', k: '#1a0a24', G: '#80ff60', W: '#e0ffc0' }, glow: 'W' },
   bonearrow: { art: ['b.......', 'bbsssssp', 'b.......'], pal: { b: '#d8d0c0', s: '#a89880', p: '#e8e8f0' } },
+  egg: { art: ['.www.', 'wWwsw', 'wwsww', 'swwww', '.wws.'], pal: { w: '#e8e0c8', W: '#ffffff', s: '#6a8a4a' } },
+  bullet: { art: ['yyyY'], pal: { y: '#ffb030', Y: '#ffffe0' }, glow: 'Y' },
   bolt: { art: ['.......s.', 'bbbbbbbss', 'fbbbbbbss', '.......s.'], pal: { b: '#8a5a2a', s: '#e0e0f0', f: '#c03030' } },
 };
 

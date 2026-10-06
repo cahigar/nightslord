@@ -14,9 +14,14 @@ export function showSpriteSheet() {
     for (const s of SKINS[c]) rows.push({ label: `${c}/${s.id}`, kind: 'monster', variant: c, skin: s.id });
     for (const t of [1, 2, 3]) rows.push({ label: `${c} nv${[5, 10, 15][t - 1]}`, kind: 'monster', variant: c, skin: 'classic', tier: t });
   }
+  for (const f of [1, 2, 3]) rows.push({ label: `dino forma ${f}`, kind: 'monster', variant: `dino${f}`, skin: 'classic' });
+  for (const v of ['teen#torch', 'villager#pitchfork', 'camper#bow']) rows.push({ label: v, kind: 'npc', variant: v, skin: '', seed: 7 });
   for (const t of ['cazador', 'inquisidor', 'exorcista', 'sectario', 'heraldo']) rows.push({ label: t, kind: 'hunter', variant: t, skin: '' });
   for (const [i, v] of (['normal', 'fast', 'tough', 'fat'] as const).entries()) rows.push({ label: `zombi ${v}`, kind: 'zombie', variant: ['camper', 'teen', 'jock', 'villager'][i], skin: v, seed: i * 17 + 3 });
   for (const [i, v] of ['teen', 'teen', 'neighbor', 'jock', 'nerd', 'villager', 'villager', 'priest', 'maid', 'camper', 'camper', 'counselor'].entries()) rows.push({ label: v, kind: 'npc', variant: v, skin: '', seed: i * 13 + 5 });
+  // filtro opcional: #sprites=worm,dino → solo esas filas
+  const only = decodeURIComponent(location.hash.split('=')[1] ?? '').split(',').filter(Boolean);
+  if (only.length) rows.splice(0, rows.length, ...rows.filter((r) => only.some((o) => r.label.startsWith(o))));
   const cols = ANIM_NAMES.reduce((a, [an]) => a + ANIMS[an].frames.length, 0);
   const cw = SW * S + 4, ch = SH * S + 4;
   const cv = document.createElement('canvas');

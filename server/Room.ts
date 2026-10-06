@@ -42,12 +42,12 @@ const MINION_STATS: Record<MinionVariant, { hp: number; speed: number; dmg: numb
   digger: ITEMS.digger,
   barrel: plant(1), buccaneer: BAL.pirate.buccaneer, spiderling: BAL.spider.spiderling,
   decoy: plant(BAL.scarecrow.decoy.hp), slimelet: BAL.slime.slimelet, beacon: plant(BAL.alien.beacon.hp),
-  skel: BAL.necro.skel, skelarcher: BAL.necro.archer, skeldog: BAL.necro.dog, unit: BAL.unit.drone, unitfree: BAL.unit.freeDrone,
+  skel: BAL.necro.skel, skelarcher: BAL.necro.archer, skeldog: BAL.necro.dog, unit: BAL.unit.drone, unitfree: BAL.unit.freeDrone, militia: BAL.huntress.militia,
 };
 /** Radio de los esbirros que no tienen el de un humano. */
 const MINION_R: Partial<Record<MinionVariant, number>> = { wall: TR.wall.r, turret: TR.turret.r, flower: TR.flower.r, barrel: 14, spiderling: 9, slimelet: 12, beacon: 12, decoy: PLAYER_RADIUS, fat: 18, tough: 16, skeldog: 12 };
 /** Esbirros con su propio tope (no cuentan con la horda de zombis). */
-const OWN_GROUP = new Set<MinionVariant>(['clone', 'digger', 'wall', 'turret', 'flower', 'barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon', 'skel', 'skelarcher', 'skeldog', 'unit', 'unitfree']);
+const OWN_GROUP = new Set<MinionVariant>(['clone', 'digger', 'wall', 'turret', 'flower', 'barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon', 'skel', 'skelarcher', 'skeldog', 'unit', 'unitfree', 'militia']);
 /** Grupo con tope común (los tres tipos de esqueleto comparten tope). */
 const capGroup = (v: MinionVariant) => (v === 'skel' || v === 'skelarcher' || v === 'skeldog' ? 'skel' : OWN_GROUP.has(v) ? v : 'horde');
 /** Esbirro inmóvil (planta): no le afectan empujones, rabia, engatusar ni maleficios. */
@@ -187,6 +187,7 @@ export class Room {
       lastAttacker: '', allies: new Set(),
     };
     p.maxHp = p.hp = this.calcMaxHp(p);
+    if (def.radius) p.r = def.radius;
     this.players.set(conn.id, p);
     return p;
   }
@@ -1049,8 +1050,9 @@ export class Room {
       this.forEachEnemyNear(p, p.x, p.y, p.r + 26, (m) => {
         if (dash.hit.has(m.id)) return;
         dash.hit.add(m.id);
-        this.damage(m, this.calcDamage(p, dash.dmg), this.src(p));
+        if (dash.dmg > 0) this.damage(m, this.calcDamage(p, dash.dmg), this.src(p));
         this.knockback(m, dash.dx, dash.dy, dash.knock);
+        if (dash.stun) m.stunT = Math.max(m.stunT, dash.stun);
       });
       dash.t -= dt;
       if (dash.t <= 0 || res.hit) p.dash = null;
@@ -1066,7 +1068,7 @@ export class Room {
       if (p.flyT <= 0 && p.phaseT <= 0) {
         p.flyT = 0; p.phaseT = 0;
         if (this.grid.blocked(p.x, p.y, p.r, walksWater(p))) { const f = this.findFreeSpot(p.x, p.y, p.r); p.x = f.x; p.y = f.y; }
-        this.fx(phased ? 'phase' : p.def.id === 'succubus' ? 'wings' : 'broom', p.x, p.y, { o: p.id, n: 0 });
+        this.fx(phased ? 'phase' : p.def.id === 'succubus' || p.def.id === 'dino' ? 'wings' : 'broom', p.x, p.y, { o: p.id, n: 0 });
       }
     } else if (!locked) {
       const sp = this.calcSpeed(p);
@@ -1157,6 +1159,7 @@ export class Room {
     if (m.entombT > 0) {
       if (!src.player || src.player.id !== m.entombBy) return 0;
     }
+    if (src.hunter && m.kind === Kind.Player && (m as Player).char === 'huntress') return 0; // la orden no hiere a la Cazadora
     if (src.player && !src.minion && !src.raw) amount = KITS[src.player.char].onDealDamage?.(this, src.player, m, amount) ?? amount;
     // debilitado (zona contaminada)
     const atk: Mob | undefined = src.minion ?? src.player ?? src.hunter;
@@ -1521,7 +1524,7 @@ export class Room {
   }
 
   private hiddenPlayer(p: Player) {
-    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0 || p.phaseT > 0 || this.isHiddenGuise(p);
+    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0 || p.phaseT > 0 || this.isHiddenGuise(p) || p.char === 'huntress'; // la orden no ataca a la Cazadora
   }
 
   /** Elige objetivo. Los zombis cercanos van primero (si no, el Paciente Cero los farmea con su horda). */
@@ -1529,7 +1532,7 @@ export class Room {
     const PR = ORDER.minionPriorityR;
     let best: Mob | null = null, bd = PR * PR;
     for (const m of this.minions.values()) {
-      if (m.dead || m.entombT > 0 || m.camo) continue;
+      if (m.dead || m.entombT > 0 || m.camo || m.variant === 'militia') continue;
       const d = dist2(h.x, h.y, m.x, m.y);
       if (d < bd) { bd = d; best = m; }
     }
@@ -1859,8 +1862,9 @@ export class Room {
         if (t.kind === Kind.Npc && (t as Npc).infectT > 0) return; // ya es de la horda
         if (m.variant === 'thrall' && t.kind === Kind.Npc && (t as Npc).disguiseT <= 0) return; // los siervos de la súcubo van a por cazadores y monstruos
         if (m.variant === 'fat' && t.kind !== Kind.Player && t.kind !== Kind.Hunter) return;
+        if (m.variant === 'militia' && (t.kind === Kind.Npc || t.kind === Kind.Hunter || (t.kind === Kind.Minion && (t as Minion).variant === 'militia'))) return; // la milicia solo va a por monstruos
         const d = dist2(cx, cy, t.x, t.y);
-        if (d < R * R && d < bd && (meat || m.variant === 'unitfree' || dist2(owner.x, owner.y, t.x, t.y) < leash2)) { bd = d; best = t; }
+        if (d < R * R && d < bd && (meat || m.variant === 'unitfree' || m.variant === 'militia' || dist2(owner.x, owner.y, t.x, t.y) < leash2)) { bd = d; best = t; }
       };
       for (const n of this.npcs.values()) if (!isCritter(n) || m.variant === 'skeldog') consider(n);
       for (const h of this.hunters.values()) consider(h);
@@ -1889,7 +1893,7 @@ export class Room {
     }
     if (t && !t.dead) { tx = t.x; ty = t.y; }
     else if (meat && dist2(m.x, m.y, meat.ax, meat.ay) < ZB.meatPullR ** 2) { tx = meat.ax; ty = meat.ay; speed *= 1.2; }
-    else if (m.variant === 'unitfree') {
+    else if (m.variant === 'unitfree' || m.variant === 'militia') {
       // Unidad independiente: recorre el mapa por libre
       if (m.wx === undefined || m.wy === undefined || dist2(m.x, m.y, m.wx, m.wy) < 40 * 40 || Math.random() < 0.004) {
         const f = this.findSpawn(0, m.r + 2); m.wx = f.x; m.wy = f.y;
@@ -1918,6 +1922,7 @@ export class Room {
           this.setAnim(m, Anim.Attack, 0.3);
           this.damage(t, this.calcDamage(owner, MINION_STATS[m.variant].dmg), { player: owner, minion: m, name: owner.name, kind: Kind.Player });
           KITS[owner.char].onMinionHit?.(this, owner, m, t);
+          if (m.hits !== undefined && --m.hits <= 0) { m.life = 0; } // se deshace tras sus ataques
           this.sfx(m.variant === 'clone' ? 'glass' : m.variant === 'thrall' || m.variant === 'digger' ? 'punch' : 'bite', m.x, m.y);
           if (m.variant === 'clone') this.fx('shards', t.x, t.y, { n: 4 });
         }
@@ -2091,7 +2096,7 @@ export class Room {
     if (this.tick % 10 === 0) for (const z of this.zones) if (z.kind === 'fire') this.ignite(z.ax, z.ay, z.w / 2, z.owner);
     const V = BAL.vampire;
     for (const z of this.zones) {
-      if (z.kind === 'meat' || z.kind === 'ritual' || z.kind === 'mirror' || z.kind === 'nail' || z.kind === 'portal') continue;
+      if (z.kind === 'meat' || z.kind === 'ritual' || z.kind === 'mirror' || z.kind === 'nail' || z.kind === 'portal' || z.kind === 'laser') continue;
       if (z.kind === 'lastspell') { this.lastSpell(z); continue; }
       const owner = this.findPlayerById(z.owner);
       const inside = (m: Mob) => distToSegment(m.x, m.y, z.ax, z.ay, z.bx, z.by) < z.w / 2 + (z.kind === 'puddle' ? 0 : m.r);
@@ -2124,10 +2129,26 @@ export class Room {
           const res = this.grid.move(m.x, m.y, (dx / d) * pull - (dy / d) * pull * 0.6, (dy / d) * pull + (dx / d) * pull * 0.6, m.r, walksWater(m));
           m.x = res.x; m.y = res.y;
         }
+        else if (z.kind === 'quicksand') {
+          // arenas movedizas: ralentizan y arrastran hacia la Gusarena
+          if (!owner || !this.isEnemyOf(owner, m) || isStatic(m) || (m.kind === Kind.Player && (m as Player).flyT > 0)) continue;
+          this.slow(m, 0.3, BAL.worm.sand.slowMul);
+          const dx = z.ax - m.x, dy = z.ay - m.y, d = Math.hypot(dx, dy) || 1;
+          if (d > owner.r + m.r + 6) {
+            const pull = Math.min(d, BAL.worm.sand.pull * TICK_DT);
+            const res = this.grid.move(m.x, m.y, (dx / d) * pull, (dy / d) * pull, m.r, walksWater(m));
+            m.x = res.x; m.y = res.y;
+          }
+        }
         else if (z.kind === 'radiation') { if (owner && this.isEnemyOf(owner, m)) this.damage(m, BAL.alien.beacon.radDps * TICK_DT, { ...this.src(owner), raw: true }, false, true); }
         else if (z.kind === 'goo') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, BAL.slime.goo.slowMul); }
         else if (z.kind === 'venom') { if (owner && this.isEnemyOf(owner, m) && m.poisonT < 1) this.poison(m, BAL.slime.trail.poisonT, BAL.slime.trail.poisonDps, owner); }
-        else if (z.kind === 'web' || z.kind === 'bigweb' || z.kind === 'thread') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, z.kind === 'web' ? BAL.spider.web.slowMul : BAL.spider.ult.slowMul); }
+        else if (z.kind === 'web' || z.kind === 'bigweb' || z.kind === 'thread') {
+          if (!owner || !this.isEnemyOf(owner, m)) continue;
+          this.slow(m, 0.3, z.kind === 'web' ? BAL.spider.web.slowMul : BAL.spider.ult.slowMul);
+          // los hilos largos de la gran telaraña aturden (una vez por hilo)
+          if (z.kind === 'thread') { if (!z.hit) z.hit = new Set(); if (!z.hit.has(m.id)) { z.hit.add(m.id); m.stunT = Math.max(m.stunT, BAL.spider.ult.threadStun); this.fx('rooted', m.x, m.y, { o: m.id, c: 'web' }); } }
+        }
         else if (z.kind === 'thorns' || z.kind === 'forest') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, z.kind === 'thorns' ? TR.bramble.slowMul : TR.ult.slowMul); }
         else if (z.kind === 'storm' || z.kind === 'fire') {
           if (!owner || !this.isEnemyOf(owner, m) || (m.kind === Kind.Player && (m as Player).submergeT > 0)) continue;
@@ -2354,6 +2375,7 @@ export class Room {
       if (s.h === undefined) s.h = 100;
       if (p.orbit.length) s.o = p.orbit.filter((t) => t <= 0).length;
       if (p.char === 'reaper' && p.k.souls) s.o = p.k.souls;
+      if (p.char === 'dino') s.o = (p.k.eggEnd ?? 0) > this.time ? 3 : p.k.form ?? 0; // forma (3 = huevo)
     }
     return s;
   }
@@ -2397,7 +2419,8 @@ export class Room {
         if (p.dead || !inView(p.x, p.y)) continue;
         if (p !== me && p.phaseT > 0 && this.grid.blocked(p.x, p.y, p.r * 0.5, true)) continue; // intangible dentro de un obstáculo: nadie lo ve
         if (p !== me && (p.k.tvEnd ?? 0) > this.time) continue; // Interferencia dentro de una tele
-        if (p !== me && p.invisKind !== 'none') {
+        const locked = me.char === 'r800' && me.k.lockId === p.id && (me.k.lockEnd ?? 0) > this.time; // R-800 ve a su objetivo fijado
+        if (p !== me && p.invisKind !== 'none' && !locked) {
           // desvestida: invisible del todo; en el resto se intuye solo muy de cerca
           if (p.invisKind === 'full' || dist2(cx, cy, p.x, p.y) > DAMA.revealR ** 2) continue;
         }

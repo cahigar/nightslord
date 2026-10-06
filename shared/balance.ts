@@ -174,13 +174,14 @@ export const BAL = {
     hook: { speed: 720, life: 0.5, dmg: 0.6, pull: 110, leapT: 0.28 }, // Q: garfio (nv. 15: se impulsa hacia lo que engancha)
     barrel: { fuse: 2.5, r: 110, rT3: 150, dmg: 1.6, knock: 160, cap: 3 }, // E: barril de pólvora
     cannon: { speed: 620, life: 0.62, dmg: 0.9 }, // nv. 5: en el barco fantasma ataca a distancia
-    ult: { n: 3, life: 12 }, buccaneer: { hp: 70, speed: 205, dmg: 0.55, cd: 0.8 }, // R: ¡Al abordaje!
+    ult: { r: 280, t: 10, atkMul: 0.55, dirs: 4 }, buccaneer: { hp: 70, speed: 205, dmg: 0.55, cd: 0.8 }, // R: gran poza 10 s (en el barco: cañonazos en 4 direcciones y más rápidos)
   },
   spider: {
     poison: { t: 4, dps: 4, stackMul: 0.5, maxStacks: 4, window: 3 }, // pasiva y nv. 5 (veneno que se acumula)
     web: { speed: 520, life: 0.7, dmg: 0.4, slowT: 2, slowMul: 0.45, r: 46, t: 45, max: 4, charges: 2 }, // Q: telaraña
     leap: { range: 280, t: 0.32, fearR: 150, fearT: 1.5, chargesT3: 2 }, // E: salto arácnido
-    ult: { r: 320, t: 7, slowMul: 0.3, speedMul: 1.4, linkR: 700, n: 6, life: 9 }, // R: gran telaraña
+    ult: { r: 320, t: 7, slowMul: 0.3, speedMul: 1.4, linkR: 700, n: 6, life: 9, threadStun: 3 }, // R: gran telaraña (los hilos aturden 3 s)
+    brood: { every: 3, hits: 3, life: 8 }, // pasiva: cada 3 básicos sale una arañita que da 3 mordiscos y muere
     spiderling: { hp: 14, speed: 260, dmg: 0.25, cd: 0.6 },
   },
   scarecrow: {
@@ -254,10 +255,41 @@ export const BAL = {
     max: 3, maxT3: 5, dogChance: 0.12, // Q: alzar huesos
     skel: { hp: 60, speed: 170, dmg: 0.5, cd: 0.9 }, archer: { hp: 40, speed: 160, dmg: 0.45, cd: 1.3, range: 300, arrowSpeed: 560 }, dog: { hp: 38, speed: 280, dmg: 0.32, cd: 0.4 },
     march: { t: 4, speedMul: 1.3, atkMul: 0.7 }, // E: marcha de los muertos
-    last: { delay: 1, t: 3, len: 520, w: 34, dps: 22, turn: 7 }, // nv. 5: último conjuro (el rayo lo maneja el jugador)
+    last: { delay: 1, t: 4.5, len: 560, w: 58, dps: 24, turn: 7 }, // nv. 5: último conjuro (rayo ancho que maneja el jugador)
     ult: { t: 7, area: 260, every: 0.3, r: 80, dmg: 1.7, knock: 140, warn: 0.55 }, // R: puños y pies de hueso caen del cielo
     bigT3: { hpMul: 1.5, scale: 1.3 }, // nv. 15: esqueletos más grandes y duros
     heal: { small: 0.04, big: 0.1 }, // pasiva: se cura con las bajas de sus esqueletos
+  },
+  worm: {
+    scale: 1.35, r: 25, knock: 150, // pasiva: Coloso (más grande y empuja más)
+    accel: { t: 0.7, min: 0.45, turnDot: 0.2 }, // le cuesta arrancar y girar
+    dig: { t: 5, tT3: 8, speedMul: 1.15, healT1: 0.04, emergeR: 110, emergeDmg: 1.2, emergeKnock: 120 }, // Q: sumergirse
+    sense: { r: 420, rT1: 700 }, // pisadas que percibe bajo tierra (las muestra el cliente)
+    sand: { r: 170, rT3: 240, t: 4, slowMul: 0.55, pull: 70 }, // E: arenas movedizas
+    ult: { t: 3.5, speedMul: 2.2, turn: 2.6, mouthR: 34, max: 5, dps: 12, spit: 1.4, spitKnock: 260 }, // R: Devorador
+  },
+  dino: {
+    shiftCdT3: 2.5, // nv. 15: el cambio de forma recarga antes
+    raptor: { dmgMul: 0.75, atkMul: 0.6, chaseR: 420, chaseDot: 0.7, chaseMul: 1.22, leap: { range: 420, pick: 260, t: 0.4, r: 95, rT3: 140, dmg: 1.4 } },
+    trike: { dmgMul: 1.5, atkMul: 1.5, rangeMul: 1.25, armorMul: 0.65, ccMul: 0.5, charge: { t: 0.6, tT3: 0.95, speedMul: 3.1, dmg: 1.3, knock: 230, stun: 1.2 } },
+    ptero: { atkMul: 0.9, egg: { speed: 560, life: 0.65, dmg: 0.95 }, twister: { speed: 240, life: 1.7, dmg: 0.3, knock: 150, every: 0.25, nT3: 2 } },
+    shiftHeal: 0.08, bonusT: 3, // nv. 5: carne prehistórica
+    ult: { egg: 1, r: 260, dmg: 3.0, burnT: 4, burnDps: 9, fireT: 5 }, // R: extinción
+  },
+  r800: {
+    shot: { speed: 780, life: 0.45, dmg: 0.38, cd: 0.22, meleeCheck: 40 }, // básico a distancia
+    lock: { range: 650, t: 6, speedMul: 1.3, dot: 0.6, bonus: 1.7 }, // Q: adquisición de objetivo
+    burst: { t: 3, tT3: 4.5, every: 0.09, speed: 820, life: 0.5, dmg: 0.32, spread: 0.06, speedMul: 0.55 }, // E: arma integrada
+    repair: { safeT: 4, rate: 0.03 }, boom: { delay: 1, r: 130, dmg: 2.2 }, // nv. 5
+    ult: { t: 5, len: 620, w: 44, turn: 3, dps: 10, ramp: 0.9, maxMul: 3.5, speedMul: 0.7 }, // R: protocolo de exterminio
+  },
+  huntress: {
+    bolt: { speed: 760, life: 0.52, dmg: 1.0 }, // básico: ballesta
+    militia: { hp: 45, speed: 175, dmg: 0.45, cd: 1.0, life: 30, max: 8, xp: 14, pts: 8 }, // pasiva: humanos armados
+    butt: { r: 80, arc: 0.7, arcT3: 1.3, dmg: 1.1, knock: 260 }, // Q: culatazo
+    retreat: { t: 0.22, speedMul: 3.2, invisT: 3.5 }, // E: repliegue
+    cdRefund: 0.5, // nv. 5: recupera la mitad del enfriamiento de Q y E
+    ult: { t: 3, every: 0.1, range: 440, blindT: 3, dmg: 0.7 }, // R: círculo de caza
   },
 };
 

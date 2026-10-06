@@ -61,7 +61,7 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | Proponer / aceptar alianza | H | |
 | Silenciar | M | |
 
-## Contenido actual (v0.11)
+## Contenido actual (v0.12)
 
 **Monstruos**
 
@@ -92,6 +92,10 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 | ☠️ La Parca | Guadañazo amplio | Paso fúnebre (teletransporte) | Marca de muerte | Danza de la Parca | 🪙 o medalla 🔥 Imparable |
 | 👁️ Unidad | Mirada compartida (disparan todas) | Asimilación | Independencia | Convergencia | 🪙 o medalla 🗃️ Coleccionista |
 | 💀 El Nigromante | Orbe oscuro | Alzar huesos | Marcha de los muertos | Portales del osario | 🪙 o medalla ♾️ Eterno |
+| 🪱 Gusarena | Mordisco sísmico (lento y brutal) | Sumergirse (solo percibe pisadas) | Arenas movedizas | Devorador | 🪙 o medalla 🎮 Habitual |
+| 🦖 Dinozombie | Según la forma (raptor, tricerátops, pterodáctilo) | Cambio de forma | Instinto (según la forma) | Extinción (huevo y asteroide) | 🪙 o medalla ⭐ Leyenda |
+| 🤖 R-800 | Impacto hidráulico (o disparos si no hay nadie cerca) | Adquisición de objetivo | Arma integrada (ráfaga) | Protocolo de exterminio (láser) | 🪙 o medalla 🦴 Rey de monstruos |
+| 🏹 La Cazadora | Ballesta | Culatazo | Repliegue (invisible) | Círculo de caza (ciega) | 🪙 o medalla 🕯 Ritual interrumpido |
 
 **Paciente Cero (invocador)**: algo menos de vida que el resto (95). El Contagio tarda unos 5 s: la vida del humano baja poco a poco y al llegar a cero se levanta como zombi. Máximo 5 zombis (7 durante la R), cada uno dura 30 s; atacan solos lo que tienen cerca y siguen a su dueño. Las bajas de sus zombis dan la mitad de XP/puntos y no cargan la R con humanos. Un 15 % de las víctimas de un zombi se levanta como zombi (estos no contagian). Nv. 5: los zombis que mueren dejan una nube tóxica que ralentiza y debilita. Nv. 15: aparecen zombis rápidos y duros.
 
@@ -189,6 +193,16 @@ Prueba automática del servidor (sin red ni navegador): `npx tsx tools/simtest.t
 **Todo en pixel art**: círculos, anillos y arcos (zonas, golpes, sombras, auras) se dibujan con píxeles de la rejilla del mundo (`client/pixelshapes.ts`), y los proyectiles giran en pasos de 45°.
 
 **Móvil**: joystick flotante (aparece donde pongas el pulgar), botones en arco que se arrastran para apuntar (Q, E y R se lanzan al soltar; pulsar sin arrastrar apunta solo al enemigo más cercano), enfriamientos en los propios botones, barras arriba y la cámara centra al personaje en la zona que no tapan los controles.
+
+**Gusarena (cuerpo a cuerpo, coloso)**: más grande y con más vida y empuje, pero le cuesta arrancar y girar. Q: se entierra (intocable) y bajo tierra no ve el mapa, solo las ondas de las pisadas de quien se mueve cerca; otra Q (o a los 5 s) emerge mordiendo a su alrededor. E: arenas movedizas que le siguen, ralentizan y arrastran hacia él. R: avanza 3,5 s guiado por el puntero, engulle a quien choque con su boca (silenciados, perdiendo vida) y al final los escupe. Nv. 5: percibe más lejos y se cura bajo tierra. Nv. 15: más tiempo bajo tierra y arenas más grandes.
+
+**Dinozombie (cambiaformas)**: la Q alterna Velociraptor (mordiscos rápidos, corre más al perseguir; E: salto sobre un objetivo con daño en área), Tricerátops (cornada lenta y amplia, mucha resistencia y casi inmune a ralentizar o aturdir; E: carga larga que empuja y aturde) y Pterodáctilo (huevos a distancia, vuela sobre agua y obstáculos; E: remolino que empuja). R: se vuelve huevo intocable y cae un asteroide que quema una gran zona; sale con otra forma. Nv. 5: cambiar de forma cura y da un bonus breve. Nv. 15: mejores E y cambio de forma más rápido.
+
+**R-800 (perseguidor)**: golpes hidráulicos o, si no hay nadie a mano, disparos rápidos. Inmune a miedo, enamoramiento e hipnosis; las ralentizaciones le afectan la mitad. Q: fija al enemigo más cercano 6 s (lo ve aunque sea invisible, corre más hacia él y el siguiente golpe hace +70 %). E: ráfaga de 3 s hacia el puntero caminando más despacio. Nv. 5: se repara sin recibir daño y al morir explota al segundo. R: 5 s de arma enorme y láser rojo guiado cuyo daño sube cuanto más tiempo sigue sobre el mismo objetivo. Nv. 15: salta solo al siguiente objetivo y la ráfaga dura más y atraviesa.
+
+**La Cazadora (desertora de la orden)**: no mata humanos: al herirlos les da antorchas u horcas (nv. 15 también arcos) y se vuelven milicia que va a su aire contra los monstruos; cada uno le da experiencia. La orden de cazadores no la ataca. Q: culatazo que empuja (nv. 15: en cono). E: salto corto e invisibilidad. Nv. 5: matar o armar recupera enfriamientos. R: gira disparando contra todos los enemigos cercanos y los ciega.
+
+**Ajustes v0.12**: el rayo del Último conjuro del Nigromante es mucho más ancho y vistoso y dura 4,5 s. Aracne: cada 3 básicos sale una arañita que da 3 mordiscos y se deshace, y los hilos largos de la gran telaraña aturden 3 s. Capitán Ahogado: su R ahora es *Mar de los ahogados*, una gran poza de 10 s; navegando en ella dispara cañonazos en 4 direcciones y más rápido. La Baba (y sus copias) ahora es un cubo de gelatina.
 
 **Azufre**: todos sus golpes queman y se ven las llamas sobre quien arde. Su Paso ardiente es ahora una carrera de 2,2 s muchísimo más rápida que quema a quien toca y deja un rastro de llamas; en el nv. 15 pisar fuego le cura más. **El enterrador** de la pala da más miedo (y ya no rompe el juego al morir).
 

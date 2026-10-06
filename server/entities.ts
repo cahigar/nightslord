@@ -87,7 +87,7 @@ export interface Player extends Mob {
   invisBonus: boolean;
   mistT: number;
   protectT: number;
-  dash: { t: number; dx: number; dy: number; hit: Set<number>; speed: number; dmg: number; knock: number } | null;
+  dash: { t: number; dx: number; dy: number; hit: Set<number>; speed: number; dmg: number; knock: number; stun?: number } | null;
   // evolución y definitiva
   ult: number; // carga 0..100
   ultT: number; // tiempo restante de definitiva activa
@@ -162,7 +162,7 @@ export interface Hunter extends Mob {
 /** Esbirro (zombi de Paciente Cero). Reutilizable para futuros invocadores. */
 export type MinionVariant = 'normal' | 'fast' | 'tough' | 'fat' | 'clone' | 'thrall' | 'wall' | 'turret' | 'flower' | 'digger'
   | 'barrel' | 'buccaneer' | 'spiderling' | 'decoy' | 'slimelet' | 'beacon'
-  | 'skel' | 'skelarcher' | 'skeldog' | 'unit' | 'unitfree'; // thrall: humano engatusado por la súcubo · wall/turret/flower: plantas del Árbol maldito (no se mueven)
+  | 'skel' | 'skelarcher' | 'skeldog' | 'unit' | 'unitfree' | 'militia'; // thrall: humano engatusado por la súcubo · wall/turret/flower: plantas del Árbol maldito (no se mueven)
 export interface Minion extends Mob {
   kind: Kind.Minion;
   owner: number; // id del jugador dueño
@@ -180,6 +180,7 @@ export interface Minion extends Mob {
   wx?: number; wy?: number; // destino de paseo (Unidad independiente)
   boomAt?: number; // explota en este instante (Convergencia de Unidad)
   orig?: string; // aspecto de humano original (Unidad asimilada)
+  hits?: number; // ataques que le quedan antes de deshacerse (arañita de Aracne)
   camo?: boolean; // camuflada como humano normal (Unidad quieta)
 }
 
@@ -209,7 +210,7 @@ export interface Projectile {
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation' | 'whirl' | 'lastspell' | 'portal';
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation' | 'whirl' | 'lastspell' | 'portal' | 'quicksand' | 'laser';
 /** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
 export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number>; next?: number /* próximo evento (rayo del clavo) */; v?: number }
 

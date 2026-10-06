@@ -1,7 +1,9 @@
 import type { CharacterId } from '../../shared/characters';
 import { alienKit } from './alien';
 import { demonKit } from './demon';
+import { dinoKit } from './dino';
 import { doppyKit, setKits } from './doppy';
+import { huntressKit } from './huntress';
 import { invisibleKit } from './invisible';
 import { kappaKit } from './kappa';
 import { kthulaKit } from './kthula';
@@ -10,6 +12,7 @@ import { mummyKit } from './mummy';
 import { necroKit } from './necro';
 import { nightmareKit } from './nightmare';
 import { pirateKit } from './pirate';
+import { r800Kit } from './r800';
 import { poltergeistKit } from './poltergeist';
 import { reanimatedKit } from './reanimated';
 import { reaperKit } from './reaper';
@@ -24,6 +27,7 @@ import type { Kit } from './types';
 import { vampireKit } from './vampire';
 import { werewolfKit } from './werewolf';
 import { witchKit } from './witch';
+import { wormKit } from './worm';
 import { zombieKit } from './zombie';
 
 /** Registro de kits. Un monstruo nuevo = un kit nuevo aquí. */
@@ -53,6 +57,10 @@ export const KITS: Record<CharacterId, Kit> = {
   reaper: reaperKit,
   unit: unitKit,
   necro: necroKit,
+  worm: wormKit,
+  dino: dinoKit,
+  r800: r800Kit,
+  huntress: huntressKit,
 };
 setKits(KITS); // Doppy necesita los kits de los demás para imitarlos
 

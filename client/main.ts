@@ -534,7 +534,7 @@ boot();
 // ---------------------------------------------------------------------------
 // Visor de sprites (abre /#sprites): útil para diseñar skins y monstruos nuevos
 // ---------------------------------------------------------------------------
-if (location.hash === '#sprites') {
+if (location.hash.startsWith('#sprites')) {
   import('./spritesheet').then((m) => m.showSpriteSheet());
 } else if (location.hash.startsWith('#mapa')) {
   import('./spritesheet').then((m) => m.showMapPreview(location.hash.slice(6)));

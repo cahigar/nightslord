@@ -3,7 +3,7 @@
 // - Garfio (Q): atrae al enemigo hacia él (nv. 15: se impulsa hacia lo que engancha, enemigo u obstáculo).
 // - Barril de pólvora (E): explota tras unos segundos o al recibir un golpe (y prende los árboles).
 // - Nv. 5: anda sobre el agua en un barco fantasma, desde el que ataca a cañonazos.
-// - ¡Al abordaje! (R): tres bucaneros fantasma luchan a su lado.
+// - Mar de los ahogados (R): una gran poza 10 s; navegando en ella dispara cañonazos en 4 direcciones y más rápido.
 import { BAL } from '../../shared/balance';
 import { Anim, Kind, type PowerUpType } from '../../shared/protocol';
 import type { Minion, Mob, Player, Projectile } from '../entities';
@@ -11,7 +11,8 @@ import type { Room } from '../Room';
 import type { Kit } from './types';
 
 const B = BAL.pirate;
-const onShip = (room: Room, p: Player) => p.tier >= 1 && room.grid.deepWater(p.x, p.y);
+/** Navega en su barco fantasma: agua profunda (nv. 5) o la gran poza de su definitiva. */
+const onShip = (room: Room, p: Player) => (p.tier >= 1 && room.grid.deepWater(p.x, p.y)) || (p.ultT > 0 && room.waterAt(p.x, p.y) !== null);
 
 /** Engancha: se impulsa hasta justo antes del punto (nv. 15). */
 function grapple(room: Room, p: Player, x: number, y: number) {
@@ -28,8 +29,12 @@ export const pirateKit: Kit = {
       // desde el barco fantasma: cañonazo
       room.breakStealth(p);
       room.setAnim(p, Anim.Attack, 0.3);
-      const pr = room.shoot('cannon', p.id, p.x + Math.cos(a) * 24, p.y + Math.sin(a) * 24, a, B.cannon.speed, B.cannon.life, room.calcDamage(p, B.cannon.dmg));
-      pr.hitR = 12;
+      const dirs = p.ultT > 0 ? B.ult.dirs : 1; // definitiva: cañonazos en 4 direcciones
+      for (let i = 0; i < dirs; i++) {
+        const aa = a + (i * Math.PI * 2) / dirs;
+        const pr = room.shoot('cannon', p.id, p.x + Math.cos(aa) * 24, p.y + Math.sin(aa) * 24, aa, B.cannon.speed, B.cannon.life, room.calcDamage(p, B.cannon.dmg));
+        pr.hitR = 12;
+      }
       room.sfx('explode', p.x, p.y);
       return;
     }
@@ -53,17 +58,16 @@ export const pirateKit: Kit = {
   },
 
   ult(room, p) {
-    for (let i = 0; i < B.ult.n; i++) {
-      const ang = (i / B.ult.n) * Math.PI * 2;
-      const f = room.findFreeSpot(p.x + Math.cos(ang) * 50, p.y + Math.sin(ang) * 40, 14);
-      const m = room.spawnMinion(p, f.x, f.y, 'buccaneer', p.skin, i, B.ult.life, false, B.ult.n);
-      room.fx('summon', m.x, m.y, { n: 2 });
-    }
+    // Mar de los ahogados: una gran poza donde navega con su barco fantasma
+    room.addZone({ kind: 'puddle', ax: p.x, ay: p.y, bx: p.x, by: p.y, w: B.ult.r * 2, until: room.time + B.ult.t, owner: p.id });
     room.setAnim(p, Anim.Cast, 0.6);
-    room.sfx('chant', p.x, p.y);
-    p.ultT = B.ult.life;
+    room.fx('splash', p.x, p.y, { r: B.ult.r });
+    room.sfx('splash', p.x, p.y);
+    p.ultT = B.ult.t;
     return true;
   },
+
+  atkSpeedMul: (room, p) => (p.ultT > 0 && onShip(room, p) ? B.ult.atkMul : 1),
 
   walksWater: (p) => p.tier >= 1,
 
