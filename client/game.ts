@@ -951,7 +951,12 @@ export class Game {
     if (e.f2 & Flag2.Engulfed) { ctx.globalAlpha = 0.45; ctx.fillStyle = '#60d040'; ctx.fillRect(dx, dy, w, h); ctx.globalAlpha = 1; }
     if (e.f2 & Flag2.Burning) this.drawFlames(ctx, x, y - lift, h, now, e.id);
     if (e.f2 & Flag2.Blind) for (let i = 0; i < 3; i++) { const a = now / 200 + i * 2.1; ctx.fillStyle = '#141018'; ctx.fillRect(Math.round((x + Math.cos(a) * 16) / 3) * 3, Math.round((y - h + 6 - lift + Math.sin(a) * 5) / 3) * 3, 6, 3); }
-    if (e.fl & Flag.Poison && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: -20, life: 0.6, max: 0.6, color: Math.random() < 0.5 ? '#80e020' : '#3a6a10', size: 3, grav: 0 });
+    if (e.fl & Flag.Poison) {
+      // envenenado: burbujas tóxicas que suben, gotas que caen y una calavera de vapor de vez en cuando
+      if (Math.random() < 0.45) this.particles.push({ x: x + (Math.random() - 0.5) * 22, y: y - 16 - Math.random() * 40, vx: (Math.random() - 0.5) * 8, vy: -26, life: 0.7, max: 0.7, color: ['#a0ff40', '#60c020', '#d0ff90'][Math.floor(Math.random() * 3)], size: Math.random() < 0.3 ? 6 : 3, grav: -10 });
+      if (Math.random() < 0.15) this.particles.push({ x: x + (Math.random() - 0.5) * 14, y: y - 30, vx: 0, vy: 10, life: 0.5, max: 0.5, color: '#4a9a20', size: 3, grav: 500 });
+      if (Math.random() < 0.02) this.effects.toxicSkull(x, y - 70);
+    }
     if (e.fl & Flag.Bleed && Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * 20, y: y - 20 - Math.random() * 40, vx: 0, vy: 0, life: 0.5, max: 0.5, color: '#c01020', size: 3, grav: 300 });
     ctx.globalAlpha = 1;
     // criaturas acuáticas: salpicaduras en los pies al andar por el agua

@@ -1374,6 +1374,17 @@ export class Effects {
     this.burst(ev.x, ev.y - 30, 10, ['#ffe0a0', '#ffffff', '#8a6a40'], 200, 3, 200, 0.4);
   }
 
+  /** Calavera de vapor tóxico que sube y se deshace (envenenados). */
+  toxicSkull(x: number, y: number) {
+    const g = ['.xxx.', 'xxxxx', 'x.x.x', 'xxxxx', '.x.x.'];
+    this.add(0.9, 'glow', (ctx, k) => {
+      ctx.globalAlpha = (1 - k) * 0.85;
+      ctx.fillStyle = k < 0.5 ? '#c0ff60' : '#80c040';
+      g.forEach((row, j) => [...row].forEach((ch, i) => { if (ch === 'x' && Math.random() > k * 0.5) ctx.fillRect(snap(x + (i - 2) * PIXEL), snap(y - k * 30 + j * PIXEL), PIXEL, PIXEL); }));
+      ctx.globalAlpha = 1;
+    });
+  }
+
   /** Golpe eléctrico del R-800: arcos que saltan del impacto. */
   private zapHit(ev: FxEv) {
     const x0 = ev.x, y0 = ev.y - 36;
@@ -1914,16 +1925,55 @@ export class Effects {
       }
       ctx.globalAlpha = 1;
     } else if (kind === 'goo' || kind === 'venom') {
-      // baba pegajosa (verde) o rastro de veneno (morado), con burbujas
+      // baba pegajosa (verde) o rastro de veneno (morado) en pixel art: charco con borde irregular y tramado,
+      // brillos, burbujas que crecen y revientan, salpicaduras y vapores tóxicos que suben
       const venom = kind === 'venom';
-      ctx.globalAlpha = (venom ? 0.45 : 0.6) * fade;
-      ctx.fillStyle = venom ? '#6a2a8a' : '#4aa030';
+      const pal = venom ? ['#1e0828', '#3e1252', '#6a2a8a', '#9a48c0', '#d090ff'] : ['#10240a', '#245014', '#3e8a24', '#6ac040', '#c8ff90'];
       const ex = bx ?? x, ey = by ?? y;
-      const n = Math.max(1, Math.round(Math.hypot(ex - x, ey - y) / (r * 0.6)));
-      for (let i = 0; i <= n; i++) { const t = i / n; ctx.beginPath(); ctx.ellipse(x + (ex - x) * t, y + (ey - y) * t, r, r * 0.6, 0, 0, Math.PI * 2); ctx.fill(); }
-      ctx.globalAlpha = 0.9 * fade;
-      ctx.fillStyle = venom ? '#c070ff' : '#a0ff70';
-      for (let i = 0; i < 4; i++) { const t = (now / 900 + i / 4 + seed * 0.1) % 1; ctx.fillRect(snap(x + Math.cos(i * 2.3 + seed) * r * 0.5), snap(y + Math.sin(i * 1.9 + seed) * r * 0.3 - t * 10), PIXEL, PIXEL); }
+      const dx = ex - x, dy = ey - y, l2 = dx * dx + dy * dy || 1;
+      const R = r * (0.75 + 0.25 * Math.min(1, fade * 2)); // se encoge al secarse
+      const x0 = snap(Math.min(x, ex) - R - PIXEL), x1 = Math.max(x, ex) + R + PIXEL, y0 = snap(Math.min(y, ey) - R * 0.62 - PIXEL), y1 = Math.max(y, ey) + R * 0.62 + PIXEL;
+      const hh = (i: number, j: number) => { const n = Math.sin(i * 12.9898 + j * 78.233 + seed * 3.1) * 43758.5453; return n - Math.floor(n); };
+      const wob = Math.sin(now / 400 + seed) * 0.04;
+      ctx.globalAlpha = fade;
+      for (let py = y0; py <= y1; py += PIXEL) for (let pxx = x0; pxx <= x1; pxx += PIXEL) {
+        const t = Math.max(0, Math.min(1, ((pxx - x) * dx + (py - y) * dy) / l2));
+        const qx = pxx - (x + dx * t), qy = (py - (y + dy * t)) / 0.62;
+        const i = Math.round(pxx / PIXEL), j = Math.round(py / PIXEL);
+        const edge = R * (0.82 + 0.18 * hh(i >> 1, j >> 1) + wob);
+        const d = Math.hypot(qx, qy) / edge;
+        if (d > 1) { if (d < 1.25 && hh(i, j) > 0.93) { ctx.fillStyle = pal[1]; ctx.fillRect(pxx, py, PIXEL, PIXEL); } continue; } // salpicaduras sueltas
+        const dither = ((i + j) & 1) * 0.08;
+        let c = d > 0.9 - dither ? 0 : d > 0.72 - dither ? 1 : 2;
+        if (c === 2 && qx < -R * 0.15 && qy < -R * 0.2 && d < 0.6) c = 3; // brillo arriba a la izquierda
+        ctx.fillStyle = pal[c];
+        ctx.fillRect(pxx, py, PIXEL, PIXEL);
+      }
+      // reflejos fijos
+      ctx.fillStyle = pal[4];
+      ctx.fillRect(snap(x - R * 0.35), snap(y - R * 0.25), PIXEL * 2, PIXEL); ctx.fillRect(snap(x - R * 0.45), snap(y - R * 0.15), PIXEL, PIXEL);
+      // burbujas que crecen y revientan
+      const nb = venom ? 3 : 4;
+      for (let k = 0; k < nb; k++) {
+        const ph = (now / (venom ? 700 : 950) + k / nb + seed * 0.37) % 1;
+        const tt = (hh(k, seed) + 0.1) % 1;
+        const bxp = snap(x + dx * tt + Math.cos(k * 2.4 + seed) * R * 0.45), byp = snap(y + dy * tt + Math.sin(k * 1.7 + seed) * R * 0.25);
+        if (ph < 0.75) {
+          const sz = ph < 0.3 ? 1 : ph < 0.55 ? 2 : 3;
+          ctx.fillStyle = pal[3]; ctx.fillRect(bxp - PIXEL, byp - sz * PIXEL, PIXEL * (sz + 1), PIXEL * sz);
+          ctx.fillStyle = pal[4]; ctx.fillRect(bxp - PIXEL, byp - sz * PIXEL, PIXEL, PIXEL);
+        } else {
+          // ¡plop!: anillo de gotitas
+          const k2 = (ph - 0.75) * 4, rr = 4 + k2 * 10;
+          ctx.fillStyle = pal[4];
+          for (let a = 0; a < 6; a++) ctx.fillRect(snap(bxp + Math.cos(a * 1.05) * rr), snap(byp - 3 + Math.sin(a * 1.05) * rr * 0.6 - k2 * 4), PIXEL, PIXEL);
+        }
+      }
+      // vapores tóxicos (el veneno, morado; la baba, verde claro)
+      if (Math.random() < (venom ? 0.35 : 0.12)) {
+        const tt = Math.random();
+        this.particles.push({ x: x + dx * tt + (Math.random() - 0.5) * R, y: y + dy * tt - 4, vx: (Math.random() - 0.5) * 10, vy: -18 - Math.random() * 18, life: 0.9, max: 0.9, color: venom ? (Math.random() < 0.5 ? '#b060e0' : '#7a3aa0') : '#a0e070', size: PIXEL * (Math.random() < 0.3 ? 2 : 1), grav: -8 });
+      }
       ctx.globalAlpha = 1;
     } else if (kind === 'snare') {
       // trampa de raíces de las botas de naturaleza
