@@ -278,7 +278,7 @@ html:lang(zh), html:lang(ja) { --px: 'Microsoft YaHei', 'PingFang SC', 'Hiragino
 
 /* ---------- Portada (menú): fondo pixel art animado y rejilla de monstruos con scroll ---------- */
 #menu { background: #05030a; }
-#menubg { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; image-rendering: pixelated; z-index: -1; }
+#menubg { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; image-rendering: pixelated; z-index: -1; pointer-events: none; } /* sin esto, la rueda sobre el fondo no mueve la página */
 #menu .menu-inner { max-width: 1180px; position: relative; }
 #menu #logo { width: min(560px, 92vw, 89vh); }
 .menu-grid { display: grid; gap: 14px; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-areas: "id chars" "play chars"; align-items: start; margin-top: 6px; }
