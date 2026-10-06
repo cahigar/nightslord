@@ -36,6 +36,7 @@ services:
     ports: ["80:80", "443:443"]
     environment:
       DOMAIN: ${DOMAIN:-:80}        # pon tu dominio en deploy/.env (DOMAIN=juego.midominio.com)
+      WWW_DOMAIN: ${WWW_DOMAIN:-localhost:8099}   # opcional: www.midominio.com redirige al dominio principal
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy_data:/data

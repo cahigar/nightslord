@@ -12,3 +12,8 @@
 		reverse_proxy game-a:3000
 	}
 }
+
+# www.tudominio.com → tudominio.com (solo si WWW_DOMAIN está en deploy/.env; si no, este bloque escucha en un puerto interno y no hace nada)
+{$WWW_DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}

@@ -30,7 +30,8 @@ mkdir -p /opt && cd /opt
 [ -d nightslord ] || git clone -b "$BRANCH" https://github.com/cahigar/nightslord.git
 cd nightslord/deploy
 if [ ! -f .env ]; then
-  { echo "DOMAIN=$DOMAIN"; echo "ADMIN_EMAILS=$ADMIN"; echo "GOOGLE_CLIENT_ID="; } > .env
+  WWW=""; [ "$(echo "$DOMAIN" | tr -cd '.' | wc -c)" = "1" ] && WWW="www.$DOMAIN" # dominio principal: también www
+  { echo "DOMAIN=$DOMAIN"; echo "WWW_DOMAIN=$WWW"; echo "ADMIN_EMAILS=$ADMIN"; echo "GOOGLE_CLIENT_ID="; } > .env
 fi
 
 echo "== Compilando y arrancando (tarda unos minutos la primera vez)"
