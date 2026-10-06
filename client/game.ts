@@ -6,7 +6,7 @@ import { BORDER_DEPTH, currentAt, generateMap, THEMES, tvLinks, tvSpot, type Gam
 import { BAL, CURRENT, isBeast, tierOf } from '../shared/balance';
 import { Ambient } from './ambient';
 import { Effects, pixelEllipse } from './effects';
-import { t as tr, tc, th as thunter, tpu } from './i18n';
+import { t as tr, tally, tc, th as thunter, tpu } from './i18n';
 import { Terrain } from './terrain';
 import { ObstacleGrid } from '../shared/physics';
 import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, type TvState, type YouState } from '../shared/protocol';
@@ -277,7 +277,7 @@ export class Game {
         if (ev.k === Kind.Player) for (let i = 0; i < 10; i++) this.particles.push({ x: ev.x, y: ev.y - 20, vx: (Math.random() - 0.5) * 40, vy: -60 - Math.random() * 60, life: 1.6, max: 1.6, color: '#c0a0ff', size: 4, grav: -10 });
         break;
       }
-      case 'fx': this.fx(ev); break;
+      case 'fx': if (ev.f === 'allyAsk' && ev.o !== undefined && ev.n !== -1) this.allySay.set(ev.o, performance.now() + 2600); this.fx(ev); break;
       case 'pick':
         this.burst(ev.x, ev.y, 10, ev.p === 'coin' ? '#ffd040' : '#ffffff', 120, 2);
         this.floaters.push({ x: ev.x, y: ev.y - 30, text: tpu(ev.p), color: '#a0ffa0', life: 1 });
@@ -1414,6 +1414,8 @@ export class Game {
 
   /** Gusarena: al reptar, el cuerpo asoma en jorobas de arena por donde acaba de pasar. */
   private wormPaths = new Map<number, { x: number; y: number }[]>();
+  /** Quién está diciendo su frase de alianza (H) y hasta cuándo. */
+  private allySay = new Map<number, number>();
   private drawWormTrail(ctx: CanvasRenderingContext2D, e: CEnt, now: number) {
     let path = this.wormPaths.get(e.id);
     if (!path) { path = [{ x: e.rx, y: e.ry }]; this.wormPaths.set(e.id, path); }
@@ -1594,8 +1596,9 @@ export class Game {
       }
     }
     // bocadillos para emotes
-    if (e.k === Kind.Player && (e.a === Anim.Wave || e.a === Anim.Taunt)) {
-      const txt = e.a === Anim.Wave ? tr('wave') : (CHARACTERS[e.c as CharacterId] ? tc(e.c as CharacterId).taunt : undefined) ?? TAUNTS[e.c as CharacterId] ?? '¡Buu!';
+    const allyLine = (this.allySay.get(e.id) ?? 0) > performance.now();
+    if (e.k === Kind.Player && (allyLine || e.a === Anim.Wave || e.a === Anim.Taunt)) {
+      const txt = allyLine ? tally(e.c) : e.a === Anim.Wave ? tr('wave') : (CHARACTERS[e.c as CharacterId] ? tc(e.c as CharacterId).taunt : undefined) ?? TAUNTS[e.c as CharacterId] ?? '¡Buu!';
       ctx.font = '10px "Press Start 2P", monospace';
       const w = ctx.measureText(txt).width + 14;
       const by = top - 46;

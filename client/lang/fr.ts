@@ -142,5 +142,17 @@ export const FR: Dict = {
     fear: '😱Terrifié', souls: '👻Âmes', deathMark: '☠️Marque de mort', dance: '💃Danse', units: '👁️Unités', free: '🛰️Indépendantes', march: '💀Marche', skeletons: '🦴Squelettes', tvIn: '📺Dans la télé', blaze: '🔥Pas ardent', disguised: '🥸Camouflé', converge: '💥Convergence', spirits: '💀Esprits', bootsFire: '👢🔥Bottes de feu', bootsNature: '👢🌿Bottes de nature', bootsWater: '👢💧Bottes d\'eau', planted: '🌾Planté', dig: '🪱Sous terre', devour: '👄Dévoreur', raptor: '🦖Vélociraptor', trike: '🦏Tricératops', ptero: '🦅Ptérodactyle', egg: '🥚Œuf', prehistoric: '🍖Viande préhistorique', lock: '🎯Cible verrouillée', burst: '🚀Roquettes', wet: '💦Trempé', snuffed: '🕯️Éteint', nearFire: '🔥Près du feu', lightsOut: '🌑Dans le noir', militia: '🔥Milice',
   },
   pu: { blood: '+Sang', speed: 'Vitesse !', fury: 'Furie !', shield: '+Bouclier', coin: '+5 pièces', xp: '+XP', spirits: 'Esprits !', boots: 'Bottes élémentaires !', shovel: 'Un fossoyeur !' },
+  ally: {
+    vampire: 'Pacte de sang ? J\'apporte les crocs.', werewolf: 'On chasse en meute ? Je hurle, tu cours.', mummy: 'Alliance éternelle : 3000 ans d\'expérience.',
+    invisible: 'Soyons alliés. Tu ne me verras pas, mais je serai là.', zombie: 'Amisss... on partage des cerveauxxx ?', kthula: 'Rejoins-moi ou c\'est câlin tentaculaire.',
+    nightmare: 'Allions-nous... et laissons-LES dormir.', mary: 'Dis « alliés » trois fois devant le miroir.', reanimated: 'Ensemble, on a plus de pièces !',
+    doppy: 'Alliés ? Je peux être toi, en mieux.', witch: 'Un pacte sans petits caractères... presque.', succubus: 'Faisons équipe, mon chou ♥',
+    poltergeist: 'BOUH-jour ! On s\'allie ?', tree: 'Prenons racine ensemble.', pirate: 'À l\'abordage ! On partage le butin... plus tard.',
+    spider: 'Entre dans ma toile... d\'amitié.', scarecrow: 'Associés ? Je fais peur, tu récoltes.', demon: 'Signe ici. Ça ne brûle pas... trop.',
+    slime: 'On fusionne ? *blub*', alien: 'Salutations, Terrien. Je propose un traité.', static: 'Branche-toi sur ma chaîne : alliance 24 h/24.',
+    kappa: 'Viens dans ma mare. Apporte un concombre.', reaper: 'Alliés à la vie, à la mort... la tienne ou la mienne.', unit: 'Rejoins-nous. Nous sommes sympas.',
+    necro: 'Mes squelettes te passent le bonjour.', worm: '*vibrations amicales sous le sable*', dino: 'RAWR ! (ça veut dire « amis »)',
+    r800: 'Alliance proposée. Risque de trahison : 3 %.', huntress: 'Je ne tire pas si tu ne mords pas.', candle: 'Je t\'éclaire le chemin... si tu es sage.',
+  },
   hunters: { cazador: 'CHASSEUR', inquisidor: 'INQUISITEUR', exorcista: 'EXORCISTE', sectario: 'SECTAIRE', heraldo: 'HÉRAUT', croc: 'CROCODILE', raptor: 'RAPTOR', rex: 'T-REX' },
 };

@@ -142,5 +142,17 @@ export const ZH: Dict = {
     fear: '😱恐惧', souls: '👻灵魂', deathMark: '☠️死亡印记', dance: '💃舞蹈', units: '👁️单位', free: '🛰️独立单位', march: '💀行军', skeletons: '🦴骷髅', tvIn: '📺电视里', blaze: '🔥炎步', disguised: '🥸伪装', converge: '💥汇聚', spirits: '💀灵魂', bootsFire: '👢🔥火之靴', bootsNature: '👢🌿自然之靴', bootsWater: '👢💧水之靴', planted: '🌾钉立', dig: '🪱地下', devour: '👄吞噬者', raptor: '🦖迅猛龙', trike: '🦏三角龙', ptero: '🦅翼龙', egg: '🥚蛋', prehistoric: '🍖史前之肉', lock: '🎯目标锁定', burst: '🚀火箭', wet: '💦湿透', snuffed: '🕯️熄灭', nearFire: '🔥靠近火焰', lightsOut: '🌑黑暗中', militia: '🔥民兵',
   },
   pu: { blood: '+鲜血', speed: '加速！', fury: '狂怒！', shield: '+护盾', coin: '+5 金币', xp: '+经验', spirits: '灵魂！', boots: '元素之靴！', shovel: '掘墓人！' },
+  ally: {
+    vampire: '血盟？獠牙我出。', werewolf: '组队狩猎？我嚎，你跑。', mummy: '永恒同盟：我有三千年经验。',
+    invisible: '做盟友吧。你看不见我，但我一直在。', zombie: '朋友~~分点脑子吗~~？', kthula: '加入我，不然触手抱抱。',
+    nightmare: '结盟吧……让他们去睡。', mary: '对着镜子说三遍「盟友」。', reanimated: '合体的话零件更多！',
+    doppy: '盟友？我能变成你，还更好。', witch: '一份没有小字的契约……大概。', succubus: '组个队吧，亲爱的 ♥',
+    poltergeist: '呜~~找盟友啦！', tree: '一起扎根吧。', pirate: '上船！战利品平分……以后再说。',
+    spider: '进我的网吧……友谊之网。', scarecrow: '合伙？我吓人，你收割。', demon: '签这里。不烫……不太烫。',
+    slime: '融合一下？*噗叽*', alien: '你好，地球人。我提议签订条约。', static: '锁定我的频道：24小时同盟。',
+    kappa: '来我池塘玩吧。带根黄瓜。', reaper: '同盟至死……你死或我亡。', unit: '加入我们。我们人很好。',
+    necro: '我的骷髅们向你问好。', worm: '*沙下传来友好的震动*', dino: '嗷呜！（意思是「朋友」）',
+    r800: '提议结盟。背叛概率：3%。', huntress: '你不咬我，我就不射你。', candle: '我为你照亮前路……如果你乖的话。',
+  },
   hunters: { cazador: '猎人', inquisidor: '审判官', exorcista: '驱魔师', sectario: '邪教徒', heraldo: '光之使者', croc: '鳄鱼', raptor: '迅猛龙', rex: 'T-REX' },
 };

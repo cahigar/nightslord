@@ -71,6 +71,8 @@ export function tw(word: string): string {
 export const tb = (k: string) => dict.buffs[k] ?? ES.buffs[k] ?? k;
 /** Texto flotante al recoger un objeto. */
 export const tpu = (k: string) => dict.pu[k] ?? ES.pu[k] ?? '+';
+/** Frase de alianza (H) de cada monstruo. */
+export const tally = (c: string) => dict.ally?.[c as CharacterId] ?? ES.ally?.[c as CharacterId] ?? '🤝';
 /** Rótulo de un cazador sobre su cabeza. */
 export const th = (k: string) => dict.hunters[k] ?? ES.hunters[k] ?? k.toUpperCase();
 

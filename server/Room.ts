@@ -234,13 +234,14 @@ export class Room {
       if (d < bd) { bd = d; best = o; }
     }
     this.setAnim(p, Anim.Wave, 0.8);
-    if (!best) return;
+    if (!best) { this.fx('allyAsk', p.x, p.y, { o: p.id, n: 2 }); return; } // nadie cerca: lo dice al aire
     const o = best as Player;
     const theirs = this.allyAsk.get(o.id);
     if (theirs && theirs.to === p.id && theirs.until > this.time) {
       this.allyAsk.delete(o.id);
       p.allies.add(o.id); o.allies.add(p.id);
       this.fx('confetti', (p.x + o.x) / 2, (p.y + o.y) / 2, { o: p.id, tx: Math.round(o.x), ty: Math.round(o.y) });
+      this.fx('allyAsk', p.x, p.y, { o: p.id, n: 1 }); this.fx('allyAsk', o.x, o.y, { o: o.id, n: 1 }); // los dos sellan el pacto a su manera
       this.sfx('level', p.x, p.y);
       this.medal(p, 'ally'); this.medal(o, 'ally');
       return;

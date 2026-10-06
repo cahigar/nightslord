@@ -102,6 +102,8 @@ export interface Dict {
   buffs: Record<string, string>;
   pu: Record<string, string>;
   hunters: Record<string, string>;
+  /** Frase con humor de cada monstruo al proponer una alianza (H). */
+  ally?: Partial<Record<CharacterId, string>>;
 }
 
 type CharTr = NonNullable<Dict['chars'][CharacterId]>;
@@ -135,5 +137,17 @@ export const ES: Dict & { ui: typeof UI } = {
     fear: '😱Aterrorizado', souls: '👻Almas', deathMark: '☠️Marca de muerte', dance: '💃Danza', units: '👁️Unidades', free: '🛰️Independientes', march: '💀Marcha', skeletons: '🦴Esqueletos', tvIn: '📺Dentro de la tele', blaze: '🔥Paso ardiente', disguised: '🥸Camuflado', converge: '💥Convergencia', dig: '🪱Bajo tierra', devour: '👄Devorador', raptor: '🦖Velociraptor', trike: '🦏Tricerátops', ptero: '🦅Pterodáctilo', egg: '🥚Huevo', prehistoric: '🍖Carne prehistórica', lock: '🎯Objetivo fijado', burst: '🚀Cohetes', militia: '🔥Milicia', spirits: '💀Espíritus', bootsFire: '👢🔥Botas de fuego', bootsNature: '👢🌿Botas de naturaleza', bootsWater: '👢💧Botas de agua', planted: '🌾Plantado', wet: '💦Empapado', snuffed: '🕯️Apagado', nearFire: '🔥Junto al fuego', lightsOut: '🌑A oscuras'
   },
   pu: { blood: '+Sangre', speed: '¡Rapidez!', fury: '¡Furia!', shield: '+Escudo', coin: '+5 monedas', xp: '+XP', spirits: '¡Espíritus!', boots: '¡Botas elementales!', shovel: '¡Un enterrador!' },
+  ally: {
+    vampire: '¿Pacto de sangre? Yo pongo los colmillos.', werewolf: '¿Cazamos en manada? Yo aúllo, tú corres.', mummy: 'Alianza eterna: tengo 3000 años de experiencia.',
+    invisible: 'Seremos aliados. No me verás, pero estaré.', zombie: 'Amigosss... ¿compartimos cerebrosss?', kthula: 'Únete a mí o te abrazo con tentáculos.',
+    nightmare: 'Aliémonos... y que duerman ellos.', mary: 'Di «aliados» tres veces frente al espejo.', reanimated: '¡Juntos tenemos más piezas!',
+    doppy: '¿Aliados? Puedo ser tú, pero mejor.', witch: 'Un pacto sin letra pequeña... casi.', succubus: 'Hagamos equipo, cielo ♥',
+    poltergeist: '¡BUUU-sco aliados!', tree: 'Echemos raíces juntos.', pirate: '¡A bordo! Repartimos el botín... luego.',
+    spider: 'Entra en mi tela... de amistad.', scarecrow: '¿Socios? Yo asusto, tú cosechas.', demon: 'Firma aquí. No quema... mucho.',
+    slime: '¿Nos fusionamos? *blub*', alien: 'Saludos, terrícola. Propongo un tratado.', static: 'Sintoniza mi canal: alianza 24 h.',
+    kappa: 'Te invito a mi charca. Trae pepino.', reaper: 'Aliados hasta la muerte... la tuya o la mía.', unit: 'Únete. Nosotros somos majos.',
+    necro: 'Mis esqueletos te mandan saludos.', worm: '*vibraciones amistosas bajo la arena*', dino: '¡RAWR! (significa «amigos»)',
+    r800: 'Alianza propuesta. Riesgo de traición: 3 %.', huntress: 'No te disparo si tú no me muerdes.', candle: 'Te alumbro el camino... si te portas bien.',
+  },
   hunters: { cazador: 'CAZADOR', inquisidor: 'INQUISIDOR', exorcista: 'EXORCISTA', sectario: 'SECTARIO', heraldo: 'HERALDO', croc: 'COCODRILO', raptor: 'RAPTOR', rex: 'T-REX' },
 };

@@ -142,5 +142,17 @@ export const CA: Dict = {
     fear: '😱Aterrit', souls: '👻Ànimes', deathMark: '☠️Marca de mort', dance: '💃Dansa', units: '👁️Unitats', free: '🛰️Independents', march: '💀Marxa', skeletons: '🦴Esquelets', tvIn: '📺Dins la tele', blaze: '🔥Pas ardent', disguised: '🥸Camuflat', converge: '💥Convergència', spirits: '💀Esperits', bootsFire: '👢🔥Botes de foc', bootsNature: '👢🌿Botes de natura', bootsWater: '👢💧Botes d\'aigua', planted: '🌾Plantat', dig: '🪱Sota terra', devour: '👄Devorador', raptor: '🦖Velociraptor', trike: '🦏Triceratops', ptero: '🦅Pterodàctil', egg: '🥚Ou', prehistoric: '🍖Carn prehistòrica', lock: '🎯Objectiu fixat', burst: '🚀Coets', wet: '💦Xop', snuffed: '🕯️Apagat', nearFire: '🔥Al costat del foc', lightsOut: '🌑A les fosques', militia: '🔥Milícia',
   },
   pu: { blood: '+Sang', speed: 'Rapidesa!', fury: 'Fúria!', shield: '+Escut', coin: '+5 monedes', xp: '+XP', spirits: 'Esperits!', boots: 'Botes elementals!', shovel: 'Un enterramorts!' },
+  ally: {
+    vampire: 'Pacte de sang? Jo hi poso els ullals.', werewolf: 'Caçem en grup? Jo udolo, tu corres.', mummy: 'Aliança eterna: tinc 3000 anys d\'experiència.',
+    invisible: 'Serem aliats. No em veuràs, però hi seré.', zombie: 'Amicsss... compartim cervellsss?', kthula: 'Uneix-te a mi o t\'abraço amb tentacles.',
+    nightmare: 'Aliem-nos... i que dormin ells.', mary: 'Digues «aliats» tres vegades davant del mirall.', reanimated: 'Junts tenim més peces!',
+    doppy: 'Aliats? Puc ser tu, però millor.', witch: 'Un pacte sense lletra petita... gairebé.', succubus: 'Fem equip, amor ♥',
+    poltergeist: 'BUUU-sco aliats!', tree: 'Arrelem-nos junts.', pirate: 'A bord! Repartim el botí... després.',
+    spider: 'Entra a la meva teranyina... d\'amistat.', scarecrow: 'Socis? Jo espanto, tu culls.', demon: 'Signa aquí. No crema... gaire.',
+    slime: 'Ens fusionem? *blub*', alien: 'Salutacions, terrícola. Proposo un tractat.', static: 'Sintonitza el meu canal: aliança 24 h.',
+    kappa: 'Et convido a la meva bassa. Porta cogombre.', reaper: 'Aliats fins a la mort... la teva o la meva.', unit: 'Uneix-te. Nosaltres som simpàtics.',
+    necro: 'Els meus esquelets et saluden.', worm: '*vibracions amistoses sota la sorra*', dino: 'RAWR! (vol dir «amics»)',
+    r800: 'Aliança proposada. Risc de traïció: 3 %.', huntress: 'No et disparo si tu no em mossegues.', candle: 'T\'il·lumino el camí... si et portes bé.',
+  },
   hunters: { cazador: 'CAÇADOR', inquisidor: 'INQUISIDOR', exorcista: 'EXORCISTA', sectario: 'SECTARI', heraldo: 'HERALD', croc: 'COCODRIL', raptor: 'RAPTOR', rex: 'T-REX' },
 };

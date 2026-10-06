@@ -142,5 +142,17 @@ export const JA: Dict = {
     fear: '😱恐怖', souls: '👻魂', deathMark: '☠️死の刻印', dance: '💃舞', units: '👁️ユニット', free: '🛰️独立', march: '💀行進', skeletons: '🦴骸骨', tvIn: '📺テレビの中', blaze: '🔥燃える足取り', disguised: '🥸擬態', converge: '💥収束', spirits: '💀霊', bootsFire: '👢🔥炎のブーツ', bootsNature: '👢🌿自然のブーツ', bootsWater: '👢💧水のブーツ', planted: '🌾仁王立ち', dig: '🪱地中', devour: '👄貪食者', raptor: '🦖ヴェロキラプトル', trike: '🦏トリケラトプス', ptero: '🦅プテロダクティルス', egg: '🥚卵', prehistoric: '🍖太古の肉', lock: '🎯ロックオン', burst: '🚀ロケット', wet: '💦ずぶ濡れ', snuffed: '🕯️消灯', nearFire: '🔥火のそば', lightsOut: '🌑暗闇', militia: '🔥民兵',
   },
   pu: { blood: '+血', speed: '加速！', fury: '激昂！', shield: '+シールド', coin: '+5 コイン', xp: '+XP', spirits: '霊！', boots: '属性ブーツ！', shovel: '墓掘り人！' },
+  ally: {
+    vampire: '血の盟約？牙はこっちで用意する。', werewolf: '群れで狩る？俺が吠える、お前は走れ。', mummy: '永遠の同盟：経験3000年だ。',
+    invisible: '仲間になろう。見えないけど、いるよ。', zombie: 'ナカマ〜…脳みそ、わけあう〜？', kthula: '仲間になれ。さもなくば触手でハグだ。',
+    nightmare: '手を組もう…眠るのは奴らだ。', mary: '鏡の前で「仲間」と3回言って。', reanimated: '合体すればパーツが増える！',
+    doppy: '同盟？君になれるよ、しかも上位版。', witch: '小さな字のない契約よ…たぶんね。', succubus: 'チーム組みましょ、ダーリン ♥',
+    poltergeist: 'ブーッ！仲間ぼしゅ〜う！', tree: '一緒に根を張ろう。', pirate: '乗船せよ！宝は山分け…あとでな。',
+    spider: '私の巣へどうぞ…友情の巣へ。', scarecrow: '組む？俺が脅かす、お前が収穫。', demon: 'ここにサインを。熱くない…ちょっとしか。',
+    slime: '合体しよ？*ぷるん*', alien: 'コンニチハ、地球人。条約ヲ提案スル。', static: 'このチャンネルに合わせて：24時間同盟。',
+    kappa: 'うちの池においで。きゅうり持参でね。', reaper: '死ぬまで同盟だ…お前か、私のな。', unit: '加われ。我々は良い奴だ。',
+    necro: 'わが骸骨たちがよろしくと。', worm: '*砂の下から友好的な振動*', dino: 'ガオー！（「友達」って意味）',
+    r800: '同盟ヲ提案。裏切リ確率：3%。', huntress: '噛まないなら撃たないよ。', candle: '道を照らしてあげる…いい子にしてたらね。',
+  },
   hunters: { cazador: 'ハンター', inquisidor: '異端審問官', exorcista: 'エクソシスト', sectario: '信者', heraldo: '光の使者', croc: 'ワニ', raptor: 'ラプトル', rex: 'T-REX' },
 };

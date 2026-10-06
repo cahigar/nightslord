@@ -142,5 +142,17 @@ export const EN: Dict = {
     fear: '😱Terrified', souls: '👻Souls', deathMark: '☠️Death mark', dance: '💃Dance', units: '👁️Units', free: '🛰️Independents', march: '💀March', skeletons: '🦴Skeletons', tvIn: '📺Inside the TV', blaze: '🔥Burning step', disguised: '🥸Disguised', converge: '💥Convergence', spirits: '💀Spirits', bootsFire: '👢🔥Fire boots', bootsNature: '👢🌿Nature boots', bootsWater: '👢💧Water boots', planted: '🌾Planted', dig: '🪱Underground', devour: '👄Devourer', raptor: '🦖Velociraptor', trike: '🦏Triceratops', ptero: '🦅Pterodactyl', egg: '🥚Egg', prehistoric: '🍖Prehistoric meat', lock: '🎯Target locked', burst: '🚀Rockets', wet: '💦Soaked', snuffed: '🕯️Snuffed', nearFire: '🔥Near the fire', lightsOut: '🌑In the dark', militia: '🔥Militia',
   },
   pu: { blood: '+Blood', speed: 'Speed!', fury: 'Fury!', shield: '+Shield', coin: '+5 coins', xp: '+XP', spirits: 'Spirits!', boots: 'Elemental boots!', shovel: 'A gravedigger!' },
+  ally: {
+    vampire: 'Blood pact? I\'ll bring the fangs.', werewolf: 'Hunt as a pack? I howl, you run.', mummy: 'Eternal alliance: 3000 years of experience.',
+    invisible: 'Let\'s be allies. You won\'t see me, but I\'m there.', zombie: 'Friendsss... share some brainsss?', kthula: 'Join me or get a tentacle hug.',
+    nightmare: 'Let\'s team up... and let THEM sleep.', mary: 'Say “allies” three times in the mirror.', reanimated: 'Together we\'ve got more parts!',
+    doppy: 'Allies? I can be you, but better.', witch: 'A pact with no fine print... almost.', succubus: 'Let\'s team up, darling ♥',
+    poltergeist: 'BOO-ddies wanted!', tree: 'Let\'s put down roots together.', pirate: 'All aboard! We\'ll split the loot... later.',
+    spider: 'Step into my web... of friendship.', scarecrow: 'Partners? I scare, you harvest.', demon: 'Sign here. It only burns... a little.',
+    slime: 'Shall we merge? *blub*', alien: 'Greetings, earthling. I propose a treaty.', static: 'Tune in to my channel: 24/7 alliance.',
+    kappa: 'Come to my pond. Bring a cucumber.', reaper: 'Allies till death... yours or mine.', unit: 'Join us. We are nice.',
+    necro: 'My skeletons say hi.', worm: '*friendly vibrations under the sand*', dino: 'RAWR! (that means “friends”)',
+    r800: 'Alliance proposed. Betrayal risk: 3%.', huntress: 'I won\'t shoot if you don\'t bite.', candle: 'I\'ll light your way... if you behave.',
+  },
   hunters: { cazador: 'HUNTER', inquisidor: 'INQUISITOR', exorcista: 'EXORCIST', sectario: 'CULTIST', heraldo: 'HERALD', croc: 'CROCODILE', raptor: 'RAPTOR', rex: 'T-REX' },
 };

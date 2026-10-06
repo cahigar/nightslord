@@ -142,5 +142,17 @@ export const EU: Dict = {
     fear: '😱Izututa', souls: '👻Arimak', deathMark: '☠️Heriotzaren marka', dance: '💃Dantza', units: '👁️Unitateak', free: '🛰️Independenteak', march: '💀Martxa', skeletons: '🦴Hezurdurak', tvIn: '📺Telebista barruan', blaze: '🔥Urrats sutsua', disguised: '🥸Mozorrotuta', converge: '💥Konbergentzia', spirits: '💀Izpirituak', bootsFire: '👢🔥Su-botak', bootsNature: '👢🌿Natura-botak', bootsWater: '👢💧Ur-botak', planted: '🌾Iltzatuta', dig: '🪱Lurpean', devour: '👄Irenslea', raptor: '🦖Velociraptorra', trike: '🦏Triceratopsa', ptero: '🦅Pterodaktiloa', egg: '🥚Arrautza', prehistoric: '🍖Historiaurreko haragia', lock: '🎯Helburua finkatuta', burst: '🚀Suziriak', wet: '💦Blai eginda', snuffed: '🕯️Itzalita', nearFire: '🔥Sutik gertu', lightsOut: '🌑Ilunpetan', militia: '🔥Milizia',
   },
   pu: { blood: '+Odola', speed: 'Abiadura!', fury: 'Amorrua!', shield: '+Ezkutua', coin: '+5 txanpon', xp: '+XP', spirits: 'Izpirituak!', boots: 'Bota elementalak!', shovel: 'Hilobi-egile bat!' },
+  ally: {
+    vampire: 'Odol-ituna? Nik letaginak jarriko ditut.', werewolf: 'Taldean ehizatu? Nik uluka, zuk korrika.', mummy: 'Betiko aliantza: 3000 urteko esperientzia dut.',
+    invisible: 'Aliatuak izango gara. Ez nauzu ikusiko, baina hor nago.', zombie: 'Lagunasss... garunak partekatusss?', kthula: 'Batu nirekin edo tentakuluekin besarkatuko zaitut.',
+    nightmare: 'Bat egin dezagun... eta lo egin dezatela haiek.', mary: 'Esan «aliatuak» hiru aldiz ispiluaren aurrean.', reanimated: 'Elkarrekin pieza gehiago ditugu!',
+    doppy: 'Aliatuak? Zu izan naiteke, baina hobea.', witch: 'Letra txikirik gabeko ituna... ia.', succubus: 'Egin dezagun talde, laztana ♥',
+    poltergeist: 'BUUU! Aliatu bila nabil!', tree: 'Errotu gaitezen elkarrekin.', pirate: 'Ontzira! Altxorra banatuko dugu... gero.',
+    spider: 'Sartu nire sarean... adiskidetasunezkoan.', scarecrow: 'Bazkideak? Nik beldurtu, zuk bildu.', demon: 'Sinatu hemen. Ez du erretzen... asko.',
+    slime: 'Bat egingo dugu? *blub*', alien: 'Agur, lurtar. Itun bat proposatzen dut.', static: 'Sintonizatu nire katea: aliantza 24 orduz.',
+    kappa: 'Zatoz nire putzura. Ekarri pepinoa.', reaper: 'Aliatuak heriotzaraino... zurea edo nirea.', unit: 'Batu zaitez. Gu jatorrak gara.',
+    necro: 'Nire hezurdurek agurrak bidaltzen dizkizute.', worm: '*bibrazio adiskidetsuak harea azpian*', dino: 'RAWR! («lagunak» esan nahi du)',
+    r800: 'Aliantza proposatua. Traizio-arriskua: % 3.', huntress: 'Ez dizut tiro egingo, hozkarik egiten ez badidazu.', candle: 'Bidea argituko dizut... ondo portatzen bazara.',
+  },
   hunters: { cazador: 'EHIZTARIA', inquisidor: 'INKISIDOREA', exorcista: 'EXORTZISTA', sectario: 'SEKTARIOA', heraldo: 'MEZULARIA', croc: 'KROKODILOA', raptor: 'RAPTORRA', rex: 'T-REX' },
 };
