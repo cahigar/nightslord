@@ -23,7 +23,7 @@ interface Sample { t: number; x: number; y: number }
 interface CEnt {
   id: number; k: Kind; c: string; s?: string; n?: string; l?: number; h?: number; fl: number; f: 1 | -1; a: Anim; q: number; r?: number;
   animStart: number; samples: Sample[]; seen: number; flash: number; rx: number; ry: number;
-  f2: number; hy?: number; o?: number; rr?: number; bx?: number; by?: number; z?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
+  f2: number; hy?: number; o?: number; rr?: number; bx?: number; by?: number; z?: number; wx?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
 }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number }
 interface Floater { x: number; y: number; text: string; color: string; life: number; big?: boolean }
@@ -154,7 +154,7 @@ export class Game {
       if (e.a !== s.a || e.q !== s.q) { e.animStart = now; e.a = s.a; e.q = s.q; }
       const fl = s.fl ?? 0;
       if (fl & Flag.Entombed && !(e.fl & Flag.Entombed)) e.tombAt = now;
-      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f2 = s.f2 ?? 0; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.bx = s.bx; e.by = s.by; e.z = s.z; e.hy = s.hy; e.g = s.g; e.seen = now;
+      e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f2 = s.f2 ?? 0; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.bx = s.bx; e.by = s.by; e.z = s.z; e.wx = s.wx; e.hy = s.hy; e.g = s.g; e.seen = now;
       e.samples.push({ t: now, x: s.x, y: s.y });
       if (e.samples.length > 6) e.samples.shift();
     }
@@ -510,6 +510,8 @@ export class Game {
         else if (held === 'lantern' || held === 'candle') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 40, r: 130, c: 'warm', flicker: true });
       } else if (e.k === Kind.Prop && e.c === 'lamp') {
         dyn.push({ x: e.rx, y: e.ry - 66, r: 210, c: 'white' }); // una farola falsa también alumbra
+      } else if (e.k === Kind.Player && e.c === 'candle' && !(e.f2 & Flag2.Dim) && !(e.fl & Flag.Invisible)) {
+        dyn.push({ x: e.rx, y: e.ry - 76, r: 180, c: 'warm', flicker: true }); // su llama alumbra
       } else if (e.k === Kind.Player && e.fl & Flag.Jet) {
         const a = e.id === this.youId ? this.aim : e.r ?? 0;
         dyn.push({ x: e.rx + Math.cos(a) * 130, y: e.ry - 34 + Math.sin(a) * 110, r: 170, c: 'cold' });
@@ -521,7 +523,9 @@ export class Game {
       }
     }
     for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) {
-      if (e.c === 'fire') dyn.push({ x: e.rx, y: e.ry - 10, r: (e.rr ?? 60) * 2, c: 'warm', flicker: true });
+      if (e.c === 'waxfire') dyn.push({ x: e.rx, y: e.ry - 10, r: (e.rr ?? 40) * 2.2, c: 'warm', flicker: true });
+      else if (e.c === 'candle') dyn.push({ x: e.rx, y: e.ry - 20, r: 60, c: 'warm', flicker: true });
+      else if (e.c === 'fire') dyn.push({ x: e.rx, y: e.ry - 10, r: (e.rr ?? 60) * 2, c: 'warm', flicker: true });
       else if (e.c === 'holy') dyn.push({ x: e.rx, y: e.ry, r: (e.rr ?? 60) * 1.5, c: 'cold' });
       else if (e.c === 'hex') dyn.push({ x: e.rx, y: e.ry, r: (e.rr ?? 60) * 1.3, c: 'cold' });
       else if (e.c === 'ritual') dyn.push({ x: e.rx, y: e.ry, r: (e.rr ?? 60) * 1.8, c: 'warm', flicker: true });
@@ -583,8 +587,8 @@ export class Game {
     this.drawLighting(ctx, W, H, camX, camY, z, now, me, dyn, cones);
     // Gusarena bajo tierra: no ve el mapa, solo las pisadas de quien se mueve cerca
     if (meEnt && meEnt.c === 'worm' && meEnt.fl & Flag.Submerged && this.alive) this.drawUnderground(ctx, W, H, z, camX, camY, now, me);
-    // cegado por los cuervos: casi no ves más allá de ti
-    if (this.you?.buffs.some((b) => b.t === 'blind')) {
+    // cegado por los cuervos (o en la oscuridad de Candle Man): casi no ves más allá de ti
+    if (this.you?.buffs.some((b) => b.t === 'blind') || [...this.ents.values()].some((z) => z.k === Kind.Zone && z.c === 'lightsout' && z.o !== this.youId && (me.x - z.rx) ** 2 + (me.y - z.ry) ** 2 < (z.rr ?? 500) ** 2)) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       const sx = W / 2 + (me.x - this.cam.x) * z, sy = H * this.focusY + (me.y - 40 - this.cam.y) * z;
       const g = ctx.createRadialGradient(sx, sy, 60 * z, sx, sy, 260 * z);
@@ -644,8 +648,12 @@ export class Game {
       dc.fillRect(px - pr, py - pr, pr * 2, pr * 2);
     };
     const flick = (l: Light) => (l.flicker ? 1 + Math.sin(now / 90 + l.x) * 0.05 + Math.random() * 0.04 : 1);
-    hole(me.x, me.y - 30, this.alive ? 330 : 260, 0.92);
-    const all = this.lights.concat(dyn);
+    // Se apagaron las luces (Candle Man): dentro de la zona de otro no hay luces y apenas se ve
+    const outs = [...this.ents.values()].filter((z) => z.k === Kind.Zone && z.c === 'lightsout' && z.o !== this.youId);
+    const dimmed = (x: number, y: number) => outs.some((z) => (x - z.rx) ** 2 + (y - z.ry) ** 2 < (z.rr ?? 500) ** 2);
+    const blind = dimmed(me.x, me.y);
+    hole(me.x, me.y - 30, blind ? 120 : this.alive ? 330 : 260, 0.92);
+    const all = this.lights.concat(dyn).filter((l) => !outs.length || !dimmed(l.x, l.y));
     for (const l of all) hole(l.x, l.y, l.r * flick(l), 0.85);
     for (const e of this.ents.values()) {
       if (e.k === Kind.PowerUp) hole(e.rx, e.ry - 20, 70, 0.6);
@@ -859,7 +867,7 @@ export class Game {
     }
 
     const kind = isMonster ? 'monster' : e.k === Kind.Hunter ? 'hunter' : 'npc';
-    const fr = getFrame(kind, isMonster && e.c === 'dino' ? `dino${Math.min(3, e.o ?? 0)}` : e.c, e.s ?? 'classic', e.a, this.frameFor(e, now), e.id % 97, tier); // Dinozombie: forma según el servidor
+    const fr = getFrame(kind, isMonster && e.c === 'dino' ? `dino${Math.min(3, e.o ?? 0)}` : isMonster && e.c === 'candle' && e.f2 & Flag2.Dim ? 'candleoff' : e.c, e.s ?? 'classic', e.a, this.frameFor(e, now), e.id % 97, tier); // Dinozombie: forma según el servidor
     let alpha = 1;
     if (isMonster && e.c === 'invisible') alpha = 0.92;
     if (invis) alpha = e.id === this.youId ? 0.3 : 0.14 + Math.sin(now / 80) * 0.06;
@@ -867,6 +875,7 @@ export class Game {
     if (e.fl & Flag.Protected) alpha *= Math.floor(now / 120) % 2 ? 0.5 : 1;
     if (isMonster && e.c === 'poltergeist') alpha *= 0.88;
     if (e.fl & Flag.Phased) alpha = (e.id === this.youId ? 0.45 : 0.3) + Math.sin(now / 60) * 0.08;
+    if (e.f2 & Flag2.Dim) alpha = e.id === this.youId ? 0.5 : this.litAt(x, y) ? 0.55 : 0.07; // Candle Man apagado: solo se le ve bajo la luz
     ctx.globalAlpha = alpha;
     const w = SW * PIXEL * scale, h = SH * PIXEL * scale;
     const dx = x - w / 2, dy = y - h + 9 * scale - lift;
@@ -1353,6 +1362,15 @@ export class Game {
     }
   }
 
+  /** ¿Está este punto bajo alguna luz del mapa? (Candle Man apagado solo se ve ahí) */
+  private litAt(x: number, y: number) {
+    const outs = [...this.ents.values()].filter((z) => z.k === Kind.Zone && z.c === 'lightsout' && z.o !== this.youId);
+    if (outs.some((z) => (x - z.rx) ** 2 + (y - z.ry) ** 2 < (z.rr ?? 500) ** 2)) return false; // apagón: aquí no hay luz
+    for (const l of this.lights) if ((x - l.x) ** 2 + (y - l.y) ** 2 < (l.r * 0.55) ** 2) return true;
+    for (const z of this.ents.values()) if (z.k === Kind.Zone && (z.c === 'fire' || z.c === 'waxfire') && (x - z.rx) ** 2 + (y - z.ry) ** 2 < ((z.rr ?? 40) * 1.5) ** 2) return true;
+    return false;
+  }
+
   /** Fieras: cocodrilo (al acecho solo asoman los ojos), raptor y tiranosaurio. */
   private drawBeast(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     const x = e.rx, y = e.ry;
@@ -1463,7 +1481,7 @@ export class Game {
     if (e.c === 'twister') { this.effects.drawTwister(ctx, e.rx, e.ry, now); return; }
     if (e.c === 'wave') { this.effects.drawWave(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     const big = e.c.startsWith('bigpotion');
-    const spin = e.c === 'egg' || e.c === 'fireball' || e.c === 'ember' || e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion') || e.c.startsWith('obj');
+    const spin = e.c === 'egg' || e.c === 'waxglob' || e.c === 'fireball' || e.c === 'ember' || e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion') || e.c.startsWith('obj');
     const id = e.c === 'bat' ? `bat${Math.floor(now / 90) % 2}` : e.c === 'scarab' ? `scarab${Math.floor(now / 60) % 2}`
       : e.c === 'boulder' ? `boulder${({ elm: 0, transylvania: 1, camp: 2, swamp: 2, nile: 0, jungle: 2 } as Record<string, number>)[this.theme] ?? 0}` : big ? e.c.slice(3) : e.c;
     const img = getItem(id);
@@ -1484,7 +1502,7 @@ export class Game {
     ctx.restore();
     if (e.c === 'silver' || e.c === 'bigsilver') glows.push({ img: img.base, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 0.55 }); // la plata brilla
     if (img.glow && e.c !== 'bolt') glows.push({ img: img.glow, x: e.rx - w / 2, y: py - h / 2, w, h, flip: false, a: 1 });
-    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bullet' ? '#ffd060' : e.c === 'zapball' ? '#a0e8ff' : e.c === 'silver' || e.c === 'bigsilver' ? '#f0f4ff' : e.c === 'rocket' ? '#ffb040' : e.c === 'egg' ? '#e8e0c8' : e.c === 'wbubble' ? '#a0d8f8' : e.c === 'orb' ? '#80ff60' : e.c === 'eye' ? '#ff40c0' : e.c === 'bonearrow' ? '#d8d0c0' : e.c === 'noise' ? '#e8f0f0' : e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
+    if (Math.random() < 0.5) this.particles.push({ x: e.rx, y: py, vx: 0, vy: 0, life: 0.25, max: 0.25, color: e.c === 'bullet' ? '#ffd060' : e.c === 'candleflame' ? '#ffa020' : e.c === 'waxglob' ? '#ece2c8' : e.c === 'zapball' ? '#a0e8ff' : e.c === 'silver' || e.c === 'bigsilver' ? '#f0f4ff' : e.c === 'rocket' ? '#ffb040' : e.c === 'egg' ? '#e8e0c8' : e.c === 'wbubble' ? '#a0d8f8' : e.c === 'orb' ? '#80ff60' : e.c === 'eye' ? '#ff40c0' : e.c === 'bonearrow' ? '#d8d0c0' : e.c === 'noise' ? '#e8f0f0' : e.c === 'plasma' ? '#60ff90' : e.c === 'bubble' ? '#a0ff70' : e.c === 'fireball' || e.c === 'ember' ? '#ff8020' : e.c === 'web' ? '#e8e8f0' : e.c === 'skull' ? '#a050ff' : e.c === 'cannon' ? '#606068' : e.c === 'hook' ? '#c0c0c8' : e.c === 'thorn' ? '#a0e040' : e.c === 'heart' ? '#ff80b0' : e.c.startsWith('obj') ? '#c0e8ff' : e.c === 'bolt' ? '#c0c0d0' : e.c === 'bat' ? '#402050' : e.c === 'holy' ? '#a0d8ff' : e.c.includes('potion0') ? '#ff8020' : e.c.includes('potion1') ? '#a0ff40' : e.c.includes('potion2') ? '#ff4020' : e.c === 'nailback' ? '#c8e8ff' : '#d8b870', size: 3, grav: 0 });
   }
 
   /** Iconos pixelados sobre la cabeza (estados). */
@@ -1509,6 +1527,7 @@ export class Game {
     if (e.k === Kind.PowerUp || e.k === Kind.Projectile || e.k === Kind.Zone || e.k === Kind.Prop) return;
     if (e.fl & Flag.Invisible && e.id !== this.youId) return;
     if (e.fl & Flag.Submerged && e.id !== this.youId) return;
+    if (e.f2 & Flag2.Dim && e.id !== this.youId && !this.litAt(e.rx, e.ry)) return;
     const tierLift = e.k === Kind.Player && tierOf(e.l ?? 1) >= 3 && (e.c === 'vampire' || e.c === 'invisible') ? 6 : 0;
     const x = e.rx, top = e.ry - SH * PIXEL + 8 - tierLift - (e.k === Kind.Player && e.fl & Flag.Ult && e.c === 'werewolf' ? 24 : 0);
     ctx.textAlign = 'center';
@@ -1537,6 +1556,7 @@ export class Game {
     // somnolencia (barra violeta) y sueño
     if (e.z && !(e.fl & Flag.Asleep)) this.bar(ctx, x, top + (e.k === Kind.Player ? 5 : 14), 30, e.z, '#a070ff');
     if (e.hy && !(e.f2 & Flag2.Hypnotized)) this.bar(ctx, x, top + (e.k === Kind.Player ? 9 : 18), 30, e.hy, '#40ff90');
+    if (e.wx) this.bar(ctx, x, top + (e.k === Kind.Player ? 13 : 22), 30, e.wx, '#f0e0b0'); // encerado
     if (e.f2 & Flag2.Hypnotized) { ctx.font = '14px serif'; ctx.fillText('🌀', x, top - 26 + Math.sin(now / 120) * 2); }
     if (e.fl & Flag.Asleep) {
       ctx.font = '12px "Press Start 2P", monospace';
@@ -1616,7 +1636,7 @@ const WOODY = new Set(['tree', 'wall', 'turret', 'flower', 'barrel', 'decoy']);
 /** Esbirros que no dejan cadáver (fantasmas, bichos, cachivaches...). */
 const NO_CORPSE = new Set(['barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon', 'skel', 'skelarcher', 'skeldog', 'unit', 'unitfree']);
 
-const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90', static: '#40ff90', kappa: '#a0d8f0', reaper: '#60ffd0', unit: '#ff40c0', necro: '#80ff60', worm: '#ffb060', dino: '#c0ff60', r800: '#ff3040', huntress: '#e0c060' };
+const AURA: Record<CharacterId, string> = { vampire: '#ff3050', werewolf: '#c8e0ff', mummy: '#ffd860', invisible: '#c0e0ff', zombie: '#80ff60', kthula: '#40e0c0', nightmare: '#a070ff', mary: '#ff3040', reanimated: '#60c8ff', doppy: '#ffe060', witch: '#a0ff40', succubus: '#ff4a8a', poltergeist: '#a0e8ff', tree: '#a0e040', pirate: '#a0fff0', spider: '#ff2040', scarecrow: '#ffb020', demon: '#ff8020', slime: '#a0ff70', alien: '#60ff90', static: '#40ff90', kappa: '#a0d8f0', reaper: '#60ffd0', unit: '#ff40c0', necro: '#80ff60', worm: '#ffb060', dino: '#c0ff60', r800: '#ff3040', huntress: '#e0c060' , candle: '#ffb030' };
 
 /** Tamaño (como obstáculo del mapa) de los objetos en los que se puede convertir Pesadilla. */
 const PROP_SIZE: Record<string, [number, number]> = {
@@ -1667,6 +1687,7 @@ const TAUNTS: Record<CharacterId, string> = {
   dino: '¡RAAAWR... cerebros!',
   r800: 'Objetivo adquirido.',
   huntress: 'Yo también cazaba monstruos.',
+  candle: 'Sopla, si te atreves.',
 };
 
 export const charName = (c: CharacterId) => CHARACTERS[c]?.name ?? c;

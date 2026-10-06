@@ -5,7 +5,7 @@
 export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zombie' | 'kthula' | 'nightmare' | 'mary' | 'reanimated' | 'doppy' | 'witch' | 'succubus' | 'poltergeist' | 'tree'
   | 'pirate' | 'spider' | 'scarecrow' | 'demon' | 'slime' | 'alien'
   | 'static' | 'kappa' | 'reaper' | 'unit' | 'necro'
-  | 'worm' | 'dino' | 'r800' | 'huntress';
+  | 'worm' | 'dino' | 'r800' | 'huntress' | 'candle';
 
 /** Clase del monstruo: cambia vida, armadura, regeneración y robo de vida (ver CLASS en balance.ts). */
 export type Role = 'melee' | 'assassin' | 'summoner' | 'ranged' | 'hybrid';
@@ -784,6 +784,32 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Milicia', desc: 'Puede dar arcos a los humanos y el culatazo empuja a varios enemigos en un cono.' },
     ],
   },
+  candle: {
+    id: 'candle',
+    name: 'Candle Man',
+    title: 'Señor de la cera',
+    role: 'ranged',
+    hp: 120,
+    speed: 205,
+    damage: 16,
+    range: 240,
+    arc: 0,
+    attackCd: 0.55,
+    armor: 0.05,
+    rangedBasic: true,
+    attackName: 'Llama de vela',
+    passive: 'Cuerpo de cera: deja gotas de cera al moverse. Quien pisa mucha cera se ralentiza y acumula encerado; si llena la barra, queda pegado al suelo 1 s (puede atacar). Cerca del fuego ataca más rápido.',
+    abilities: [
+      { key: 'Q', name: 'Cera ardiente', desc: 'Lanza una masa de cera que se pega al suelo: ralentiza mucho y encera. Si le llega fuego (por ejemplo su llama), se prende: deja de encerar y quema a quien la pisa.', cooldown: 8 },
+      { key: 'E', name: 'Apagar la llama', desc: 'Apaga su cabeza 5 s: hace menos daño, corre mucho más y casi no se le ve fuera de la luz. Otra E para encenderse de golpe con una pequeña explosión de fuego.', cooldown: 10 },
+    ],
+    ult: { key: 'R', name: 'Se apagaron las luces', desc: 'Apaga farolas, lámparas y cualquier luz de una gran zona durante 8 s: los enemigos casi no ven; él ve con normalidad y corre y ataca más rápido dentro.', cooldown: 0 },
+    evolution: [
+      { lvl: 5, name: 'Mecha interminable', desc: 'Los enemigos que mueren quemados dejan una vela; al recogerla recupera un poco de vida.' },
+      { lvl: 10, name: 'Se apagaron las luces', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
+      { lvl: 15, name: 'Incendio de cera', desc: 'Cera ardiente con 2 cargas, y el fuego de la cera salta a las manchas cercanas.' },
+    ],
+  },
 };
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -956,6 +982,11 @@ export const SKINS: Record<CharacterId, SkinDef[]> = {
     { id: 'classic', name: 'Veterana', price: 0, palette: { skin: '#f0c8a8', hair: '#8a2a14', cloth: '#1c1a20', cloth2: '#0e0c10', accent: '#d8dce8', eye: '#3a7a40' } },
     { id: 'winter', name: 'Invierno', price: 200, palette: { skin: '#f0d0b8', hair: '#e8e8f0', cloth: '#d8dce8', cloth2: '#6a7080', accent: '#80c0ff', eye: '#4060a0' } },
     { id: 'crimson', name: 'Carmesí', price: 350, palette: { skin: '#c89070', hair: '#1a1014', cloth: '#6a1018', cloth2: '#300810', accent: '#e0c060', eye: '#a01020' } },
+  ],
+  candle: [
+    { id: 'classic', name: 'Cera de iglesia', price: 0, palette: { skin: '#ddd0a8', hair: '#2a2018', cloth: '#c8b888', cloth2: '#a89878', accent: '#ffb030', eye: '#ff4020' } },
+    { id: 'black', name: 'Vela negra', price: 200, palette: { skin: '#3a3440', hair: '#100c14', cloth: '#2a2430', cloth2: '#18141c', accent: '#a060ff', eye: '#c080ff' } },
+    { id: 'blood', name: 'Cera roja', price: 350, palette: { skin: '#c02028', hair: '#2a0a0a', cloth: '#a01820', cloth2: '#600c10', accent: '#60e0ff', eye: '#a0f0ff' } },
   ],
 };
 

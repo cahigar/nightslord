@@ -1544,6 +1544,64 @@ const huntressForm: FormFn = (b, p, c, anim, tier) => {
   b.set(hx + 4, hy - 5, silver, true); b.set(hx + 4, hy + 3, silver, true);
 };
 
+
+/** Candle Man: una vela vieja, alta y encorvada, medio derretida, con la cara tallada en un grito, cuencas negras
+ *  con lágrimas de hollín, garras de cera y una llama por cabeza (apagada con la E: solo humea la mecha). */
+let candleOff = false;
+const candleForm: FormFn = (b, p, c, anim, tier) => {
+  const by = p.by, sw = p.sway ?? 0;
+  const wax = c.skin, waxL = shade(c.skin, 0.12), waxS = shade(c.skin, -0.22), waxD = shade(c.skin, -0.4), soot = '#141010', pool = c.cloth;
+  const top = 6 + by;
+  // charco de cera a los pies y piernas como regueros
+  b.rect(4, FLOOR, 16, 1, waxS); b.rect(6, FLOOR - 1, 4, 1, pool); b.rect(14, FLOOR - 1, 3, 1, pool);
+  legs(b, p, waxS, wax, waxS, { width: 3 });
+  // brazo trasero: largo, flaco, con garras que gotean
+  arm(b, 8, 13 + by, p.la, 8, waxS, waxS, 2);
+  const lx = 8 + Math.sin(p.la) * 8, ly = 13 + by + Math.cos(p.la) * 8;
+  b.set(lx - 1, ly + 1, waxL); b.set(lx + 1, ly + 1, waxL); b.set(lx, ly + 2, waxL);
+  // cuerpo alto, torcido y medio derretido
+  b.rect(7, top, 10, HIP + 1 - top, wax);
+  b.rect(7, top, 1, HIP + 1 - top, waxL); b.rect(15, top, 2, HIP + 1 - top, waxS);
+  b.rect(6, 12 + by, 2, 5, wax); b.set(6, 17 + by, waxS); // hombro caído derretido
+  b.line(9, 18 + by, 11, 21, waxD); b.line(14, 7 + by, 13, 10 + by, waxD); // grietas
+  // borde de arriba quemado e irregular, con cera líquida y la mecha
+  b.rect(8, top, 8, 1, pool); b.clear(7, top); b.clear(16, top); b.clear(10, top);
+  for (const x of [8, 11, 15]) b.set(x, top - 1, soot);
+  b.set(13, top - 1, wax);
+  // goterones por todo el cuerpo
+  for (const [x, len] of [[7, 7], [9, 3], [12, 5], [16, 8], [14, 3]] as [number, number][]) {
+    const l = len + ((sw + x) % 2);
+    b.rect(x, top + 1, 1, l, waxL); b.set(x, top + 1 + l, wax);
+  }
+  // cara tallada en un grito: cuencas negras con pupilas que brillan y lágrimas de hollín
+  b.rect(10, 9 + by, 2, 3, soot); b.rect(13, 9 + by, 2, 3, soot);
+  if (!p.blink) { b.set(11, 10 + by, c.eye, !candleOff); b.set(14, 10 + by, c.eye, !candleOff); }
+  for (const [x, l] of [[10, 3], [14, 4]] as [number, number][]) for (let y = 0; y < l; y++) b.set(x + (y > 1 ? 1 : 0), 12 + by + y, y === l - 1 ? waxS : '#3a3030');
+  const open = p.mouth || anim === Anim.Attack ? 1 : 0;
+  b.rect(11, 14 + by, 4, 3 + open, soot); b.rect(12, 15 + by, 2, 1 + open, '#3a0808');
+  for (const x of [11, 13]) b.set(x, 14 + by, waxL); // cera que cuelga como colmillos
+  b.set(14, 16 + by + open, waxL); b.set(12, 17 + by + open, wax);
+  // mecha y llama (o humo si está apagado)
+  b.line(12, top - 1, 12, top - 3, c.hair);
+  if (!candleOff) {
+    const big = tier >= 2 ? 1 : 0, fl = sw % 2, fy = top - 3;
+    for (const [dy, x0, x1, col] of [[0, 11, 13, c.accent], [-1, 11 - big, 13 + big, c.accent], [-2, 11, 13, '#ffe080'], [-3, 12, 12 + fl, '#ffe080'], [-4, 12 - fl, 12, '#ffffff']] as [number, number, number, string][]) {
+      for (let x = x0; x <= x1; x++) b.set(x + (dy < -2 ? fl : 0), fy + dy, col, true);
+    }
+    b.set(12, fy - 1, '#ffffff', true);
+  } else {
+    b.set(12, top - 3, '#ff6020', true); // brasa
+    for (const [x, y] of [[13, -5], [12 + (sw % 2), -7], [14, -8]]) b.set(x, top + y, '#8a8890');
+  }
+  // brazo delantero con garras; al atacar le salta fuego de la mano
+  arm(b, 15, 13 + by, p.ra, 7, wax, waxS, 2);
+  const hx = 15 + Math.sin(p.ra) * 7, hy = 13 + by + Math.cos(p.ra) * 7;
+  b.set(hx + 1, hy - 1, waxL); b.set(hx + 1, hy + 1, waxL); b.set(hx, hy + 2, waxL);
+  if (anim === Anim.Attack && !candleOff) { b.set(hx + 2, hy, c.accent, true); b.set(hx + 3, hy - 1, '#ffe080', true); b.set(hx + 2, hy - 2, '#ffe080', true); }
+  // nv. 15: velitas encendidas clavadas en los hombros
+  if (tier >= 3) for (const x of [6, 17]) { b.rect(x, 9 + by, 1, 3, waxL); if (!candleOff) b.set(x, 8 + by, c.accent, true); }
+};
+
 /** Plantas del Árbol maldito: muro de raíces, torreta de espinas (despertada de un árbol del mapa: más grande) y flor curativa. */
 const plantCache = new Map<string, Baked>();
 export function getPlant(kind: string, frame: number, awake = false): Baked {
@@ -1612,7 +1670,7 @@ export const FORMS: Record<CharacterId, FormFn> = {
   nightmare: nightmareForm, mary: maryForm, reanimated: reanimatedForm, doppy: doppyForm, witch: witchForm,
   succubus: succubusForm, poltergeist: poltergeistForm, tree: treeForm, pirate: pirateForm, spider: spiderForm, scarecrow: scarecrowForm, demon: demonForm, slime: slimeForm, alien: alienForm, static: staticForm, kappa: kappaForm,
   reaper: reaperForm, unit: unitForm, necro: necroForm,
-  worm: wormForm, dino: dinoRaptor, r800: r800Form, huntress: huntressForm,
+  worm: wormForm, dino: dinoRaptor, r800: r800Form, huntress: huntressForm, candle: candleForm,
 };
 
 // ---------------------------------------------------------------------------
@@ -1931,7 +1989,8 @@ export function getFrame(kind: 'monster' | 'npc' | 'hunter' | 'zombie', variant:
   if (kind === 'monster') {
     // Dinozombie: 'dino0'..'dino3' = raptor, tricerátops, pterodáctilo, huevo
     const dinoForm = /^dino[0-3]$/.test(variant) ? +variant[4] : -1;
-    const ch = (dinoForm >= 0 ? 'dino' : variant) as CharacterId;
+    candleOff = variant === 'candleoff'; // Candle Man con la llama apagada
+    const ch = (dinoForm >= 0 ? 'dino' : candleOff ? 'candle' : variant) as CharacterId;
     (dinoForm >= 0 ? DINO_FORMS[dinoForm] : FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim, tier);
   } else if (kind === 'hunter') drawHunterType(b, pose, variant);
   else if (kind === 'zombie') drawNpc(b, pose, variant, sd, (skin as ZombieKind) || 'normal', anim);
@@ -2002,6 +2061,9 @@ const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: s
   rocket: { art: ['.ff.......', 'fFkkmmmmr.', 'fFkkmMMmrr', 'fFkkmmmmr.', '.ff.......'], pal: { f: '#ff6020', F: '#ffe060', k: '#2a2a30', m: '#7a8088', M: '#c0c4cc', r: '#d02020' }, glow: 'F' },
   // La Cazadora: virotes de plata (el de la definitiva, grande)
   silver: { art: ['.......s..', 'f.ggggggsW', 'f.......s.'], pal: { g: '#a8acb8', s: '#e8ecf8', W: '#ffffff', f: '#d8dce8' }, glow: 'W' },
+  candleflame: { art: ['...oo..', '.ooyyo.', 'oyyWWyo', '.ooyyo.', '...oo..'], pal: { o: '#e04010', y: '#ffa020', W: '#fff0a0' }, glow: 'W' },
+  waxglob: { art: ['..www..', '.wWwww.', 'wWwwwsw', 'wwwwssw', '.wwssw.', '..www..'], pal: { w: '#e8dcc0', W: '#ffffff', s: '#b8a888' } },
+  candle: { art: ['..f..', '..F..', '..k..', '.www.', '.wWw.', '.www.', 'wwwww'], pal: { f: '#ff8020', F: '#fff0a0', k: '#2a2018', w: '#ece2c8', W: '#ffffff' }, glow: 'F' },
   bigsilver: { art: ['..........s....', 'f.........sS...', 'ffggggggggsSSSW', 'f.........sS...', '..........s....'], pal: { g: '#b8bcc8', s: '#c8ccd8', S: '#f0f4ff', W: '#ffffff', f: '#e8ecf4' }, glow: 'W' },
 };
 

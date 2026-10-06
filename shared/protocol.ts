@@ -42,12 +42,13 @@ export enum Flag2 {
   Leaping = 16, // en pleno salto
   Engulfed = 32, // atrapado dentro del slime
   Hypnotized = 64, // hipnotizado: camina hacia la Interferencia o una tele
+  Dim = 128, // Candle Man con la llama apagada: casi invisible fuera de la luz
 }
 
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp' | 'spirits' | 'boots' | 'shovel';
 export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy'
   | 'nail' | 'nailback' | 'boulder' | 'potion0' | 'potion1' | 'potion2' | 'bigpotion0' | 'bigpotion1' | 'bigpotion2'
-  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon' | 'web' | 'crows' | 'crowsback' | 'fireball' | 'ember' | 'firewave' | 'bubble' | 'plasma' | 'noise' | 'tongue' | 'wbubble' | 'eye' | 'orb' | 'bonearrow' | 'egg' | 'twister' | 'bullet' | 'zapball' | 'rocket' | 'silver' | 'bigsilver';
+  | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon' | 'web' | 'crows' | 'crowsback' | 'fireball' | 'ember' | 'firewave' | 'bubble' | 'plasma' | 'noise' | 'tongue' | 'wbubble' | 'eye' | 'orb' | 'bonearrow' | 'egg' | 'twister' | 'bullet' | 'zapball' | 'rocket' | 'silver' | 'bigsilver' | 'candleflame' | 'waxglob';
 
 export interface EntSnap {
   i: number; // id
@@ -70,6 +71,7 @@ export interface EntSnap {
   bx?: number; by?: number; // segundo extremo (zonas alargadas, como los hilos de telaraña)
   z?: number; // somnolencia 0..100
   hy?: number; // hipnosis 0..100
+  wx?: number; // encerado 0..100 (Candle Man)
   g?: string; // (solo tu entidad) disfraz actual: 'prop:pine', 'npc:teen', 'char:werewolf'...
 }
 
@@ -94,7 +96,8 @@ export type FxId =
   | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand' | 'scare' | 'fireBoom' | 'slimeSplit' | 'slimeBoom' | 'ufoBeam' | 'ufoRay' | 'hypno' | 'tvWave' | 'tvBeam' | 'rain' | 'bowl' | 'confetti' | 'allyAsk'
   | 'tvBolt' | 'tvPop' | 'lick' | 'reap' | 'deathMark' | 'blink' | 'unitBoom' | 'assimilate' | 'boneSlam' | 'boneWarn' | 'raise' | 'ghostRise' | 'critterPop'
   | 'lockOn' | 'asteroid' | 'hatch' | 'burrow' | 'quake' | 'spit' | 'arm' | 'buttStroke' | 'shapeshift'
-  | 'zapHit' | 'rocketBoom' | 'sizzle' | 'roar' | 'chomp' | 'disarm' | 'huntSpin';
+  | 'zapHit' | 'rocketBoom' | 'sizzle' | 'roar' | 'chomp' | 'disarm' | 'huntSpin'
+  | 'waxed' | 'waxIgnite' | 'relight' | 'snuff' | 'candlePick' | 'lightsOut';
 
 export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
 

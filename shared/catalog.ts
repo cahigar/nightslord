@@ -72,6 +72,7 @@ export const CHAR_MEDALS: Record<CharacterId, { name: string; icon: string }> = 
   dino: { name: 'Rey lagarto', icon: '🦖' },
   r800: { name: 'Modelo avanzado', icon: '🤖' },
   huntress: { name: 'Milicia', icon: '🏹' },
+  candle: { name: 'Incendio de cera', icon: '🕯️' },
 };
 for (const [c, m] of Object.entries(CHAR_MEDALS)) MEDALS.push({ id: `char:${c}`, name: m.name, desc: `Alcanza el nivel 15 con este monstruo.`, icon: m.icon, coins: 80 });
 
@@ -100,6 +101,7 @@ export const CHARACTER_UNLOCK: Record<CharacterId, { price: number; medal?: stri
   dino: { price: 1, medal: 'level15' },
   r800: { price: 1, medal: 'monster10' },
   huntress: { price: 1, medal: 'cultist' },
+  candle: { price: 1, medal: 'herald' },
 };
 /** Precio del siguiente monstruo: 400 monedas el primero y +200 por cada uno que ya hayas comprado. */
 export function unlockPrice(p: Profile | null): number {

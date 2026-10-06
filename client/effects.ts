@@ -304,6 +304,12 @@ export class Effects {
       case 'chomp': this.chomp(ev); break;
       case 'disarm': this.burst(x, y - 30, 12, ev.c === 'torch' ? ['#ff9020', '#5a4030', '#ffe060'] : ['#9090a0', '#7a5030', '#c0c0c8'], 120, 3, 400, 0.5); this.ripple(x, y - 10, '#c0c0c8', 0.3, 26); break;
       case 'huntSpin': this.huntSpin(ev); break;
+      case 'waxed': this.burst(x, y - (ev.n ? 6 : 30), ev.n ? 16 : 10, ['#ece2c8', '#ffffff', '#b8a888'], ev.n ? 160 : 90, 3, 300, 0.5); if (!ev.n) this.ripple(x, y - 10, '#ece2c8', 0.4, 26); break;
+      case 'waxIgnite': this.burst(x, y - 10, 18, ['#ff6010', '#ffb030', '#fff0a0'], (ev.r ?? 40) * 3, 3, -40, 0.5, true); this.ripple(x, y, '#ffb030', 0.35, ev.r ?? 40); break;
+      case 'relight': this.burst(x, y - 70, ev.r ? 30 : 10, ['#ff6010', '#ffb030', '#fff0a0', '#ffffff'], ev.r ? ev.r * 3 : 90, 3, 0, 0.5, true); if (ev.r) { this.ripple(x, y, '#ffb030', 0.4, ev.r); this.ripple(x, y, '#ff6010', 0.55, ev.r * 0.7); } break;
+      case 'snuff': this.burst(x, y - 74, 12, ['#8a8890', '#5a5860', '#c0c0c8'], 50, 3, -50, 0.9); break;
+      case 'candlePick': this.burst(x, y - 20, 12, ['#ffe080', '#ff8020', '#80ff60'], 120, 3, -30, 0.5, true); break;
+      case 'lightsOut': this.ripple(x, y, '#1a1020', 0.7, ev.r ?? 500); this.ripple(x, y, '#3a2a4a', 0.5, (ev.r ?? 500) * 0.6); this.burst(x, y - 60, 20, ['#2a2030', '#0a0810', '#8a8890'], 260, 4, -20, 1); break;
       case 'critterPop': this.burst(x, y - 16, 14, ['#ffe080', '#ffffff', '#c0a040'], 140, 3, 200, 0.6, true); this.ripple(x, y, '#ffe080', 0.4, 30); break;
       case 'summon': this.lightPillar(x, y, ev.n ? 1 : 0.8, ev.n ? '#ff4060' : '#c060ff'); this.burst(x, y - 30, 24, ['#c060ff', '#ff4060', '#2e1a3a'], 200, 3, 0, 0.8, true); break;
     }
@@ -1866,6 +1872,46 @@ export class Effects {
       ctx.globalAlpha = 0.55 * Math.min(1, life * 5);
       ctx.fillStyle = '#5a4a1a';
       ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (kind === 'wax' || kind === 'waxfire') {
+      // mancha de cera (crema, con brillo); encendida, con llamitas pixeladas encima
+      const lit = kind === 'waxfire';
+      ctx.globalAlpha = 0.85 * fade;
+      ctx.fillStyle = lit ? '#8a6a40' : '#d8ccb0';
+      ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = lit ? '#5a3a20' : '#ece2c8';
+      ctx.beginPath(); ctx.ellipse(x - r * 0.15, y - r * 0.1, r * 0.6, r * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      if (!lit) { ctx.fillRect(snap(x - r * 0.35), snap(y - r * 0.2), PIXEL * 2, PIXEL); for (let i = 0; i < 3; i++) ctx.fillRect(snap(x + Math.cos(i * 2.1 + seed) * r * 0.75), snap(y + Math.sin(i * 2.1 + seed) * r * 0.45), PIXEL, PIXEL); }
+      if (lit) {
+        ctx.globalAlpha = fade;
+        const n = Math.max(3, Math.round(r / 7));
+        for (let i = 0; i < n; i++) {
+          const aa = i * 2.4 + seed, rr = r * (0.1 + ((i * 29) % 10) / 13);
+          const fx = x + Math.cos(aa) * rr, fy = y + Math.sin(aa) * rr * 0.6;
+          const h = 6 + ((Math.floor(now / 80) + i) % 4) * 3;
+          ctx.fillStyle = '#d03010'; ctx.fillRect(snap(fx), snap(fy - h), PIXEL * 2, h);
+          ctx.fillStyle = '#ffa020'; ctx.fillRect(snap(fx), snap(fy - h + 3), PIXEL, h - 3);
+          ctx.fillStyle = '#fff0a0'; ctx.fillRect(snap(fx), snap(fy - 3), PIXEL, PIXEL);
+        }
+        if (Math.random() < 0.3) this.particles.push({ x: x + (Math.random() - 0.5) * r, y: y - 10, vx: 0, vy: -50, life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#ffb030' : '#ff6010', size: PIXEL, grav: 0, glow: true });
+      }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'candle') {
+      // vela que deja un enemigo quemado (Mecha interminable)
+      const img = getItem('candle'), w = img.base.width * PIXEL, h = img.base.height * PIXEL, bob = Math.sin(now / 250 + seed) * 2;
+      ctx.globalAlpha = Math.min(1, fade * 4);
+      ctx.drawImage(img.base, snap(x - w / 2), snap(y - h + bob), w, h);
+      if (img.glow) { ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(img.glow, snap(x - w / 2), snap(y - h + bob), w, h); ctx.globalCompositeOperation = 'source-over'; }
+      ctx.globalAlpha = 1;
+    } else if (kind === 'lightsout') {
+      // se apagaron las luces: borde de humo negro que gira
+      ctx.globalAlpha = 0.5 * Math.min(1, fade * 3);
+      for (let i = 0; i < 40; i++) {
+        const a = (i / 40) * Math.PI * 2 + now / 2600;
+        ctx.fillStyle = i % 3 ? '#0a0810' : '#2a2030';
+        ctx.fillRect(snap(x + Math.cos(a) * r), snap(y + Math.sin(a) * r * 0.62), PIXEL * 3, PIXEL * 2);
+      }
       ctx.globalAlpha = 1;
     } else if (kind === 'goo' || kind === 'venom') {
       // baba pegajosa (verde) o rastro de veneno (morado), con burbujas

@@ -37,6 +37,7 @@ export interface Mob {
   weakT: number; // debilitado: hace menos daño
   // sueño (Pesadilla)
   drowsy: number; drowsyHold: number; sleepT: number; sleepMarkT: number;
+  wax: number; // encerado (Candle Man) 0..100
   // rabia (poción de la bruja): ataca a lo más cercano; las bajas son de quien la lanzó
   rageT: number; rageBy: number;
   bleedT: number; bleedDps: number; bleedBy: number;
@@ -211,7 +212,7 @@ export interface Projectile {
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation' | 'whirl' | 'lastspell' | 'portal' | 'quicksand' | 'laser';
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation' | 'whirl' | 'lastspell' | 'portal' | 'quicksand' | 'laser' | 'wax' | 'waxfire' | 'candle' | 'lightsout';
 /** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
 export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number>; next?: number /* próximo evento (rayo del clavo) */; v?: number }
 
@@ -221,5 +222,5 @@ export type Source = { player?: Player; hunter?: Hunter; minion?: Minion; name: 
 export const mobStatus = () => ({
   stunT: 0, slowT: 0, slowMul: 1, fearT: 0, panicT: 0, vulnT: 0, vulnMul: 1, preyT: 0,
   curseMarkT: 0, curseBy: -1, entombT: 0, entombBy: -1, entombDot: 0, weakT: 0, knock: null, dead: false,
-  drowsy: 0, drowsyHold: 0, sleepT: 0, sleepMarkT: 0, rageT: 0, rageBy: -1, rageAtk: 0, rageSafe: true, poisonT: 0, poisonDps: 0, poisonBy: -1, hexT: 0, hexDx: 0, hexDy: 0, rootT: 0, burnT: 0, burnDps: 0, burnBy: -1, silenceT: 0, liftT: 0, blindT: 0, fearX: NaN, fearY: NaN, hypno: 0, hypnoHold: 0, hypnoT: 0, hypnoX: 0, hypnoY: 0, bleedT: 0, bleedDps: 0, bleedBy: -1, charmT: 0, charmBy: -1,
+  drowsy: 0, drowsyHold: 0, sleepT: 0, sleepMarkT: 0, wax: 0, rageT: 0, rageBy: -1, rageAtk: 0, rageSafe: true, poisonT: 0, poisonDps: 0, poisonBy: -1, hexT: 0, hexDx: 0, hexDy: 0, rootT: 0, burnT: 0, burnDps: 0, burnBy: -1, silenceT: 0, liftT: 0, blindT: 0, fearX: NaN, fearY: NaN, hypno: 0, hypnoHold: 0, hypnoT: 0, hypnoX: 0, hypnoY: 0, bleedT: 0, bleedDps: 0, bleedBy: -1, charmT: 0, charmBy: -1,
 });

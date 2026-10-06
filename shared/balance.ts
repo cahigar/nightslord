@@ -292,6 +292,18 @@ export const BAL = {
     cdRefund: 0.5, // nv. 5: recupera la mitad del enfriamiento de Q y E
     ult: { t: 3, every: 0.13, n: 5, turn: 0.3, speed: 560, life: 0.75, blindT: 3, dmg: 0.6 }, // R: círculo de caza (abanico de virotes en espiral)
   },
+  candle: {
+    flame: { speed: 500, life: 0.42, dmg: 1.0, burnT: 1.5, burnDps: 6 }, // básico: llama de vela
+    drip: { every: 48, r: 22, t: 5, wax: 26 }, // pasiva: gotas de cera al moverse (encerado por segundo)
+    waxRoot: 1, waxDecay: 16, // al llenar la barra de encerado: arraigado 1 s
+    nearFire: { r: 220, atkMul: 0.75 }, // pasiva: cerca del fuego ataca más rápido
+    glob: { speed: 520, range: 440, r: 80, t: 7, slowMul: 0.5, wax: 70, fireDps: 16, fireT: 4 }, // Q: cera ardiente
+    slowMul: 0.85, // ralentización de las gotas
+    dark: { t: 5, speedMul: 1.45, dmgMul: 0.6, boomR: 120, boomDmg: 1.3, burnT: 2.5, burnDps: 7 }, // E: apagar la llama
+    candle: { heal: 0.07, life: 12, pickR: 36 }, // nv. 5: velas de los quemados
+    ult: { r: 560, t: 8, speedMul: 1.3, atkMul: 0.7 }, // R: se apagaron las luces
+    spread: { r: 110, every: 0.6 }, // nv. 15: el fuego salta a la cera cercana
+  },
 };
 
 /** Clases: invocadores con menos vida y regeneración, asesinos con robo de vida y algo menos de vida,

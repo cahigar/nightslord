@@ -1084,6 +1084,7 @@ export class Room {
     // sueño, sangrado, rabia, engatusar
     m.sleepMarkT = Math.max(0, m.sleepMarkT - dt);
     if (m.sleepT > 0) { m.sleepT -= dt; m.stunT = Math.max(m.stunT, m.sleepT); }
+    if (m.wax > 0) m.wax = Math.max(0, m.wax - BAL.candle.waxDecay * dt);
     if (m.drowsy > 0 && m.kind === Kind.Player) { m.drowsyHold -= dt; if (m.drowsyHold <= 0) m.drowsy = Math.max(0, m.drowsy - STATUS.drowsyDecay * dt); } // humanos y cazadores no se espabilan solos
     m.rageT = Math.max(0, m.rageT - dt);
     m.charmT = Math.max(0, m.charmT - dt);
@@ -1707,7 +1708,7 @@ export class Room {
   }
 
   private hiddenPlayer(p: Player, beast = false) {
-    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0 || p.phaseT > 0 || this.isHiddenGuise(p) || (!beast && p.char === 'huntress'); // la orden no ataca a la Cazadora (las fieras sí)
+    return p.dead || p.invisKind !== 'none' || p.protectT > 0 || p.entombT > 0 || p.submergeT > 0 || p.mistT > 0 || p.phaseT > 0 || this.isHiddenGuise(p) || (!beast && p.char === 'huntress') || (p.k.darkEnd ?? 0) > this.time; // Candle Man apagado: no lo ven // la orden no ataca a la Cazadora (las fieras sí)
   }
 
   /** Elige objetivo. Los zombis cercanos van primero (si no, el Paciente Cero los farmea con su horda). */
@@ -2538,9 +2539,11 @@ export class Room {
     if (m.blindT > 0) f2 |= Flag2.Blind;
     if (m.kind === Kind.Player && (m as Player).leap) f2 |= Flag2.Leaping;
     if (m.kind === Kind.Player && ((m as Player).k.engulfed ?? 0) > this.time) f2 |= Flag2.Engulfed;
+    if (m.kind === Kind.Player && ((m as Player).k.darkEnd ?? 0) > this.time) f2 |= Flag2.Dim;
     if (f2) s.f2 = f2;
     if (m.hp < m.maxHp) s.h = Math.max(1, Math.round((m.hp / m.maxHp) * 100));
     if (m.drowsy > 0) s.z = Math.round(m.drowsy);
+    if (m.wax > 1) s.wx = Math.round(m.wax);
     if (m.hypno > 0) s.hy = Math.round(m.hypno);
     if (m.kind === Kind.Npc) {
       const n = m as Npc;
