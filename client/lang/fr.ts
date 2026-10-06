@@ -144,7 +144,7 @@ export const FR: Dict = {
   pu: { blood: '+Sang', speed: 'Vitesse !', fury: 'Furie !', shield: '+Bouclier', coin: '+5 pièces', xp: '+XP', spirits: 'Esprits !', boots: 'Bottes élémentaires !', shovel: 'Un fossoyeur !' },
   ally: {
     vampire: 'Pacte de sang ? J\'apporte les crocs.', werewolf: 'On chasse en meute ? Je hurle, tu cours.', mummy: 'Alliance éternelle : 3000 ans d\'expérience.',
-    invisible: 'Soyons alliés. Tu ne me verras pas, mais je serai là.', zombie: 'Amisss... on partage des cerveauxxx ?', kthula: 'Rejoins-moi ou c\'est câlin tentaculaire.',
+    invisible: 'Soyons alliés. Tu ne me verras pas, mais je serai là.', zombie: 'Grrr... tu ne sens pas la cervelle. Bon, je te mords pas.', kthula: 'Rejoins-moi ou c\'est câlin tentaculaire.',
     nightmare: 'Allions-nous... et laissons-LES dormir.', mary: 'Dis « alliés » trois fois devant le miroir.', reanimated: 'Ensemble, on a plus de pièces !',
     doppy: 'Alliés ? Je peux être toi, en mieux.', witch: 'Un pacte sans petits caractères... presque.', succubus: 'Faisons équipe, mon chou ♥',
     poltergeist: 'BOUH-jour ! On s\'allie ?', tree: 'Prenons racine ensemble.', pirate: 'À l\'abordage ! On partage le butin... plus tard.',

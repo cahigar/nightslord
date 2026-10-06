@@ -144,7 +144,7 @@ export const EN: Dict = {
   pu: { blood: '+Blood', speed: 'Speed!', fury: 'Fury!', shield: '+Shield', coin: '+5 coins', xp: '+XP', spirits: 'Spirits!', boots: 'Elemental boots!', shovel: 'A gravedigger!' },
   ally: {
     vampire: 'Blood pact? I\'ll bring the fangs.', werewolf: 'Hunt as a pack? I howl, you run.', mummy: 'Eternal alliance: 3000 years of experience.',
-    invisible: 'Let\'s be allies. You won\'t see me, but I\'m there.', zombie: 'Friendsss... share some brainsss?', kthula: 'Join me or get a tentacle hug.',
+    invisible: 'Let\'s be allies. You won\'t see me, but I\'m there.', zombie: 'Grrr... you don\'t smell like brains. Fine, no biting.', kthula: 'Join me or get a tentacle hug.',
     nightmare: 'Let\'s team up... and let THEM sleep.', mary: 'Say “allies” three times in the mirror.', reanimated: 'Together we\'ve got more parts!',
     doppy: 'Allies? I can be you, but better.', witch: 'A pact with no fine print... almost.', succubus: 'Let\'s team up, darling ♥',
     poltergeist: 'BOO-ddies wanted!', tree: 'Let\'s put down roots together.', pirate: 'All aboard! We\'ll split the loot... later.',

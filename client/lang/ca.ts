@@ -144,7 +144,7 @@ export const CA: Dict = {
   pu: { blood: '+Sang', speed: 'Rapidesa!', fury: 'Fúria!', shield: '+Escut', coin: '+5 monedes', xp: '+XP', spirits: 'Esperits!', boots: 'Botes elementals!', shovel: 'Un enterramorts!' },
   ally: {
     vampire: 'Pacte de sang? Jo hi poso els ullals.', werewolf: 'Caçem en grup? Jo udolo, tu corres.', mummy: 'Aliança eterna: tinc 3000 anys d\'experiència.',
-    invisible: 'Serem aliats. No em veuràs, però hi seré.', zombie: 'Amicsss... compartim cervellsss?', kthula: 'Uneix-te a mi o t\'abraço amb tentacles.',
+    invisible: 'Serem aliats. No em veuràs, però hi seré.', zombie: 'Grrr... no fas olor de cervell. Va, no et mossego.', kthula: 'Uneix-te a mi o t\'abraço amb tentacles.',
     nightmare: 'Aliem-nos... i que dormin ells.', mary: 'Digues «aliats» tres vegades davant del mirall.', reanimated: 'Junts tenim més peces!',
     doppy: 'Aliats? Puc ser tu, però millor.', witch: 'Un pacte sense lletra petita... gairebé.', succubus: 'Fem equip, amor ♥',
     poltergeist: 'BUUU-sco aliats!', tree: 'Arrelem-nos junts.', pirate: 'A bord! Repartim el botí... després.',

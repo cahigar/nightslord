@@ -139,7 +139,7 @@ export const ES: Dict & { ui: typeof UI } = {
   pu: { blood: '+Sangre', speed: '¡Rapidez!', fury: '¡Furia!', shield: '+Escudo', coin: '+5 monedas', xp: '+XP', spirits: '¡Espíritus!', boots: '¡Botas elementales!', shovel: '¡Un enterrador!' },
   ally: {
     vampire: '¿Pacto de sangre? Yo pongo los colmillos.', werewolf: '¿Cazamos en manada? Yo aúllo, tú corres.', mummy: 'Alianza eterna: tengo 3000 años de experiencia.',
-    invisible: 'Seremos aliados. No me verás, pero estaré.', zombie: 'Amigosss... ¿compartimos cerebrosss?', kthula: 'Únete a mí o te abrazo con tentáculos.',
+    invisible: 'Seremos aliados. No me verás, pero estaré.', zombie: 'Grrr... no hueles a cerebro. Vale, no te muerdo.', kthula: 'Únete a mí o te abrazo con tentáculos.',
     nightmare: 'Aliémonos... y que duerman ellos.', mary: 'Di «aliados» tres veces frente al espejo.', reanimated: '¡Juntos tenemos más piezas!',
     doppy: '¿Aliados? Puedo ser tú, pero mejor.', witch: 'Un pacto sin letra pequeña... casi.', succubus: 'Hagamos equipo, cielo ♥',
     poltergeist: '¡BUUU-sco aliados!', tree: 'Echemos raíces juntos.', pirate: '¡A bordo! Repartimos el botín... luego.',

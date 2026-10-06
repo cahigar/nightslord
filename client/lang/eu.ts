@@ -144,7 +144,7 @@ export const EU: Dict = {
   pu: { blood: '+Odola', speed: 'Abiadura!', fury: 'Amorrua!', shield: '+Ezkutua', coin: '+5 txanpon', xp: '+XP', spirits: 'Izpirituak!', boots: 'Bota elementalak!', shovel: 'Hilobi-egile bat!' },
   ally: {
     vampire: 'Odol-ituna? Nik letaginak jarriko ditut.', werewolf: 'Taldean ehizatu? Nik uluka, zuk korrika.', mummy: 'Betiko aliantza: 3000 urteko esperientzia dut.',
-    invisible: 'Aliatuak izango gara. Ez nauzu ikusiko, baina hor nago.', zombie: 'Lagunasss... garunak partekatusss?', kthula: 'Batu nirekin edo tentakuluekin besarkatuko zaitut.',
+    invisible: 'Aliatuak izango gara. Ez nauzu ikusiko, baina hor nago.', zombie: 'Grrr... ez duzu garun usainik. Ados, ez zaitut hozkatuko.', kthula: 'Batu nirekin edo tentakuluekin besarkatuko zaitut.',
     nightmare: 'Bat egin dezagun... eta lo egin dezatela haiek.', mary: 'Esan «aliatuak» hiru aldiz ispiluaren aurrean.', reanimated: 'Elkarrekin pieza gehiago ditugu!',
     doppy: 'Aliatuak? Zu izan naiteke, baina hobea.', witch: 'Letra txikirik gabeko ituna... ia.', succubus: 'Egin dezagun talde, laztana ♥',
     poltergeist: 'BUUU! Aliatu bila nabil!', tree: 'Errotu gaitezen elkarrekin.', pirate: 'Ontzira! Altxorra banatuko dugu... gero.',

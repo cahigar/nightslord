@@ -144,7 +144,7 @@ export const ZH: Dict = {
   pu: { blood: '+鲜血', speed: '加速！', fury: '狂怒！', shield: '+护盾', coin: '+5 金币', xp: '+经验', spirits: '灵魂！', boots: '元素之靴！', shovel: '掘墓人！' },
   ally: {
     vampire: '血盟？獠牙我出。', werewolf: '组队狩猎？我嚎，你跑。', mummy: '永恒同盟：我有三千年经验。',
-    invisible: '做盟友吧。你看不见我，但我一直在。', zombie: '朋友~~分点脑子吗~~？', kthula: '加入我，不然触手抱抱。',
+    invisible: '做盟友吧。你看不见我，但我一直在。', zombie: '吼……你身上没有脑子的味道。行吧，不咬你。', kthula: '加入我，不然触手抱抱。',
     nightmare: '结盟吧……让他们去睡。', mary: '对着镜子说三遍「盟友」。', reanimated: '合体的话零件更多！',
     doppy: '盟友？我能变成你，还更好。', witch: '一份没有小字的契约……大概。', succubus: '组个队吧，亲爱的 ♥',
     poltergeist: '呜~~找盟友啦！', tree: '一起扎根吧。', pirate: '上船！战利品平分……以后再说。',
