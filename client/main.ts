@@ -6,6 +6,7 @@ import { Anim, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
 import { initAudio, isMuted, startMusic, toggleMute } from './audio';
 import { Game } from './game';
 import { startLogo } from './logo';
+import { startMenuBg } from './menubg';
 import { input, setupInput } from './input';
 import { net } from './net';
 import { ANIMS, getFrame, SH, SW } from './sprites';
@@ -544,3 +545,15 @@ if (location.hash.startsWith('#sprites')) {
 // logo animado del menú
 const logoCanvas = document.getElementById('logo') as HTMLCanvasElement | null;
 if (logoCanvas) startLogo(logoCanvas);
+const menuBg = document.getElementById('menubg') as HTMLCanvasElement | null;
+if (menuBg) startMenuBg(menuBg);
+
+// rejilla de monstruos: se difumina abajo y muestra «▼» mientras quedan más por ver
+{
+  const sc = document.querySelector<HTMLElement>('.chars-scroll'), hint = document.querySelector<HTMLElement>('.scroll-hint');
+  const upd = () => { if (!sc) return; const more = sc.scrollHeight - sc.scrollTop - sc.clientHeight > 8; sc.classList.toggle('more', more); if (hint) hint.hidden = !more; };
+  sc?.addEventListener('scroll', upd, { passive: true });
+  window.addEventListener('resize', upd);
+  new MutationObserver(upd).observe(document.getElementById('chars')!, { childList: true });
+  setTimeout(upd, 300);
+}

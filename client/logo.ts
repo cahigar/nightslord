@@ -70,8 +70,8 @@ export function startLogo(canvas: HTMLCanvasElement) {
     if (!canvas.isConnected) return;
     if (canvas.offsetParent === null) { requestAnimationFrame(frame); return; } // menú oculto: no dibujar
     // cielo
-    ctx.fillStyle = flash > 0 ? '#2a2240' : '#0a0712';
-    ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0, 0, W, H); // cielo transparente: se ve el fondo de la portada
+    if (flash > 0) { ctx.fillStyle = 'rgba(80,60,130,0.35)'; ctx.fillRect(0, 0, W, H); }
     // halo de la luna (tramado)
     for (let y = -moonR - 8; y <= moonR + 8; y++) for (let x = -moonR - 8; x <= moonR + 8; x++) {
       const d = Math.hypot(x, y);

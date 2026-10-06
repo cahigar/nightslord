@@ -16,6 +16,7 @@
 
   <!-- MENÚ -->
   <div id="menu" class="screen">
+    <canvas id="menubg" aria-hidden="true"></canvas>
     <div class="menu-inner">
       <header class="logo">
         <canvas id="logo" width="220" height="84" aria-hidden="true"></canvas>
@@ -23,47 +24,53 @@
         <span class="io">.com</span>
       </header>
 
-      <div class="panel">
-        <div class="row between">
-          <input id="name" maxlength="14" data-i18n-ph="namePh" autocomplete="off" />
-          <div class="coins">🪙 <span id="coins">0</span></div>
+      <div class="menu-grid">
+        <div class="panel blk-id">
+          <div class="row between">
+            <input id="name" maxlength="14" data-i18n-ph="namePh" autocomplete="off" />
+            <div class="coins">🪙 <span id="coins">0</span></div>
+          </div>
+          <div id="langs" class="langs"></div>
+          <div id="account" class="account"></div>
         </div>
 
-        <div id="langs" class="langs"></div>
-        <div id="account" class="account"></div>
-
-        <h3 data-i18n="chooseMonster"></h3>
-        <div id="chars" class="chars"></div>
-        <div id="charinfo" class="charinfo"></div>
-        <h3 data-i18n="skin"></h3>
-        <div id="skins" class="skins"></div>
-        <!-- Hueco reservado para un banner de anuncio (no invasivo). Oculto hasta que haya anunciante: quitar "hidden". -->
-        <div id="ad-slot" class="ad-slot" hidden></div>
-
-        <button id="play" class="btn big" data-i18n="play"></button>
-        <div class="row">
-          <input id="code" class="code" maxlength="4" data-i18n-ph="codePh" autocomplete="off" />
-          <button id="join" class="btn" data-i18n="join"></button>
+        <div class="panel blk-chars">
+          <h3 data-i18n="chooseMonster"></h3>
+          <div class="chars-scroll"><div id="chars" class="chars"></div></div>
+          <div class="scroll-hint" aria-hidden="true">▼ ▼ ▼</div>
+          <div id="charinfo" class="charinfo"></div>
+          <h3 data-i18n="skin"></h3>
+          <div id="skins" class="skins"></div>
+          <!-- Hueco reservado para un banner de anuncio (no invasivo). Oculto hasta que haya anunciante: quitar "hidden". -->
+          <div id="ad-slot" class="ad-slot" hidden></div>
         </div>
-        <div class="row">
-          <select id="theme">
-            <option value="" data-i18n="randomMap"></option>
-            <option value="elm"></option>
-            <option value="transylvania"></option>
-            <option value="camp"></option>
-            <option value="swamp"></option>
-            <option value="nile"></option>
-            <option value="jungle"></option>
-          </select>
-          <label class="check"><input type="checkbox" id="priv" /> <span data-i18n="private"></span></label>
-          <button id="create" class="btn" data-i18n="createRoom"></button>
+
+        <div class="panel blk-play">
+          <button id="play" class="btn big" data-i18n="play"></button>
+          <div class="row">
+            <input id="code" class="code" maxlength="4" data-i18n-ph="codePh" autocomplete="off" />
+            <button id="join" class="btn" data-i18n="join"></button>
+          </div>
+          <div class="row">
+            <select id="theme">
+              <option value="" data-i18n="randomMap"></option>
+              <option value="elm"></option>
+              <option value="transylvania"></option>
+              <option value="camp"></option>
+              <option value="swamp"></option>
+              <option value="nile"></option>
+              <option value="jungle"></option>
+            </select>
+            <label class="check"><input type="checkbox" id="priv" /> <span data-i18n="private"></span></label>
+            <button id="create" class="btn" data-i18n="createRoom"></button>
+          </div>
+          <div id="rooms" class="rooms"></div>
+          <details>
+            <summary><span data-i18n="medals"></span> <span id="medal-count"></span></summary>
+            <div id="medals" class="medals"></div>
+          </details>
+          <div id="menu-error" class="error"></div>
         </div>
-        <div id="rooms" class="rooms"></div>
-        <details>
-          <summary><span data-i18n="medals"></span> <span id="medal-count"></span></summary>
-          <div id="medals" class="medals"></div>
-        </details>
-        <div id="menu-error" class="error"></div>
       </div>
 
       <p class="help" data-i18n-html="help"></p>

@@ -275,3 +275,31 @@ body.touch .toast span { font-size: 11px !important; }
 .langs .flag:hover { border-color: #8a7aa8; }
 /* chino y japonés: la fuente pixelada no tiene esos caracteres */
 html:lang(zh), html:lang(ja) { --px: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif; --vt: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif; }
+
+/* ---------- Portada (menú): fondo pixel art animado y rejilla de monstruos con scroll ---------- */
+#menu { background: #05030a; }
+#menubg { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; image-rendering: pixelated; z-index: -1; }
+#menu .menu-inner { max-width: 1180px; position: relative; }
+#menu #logo { width: min(560px, 92vw, 89vh); }
+.menu-grid { display: grid; gap: 14px; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-areas: "id chars" "play chars"; align-items: start; margin-top: 6px; }
+.blk-id { grid-area: id; } .blk-chars { grid-area: chars; } .blk-play { grid-area: play; }
+.menu-grid .panel { background: rgba(21, 13, 31, 0.9); }
+.menu-grid .panel > h3:first-child { margin-top: 0; }
+.blk-play .btn.big { margin-top: 0; }
+.chars-scroll { max-height: clamp(260px, calc(100vh - 400px), 780px); overflow-y: auto; overscroll-behavior: contain; padding: 2px 6px 2px 2px; margin: 0 -6px 0 -2px; touch-action: pan-y; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #6a4a90 #0c0714; }
+.blk-chars .chars { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+.chars-scroll.more { -webkit-mask-image: linear-gradient(#000 82%, rgba(0, 0, 0, 0.25)); mask-image: linear-gradient(#000 82%, rgba(0, 0, 0, 0.25)); }
+.scroll-hint { text-align: center; font-family: var(--px); font-size: 8px; color: var(--muted); margin-top: 4px; animation: hintBob 1.2s ease-in-out infinite; }
+.scroll-hint[hidden] { display: none; }
+@keyframes hintBob { 50% { transform: translateY(3px); } }
+.chars.small { max-height: 42vh; overflow-y: auto; touch-action: pan-y; padding-right: 4px; }
+.chars-scroll::-webkit-scrollbar, .chars.small::-webkit-scrollbar, .screen::-webkit-scrollbar { width: 10px; }
+.chars-scroll::-webkit-scrollbar-track, .chars.small::-webkit-scrollbar-track, .screen::-webkit-scrollbar-track { background: #0c0714; }
+.chars-scroll::-webkit-scrollbar-thumb, .chars.small::-webkit-scrollbar-thumb, .screen::-webkit-scrollbar-thumb { background: #6a4a90; border: 2px solid #0c0714; }
+.screen { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.char:hover { border-color: #8050c0; }
+@media (max-width: 860px) {
+  .menu-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "id" "chars" "play"; }
+  .chars-scroll { max-height: 58vh; }
+  .blk-chars .chars { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
