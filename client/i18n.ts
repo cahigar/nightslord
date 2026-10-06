@@ -111,11 +111,12 @@ export function tt(id: MapThemeId): { name: string; subtitle: string } {
   return { name: tr?.[0] ?? th.name, subtitle: tr?.[1] ?? th.subtitle };
 }
 
-/** Aplica las traducciones a los textos fijos del HTML (data-i18n, data-i18n-html, data-i18n-ph). */
+/** Aplica las traducciones a los textos fijos del HTML (data-i18n, data-i18n-html, data-i18n-ph, data-i18n-title). */
 export function applyStatic() {
   document.querySelectorAll<HTMLElement>('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n as keyof Dict['ui']); });
   document.querySelectorAll<HTMLElement>('[data-i18n-html]').forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml as keyof Dict['ui']); });
   document.querySelectorAll<HTMLInputElement>('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh as keyof Dict['ui']); });
+  document.querySelectorAll<HTMLElement>('[data-i18n-title]').forEach((el) => { el.title = t(el.dataset.i18nTitle as keyof Dict['ui']); });
   document.title = t('docTitle');
 }
 

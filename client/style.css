@@ -277,8 +277,10 @@ body.touch .toast span { font-size: 11px !important; }
 html:lang(zh), html:lang(ja) { --px: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif; --vt: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Noto Sans CJK SC', sans-serif; }
 
 /* ---------- Portada (menú): fondo pixel art animado y rejilla de monstruos con scroll ---------- */
-#menu { background: #05030a; }
-#menubg { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; image-rendering: pixelated; z-index: -1; pointer-events: none; } /* sin esto, la rueda sobre el fondo no mueve la página */
+#menu, #splash { background: transparent; }
+body:has(#menubg:not([hidden])) { background: #05030a; }
+#menubg { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; image-rendering: pixelated; z-index: 9; pointer-events: none; }
+#menubg[hidden] { display: none; } /* sin esto, la rueda sobre el fondo no mueve la página */
 #menu .menu-inner { max-width: 1180px; position: relative; }
 #menu #logo { width: min(560px, 92vw, 89vh); }
 .menu-grid { display: grid; gap: 14px; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-areas: "id chars" "play chars"; align-items: start; margin-top: 6px; }
@@ -310,3 +312,52 @@ html:lang(zh), html:lang(ja) { --px: 'Microsoft YaHei', 'PingFang SC', 'Hiragino
   .chars-scroll { max-height: 58vh; }
   .blk-chars .chars { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+
+/* ---------- Móvil en horizontal: reparto del HUD para que nada tape las mejoras ----------
+   arriba-izquierda: sala y botones · arriba-centro: vida/XP · arriba-derecha: ranking ·
+   columna izquierda: mejoras al subir de nivel · avisos bajo la barra de vida */
+@media (max-height: 480px) {
+  body.touch #topleft { top: calc(6px + env(safe-area-inset-top)); max-width: 32vw; flex-wrap: nowrap; }
+  body.touch #roominfo { max-width: 15vw; }
+  body.touch #ping { display: none; }
+  body.touch #bottom { top: calc(6px + env(safe-area-inset-top)); bottom: auto; left: 50%; transform: translateX(-50%); width: min(300px, 36vw); }
+  body.touch #upgrades { top: calc(50px + env(safe-area-inset-top)); left: calc(6px + env(safe-area-inset-left)); right: auto; transform: none; flex-direction: column; gap: 4px; width: auto; flex-wrap: nowrap; }
+  body.touch #upgrades .up { width: 132px; display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; }
+  body.touch #upgrades .up b { font-size: 7px; }
+  body.touch #upgrades .up-title { top: -14px; text-align: left; }
+  body.touch #toast { top: calc(64px + env(safe-area-inset-top)); bottom: auto; left: 50%; transform: translateX(-50%); max-width: 42vw; }
+}
+
+/* ---------- Portada ---------- */
+#splash { align-items: center; overflow: hidden; transition: opacity .25s; }
+#splash.out { opacity: 0; }
+#splash .splash-inner { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; margin-bottom: 18vh; }
+#splashlogo { display: block; width: min(760px, 94vw, 120vh); height: auto; image-rendering: pixelated; animation: logoPulse 3.2s ease-in-out infinite; transform-origin: 50% 60%; -webkit-mask-image: radial-gradient(ellipse at 50% 55%, #000 55%, transparent 78%); mask-image: radial-gradient(ellipse at 50% 55%, #000 55%, transparent 78%); }
+#splash .tagline { font-family: 'Press Start 2P', monospace; font-size: clamp(9px, 1.6vw, 14px); color: #e8d8ff; text-shadow: 2px 2px 0 #6a0a18; margin: 0; letter-spacing: 1px; }
+#splash .start { display: inline-block; width: auto; margin-top: 6px; font-size: clamp(14px, 2.4vw, 22px); padding: 16px 34px; animation: startBeat 1.2s ease-in-out infinite; box-shadow: 0 0 0 3px #000, 0 0 24px rgba(255, 60, 80, .55); }
+#splash .start:hover { animation-play-state: paused; transform: scale(1.08); }
+#splash .splash-hint { font-family: 'VT323', monospace; font-size: 20px; color: #9a88c0; margin: 0; }
+#parade { position: absolute; left: 0; bottom: 0; width: 100vw; image-rendering: pixelated; pointer-events: none; z-index: 1; }
+@keyframes startBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); filter: brightness(1.25); } }
+@media (max-height: 480px) { #splash .splash-inner { margin-bottom: 26vh; gap: 8px; } #splashlogo { width: min(560px, 80vw, 110vh); } #splash .splash-hint { font-size: 16px; } }
+
+/* ---------- Ficha del monstruo en partida (botón i / tecla I) ---------- */
+#infobtn { font-family: Georgia, serif; font-style: italic; font-weight: bold; min-width: 26px; }
+#infobtn.on { background: #6a2a90; }
+#infopanel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(460px, 92vw); max-height: 82vh; overflow-y: auto; pointer-events: auto; z-index: 50; padding: 14px 16px; font-family: 'VT323', monospace; font-size: 18px; line-height: 1.1; background: #0c0616; }
+#infopanel .iclose { position: sticky; top: 0; float: right; }
+#infopanel .ihead { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+#infopanel .ihead canvas { width: 78px; height: 102px; image-rendering: pixelated; flex: none; }
+#infopanel h3 { margin: 0 0 4px; font-family: 'Press Start 2P', monospace; font-size: 14px; color: var(--gold); }
+#infopanel .ititle { color: #c8b0f0; }
+#infopanel .istats { color: #8a7aa8; font-size: 16px; margin-top: 4px; }
+#infopanel .isec { font-family: 'Press Start 2P', monospace; font-size: 9px; color: #ff6070; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
+#infopanel .irow { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; border-top: 1px solid #2a1a3a; }
+#infopanel .irow .key { flex: none; width: 26px; height: 26px; display: grid; place-items: center; background: #2a1840; border: 2px solid #000; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #fff; }
+#infopanel .irow b { color: #fff; }
+#infopanel .irow p { margin: 2px 0 0; color: #c8bcd8; }
+#infopanel .irow .cd { margin-left: 8px; color: #80c0ff; font-size: 15px; }
+#infopanel .irow .cd.lock { color: #ff8090; }
+#infopanel .irow.locked { opacity: .55; }
+#infopanel .irow.done .key { background: #1a5a2a; color: #a0ffa0; }
+@media (max-height: 480px) { #infopanel { max-height: 90vh; font-size: 16px; padding: 10px 12px; } #infopanel .ihead canvas { width: 52px; height: 68px; } }

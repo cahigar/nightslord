@@ -7,6 +7,7 @@ import { initAudio, isMuted, startMusic, toggleMute } from './audio';
 import { Game } from './game';
 import { startLogo } from './logo';
 import { startMenuBg } from './menubg';
+import { startParade } from './parade';
 import { input, setupInput } from './input';
 import { net } from './net';
 import { ANIMS, getFrame, SH, SW } from './sprites';
@@ -401,6 +402,8 @@ input.onKey = (code) => {
     if (code === 'KeyL') { const lv = game.you?.lvl ?? 1; net.send({ t: 'cheat', lvl: lv < 5 ? 5 : lv < 10 ? 10 : lv < 15 ? 15 : lv + 1 }); return; }
     if (code === 'KeyU') { net.send({ t: 'cheat', ult: true }); return; }
   }
+  if (code === 'KeyI') { toggleInfo(); return; }
+  if (code === 'Escape' && !$('infopanel').hidden) { toggleInfo(false); return; }
   if (code === 'KeyG') net.send({ t: 'emote', e: 'wave' });
   if (code === 'KeyT') net.send({ t: 'emote', e: 'taunt' });
   if (code === 'KeyH') net.send({ t: 'emote', e: 'ally' });
@@ -411,12 +414,59 @@ $('mute').onclick = () => { $('mute').textContent = toggleMute() ? '🔇' : '�
 $('mute').textContent = isMuted() ? '🔇' : '🔊';
 $('exit').onclick = () => { net.send({ t: 'leave' }); };
 
-function showScreen(which: 'menu' | 'game' | 'death') {
-  $('menu').hidden = which !== 'menu';
-  $('hud').hidden = which === 'menu';
-  $('death').hidden = which !== 'death';
-  inGame = which !== 'menu';
+// ---------------------------------------------------------------------------
+// Ficha del monstruo en partida (botón «i» o tecla I): habilidades, pasiva y evoluciones
+// ---------------------------------------------------------------------------
+function myChar(): CharacterId { return (game.ents.get(game.youId)?.c as CharacterId | undefined) ?? selChar; }
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+function buildInfo() {
+  const id = myChar(), d = CHARACTERS[id], x = tc(id), lv = game.you?.lvl ?? 1;
+  const cd = (s: number) => (s > 0 ? `<span class="cd">⏱ ${t('secs', { s })}</span>` : '');
+  const row = (k: string, n: string, desc: string, extra = '', cls = '') => `<div class="irow${cls}"><span class="key">${k}</span><div><b>${n}</b>${extra}<p>${desc}</p></div></div>`;
+  const ultLocked = lv < 10;
+  $('infopanel').innerHTML = `
+    <button class="btn tiny iclose" id="infoclose" aria-label="×">✕</button>
+    <div class="ihead"><canvas id="infocv" width="${SW * 3}" height="${SH * 3}"></canvas><div><h3>${x.name}</h3><div class="ititle">${x.title}</div>
+      <div class="istats">${t('stats', { hp: d.hp, sp: d.speed, dm: d.damage })}${d.armor ? t('armor', { a: Math.round(d.armor * 100) }) : ''}</div></div></div>
+    <div class="isec">${t('infoPassive')}</div>
+    ${row('★', x.passive.includes(':') ? x.passive.split(':')[0] : t('infoPassive'), cap(x.passive.includes(':') ? x.passive.slice(x.passive.indexOf(':') + 1).trim() : x.passive))}
+    <div class="isec">${t('infoAbilities')}</div>
+    ${row('🖱', x.attack, t('infoBasic'), cd(d.attackCd))}
+    ${row('Q', x.q[0], x.q[1], cd(d.abilities[0].cooldown))}
+    ${row('E', x.e[0], x.e[1], cd(d.abilities[1].cooldown))}
+    ${row('R', x.r[0], x.r[1], ultLocked ? `<span class="cd lock">🔒 ${t('levelLong')} 10</span>` : '', ultLocked ? ' locked' : '')}
+    <div class="isec">${t('infoEvo')}</div>
+    ${d.evolution.map((ev, i) => row(lv >= ev.lvl ? '✓' : String(ev.lvl), x.evo[i]?.[0] ?? ev.name, x.evo[i]?.[1] ?? ev.desc, '', lv >= ev.lvl ? ' done' : ' locked')).join('')}`;
+  previews.push({ cv: $<HTMLCanvasElement>('infocv'), char: id, skin: () => selSkin, anim: Anim.Taunt });
+  $('infoclose').onclick = () => toggleInfo(false);
 }
+function toggleInfo(show = $('infopanel').hidden) {
+  if (show) buildInfo();
+  $('infopanel').hidden = !show;
+  $('infobtn').classList.toggle('on', show);
+}
+$('infobtn').onclick = () => toggleInfo();
+
+function showScreen(which: 'splash' | 'menu' | 'game' | 'death') {
+  $('splash').hidden = which !== 'splash';
+  $('menu').hidden = which !== 'menu';
+  $('menubg').hidden = which !== 'menu' && which !== 'splash';
+  $('hud').hidden = which === 'menu' || which === 'splash';
+  $('death').hidden = which !== 'death';
+  inGame = which === 'game' || which === 'death';
+  if (!inGame && !$('infopanel').hidden) toggleInfo(false);
+}
+
+// Portada: logo, fondo animado y desfile de monstruos; «Iniciar» da paso al menú (y arranca el audio)
+function enterMenu() {
+  if ($('splash').hidden) return;
+  initAudio();
+  startMusic();
+  $('splash').classList.add('out');
+  setTimeout(() => { $('splash').classList.remove('out'); showScreen('menu'); }, 260);
+}
+$('start').onclick = enterMenu;
+window.addEventListener('keydown', (e) => { if (!$('splash').hidden && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); enterMenu(); } });
 
 // ---------------------------------------------------------------------------
 // Muerte
@@ -502,7 +552,7 @@ net.on((m: ServerMsg) => {
 
 net.onClose = () => {
   game.stop();
-  showScreen('menu');
+  if ($('splash').hidden) showScreen('menu');
   showError(t('connLost'));
   setTimeout(() => location.reload(), 2500);
 };
@@ -519,7 +569,7 @@ onLangChange(retranslate);
 async function boot() {
   buildLangPicker($('langs'));
   setLang(lang);
-  showScreen('menu');
+  showScreen(new URLSearchParams(location.search).get('sala') ? 'menu' : 'splash');
   refreshMenu();
   try {
     const linkCode = new URLSearchParams(location.search).get('sala');
@@ -547,6 +597,8 @@ const logoCanvas = document.getElementById('logo') as HTMLCanvasElement | null;
 if (logoCanvas) startLogo(logoCanvas);
 const menuBg = document.getElementById('menubg') as HTMLCanvasElement | null;
 if (menuBg) startMenuBg(menuBg);
+startLogo($<HTMLCanvasElement>('splashlogo'));
+startParade($<HTMLCanvasElement>('parade'));
 
 // rejilla de monstruos: se difumina abajo y muestra «▼» mientras quedan más por ver
 {
