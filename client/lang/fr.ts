@@ -15,6 +15,7 @@ export const FR: Dict = {
     randomMap: 'Carte aléatoire',
     private: 'Privée',
     createRoom: 'Créer une salle',
+    modesTitle: 'Rejoindre avec un code ou créer un salon',
     medals: '🏅 Médailles',
     help: '<b>WASD</b> se déplacer · <b>Souris</b> viser · <b>Clic / Espace</b> attaquer · <b>Q / clic droit</b> et <b>E</b> compétences · <b>R</b> ultime (niveau 10)<br /><b>1-4</b> améliorations en montant de niveau · <b>G</b> saluer · <b>T</b> provoquer · <b>H</b> alliance · <b>I</b> fiche · <b>M</b> couper le son',
     guest: '👤 Tu joues en <b>invité</b> : ta progression est perdue en fermant le navigateur.',

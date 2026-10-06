@@ -15,6 +15,7 @@ import { input, readButtons, readMove } from './input';
 import { net } from './net';
 import { ANIMS, getBeacon, getBeast, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSkeleton, getSpiderling, getVermin, npcLook, shade, SH, SW } from './sprites';
 import { getSkin } from '../shared/characters';
+import { quality } from './quality';
 import { LIGHT_COLORS, lightsFor, renderDecor, renderObstacle, renderTV, type Light, type Prerendered } from './tiles';
 
 const INTERP_MS = 120;
@@ -31,6 +32,9 @@ interface Ring { x: number; y: number; r: number; life: number; max: number; col
 interface Swing { x: number; y: number; a: number; life: number; color: string }
 interface Corpse { x: number; y: number; k: Kind; c: string; s?: string; f: 1 | -1; life: number; seed: number }
 
+
+/** La capa de oscuridad y los brillos se pintan a esta fracción de la resolución. */
+const LIGHT_DOWNSCALE = 4;
 
 export class Game {
   map!: GameMap;
@@ -67,6 +71,11 @@ export class Game {
   private decals: { x: number; y: number; c: string; life: number; pts: [number, number, number][] }[] = [];
   private lights: Light[] = [];
   private dark = document.createElement('canvas');
+  private clockOff: number | null = null;
+  private lastTk = 0;
+  private lateAvg = 0;
+  interpMs = INTERP_MS;
+  private glowCv = document.createElement('canvas'); // brillos de color, a baja resolución como la oscuridad
 
   // efectos
   private particles: Particle[] = [];
@@ -87,6 +96,7 @@ export class Game {
   start(msg: Extract<ServerMsg, { t: 'joined' }>) {
     const sameMap = this.map && this.map.seed === msg.seed && this.theme === msg.theme;
     this.roomCode = msg.code;
+    this.clockOff = null;
     this.priv = msg.priv;
     this.youId = msg.you;
     this.alive = true;
@@ -121,6 +131,17 @@ export class Game {
     const now = performance.now();
     this.lastSnapAt = now;
     const first = !this.you;
+    // reloj de la sala: cada muestra se fecha por su tick (no por cuándo llegó) y el retraso de interpolación
+    // se adapta a la irregularidad de la red (en móvil los paquetes llegan a rachas)
+    const ideal = m.tk * TICK_DT * 1000, off = now - ideal;
+    if (this.clockOff === null || m.tk < this.lastTk || off - this.clockOff > 1500) this.clockOff = off;
+    else if (off < this.clockOff) this.clockOff = off;
+    else this.clockOff += (off - this.clockOff) * 0.01;
+    this.lastTk = m.tk;
+    const late = off - this.clockOff;
+    this.lateAvg += (late - this.lateAvg) * (late > this.lateAvg ? 0.2 : 0.02);
+    this.interpMs = Math.max(INTERP_MS, Math.min(280, INTERP_MS - 20 + this.lateAvg * 1.6));
+    const st = ideal + this.clockOff;
     this.you = m.you;
     this.alive = m.you.alive;
 
@@ -155,7 +176,7 @@ export class Game {
       const fl = s.fl ?? 0;
       if (fl & Flag.Entombed && !(e.fl & Flag.Entombed)) e.tombAt = now;
       e.k = s.k; e.c = s.c; e.s = s.s; e.n = s.n; e.l = s.l; e.h = s.h; e.fl = fl; e.f2 = s.f2 ?? 0; e.f = s.f; e.r = s.r; e.o = s.o; e.rr = s.rr; e.bx = s.bx; e.by = s.by; e.z = s.z; e.wx = s.wx; e.hy = s.hy; e.g = s.g; e.seen = now;
-      e.samples.push({ t: now, x: s.x, y: s.y });
+      e.samples.push({ t: st, x: s.x, y: s.y });
       if (e.samples.length > 6) e.samples.shift();
     }
     for (const [id, e] of this.ents) if (!seenIds.has(id) && now - e.seen > 250) this.ents.delete(id);
@@ -182,13 +203,13 @@ export class Game {
     } else {
       const sx = this.canvas.width / 2 + (this.renderPos().x - this.cam.x) * this.cam.zoom;
       const sy = this.canvas.height * this.focusY + (this.renderPos().y - this.cam.y - 45) * this.cam.zoom;
-      this.aim = Math.atan2(input.mouseY * devicePixelRatio - sy, input.mouseX * devicePixelRatio - sx);
+      this.aim = Math.atan2(input.mouseY * quality.scale - sy, input.mouseX * quality.scale - sx);
     }
     // distancia al cursor (habilidades que se lanzan en un punto: carne, tentáculo...)
     if (!input.touch.active) {
       const rp = this.renderPos();
-      const wx = this.cam.x + (input.mouseX * devicePixelRatio - this.canvas.width / 2) / this.cam.zoom;
-      const wy = this.cam.y + (input.mouseY * devicePixelRatio - this.canvas.height * this.focusY) / this.cam.zoom;
+      const wx = this.cam.x + (input.mouseX * quality.scale - this.canvas.width / 2) / this.cam.zoom;
+      const wy = this.cam.y + (input.mouseY * quality.scale - this.canvas.height * this.focusY) / this.cam.zoom;
       d = Math.hypot(wx - rp.x, wy - (rp.y - 45));
     }
     const q = ++this.seq;
@@ -331,7 +352,7 @@ export class Game {
     this.corr.x *= Math.pow(0.002, dt); this.corr.y *= Math.pow(0.002, dt);
 
     // interpolación del resto de entidades
-    const rt = now - INTERP_MS;
+    const rt = now - this.interpMs;
     for (const e of this.ents.values()) {
       if (e.id === this.youId) continue;
       const s = e.samples;
@@ -628,9 +649,12 @@ export class Game {
   }
 
   private drawLighting(ctx: CanvasRenderingContext2D, W: number, H: number, camX: number, camY: number, z: number, now: number, me: { x: number; y: number }, dyn: Light[], cones: { x: number; y: number; a: number }[]) {
+    // la luz es suave: se pinta a 1/4 de resolución y se amplía con suavizado (16 veces menos píxeles que rellenar)
+    const L = LIGHT_DOWNSCALE, LW = Math.ceil(W / L), LH = Math.ceil(H / L);
     const d = this.dark;
-    if (d.width !== W || d.height !== H) { d.width = W; d.height = H; }
+    if (d.width !== LW || d.height !== LH) { d.width = LW; d.height = LH; }
     const dc = d.getContext('2d')!;
+    dc.setTransform(1 / L, 0, 0, 1 / L, 0, 0);
     dc.globalCompositeOperation = 'source-over';
     dc.clearRect(0, 0, W, H);
     const amb = parseInt(THEMES[this.theme].ambient.slice(1), 16);
@@ -669,8 +693,16 @@ export class Game {
       dc.beginPath(); dc.moveTo(px, py); dc.arc(px, py, pr, c.a - 0.3, c.a + 0.3); dc.closePath(); dc.fill();
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(d, 0, 0);
-    // brillo de color aditivo
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(d, 0, 0, W, H);
+    // brillo de color aditivo (también a baja resolución)
+    const gcv = this.glowCv;
+    if (gcv.width !== LW || gcv.height !== LH) { gcv.width = LW; gcv.height = LH; }
+    const real = ctx;
+    ctx = gcv.getContext('2d')!;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, LW, LH);
+    ctx.setTransform(1 / L, 0, 0, 1 / L, 0, 0);
     ctx.globalCompositeOperation = 'lighter';
     for (const l of all) {
       const px = (l.x - camX) * z, py = (l.y - camY) * z, pr = l.r * z * 0.8 * flick(l);
@@ -690,6 +722,10 @@ export class Game {
       ctx.beginPath(); ctx.moveTo(px, py); ctx.arc(px, py, pr, c.a - 0.3, c.a + 0.3); ctx.closePath(); ctx.fill();
     }
     ctx.globalCompositeOperation = 'source-over';
+    real.globalCompositeOperation = 'lighter';
+    real.drawImage(gcv, 0, 0, W, H);
+    real.globalCompositeOperation = 'source-over';
+    real.imageSmoothingEnabled = false;
   }
 
   private frameFor(e: CEnt, now: number) {

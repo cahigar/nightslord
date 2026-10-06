@@ -362,5 +362,8 @@ export const ORDER = {
   herald: { ignoreBelow: 10, stunMul: 0.4 },
   // aparición (nivel medio de la sala)
   inquisidorAvg: 5, exorcistaAvg: 10, heraldoAvg: 20,
-  caps: { inquisidor: 3, exorcista: 3, sectario: 2, heraldo: 2 },
+  caps: { inquisidor: 2, exorcista: 2, sectario: 2, heraldo: 1 },
+  maxTotal: 7, // cazadores normales como mucho (incluyendo los especiales que ocupan su hueco)
+  calmAvg: 3, // con nivel medio por debajo, solo 1 cazador por cada 3 jugadores
+  rookie: { min: 0.5, perLvl: 0.0625 }, // daño que reciben los novatos de la Orden y las fieras
 };

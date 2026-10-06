@@ -8,6 +8,8 @@ import { Game } from './game';
 import { startLogo } from './logo';
 import { startMenuBg } from './menubg';
 import { startParade } from './parade';
+import { Carousel } from './carousel';
+import { adaptQuality, quality } from './quality';
 import { input, setupInput } from './input';
 import { net } from './net';
 import { ANIMS, getFrame, SH, SW } from './sprites';
@@ -17,7 +19,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const canvas = $<HTMLCanvasElement>('game');
 const game = new Game(canvas);
 // acceso de depuración desde la consola (solo útil en modo desarrollo)
-(window as unknown as { __nl: unknown }).__nl = { game, net };
+(window as unknown as { __nl: unknown }).__nl = { game, net, screen: (w: 'splash' | 'menu' | 'game' | 'death') => showScreen(w), quality };
 
 const store = {
   get(k: string) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -45,8 +47,8 @@ let devMode = false;
 // Canvas y bucle
 // ---------------------------------------------------------------------------
 function resize() {
-  canvas.width = Math.floor(innerWidth * devicePixelRatio);
-  canvas.height = Math.floor(innerHeight * devicePixelRatio);
+  canvas.width = Math.floor(innerWidth * quality.scale);
+  canvas.height = Math.floor(innerHeight * quality.scale);
 }
 addEventListener('resize', resize);
 resize();
@@ -72,6 +74,7 @@ function frame(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   game.render(dt);
+  if (inGame && !document.hidden && adaptQuality(dt)) resize();
   mmT -= dt;
   if (inGame && mmT <= 0) { game.minimap($<HTMLCanvasElement>('minimap')); mmT = 0.2; game.focusY += (measureFocus() - game.focusY) * 0.5; }
   animatePreviews(now);
@@ -82,16 +85,17 @@ requestAnimationFrame(frame);
 // ---------------------------------------------------------------------------
 // Previsualizaciones animadas de personajes
 // ---------------------------------------------------------------------------
-const previews: { cv: HTMLCanvasElement; char: CharacterId; skin: () => string; anim: Anim }[] = [];
+const previews: { cv: HTMLCanvasElement; char: CharacterId; skin: () => string; anim: Anim | (() => Anim) }[] = [];
 function animatePreviews(now: number) {
   for (const p of previews) {
     if (!p.cv.isConnected) continue;
-    const def = ANIMS[p.anim];
+    const anim = typeof p.anim === 'function' ? p.anim() : p.anim;
+    const def = ANIMS[anim];
     const f = Math.floor(now / 1000 / def.dur) % def.frames.length;
     const c = p.cv.getContext('2d')!;
     c.imageSmoothingEnabled = false;
     c.clearRect(0, 0, p.cv.width, p.cv.height);
-    const fr = getFrame('monster', p.char, p.skin(), p.anim, f);
+    const fr = getFrame('monster', p.char, p.skin(), anim, f);
     c.drawImage(fr.base, 0, 0, p.cv.width, p.cv.height);
     if (fr.glow) { c.globalCompositeOperation = 'lighter'; c.drawImage(fr.glow, 0, 0, p.cv.width, p.cv.height); c.globalCompositeOperation = 'source-over'; }
   }
@@ -100,16 +104,36 @@ function animatePreviews(now: number) {
 // ---------------------------------------------------------------------------
 // Menú
 // ---------------------------------------------------------------------------
+const isOwned = (id: CharacterId) => devMode || (profile ? hasCharacter(profile, id) : CHARACTER_UNLOCK[id].price === 0);
+
+/** Intenta desbloquear un monstruo (con confirmación) o explica qué hace falta. */
+function tryUnlock(id: CharacterId) {
+  const price = unlockPrice(profile);
+  if (profile && profile.coins >= price && confirm(t('confirmUnlock', { n: tc(id).name, p: price }))) net.send({ t: 'buy', item: `char:${id}` });
+  else showError(t('needCoins', { p: price }) + (CHARACTER_UNLOCK[id].medal ? t('orMedal', { m: tm(CHARACTER_UNLOCK[id].medal!).name }) : '') + '.');
+}
+
+// Dos carruseles: el del menú y el de la pantalla de muerte. La ficha centrada es la elegida.
+const carousels = new Map<string, Carousel>();
+function carouselFor(container: HTMLElement) {
+  let c = carousels.get(container.id);
+  if (!c) {
+    c = new Carousel(container, (i) => selectChar(CHARACTER_IDS[i]), (i) => { const id = CHARACTER_IDS[i]; if (!isOwned(id)) tryUnlock(id); else if (container.id === 'death-chars') $('respawn').click(); else $('play').click(); });
+    carousels.set(container.id, c);
+  }
+  return c;
+}
+
 function buildChars(container: HTMLElement, small = false) {
-  container.innerHTML = '';
+  const nodes: HTMLElement[] = [];
   for (const id of CHARACTER_IDS) {
-    const def = CHARACTERS[id];
-    const owned = devMode || (profile ? hasCharacter(profile, id) : CHARACTER_UNLOCK[id].price === 0);
+    const owned = isOwned(id);
     const el = document.createElement('div');
     el.className = `char${selChar === id ? ' sel' : ''}${owned ? '' : ' locked'}`;
+    el.dataset.id = id;
     const cv = document.createElement('canvas');
     cv.width = SW * 3; cv.height = SH * 3;
-    previews.push({ cv, char: id, skin: () => (selChar === id ? selSkin : 'classic'), anim: selChar === id ? Anim.Taunt : Anim.Idle });
+    previews.push({ cv, char: id, skin: () => (selChar === id ? selSkin : 'classic'), anim: () => (selChar === id ? Anim.Taunt : Anim.Idle) });
     el.appendChild(cv);
     const tx = tc(id);
     el.insertAdjacentHTML('beforeend', `<div class="cname">${tx.name}</div>${small ? '' : `<div class="ctitle">${tx.title}</div>`}`);
@@ -120,21 +144,45 @@ function buildChars(container: HTMLElement, small = false) {
       el.insertAdjacentHTML('beforeend', `<div class="lock">🔒 ${price}🪙${medal ? ` ${t('or')} ${medal.icon}` : ''}</div>`);
       el.title = t('unlockFor', { p: price }) + (medal ? t('orMedalLong', { m: tm(medal.id).name }) : '');
     }
-    el.onclick = () => {
-      if (!owned) {
-        const price = unlockPrice(profile);
-        if (profile && profile.coins >= price && confirm(t('confirmUnlock', { n: tc(id).name, p: price }))) net.send({ t: 'buy', item: `char:${id}` });
-        else showError(t('needCoins', { p: price }) + (CHARACTER_UNLOCK[id].medal ? t('orMedal', { m: tm(CHARACTER_UNLOCK[id].medal!).name }) : '') + '.');
-        return;
-      }
-      selChar = id;
-      selSkin = 'classic';
-      store.set('nl_char', selChar); store.set('nl_skin', selSkin);
-      refreshMenu();
-    };
-    container.appendChild(el);
+    nodes.push(el);
   }
+  carouselFor(container).setCards(nodes, Math.max(0, CHARACTER_IDS.indexOf(selChar)));
 }
+
+/** Cambio de monstruo elegido sin reconstruir los carruseles (no corta el desplazamiento). */
+function selectChar(id: CharacterId) {
+  if (id === selChar) return;
+  selChar = id;
+  selSkin = 'classic';
+  store.set('nl_char', selChar); store.set('nl_skin', selSkin);
+  for (const [cid, c] of carousels) {
+    c.root.querySelectorAll<HTMLElement>('.char').forEach((el) => el.classList.toggle('sel', el.dataset.id === id));
+    if (c.index !== CHARACTER_IDS.indexOf(id)) c.go(CHARACTER_IDS.indexOf(id), !$(cid === 'chars' ? 'menu' : 'death').hidden);
+  }
+  buildCharInfo();
+  buildSkins();
+  updatePlayButtons();
+}
+
+/** «Jugar» y «Volver a la noche» avisan si el monstruo elegido aún está bloqueado. */
+function updatePlayButtons() {
+  const owned = isOwned(selChar);
+  const lock = `🔒 ${t('unlockFor', { p: unlockPrice(profile) })}`;
+  $('play').textContent = owned ? t('play') : lock;
+  $('respawn').textContent = owned ? t('respawn') : lock;
+  $('play').classList.toggle('locked', !owned);
+  $('respawn').classList.toggle('locked', !owned);
+}
+
+// flechas del teclado para mover el carrusel visible
+window.addEventListener('keydown', (e) => {
+  if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'SELECT') return;
+  if (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight') return;
+  const c = !$('menu').hidden ? carousels.get('chars') : !$('death').hidden ? carousels.get('death-chars') : null;
+  if (!c) return;
+  e.preventDefault();
+  c.go(c.index + (e.code === 'ArrowLeft' ? -1 : 1));
+});
 
 // ---------------------------------------------------------------------------
 // Cuenta: invitado o Google
@@ -216,17 +264,17 @@ function buildMedals() {
 
 function refreshMenu() {
   previews.length = 0;
-  if (profile && !devMode && !hasCharacter(profile, selChar)) { selChar = 'vampire'; selSkin = 'classic'; }
-  if (profile && !devMode) {
+  if (profile && !devMode && hasCharacter(profile, selChar)) {
     const sk = SKINS[selChar].find((s) => s.id === selSkin);
     if (!sk || !hasSkin(profile, selChar, sk)) selSkin = 'classic';
   }
   buildChars($('chars'));
+  buildChars($('death-chars'), true);
   buildCharInfo();
+  updatePlayButtons();
   buildSkins();
   buildMedals();
   $('coins').textContent = String(profile?.coins ?? 0);
-  if (!$('death').hidden) buildChars($('death-chars'), true);
 }
 
 function showError(msg: string) {
@@ -249,6 +297,7 @@ const nameInput = $<HTMLInputElement>('name');
 nameInput.value = store.get('nl_name') ?? '';
 
 async function join(mode: 'random' | 'code' | 'create', code?: string) {
+  if (!isOwned(selChar)) { tryUnlock(selChar); return; }
   initAudio();
   startMusic();
   const name = nameInput.value.trim();
@@ -278,6 +327,8 @@ nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('play').
 // enlace directo ?sala=ABCD
 const urlCode = new URLSearchParams(location.search).get('sala');
 if (urlCode) $<HTMLInputElement>('code').value = urlCode.toUpperCase();
+// opciones de sala: abiertas en pantallas anchas o si se llega con un código; plegadas en móvil
+$<HTMLDetailsElement>('modes').open = !!urlCode || (innerWidth > 860 && innerHeight > 520);
 
 // ---------------------------------------------------------------------------
 // HUD
@@ -454,6 +505,8 @@ function showScreen(which: 'splash' | 'menu' | 'game' | 'death') {
   $('hud').hidden = which === 'menu' || which === 'splash';
   $('death').hidden = which !== 'death';
   inGame = which === 'game' || which === 'death';
+  if (which === 'menu') carousels.get('chars')?.recenter();
+  if (which === 'death') carousels.get('death-chars')?.recenter();
   if (!inGame && !$('infopanel').hidden) toggleInfo(false);
 }
 
@@ -472,6 +525,7 @@ window.addEventListener('keydown', (e) => { if (!$('splash').hidden && (e.code =
 // Muerte
 // ---------------------------------------------------------------------------
 $('respawn').onclick = () => {
+  if (!isOwned(selChar)) { tryUnlock(selChar); return; }
   net.send({ t: 'respawn', char: selChar, skin: selSkin });
 };
 $('tomenu').onclick = () => net.send({ t: 'leave' });
@@ -523,7 +577,7 @@ net.on((m: ServerMsg) => {
       $('death-stats').innerHTML = `
         <div><b>${m.pts}</b>${t('dPoints')}</div><div><b>${m.lvl}</b>${t('dLevel')}</div><div><b>${m.kills}</b>${t('dMonsters')}</div>
         <div><b>${mins}:${String(secs).padStart(2, '0')}</b>${t('dSurvived')}</div><div><b>+${m.coins}🪙</b>${t('dCoins')}</div>`;
-      setTimeout(() => { if (inGame && !game.alive) { showScreen('death'); buildChars($('death-chars'), true); } }, 1400);
+      setTimeout(() => { if (inGame && !game.alive) { showScreen('death'); } }, 1400);
       break;
     }
     case 'toast': toast(escapeHtml((m.k && tk(m.k, m.a ?? {})) || m.text)); break;
@@ -599,13 +653,3 @@ const menuBg = document.getElementById('menubg') as HTMLCanvasElement | null;
 if (menuBg) startMenuBg(menuBg);
 startLogo($<HTMLCanvasElement>('splashlogo'));
 startParade($<HTMLCanvasElement>('parade'));
-
-// rejilla de monstruos: se difumina abajo y muestra «▼» mientras quedan más por ver
-{
-  const sc = document.querySelector<HTMLElement>('.chars-scroll'), hint = document.querySelector<HTMLElement>('.scroll-hint');
-  const upd = () => { if (!sc) return; const more = sc.scrollHeight - sc.scrollTop - sc.clientHeight > 8; sc.classList.toggle('more', more); if (hint) hint.hidden = !more; };
-  sc?.addEventListener('scroll', upd, { passive: true });
-  window.addEventListener('resize', upd);
-  new MutationObserver(upd).observe(document.getElementById('chars')!, { childList: true });
-  setTimeout(upd, 300);
-}

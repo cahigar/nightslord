@@ -18,6 +18,9 @@ import { createHash } from 'node:crypto';
 import { KITS } from './kits';
 
 /** Huella anónima de un perfil (nunca se envía el token de otro jugador). */
+/** Daño de la Orden y las fieras según el nivel del monstruo: nv. 1 → 50 %, nv. 9+ → 100 %. */
+const rookieMul = (lvl: number) => Math.min(1, ORDER.rookie.min + (lvl - 1) * ORDER.rookie.perLvl);
+
 const profileTag = (token: string) => createHash('sha256').update(token).digest('hex').slice(0, 16);
 import { store } from './store';
 import type { Conn } from './types';
@@ -105,7 +108,7 @@ export class Room {
   time = 0;
   private events: { ev: GameEvent; x: number; y: number; global?: boolean }[] = [];
   private loop: NodeJS.Timeout;
-  private hunterRespawnT = 0;
+  private hunterRespawnT = 15; // sala nueva: unos segundos de calma antes del primer cazador
   private powerupRespawnT = 0;
   emptySince = Date.now();
   private critterT = 2;
@@ -1341,6 +1344,7 @@ export class Room {
     if (m.kind === Kind.Player) {
       const p = m as Player;
       if (p.protectT > 0 || p.mistT > 0 || p.submergeT > 0 || p.phaseT > 0) return 0;
+      if (src.kind === Kind.Hunter) amount *= rookieMul(p.level); // la Orden y las fieras pegan menos a los novatos
       amount *= (1 - Math.min(0.6, p.def.armor + classOf(p).armor)) * (KITS[p.char].damageTakenMul?.(this, p) ?? 1);
       p.lastHurtT = this.time;
       if (p.shieldHp > 0) {
@@ -2421,14 +2425,17 @@ export class Room {
     const C = ORDER.caps;
     const clamp = (v: number, max: number) => Math.max(1, Math.min(max, v));
     const want: Record<OrderType, number> = {
-      inquisidor: avg >= ORDER.inquisidorAvg ? clamp(Math.round(pc * 0.25), C.inquisidor) : 0,
-      exorcista: avg >= ORDER.exorcistaAvg ? clamp(Math.floor(pc / 4), C.exorcista) : 0,
+      inquisidor: avg >= ORDER.inquisidorAvg ? clamp(Math.round(pc * 0.2), C.inquisidor) : 0,
+      exorcista: avg >= ORDER.exorcistaAvg ? clamp(Math.floor(pc / 5), C.exorcista) : 0,
       sectario: n15 > 0 ? clamp(Math.ceil(n15 / 3), C.sectario) : 0,
       heraldo: vets.length && avgVets >= ORDER.heraldoAvg ? clamp(Math.floor(vets.length / 4), C.heraldo) : 0,
       cazador: 0,
     };
+    // cazadores: crecen con la raíz del número de jugadores (1→2, 4→4, 9→5, 16→7) y el total de la Orden no pasa de ORDER.maxTotal
     const special = want.inquisidor + want.exorcista + want.heraldo;
-    want.cazador = Math.max(3, Math.min(12, 4 + Math.floor(pc / 2)) - special); // el total no se dispara
+    let caz = Math.min(ORDER.maxTotal, 1 + Math.floor(1.5 * Math.sqrt(pc)));
+    if (avg < ORDER.calmAvg) caz = Math.min(caz, Math.max(1, Math.ceil(pc / 3))); // sala recién empezada: pocos cazadores
+    want.cazador = pc ? Math.max(1, caz - special) : 0;
     return want;
   }
 

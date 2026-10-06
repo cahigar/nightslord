@@ -15,6 +15,7 @@ export const CA: Dict = {
     randomMap: 'Mapa aleatori',
     private: 'Privada',
     createRoom: 'Crear sala',
+    modesTitle: 'Unir-se amb codi o crear sala',
     medals: '🏅 Medalles',
     help: '<b>WASD</b> moure\'s · <b>Ratolí</b> apuntar · <b>Clic / Espai</b> atacar · <b>Q / clic dret</b> i <b>E</b> habilitats · <b>R</b> definitiva (nivell 10)<br /><b>1-4</b> millores en pujar de nivell · <b>G</b> saludar · <b>T</b> provocar · <b>H</b> aliança · <b>I</b> fitxa · <b>M</b> silenciar',
     guest: '👤 Jugues com a <b>convidat</b>: el teu progrés es perd en tancar el navegador.',

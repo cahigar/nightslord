@@ -15,6 +15,7 @@ export const ZH: Dict = {
     randomMap: '随机地图',
     private: '私密',
     createRoom: '创建房间',
+    modesTitle: '输入房间码或创建房间',
     medals: '🏅 勋章',
     help: '<b>WASD</b> 移动 · <b>鼠标</b> 瞄准 · <b>左键 / 空格</b> 攻击 · <b>Q / 右键</b> 和 <b>E</b> 技能 · <b>R</b> 终极技（10级）<br /><b>1-4</b> 升级时选择强化 · <b>G</b> 打招呼 · <b>T</b> 嘲讽 · <b>H</b> 结盟 · <b>I</b> 资料 · <b>M</b> 静音',
     guest: '👤 你正在以<b>游客</b>身份游玩：关闭浏览器后进度将丢失。',

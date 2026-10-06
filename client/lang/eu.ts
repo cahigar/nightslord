@@ -15,6 +15,7 @@ export const EU: Dict = {
     randomMap: 'Ausazko mapa',
     private: 'Pribatua',
     createRoom: 'Sortu gela',
+    modesTitle: 'Kodearekin sartu edo gela sortu',
     medals: '🏅 Dominak',
     help: '<b>WASD</b> mugitu · <b>Sagua</b> apuntatu · <b>Klik / Zuriunea</b> eraso · <b>Q / eskuineko klik</b> eta <b>E</b> trebetasunak · <b>R</b> behin betikoa (10. maila)<br /><b>1-4</b> hobekuntzak maila igotzean · <b>G</b> agurtu · <b>T</b> zirikatu · <b>H</b> aliantza · <b>I</b> fitxa · <b>M</b> isildu',
     guest: '👤 <b>Gonbidatu</b> gisa jolasten ari zara: nabigatzailea ixtean aurrerapena galtzen da.',

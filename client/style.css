@@ -283,34 +283,78 @@ body:has(#menubg:not([hidden])) { background: #05030a; }
 #menubg[hidden] { display: none; } /* sin esto, la rueda sobre el fondo no mueve la página */
 #menu .menu-inner { max-width: 1180px; position: relative; }
 #menu #logo { width: min(560px, 92vw, 89vh); }
-.menu-grid { display: grid; gap: 14px; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-areas: "id chars" "play chars"; align-items: start; margin-top: 6px; }
+.menu-grid { display: grid; gap: 14px; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); grid-template-areas: "play chars" "id chars"; align-items: start; margin-top: 6px; }
 .blk-id { grid-area: id; } .blk-chars { grid-area: chars; } .blk-play { grid-area: play; }
 .menu-grid .panel { background: rgba(21, 13, 31, 0.9); }
 .menu-grid .panel > h3:first-child { margin-top: 0; }
-.blk-play .btn.big { margin-top: 0; }
-.chars-scroll { max-height: clamp(260px, calc(100vh - 400px), 780px); overflow-y: auto; padding: 2px 6px 2px 2px; margin: 0 -6px 0 -2px; touch-action: pan-y; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #6a4a90 #0c0714; }
-.blk-chars .chars { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
-.chars-scroll.more { -webkit-mask-image: linear-gradient(#000 82%, rgba(0, 0, 0, 0.25)); mask-image: linear-gradient(#000 82%, rgba(0, 0, 0, 0.25)); }
-.scroll-hint { text-align: center; font-family: var(--px); font-size: 8px; color: var(--muted); margin-top: 4px; animation: hintBob 1.2s ease-in-out infinite; }
-.scroll-hint[hidden] { display: none; }
-@keyframes hintBob { 50% { transform: translateY(3px); } }
-.chars.small { max-height: 42vh; overflow-y: auto; touch-action: pan-y; padding-right: 4px; }
-.chars-scroll::-webkit-scrollbar, .chars.small::-webkit-scrollbar, .screen::-webkit-scrollbar { width: 10px; }
-.chars-scroll::-webkit-scrollbar-track, .chars.small::-webkit-scrollbar-track, .screen::-webkit-scrollbar-track { background: #0c0714; }
-.chars-scroll::-webkit-scrollbar-thumb, .chars.small::-webkit-scrollbar-thumb, .screen::-webkit-scrollbar-thumb { background: #6a4a90; border: 2px solid #0c0714; }
+.blk-play .btn.big { margin-top: 10px; }
+.btn.big.locked { background: #3a2a10; border-color: var(--gold); color: var(--gold); font-size: 12px; }
+.blk-id .langs { justify-content: flex-start; margin-top: 0; }
+.screen::-webkit-scrollbar { width: 10px; }
+.screen::-webkit-scrollbar-track { background: #0c0714; }
+.screen::-webkit-scrollbar-thumb { background: #6a4a90; border: 2px solid #0c0714; }
 .screen { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
 .char:hover { border-color: #8050c0; }
-/* en pantalla ancha, el panel de monstruos se queda fijo a la vista mientras bajas: la rejilla ocupa lo que sobre
-   y la descripción y las skins siempre se leen */
-@media (min-width: 861px) {
-  .blk-chars { position: sticky; top: 8px; display: flex; flex-direction: column; max-height: calc(100vh - 16px); overflow-y: auto; }
-  .blk-chars > * { flex: none; }
-  .blk-chars > .chars-scroll { flex: 1 1 auto; min-height: 140px; max-height: none; }
-}
 @media (max-width: 860px) {
-  .menu-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "id" "chars" "play"; }
-  .chars-scroll { max-height: 58vh; }
-  .blk-chars .chars { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .menu-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "play" "chars" "id"; }
+}
+details.modes { margin-top: 10px; }
+details.modes summary { font-size: 10px; padding: 4px 0; }
+details.modes .row:first-of-type { margin-top: 8px; }
+/* móvil en horizontal: «Jugar» y el carrusel uno al lado del otro */
+@media (max-height: 520px) and (min-width: 600px) {
+  .menu-grid { grid-template-columns: minmax(250px, 330px) minmax(0, 1fr); grid-template-areas: "play chars" "id chars"; gap: 8px; }
+  .menu-grid .panel { padding: 10px; }
+  .blk-play .btn.big { padding: 12px; font-size: 14px; }
+  .blk-chars h3:first-child { display: none; }
+  .carousel .ctrack { padding: 12px 0 10px; }
+  .carousel .cprev, .carousel .cnext { margin: 12px 0 10px; }
+}
+/* el logo del menú más contenido para que «Jugar» se vea sin bajar */
+#menu .logo { margin: 0 0 8px; }
+#menu #logo { width: min(460px, 80vw, 62vh); }
+@media (max-height: 520px) { #menu #logo { width: min(300px, 60vw, 52vh); } #menu .logo { margin: -6px 0 2px; } #menu .logo .io { display: none; } }
+
+/* ---------- Carrusel de monstruos ---------- */
+.carousel { display: flex; align-items: center; gap: 6px; --cw: 112px; }
+.carousel.small { --cw: 92px; }
+.carousel .ctrack { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; padding: 20px 0 16px; position: relative; scrollbar-width: none; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
+.carousel .ctrack::-webkit-scrollbar { display: none; }
+.carousel .cspace { flex: 0 0 calc(50% - var(--cw) / 2 - 6px); }
+.carousel .char { flex: 0 0 var(--cw); scroll-snap-align: center; transform: scale(calc(1.16 - var(--d, 1) * 0.15)); opacity: calc(1 - var(--d, 1) * 0.22); transition: transform 0.1s linear, opacity 0.1s linear, border-color 0.15s; will-change: transform; padding: 6px 4px 8px; }
+.carousel .char canvas { width: 66px; height: 86px; }
+.carousel.small .char canvas { width: 54px; height: 70px; }
+.carousel .char.center { border-color: var(--gold); background: #22162e; box-shadow: 0 0 18px rgba(255, 208, 64, 0.25); z-index: 1; }
+.carousel .char.center.locked { border-color: #8a6a20; }
+.carousel .char .cname { font-size: 8px; }
+.carousel .char .lock { position: static; margin-top: 4px; }
+.carousel .cprev, .carousel .cnext { flex: none; align-self: stretch; margin: 20px 0 16px; width: 34px; background: var(--panel2); border: 2px solid var(--line); color: var(--gold); font-size: 14px; cursor: pointer; box-shadow: 3px 3px 0 #000; }
+.carousel .cprev:hover, .carousel .cnext:hover { border-color: #8050c0; }
+.carousel .cprev:active, .carousel .cnext:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+@media (max-width: 640px) {
+  .carousel { --cw: 92px; gap: 3px; } .carousel.small { --cw: 82px; }
+  .carousel .char canvas { width: 54px; height: 70px; }
+  .carousel .cprev, .carousel .cnext { width: 26px; font-size: 11px; }
+}
+
+/* ---------- Pantalla de muerte compacta: estadísticas en una fila, carrusel y botones a la vista ---------- */
+.death { margin-top: 2vh; }
+.death-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 8px 0; }
+.death-stats div { padding: 5px 2px; font-size: 15px; }
+.death-stats b { font-size: 12px; }
+.death h3 { margin: 8px 0 0; }
+.death .row.center { margin-top: 4px; }
+.death .row.center .btn.big { width: auto; flex: 1 1 auto; margin-top: 0; }
+@media (max-height: 480px) {
+  .death { margin-top: 0; padding: 8px 10px; }
+  .death h2 { font-size: 16px; margin: 0; }
+  .death p { margin: 2px 0; font-size: 16px; }
+  .death h3 { display: none; }
+  .death-stats div { font-size: 12px; padding: 3px 2px; }
+  .death-stats b { font-size: 10px; margin-bottom: 1px; }
+  .death .carousel .ctrack { padding-top: 12px; padding-bottom: 8px; }
+  .death .carousel .cprev, .death .carousel .cnext { margin: 12px 0 8px; }
+  .death .btn.big { padding: 10px; font-size: 13px; }
 }
 
 /* ---------- Móvil en horizontal: reparto del HUD para que nada tape las mejoras ----------

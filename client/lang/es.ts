@@ -15,6 +15,7 @@ const UI = {
   randomMap: 'Mapa aleatorio',
   private: 'Privada',
   createRoom: 'Crear sala',
+  modesTitle: 'Unirse con código o crear sala',
   medals: '🏅 Medallas',
   help: '<b>WASD</b> moverse · <b>Ratón</b> apuntar · <b>Clic / Espacio</b> atacar · <b>Q / clic dcho.</b> y <b>E</b> habilidades · <b>R</b> definitiva (nivel 10)<br /><b>1-4</b> mejoras al subir nivel · <b>G</b> saludar · <b>T</b> taunt · <b>H</b> alianza · <b>I</b> ficha · <b>M</b> silenciar',
   // cuenta

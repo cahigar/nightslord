@@ -38,28 +38,15 @@
       </header>
 
       <div class="menu-grid">
-        <div class="panel blk-id">
+        <!-- 1) nombre y modo de juego, con «Jugar» arriba del todo -->
+        <div class="panel blk-play">
           <div class="row between">
             <input id="name" maxlength="14" data-i18n-ph="namePh" autocomplete="off" />
             <div class="coins">🪙 <span id="coins">0</span></div>
           </div>
-          <div id="langs" class="langs"></div>
-          <div id="account" class="account"></div>
-        </div>
-
-        <div class="panel blk-chars">
-          <h3 data-i18n="chooseMonster"></h3>
-          <div class="chars-scroll"><div id="chars" class="chars"></div></div>
-          <div class="scroll-hint" aria-hidden="true">▼ ▼ ▼</div>
-          <div id="charinfo" class="charinfo"></div>
-          <h3 data-i18n="skin"></h3>
-          <div id="skins" class="skins"></div>
-          <!-- Hueco reservado para un banner de anuncio (no invasivo). Oculto hasta que haya anunciante: quitar "hidden". -->
-          <div id="ad-slot" class="ad-slot" hidden></div>
-        </div>
-
-        <div class="panel blk-play">
           <button id="play" class="btn big" data-i18n="play"></button>
+          <details id="modes" class="modes">
+          <summary data-i18n="modesTitle"></summary>
           <div class="row">
             <input id="code" class="code" maxlength="4" data-i18n-ph="codePh" autocomplete="off" />
             <button id="join" class="btn" data-i18n="join"></button>
@@ -77,12 +64,30 @@
             <label class="check"><input type="checkbox" id="priv" /> <span data-i18n="private"></span></label>
             <button id="create" class="btn" data-i18n="createRoom"></button>
           </div>
+          </details>
           <div id="rooms" class="rooms"></div>
+          <div id="menu-error" class="error"></div>
+        </div>
+
+        <!-- 2) monstruo: carrusel -->
+        <div class="panel blk-chars">
+          <h3 data-i18n="chooseMonster"></h3>
+          <div id="chars"></div>
+          <div id="charinfo" class="charinfo"></div>
+          <h3 data-i18n="skin"></h3>
+          <div id="skins" class="skins"></div>
+          <!-- Hueco reservado para un banner de anuncio (no invasivo). Oculto hasta que haya anunciante: quitar "hidden". -->
+          <div id="ad-slot" class="ad-slot" hidden></div>
+        </div>
+
+        <!-- 3) idioma, cuenta y medallas -->
+        <div class="panel blk-id">
+          <div id="langs" class="langs"></div>
+          <div id="account" class="account"></div>
           <details>
             <summary><span data-i18n="medals"></span> <span id="medal-count"></span></summary>
             <div id="medals" class="medals"></div>
           </details>
-          <div id="menu-error" class="error"></div>
         </div>
       </div>
 
@@ -126,7 +131,7 @@
       <p id="death-by"></p>
       <div id="death-stats" class="death-stats"></div>
       <h3 data-i18n="again"></h3>
-      <div id="death-chars" class="chars small"></div>
+      <div id="death-chars" class="small"></div>
       <div class="row center">
         <button id="respawn" class="btn big" data-i18n="respawn"></button>
         <button id="tomenu" class="btn" data-i18n="menu"></button>
