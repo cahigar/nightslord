@@ -259,7 +259,7 @@ export class Game {
         break;
       }
       case 'die': {
-        if (ev.k !== Kind.Player || ev.c) {
+        if ((ev.k !== Kind.Player || ev.c) && !ev.c.startsWith('c_')) { // las alimañas no dejan cadáver
           const e = [...this.ents.values()].find((x) => Math.abs(x.rx - ev.x) < 30 && Math.abs(x.ry - ev.y) < 30 && x.k === ev.k);
           if (ev.k === Kind.Minion && (e?.c === 'thrall' || e?.c === 'digger')) this.corpses.push({ x: ev.x, y: ev.y, k: Kind.Npc, c: e.s ?? ev.c, f: e.f ?? 1, life: 6, seed: e.l ?? 0 });
           else if (ev.k === Kind.Minion) { if (e && NO_CORPSE.has(e.c)) { /* sin cadáver */ } else if (e && ['wall', 'turret', 'flower'].includes(e.c)) this.effects.burst(ev.x, ev.y - 20, 18, ['#5a4632', '#2e4a24', '#a0e040'], 160, 3, 400, 0.6); else if (e?.c !== 'clone') this.corpses.push({ x: ev.x, y: ev.y, k: ev.k, c: e?.s ?? ev.c, s: e?.c ?? 'normal', f: e?.f ?? 1, life: 4, seed: e?.l ?? 0 }); }
@@ -482,7 +482,7 @@ export class Game {
       if (!inView(e.rx, e.ry) || e.k === Kind.Projectile || e.k === Kind.Zone) continue;
       draws.push({ y: e.ry, fn: () => this.drawEnt(ctx, e, now, glows) });
       if (e.k === Kind.Npc) {
-        const held = npcLook(e.c, e.id % 97).held;
+        const held = e.c.startsWith('c_') ? 'none' : npcLook(e.c, e.id % 97).held; // las alimañas no llevan luz
         if (held === 'flashlight') cones.push({ x: e.rx + e.f * 20, y: e.ry - 40, a: e.f === 1 ? 0 : Math.PI });
         else if (held === 'torch') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 60, r: 200, c: 'warm', flicker: true });
         else if (held === 'lantern' || held === 'candle') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 40, r: 130, c: 'warm', flicker: true });
@@ -858,6 +858,10 @@ export class Game {
       ctx.filter = 'none';
       ctx.globalCompositeOperation = 'source-over';
     }
+    // Convergencia de Unidad: su cuerpo parpadea antes de explotar
+    if (isMonster && e.fl & Flag.Swollen && Math.floor(now / 90) % 2) {
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.85; blit(fr.base); ctx.globalCompositeOperation = 'source-over';
+    }
     // humano infectado: se va poniendo verde a medida que pierde la vida
     if (e.fl & Flag.Infected) {
       ctx.globalCompositeOperation = 'source-atop';
@@ -1003,13 +1007,15 @@ export class Game {
     if (variant === 'skel' || variant === 'skelarcher' || variant === 'skeldog') {
       // esqueletos del Nigromante
       const sk = getSkeleton(variant, e.a, this.frameFor(e, now), '#80ff60');
+      const big = e.l === 1 ? BAL.necro.bigT3.scale : 1; // nv. 15: un 30 % más grandes
       ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.beginPath(); ctx.ellipse(x, y + 2, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+      const sc = (variant === 'skeldog' ? 0.9 : 0.95) * big;
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 14 * big, 5 * big, 0, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = e.o === this.youId ? 'rgba(128,255,96,0.7)' : 'rgba(255,110,70,0.6)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.ellipse(x, y + 2, 16, 5, 0, 0, Math.PI * 2); ctx.stroke();
-      this.blitFrame(ctx, sk.base, x, y, e.f === -1, variant === 'skeldog' ? 0.9 : 0.95, 1);
-      if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, sk.base, x, y, e.f === -1, 0.95, 0.7); ctx.globalCompositeOperation = 'source-over'; }
-      if (sk.glow) glows.push({ img: sk.glow, x: x - (SW * PIXEL * 0.95) / 2, y: y - SH * PIXEL * 0.95 + 9 * 0.95, w: SW * PIXEL * 0.95, h: SH * PIXEL * 0.95, flip: e.f === -1, a: 1 });
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 16 * big, 5 * big, 0, 0, Math.PI * 2); ctx.stroke();
+      this.blitFrame(ctx, sk.base, x, y, e.f === -1, sc, 1);
+      if (now - e.flash < 90) { ctx.globalCompositeOperation = 'lighter'; this.blitFrame(ctx, sk.base, x, y, e.f === -1, sc, 0.7); ctx.globalCompositeOperation = 'source-over'; }
+      if (sk.glow) glows.push({ img: sk.glow, x: x - (SW * PIXEL * sc) / 2, y: y - SH * PIXEL * sc + 9 * sc, w: SW * PIXEL * sc, h: SH * PIXEL * sc, flip: e.f === -1, a: 1 });
       return;
     }
     if (variant === 'unit' || variant === 'unitfree') {

@@ -179,6 +179,8 @@ export interface Minion extends Mob {
   born: number;
   wx?: number; wy?: number; // destino de paseo (Unidad independiente)
   boomAt?: number; // explota en este instante (Convergencia de Unidad)
+  orig?: string; // aspecto de humano original (Unidad asimilada)
+  camo?: boolean; // camuflada como humano normal (Unidad quieta)
 }
 
 export interface PowerUp { id: number; x: number; y: number; type: PowerUpType }

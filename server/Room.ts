@@ -8,7 +8,7 @@ import {
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
 } from '../shared/constants';
 import { CHARACTERS, MAX_LEVEL, UPGRADES, upgradeMax, xpForLevel, type CharacterId, type UpgradeId } from '../shared/characters';
-import { distToSegment, generateMap, tvLinks, tvSpot, type GameMap, type MapThemeId } from '../shared/maps';
+import { distToSegment, generateMap, NPC_VARIANTS, tvLinks, tvSpot, type GameMap, type MapThemeId } from '../shared/maps';
 import { ObstacleGrid } from '../shared/physics';
 import {
   Anim, Flag, Flag2, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type ServerMsg, type SfxId, type TvState, type YouState,
@@ -22,12 +22,6 @@ const profileTag = (token: string) => createHash('sha256').update(token).digest(
 import { store } from './store';
 import type { Conn } from './types';
 
-const NPC_VARIANTS: Record<MapThemeId, string[]> = {
-  elm: ['teen', 'neighbor', 'jock', 'nerd'],
-  transylvania: ['villager', 'priest', 'maid', 'villager'],
-  camp: ['camper', 'counselor', 'jock', 'nerd'],
-  swamp: ['villager', 'camper', 'priest', 'maid'],
-};
 /** Alimañas de cada mapa (bichos que huyen y siempre sueltan un objeto). */
 const CRITTER_KINDS: Record<MapThemeId, string[]> = {
   elm: ['c_rat', 'c_crow', 'c_rat'],
@@ -1240,6 +1234,7 @@ export class Room {
       this.sfx('pickup', n.x, n.y);
       if (killer) this.reward(killer, CRITTERS.xp * share, CRITTERS.pts * share, 0);
       if (killer && !src.minion) KITS[killer.char].onKill?.(this, killer, m);
+      else if (killer && src.minion) KITS[killer.char].onMinionKill?.(this, killer, src.minion, m);
       this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c: n.variant }, m.x, m.y);
       return;
     }
@@ -1319,14 +1314,15 @@ export class Room {
       const by = src.name || v.lastAttacker || 'la noche';
       this.emit({ e: 'kill', a: by, v: v.name, ak: src.kind, vk: Kind.Player }, m.x, m.y, true);
       this.sfx('death', v.x, v.y);
-      v.conn.send({
-        t: 'died', by, pts: Math.round(v.points), lvl: v.level, kills: v.lifeKills,
-        time: Math.round(this.time - v.lifeStart), coins: v.coinsEarned,
-      });
-      v.conn.send({ t: 'profile', profile: v.conn.profile });
+      const died = { t: 'died' as const, by, pts: Math.round(v.points), lvl: v.level, kills: v.lifeKills, time: Math.round(this.time - v.lifeStart), coins: v.coinsEarned };
+      // Último conjuro del Nigromante: la pantalla de muerte espera a que se desintegre su fantasma
+      const wait = v.char === 'necro' && v.tier >= 1 ? BAL.necro.last.delay + BAL.necro.last.t : 0;
+      if (wait) this.later(wait, () => { v.conn.send(died); v.conn.send({ t: 'profile', profile: v.conn.profile }); });
+      else { v.conn.send(died); v.conn.send({ t: 'profile', profile: v.conn.profile }); }
       store.touch();
     }
     if (killer && !src.minion) KITS[killer.char].onKill?.(this, killer, m);
+    else if (killer && src.minion) KITS[killer.char].onMinionKill?.(this, killer, src.minion, m);
     this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c }, m.x, m.y);
   }
 
@@ -1422,7 +1418,7 @@ export class Room {
       if (d < bd) { bd = d; best = p; }
     }
     for (const m of this.minions.values()) {
-      if (m.dead || m.entombT > 0) continue;
+      if (m.dead || m.entombT > 0 || m.camo) continue;
       const d = dist2(x, y, m.x, m.y);
       if (d < bd) { bd = d; best = m; }
     }
@@ -1533,7 +1529,7 @@ export class Room {
     const PR = ORDER.minionPriorityR;
     let best: Mob | null = null, bd = PR * PR;
     for (const m of this.minions.values()) {
-      if (m.dead || m.entombT > 0) continue;
+      if (m.dead || m.entombT > 0 || m.camo) continue;
       const d = dist2(h.x, h.y, m.x, m.y);
       if (d < bd) { bd = d; best = m; }
     }
@@ -1842,7 +1838,7 @@ export class Room {
     if (m.anim === Anim.Cast && this.time < m.animUntil && m.swellT <= 0) { m.moving = false; return; } // saliendo de la tierra
     if (this.hexHop(m, dt)) return;
     if (this.rageOrCharm(m, m.speed, this.calcDamage(owner, MINION_STATS[m.variant].dmg), MINION_STATS[m.variant].cd || 1, ZB.attackReach, dt)) return;
-    if (m.boomAt !== undefined) { m.moving = false; return; } // Convergencia: parpadea quieta hasta explotar
+    if (m.variant === 'unit') { this.unitFollow(m, owner, dt); return; } // las Unidades vinculadas siempre siguen en grupo
     // zombi gordo hinchándose: aviso antes de explotar
     if (m.swellT > 0) {
       m.swellT -= dt;
@@ -1941,6 +1937,38 @@ export class Room {
     const res = this.grid.move(m.x, m.y, ux * step, uy * step, m.r);
     m.x = res.x; m.y = res.y;
     m.moving = step > 0.5;
+  }
+
+  /** Unidad vinculada: se apiña alrededor de su dueña en formación (o, camuflada, pasea como un humano cualquiera). */
+  private unitFollow(m: Minion, owner: Player, dt: number) {
+    const mates = this.minionsOf(owner.id).filter((o) => o.variant === 'unit').sort((a, b) => a.id - b.id);
+    const i = Math.max(0, mates.indexOf(m)), n = mates.length;
+    let tx: number, ty: number, speed = m.speed * (KITS[owner.char].minionMul?.(this, owner, m) ?? 1);
+    if (m.camo) {
+      // disimula: paseíllo tranquilo cerca de la dueña
+      if (m.wx === undefined || m.wy === undefined || dist2(m.x, m.y, m.wx, m.wy) < 20 * 20 || Math.random() < 0.01) {
+        const a = Math.random() * Math.PI * 2, d = 40 + Math.random() * 110;
+        m.wx = owner.x + Math.cos(a) * d; m.wy = owner.y + Math.sin(a) * d * 0.7;
+      }
+      tx = m.wx; ty = m.wy; speed = 55;
+    } else {
+      const ring = Math.floor(i / 6), inRing = Math.min(6, n - ring * 6);
+      const a = ((i % 6) / inRing) * Math.PI * 2 + ring * 0.5 + (owner.facing === 1 ? Math.PI : 0) * 0.15;
+      const R = 42 + ring * 30;
+      tx = owner.x + Math.cos(a) * R; ty = owner.y + Math.sin(a) * R * 0.75;
+      m.wx = undefined; m.wy = undefined;
+    }
+    if (m.slowT > 0) speed *= m.slowMul;
+    if (m.rootT > 0) speed = 0;
+    const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy);
+    if (d > 260) { const f = this.findFreeSpot(tx, ty, m.r); m.x = f.x; m.y = f.y; m.moving = false; return; } // se ha quedado atrás: alcanza al grupo
+    m.moving = d > 6;
+    if (!m.moving) { m.facing = owner.facing; return; }
+    if (!m.camo && d > 60) speed *= 1.35;
+    const step = Math.min(d, speed * dt);
+    const res = this.grid.move(m.x, m.y, (dx / d) * step, (dy / d) * step, m.r);
+    m.x = res.x; m.y = res.y;
+    m.facing = dx >= 0 ? 1 : -1;
   }
 
   /** El zombi gordo revienta: daño en área a todos los enemigos de su dueño. */
@@ -2128,12 +2156,12 @@ export class Room {
     const owner = this.findPlayerById(z.owner);
     if (!owner) { z.until = 0; return; }
     let a = z.v ?? 0;
-    const t = this.nearestEnemy(owner, z.ax, z.ay, L.len, owner.id);
-    if (t) {
-      const want = Math.atan2(t.y - z.ay, t.x - z.ax);
-      const diff = Math.atan2(Math.sin(want - a), Math.cos(want - a));
-      a += Math.max(-L.turn * TICK_DT, Math.min(L.turn * TICK_DT, diff));
-    }
+    // el jugador (ya muerto) maneja el rayo con el ratón o el dedo
+    const inp = owner.queue.pop();
+    if (inp) { owner.input = inp; owner.queue.length = 0; }
+    const want = owner.input.a;
+    const diff = Math.atan2(Math.sin(want - a), Math.cos(want - a));
+    a += Math.max(-L.turn * TICK_DT, Math.min(L.turn * TICK_DT, diff));
     z.v = a;
     z.bx = z.ax + Math.cos(a) * L.len; z.by = z.ay - 30 + Math.sin(a) * L.len;
     const src: Source = { ...this.src(owner), raw: true };
@@ -2253,6 +2281,7 @@ export class Room {
     if (m.entombT > 0) f |= Flag.Entombed;
     if (m.weakT > 0) f |= Flag.Weak;
     if (m.kind === Kind.Minion && ((m as Minion).swellT > 0 || (m as Minion).boomAt !== undefined)) f |= Flag.Swollen;
+    if (m.kind === Kind.Player && ((m as Player).k.convergeAt ?? 0) > this.time) f |= Flag.Swollen; // Convergencia: el cuerpo de Unidad parpadea
     if (m.kind === Kind.Npc && (m as Npc).infectT > 0) f |= Flag.Infected;
     if (m.kind === Kind.Hunter && (m as Hunter).ritualT > 0) f |= Flag.Ritual;
     if (m.kind === Kind.Hunter && (m as Hunter).flyT > 0) f |= Flag.Flying;
@@ -2313,6 +2342,8 @@ export class Room {
     else if (m.kind === Kind.Minion) {
       const mn = m as Minion;
       s.c = mn.variant; s.s = mn.look; s.l = mn.lookSeed; s.o = mn.owner;
+      // Unidad camuflada: se envía como un humano normal (sin pistas)
+      if (mn.camo && mn.orig) return { i: s.i, k: Kind.Npc, x: s.x, y: s.y, f: s.f, a: s.a, q: s.q, c: mn.orig, ...(s.h !== undefined ? { h: s.h } : {}) };
       // señuelo del Segador: se envía EXACTAMENTE como su dueño
       const ow = mn.variant === 'decoy' ? this.findPlayerById(mn.owner) : null;
       if (ow) { s.k = Kind.Player; s.c = ow.char; s.s = ow.skin; s.n = ow.name; s.l = ow.level; s.h = s.h ?? 100; delete s.o; }
@@ -2374,7 +2405,11 @@ export class Room {
       }
       for (const n of this.npcs.values()) if (inView(n.x, n.y)) ents.push(this.snapMob(n));
       for (const h of this.hunters.values()) if (inView(h.x, h.y)) ents.push(this.snapMob(h));
-      for (const m of this.minions.values()) if (inView(m.x, m.y)) ents.push(this.snapMob(m));
+      for (const m of this.minions.values()) {
+        if (!inView(m.x, m.y)) continue;
+        if (m.camo && m.owner === me.id) { m.camo = false; ents.push(this.snapMob(m)); m.camo = true; continue; } // la dueña ve a su enjambre camuflado
+        ents.push(this.snapMob(m));
+      }
       for (const z of this.zones) {
         if (z.kind === 'mistTrail' || !inView(z.ax, z.ay)) continue;
         const life = Math.max(0, (z.until - this.time) / Math.max(0.1, z.until - z.born));

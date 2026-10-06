@@ -48,6 +48,8 @@ export interface Kit {
   onMinionHit?(room: Room, p: Player, m: Minion, target: Mob): void;
   /** Termina un salto (Player.leap). */
   onLand?(room: Room, p: Player): void;
+  /** Uno de sus esbirros acaba de matar a alguien. */
+  onMinionKill?(room: Room, p: Player, m: Minion, victim: Mob): void;
   /** Antes de morir: devuelve true si se salva (Somos Uno de Unidad). */
   preventDeath?(room: Room, p: Player): boolean;
   /** Justo después de morir (ya sin esbirros). */

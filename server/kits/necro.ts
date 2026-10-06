@@ -2,11 +2,15 @@
 // - Orbe oscuro (básico): bola de magia a distancia.
 // - Alzar huesos (Q): esqueleto guerrero o arquero que le sigue (máx. 3; nv. 15: 5). A veces, un perro esqueleto rapidísimo.
 // - Marcha de los muertos (E): él y sus esqueletos corren y atacan más rápido; él levita y cruza el agua.
-// - Último conjuro (nv. 5): al morir, al cabo de 1 s vuelve 3 s como fantasma inmóvil y gira un largo rayo que quema.
-// - Portales del osario (R): tres portales de los que salen puños y pies de hueso gigantes que aplastan y empujan.
+// - Pasiva: se cura un poco con cada baja de sus esqueletos.
+// - Nv. 5: Alzar huesos con 2 cargas. Último conjuro: al morir, al cabo de 1 s vuelve 3 s como fantasma inmóvil y
+//   maneja un largo rayo que quema hasta desintegrarse.
+// - Portales del osario (R): puños y pies de hueso gigantes caen del cielo alrededor del punto elegido.
+// - Nv. 15: hasta 5 esqueletos, un 30 % más grandes y con más vida.
 import { BAL } from '../../shared/balance';
 import { Anim } from '../../shared/protocol';
-import type { Minion, MinionVariant, Player, Zone } from '../entities';
+import { Kind } from '../../shared/protocol';
+import type { Minion, MinionVariant, Mob, Player } from '../entities';
 import type { Room } from '../Room';
 import type { Kit } from './types';
 
@@ -26,17 +30,19 @@ function slam(room: Room, p: Player, x: number, y: number) {
   room.sfx('slam', x, y);
 }
 
-function portalTick(room: Room, p: Player, z: Zone) {
-  if (z.next === undefined) z.next = z.born + 0.4;
-  if (room.time < z.next) return;
+/** Un puño o pie de hueso cae del cielo cerca del punto de la definitiva (preferiblemente sobre un enemigo). */
+function ossuaryTick(room: Room, p: Player) {
   const U = B.ult;
-  z.next = room.time + U.every * (0.8 + Math.random() * 0.4);
-  const t = room.nearestEnemy(p, z.ax, z.ay, U.reach, -1);
+  if ((p.k.ossEnd ?? 0) <= room.time || room.time < (p.k.ossNext ?? 0)) return;
+  p.k.ossNext = room.time + U.every * (0.7 + Math.random() * 0.6);
+  const cx = p.k.ossX, cy = p.k.ossY;
+  const list: Mob[] = [];
+  room.forEachEnemyNear(p, cx, cy, U.area, (m) => { if (!m.dead) list.push(m); });
   let x: number, y: number;
-  if (t) { x = t.x; y = t.y; }
-  else { const a = Math.random() * Math.PI * 2, d = Math.random() * U.reach; x = z.ax + Math.cos(a) * d; y = z.ay + Math.sin(a) * d * 0.7; }
+  if (list.length && Math.random() < 0.75) { const t = list[Math.floor(Math.random() * list.length)]; x = t.x + (Math.random() - 0.5) * 30; y = t.y + (Math.random() - 0.5) * 20; }
+  else { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * U.area; x = cx + Math.cos(a) * d; y = cy + Math.sin(a) * d * 0.7; }
   room.fx('boneWarn', x, y, { r: U.r, d: U.warn });
-  room.later(U.warn, () => { if (!p.dead) slam(room, p, x, y); });
+  room.later(U.warn, () => slam(room, p, x, y));
 }
 
 export const necroKit: Kit = {
@@ -56,7 +62,9 @@ export const necroKit: Kit = {
       const v: MinionVariant = r < B.dogChance ? 'skeldog' : r < B.dogChance + (1 - B.dogChance) / 2 ? 'skel' : 'skelarcher';
       const d = 50 + Math.random() * 30;
       const f = room.findFreeSpot(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.7, 14);
-      const m = room.spawnMinion(p, f.x, f.y, v, v, p.id % 97, 1e9, false, p.tier >= 3 ? B.maxT3 : B.max);
+      const big = p.tier >= 3;
+      const m = room.spawnMinion(p, f.x, f.y, v, v, big ? 1 : 0, 1e9, false, big ? B.maxT3 : B.max);
+      if (big) { m.maxHp = m.hp = Math.round(m.maxHp * B.bigT3.hpMul); m.r = Math.round(m.r * 1.15); } // nv. 15: más grandes y duros
       room.setAnim(p, Anim.Cast, 0.4);
       room.fx('raise', m.x, m.y, { o: m.id, n: v === 'skeldog' ? 1 : 0 });
       room.sfx('groan', m.x, m.y);
@@ -72,18 +80,23 @@ export const necroKit: Kit = {
   },
 
   ult(room, p, a) {
-    const U = B.ult;
     const d = Math.min(p.input.d, 380);
-    const cx = p.x + Math.cos(a) * d, cy = p.y + Math.sin(a) * d;
-    for (let i = 0; i < U.portals; i++) {
-      const ang = a + (i / U.portals) * Math.PI * 2;
-      const x = cx + Math.cos(ang) * U.spread, y = cy + Math.sin(ang) * U.spread * 0.7;
-      room.addZone({ kind: 'portal', ax: x, ay: y, bx: x, by: y, w: 110, until: room.time + U.t, owner: p.id });
-    }
+    p.k.ossX = p.x + Math.cos(a) * d; p.k.ossY = p.y + Math.sin(a) * d;
+    p.k.ossEnd = room.time + B.ult.t; p.k.ossNext = room.time + 0.25;
     room.setAnim(p, Anim.Cast, 0.8);
+    room.fx('raise', p.k.ossX, p.k.ossY, { o: p.id, n: 2 });
     room.sfx('ult', p.x, p.y);
-    p.ultT = U.t;
+    p.ultT = B.ult.t;
     return true;
+  },
+
+  qCharges: (p) => (p.tier >= 1 ? 2 : 1),
+
+  onMinionKill(room, p, m, victim) {
+    if (!SKELS.has(m.variant) || p.dead) return;
+    const big = victim.kind === Kind.Player || victim.kind === Kind.Hunter;
+    p.hp = Math.min(p.maxHp, p.hp + p.maxHp * (big ? B.heal.big : B.heal.small));
+    room.fx('drain', victim.x, victim.y, { tx: Math.round(p.x), ty: Math.round(p.y), o: p.id, n: big ? 5 : 2, c: 'bone' });
   },
 
   speedMul: (room, p) => (marching(room, p) ? B.march.speedMul : 1),
@@ -96,7 +109,7 @@ export const necroKit: Kit = {
       p.k.hover = 0;
       if (room.grid.blocked(p.x, p.y, p.r, false)) { const f = room.findFreeSpot(p.x, p.y, p.r); p.x = f.x; p.y = f.y; } // no se queda en el agua
     }
-    for (const z of room.zones) if (z.kind === 'portal' && z.owner === p.id) portalTick(room, p, z);
+    ossuaryTick(room, p);
   },
 
   onDeath(room, p) {

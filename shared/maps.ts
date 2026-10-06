@@ -63,6 +63,15 @@ export const THEMES: Record<MapThemeId, MapTheme> = {
 
 export const THEME_IDS = Object.keys(THEMES) as MapThemeId[];
 
+/** Humanos que pasean por cada mapa. */
+export const NPC_VARIANTS: Record<MapThemeId, string[]> = {
+  elm: ['teen', 'neighbor', 'jock', 'nerd'],
+  transylvania: ['villager', 'priest', 'maid', 'villager'],
+  camp: ['camper', 'counselor', 'jock', 'nerd'],
+  swamp: ['villager', 'camper', 'priest', 'maid'],
+};
+
+
 export interface GameMap {
   theme: MapThemeId;
   seed: number;

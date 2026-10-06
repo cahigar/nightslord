@@ -194,9 +194,9 @@ export const BAL = {
     burn: { t: 3, dps: 7 }, // todos sus golpes queman
     combustMul: 1.4, // nv. 5: más daño a quien ya arde
     fireball: { speed: 520, life: 0.8, dmg: 1.2, r: 90, zoneT: 3, dps: 8, sparks: 4 }, // Q (nv. 15: llamas secundarias)
-    dash: { t: 0.25, speedMul: 3.2, dmg: 0.6, trailT: 2.5, every: 26 }, // E: paso ardiente
+    dash: { t: 2.2, speedMul: 1.9, dmg: 0.6, trailT: 3, every: 24 }, // E: paso ardiente (carrera en llamas)
     ult: { t: 6, atkMul: 0.6, speedMul: 1.3, wave: { speed: 600, life: 0.5, dmg: 0.7 } }, // R: Infierno
-    fireHealT3: 0.05, // nv. 15: el fuego le cura
+    fireHealT3: 0.09, // nv. 15: el fuego le cura (fracción de vida por segundo)
   },
   slime: {
     split: { steps: [0.7, 0.4], t: 8, dmgTakenMul: 0.7, dmgMul: 0.75, regen: 0.03 }, // pasiva: se divide
@@ -246,15 +246,18 @@ export const BAL = {
     freeDrone: { hp: 70, speed: 190, dmg: 0.5, cd: 0.8 }, // Unidad independiente (deambula sola)
     rebirthHp: 0.6, // pasiva: vida al reaparecer en otra Unidad
     hive: { speed: 0.04, atk: 0.04, max: 10 }, // nv. 5: por cada Unidad activa
-    ult: { delay: 2, r: 120, dmg: 2.2 }, // R: convergencia
+    camo: { t: 5 }, // pasiva: segundos quieta para camuflarse como humanos
+    ult: { delay: 3, r: 125, dmg: 2.4 }, // R: convergencia (parpadean hasta explotar)
   },
   necro: {
     orb: { speed: 520, life: 0.6, dmg: 1.0 }, // básico: orbe oscuro
     max: 3, maxT3: 5, dogChance: 0.12, // Q: alzar huesos
     skel: { hp: 60, speed: 170, dmg: 0.5, cd: 0.9 }, archer: { hp: 40, speed: 160, dmg: 0.45, cd: 1.3, range: 300, arrowSpeed: 560 }, dog: { hp: 38, speed: 280, dmg: 0.32, cd: 0.4 },
     march: { t: 4, speedMul: 1.3, atkMul: 0.7 }, // E: marcha de los muertos
-    last: { delay: 1, t: 3, len: 520, w: 34, dps: 22, turn: 2.2 }, // nv. 5: último conjuro
-    ult: { t: 7, portals: 3, spread: 170, every: 0.9, reach: 170, r: 80, dmg: 1.7, knock: 140, warn: 0.45 }, // R: portales del osario
+    last: { delay: 1, t: 3, len: 520, w: 34, dps: 22, turn: 7 }, // nv. 5: último conjuro (el rayo lo maneja el jugador)
+    ult: { t: 7, area: 260, every: 0.3, r: 80, dmg: 1.7, knock: 140, warn: 0.55 }, // R: puños y pies de hueso caen del cielo
+    bigT3: { hpMul: 1.5, scale: 1.3 }, // nv. 15: esqueletos más grandes y duros
+    heal: { small: 0.04, big: 0.1 }, // pasiva: se cura con las bajas de sus esqueletos
   },
 };
 

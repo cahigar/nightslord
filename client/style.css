@@ -85,11 +85,11 @@ summary { font-family: var(--px); font-size: 11px; cursor: pointer; color: var(-
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #hud button { pointer-events: auto; }
 #topleft { position: absolute; left: 12px; top: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 60vw; }
-#roominfo { font-family: var(--px); font-size: 10px; background: rgba(10, 5, 18, 0.75); padding: 6px 8px; border: 2px solid var(--line); }
+#roominfo { font-family: var(--px); font-size: 10px; background: rgba(10, 5, 18, 0.75); padding: 6px 8px; border: 2px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 #roominfo b { color: var(--gold); letter-spacing: 2px; }
 #ping { font-size: 16px; color: var(--muted); }
 #rank { position: absolute; right: 12px; top: 12px; width: 230px; background: rgba(10, 5, 18, 0.75); border: 2px solid var(--line); padding: 8px; font-size: 18px; }
-#rank .title { font-family: var(--px); font-size: 9px; color: var(--gold); margin-bottom: 4px; }
+#rank .title { font-family: var(--px); font-size: 9px; color: var(--gold); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #rank .r { display: flex; justify-content: space-between; gap: 6px; white-space: nowrap; overflow: hidden; }
 #rank .r.me { color: var(--gold); }
 #rank .r span:first-child { overflow: hidden; text-overflow: ellipsis; }
@@ -224,6 +224,18 @@ body.touch .toast span { font-size: 11px !important; }
   #minimap { width: 100px; height: 100px; }
   #bottom { width: calc(100vw - 24px); }
   .ab { width: 62px; height: 54px; font-size: 12px; padding-top: 13px; }
+}
+
+/* ventanas estrechas (también sin pantalla táctil): nada se solapa ni se corta */
+@media (max-width: 860px) {
+  #topleft { max-width: calc(100vw - 200px); gap: 6px; }
+  #roominfo { font-size: 8px; padding: 4px 6px; }
+  #rank { width: 160px; font-size: 15px; padding: 6px; }
+  #rank .title { font-size: 7px; }
+  #upgrades { width: min(560px, calc(100vw - 16px)); flex-wrap: wrap; justify-content: center; }
+  .up { min-width: 0; flex: 1 1 22%; font-size: 13px; padding: 4px 5px; }
+  .up b { font-size: 7px; }
+  #minimap { display: none; }
 }
 
 /* ---------- Evolución y definitiva ---------- */

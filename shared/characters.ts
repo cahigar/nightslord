@@ -490,13 +490,13 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     passive: 'Inmune al fuego. Sus golpes dejan una pequeña quemadura.',
     abilities: [
       { key: 'Q', name: 'Bola infernal', desc: 'Proyectil que explota y deja el suelo en llamas (y prende los árboles).', cooldown: 6 },
-      { key: 'E', name: 'Paso ardiente', desc: 'Embestida corta que deja un camino de llamas detrás.', cooldown: 8 },
+      { key: 'E', name: 'Paso ardiente', desc: 'Corre envuelto en llamas 2 s muchísimo más rápido: quema a quien toca y deja un rastro de fuego.', cooldown: 9 },
     ],
     ult: { key: 'R', name: 'Infierno', desc: '6 s: sus golpes lanzan ondas de fuego hacia delante y ataca y corre más rápido.', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Combustión', desc: 'Quien ya arde recibe un 40 % más de daño de sus habilidades de fuego.' },
       { lvl: 10, name: 'Infierno', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
-      { lvl: 15, name: 'Señor de las llamas', desc: 'La Bola infernal suelta llamas secundarias y el fuego le cura.' },
+      { lvl: 15, name: 'Señor de las llamas', desc: 'La Bola infernal suelta llamas secundarias y pisar fuego le cura bastante.' },
     ],
   },
   slime: {
@@ -641,12 +641,12 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     armor: 0,
     rangedBasic: true,
     attackName: 'Mirada compartida',
-    passive: 'Somos Uno: si muere y le queda otra Unidad viva, reaparece en ella y la muerte no cuenta. Cuando ataca, todas sus Unidades vinculadas disparan a la vez.',
+    passive: 'Somos Uno: si muere y le queda otra Unidad viva, reaparece en ella y la muerte no cuenta. Cuando ataca, todas sus Unidades vinculadas disparan a la vez. Tras 5 s quieta, ella y su enjambre parecen humanos normales que pasean (al moverse o atacar se descubren): ideal para emboscadas.',
     abilities: [
-      { key: 'Q', name: 'Asimilación', desc: 'Convierte al humano más cercano en una Unidad vinculada que te sigue (máx. 4).', cooldown: 5 },
+      { key: 'Q', name: 'Asimilación', desc: 'Convierte al humano más cercano en una Unidad vinculada que va siempre pegada a ti, en grupo (máx. 4).', cooldown: 5 },
       { key: 'E', name: 'Independencia', desc: 'Una Unidad vinculada se vuelve una copia autónoma que recorre el mapa por libre (máx. 1).', cooldown: 8 },
     ],
-    ult: { key: 'R', name: 'Convergencia', desc: 'Todas las Unidades vinculadas (y tu cuerpo) parpadean y explotan a los 2 s. Tu conciencia salta a una Unidad independiente: hace falta tener una viva.', cooldown: 0 },
+    ult: { key: 'R', name: 'Convergencia', desc: 'Tu cuerpo y tus Unidades vinculadas parpadean 3 s (puedes seguir moviéndote para llevarlas hasta el enemigo) y explotan todos a la vez. Después tu conciencia salta a una Unidad independiente: hace falta tener una viva.', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Mente colectiva', desc: 'Más velocidad de movimiento y de ataque por cada Unidad activa.' },
       { lvl: 10, name: 'Convergencia', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
@@ -667,16 +667,16 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     armor: 0,
     rangedBasic: true,
     attackName: 'Orbe oscuro',
-    passive: 'Invocador: dispara bolas de magia oscura y levanta esqueletos que le siguen.',
+    passive: 'Invocador: dispara bolas de magia oscura y levanta esqueletos que le siguen. Se cura un poco con cada baja de sus esqueletos.',
     abilities: [
       { key: 'Q', name: 'Alzar huesos', desc: 'Invoca un esqueleto guerrero o arquero (máx. 3). A veces sale un perro esqueleto, rapidísimo.', cooldown: 6 },
       { key: 'E', name: 'Marcha de los muertos', desc: '4 s: él y sus esqueletos corren y atacan más rápido. Él levita y puede cruzar el agua.', cooldown: 12 },
     ],
-    ult: { key: 'R', name: 'Portales del osario', desc: 'Abre tres grandes portales de los que salen puños y pies de hueso gigantes que aplastan y empujan a los enemigos cercanos.', cooldown: 0 },
+    ult: { key: 'R', name: 'Portales del osario', desc: '7 s: puños y pies de hueso gigantes caen del cielo alrededor del punto elegido, aplastando y empujando a los enemigos.', cooldown: 0 },
     evolution: [
-      { lvl: 5, name: 'Último conjuro', desc: 'Al morir, al cabo de 1 s vuelve 3 s como fantasma inmóvil y lanza un largo rayo que quema antes de desintegrarse.' },
+      { lvl: 5, name: 'Último conjuro', desc: 'Alzar huesos con 2 cargas. Al morir, al cabo de 1 s vuelve 3 s como fantasma inmóvil y maneja un largo rayo que quema hasta desintegrarse.' },
       { lvl: 10, name: 'Portales del osario', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
-      { lvl: 15, name: 'Ejército de hueso', desc: 'Hasta 5 esqueletos a la vez.' },
+      { lvl: 15, name: 'Ejército de hueso', desc: 'Hasta 5 esqueletos a la vez, un 30 % más grandes y con más vida.' },
     ],
   },
 };

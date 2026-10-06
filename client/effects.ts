@@ -435,9 +435,9 @@ export class Effects {
         const e = t * t * (3 - 2 * t);
         const x = d.x + (tp.x - d.x) * e + Math.sin(now / 60 + d.wob) * 4 * (1 - e);
         const y = d.y + (tp.y - 45 - d.y) * e - Math.sin(e * Math.PI) * 30;
-        ctx.fillStyle = sand ? '#e0c060' : ev.c === 'water' ? '#a0d8f8' : ev.c === 'soul' ? '#60ffd0' : '#ff2a40';
+        ctx.fillStyle = sand ? '#e0c060' : ev.c === 'water' ? '#a0d8f8' : ev.c === 'soul' ? '#60ffd0' : ev.c === 'bone' ? '#80ff60' : '#ff2a40';
         ctx.fillRect(snap(x), snap(y), PIXEL * 2, PIXEL * 2);
-        ctx.fillStyle = sand ? 'rgba(224,192,96,0.4)' : ev.c === 'water' ? 'rgba(160,216,248,0.4)' : ev.c === 'soul' ? 'rgba(96,255,208,0.4)' : 'rgba(255,40,60,0.4)';
+        ctx.fillStyle = sand ? 'rgba(224,192,96,0.4)' : ev.c === 'water' ? 'rgba(160,216,248,0.4)' : ev.c === 'soul' ? 'rgba(96,255,208,0.4)' : ev.c === 'bone' ? 'rgba(128,255,96,0.4)' : 'rgba(255,40,60,0.4)';
         ctx.fillRect(snap(x - (tp.x - d.x) * 0.04), snap(y - (tp.y - d.y) * 0.04), PIXEL, PIXEL);
       }
     });
@@ -1049,8 +1049,8 @@ export class Effects {
   /** Nube de tormenta que llueve sobre un punto (Kappa nv. 15): la lluvia va formando la poza. */
   private rainCloud(ev: FxEv) {
     const R = ev.r ?? 80, dur = ev.d ?? 2;
-    const drops = Array.from({ length: 34 }, (_, i) => ({ x: (hash2(i, 1, R) - 0.5) * R * 1.7, ph: hash2(i, 2, R), sp: 0.8 + hash2(i, 3, R) * 0.5 }));
-    const cy = ev.y - 190;
+    const drops = Array.from({ length: 48 }, (_, i) => ({ x: (hash2(i, 1, R) - 0.5) * R * 2.2, ph: hash2(i, 2, R), sp: 0.8 + hash2(i, 3, R) * 0.5 }));
+    const cy = ev.y - 230;
     // la poza crece en el suelo a medida que llueve
     this.add(dur, 'ground', (ctx, k) => {
       const grow = Math.min(1, k * 1.15);
@@ -1063,7 +1063,7 @@ export class Effects {
     this.add(dur, 'glow', (ctx, k, now) => {
       const fade = Math.min(1, k * dur * 3, (1 - k) * dur * 3);
       // nube pixelada (la misma masa de nubes que la tormenta del Reanimado, en pequeño)
-      const img = bakeClouds(80, 3);
+      const img = bakeClouds(Math.max(120, Math.round((R * 1.8) / 20) * 20), 3); // nube grande que cubre toda la poza
       const w = img.width * PIXEL, h = img.height * PIXEL;
       ctx.globalAlpha = 0.95 * fade;
       ctx.drawImage(img, snap(ev.x - w / 2 + Math.sin(now / 900) * 6), snap(cy - h / 2), w, h);

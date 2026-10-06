@@ -131,7 +131,7 @@ export const ES: Dict & { ui: typeof UI } = {
     horde: '🧟Horda', deep: '🌊Abismo', puddle: '💧Charca', sleep: '💤Dormido', rage: '😡Rabia', charm: '💗Engatusado', bleed: '🩸Sangrado', fly: '🪽Volando',
     prop: '🌳Acecho', mimic: '🎭Imitando', guise: '🎭Disfrazado', mirrors: '🪞Espejos', ambush: '🗡Emboscada', hex: '🐸Animalillo', poison: '🧪Envenenado',
     thralls: '💘Enamorados', phase: '👻Intangible', root: '🌿Enredado', treeRoot: '🌳Enraizado', burn: '🔥Ardiendo', silence: '🔇Silenciado', blind: '🐦‍⬛Cegado',
-    fear: '😱Aterrorizado', souls: '👻Almas', deathMark: '☠️Marca de muerte', dance: '💃Danza', units: '👁️Unidades', free: '🛰️Independientes', march: '💀Marcha', skeletons: '🦴Esqueletos', tvIn: '📺Dentro de la tele', spirits: '💀Espíritus', bootsFire: '👢🔥Botas de fuego', bootsNature: '👢🌿Botas de naturaleza', bootsWater: '👢💧Botas de agua', planted: '🌾Plantado',
+    fear: '😱Aterrorizado', souls: '👻Almas', deathMark: '☠️Marca de muerte', dance: '💃Danza', units: '👁️Unidades', free: '🛰️Independientes', march: '💀Marcha', skeletons: '🦴Esqueletos', tvIn: '📺Dentro de la tele', blaze: '🔥Paso ardiente', disguised: '🥸Camuflado', converge: '💥Convergencia', spirits: '💀Espíritus', bootsFire: '👢🔥Botas de fuego', bootsNature: '👢🌿Botas de naturaleza', bootsWater: '👢💧Botas de agua', planted: '🌾Plantado',
   },
   pu: { blood: '+Sangre', speed: '¡Rapidez!', fury: '¡Furia!', shield: '+Escudo', coin: '+5 monedas', xp: '+XP', spirits: '¡Espíritus!', boots: '¡Botas elementales!', shovel: '¡Un enterrador!' },
   hunters: { cazador: 'CAZADOR', inquisidor: 'INQUISIDOR', exorcista: 'EXORCISTA', sectario: 'SECTARIO', heraldo: 'HERALDO' },
