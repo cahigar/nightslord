@@ -5,6 +5,7 @@ import { THEMES, type MapThemeId } from '../shared/maps';
 import { Anim, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
 import { initAudio, isMuted, startMusic, toggleMute } from './audio';
 import { Game } from './game';
+import { startLogo } from './logo';
 import { input, setupInput } from './input';
 import { net } from './net';
 import { ANIMS, getFrame, SH, SW } from './sprites';
@@ -539,3 +540,7 @@ if (location.hash.startsWith('#sprites')) {
 } else if (location.hash.startsWith('#mapa')) {
   import('./spritesheet').then((m) => m.showMapPreview(location.hash.slice(6)));
 }
+
+// logo animado del menú
+const logoCanvas = document.getElementById('logo') as HTMLCanvasElement | null;
+if (logoCanvas) startLogo(logoCanvas);
