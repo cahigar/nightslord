@@ -120,7 +120,7 @@ export class Room {
     this.map = generateMap(theme, this.seed);
     this.grid = new ObstacleGrid(this.map);
     for (let i = 0; i < 45; i++) this.spawnNpc();
-    for (let i = 0; i < 4; i++) this.spawnHunter('cazador');
+    // sin cazadores al principio: van llegando según hunterWants() tras unos segundos de calma
     for (const [type, n] of Object.entries(BEAST_PLAN[theme] ?? {}) as [BeastType, number][]) for (let i = 0; i < n * 2 && this.beastCount(type) < n; i++) this.spawnBeast(type);
     for (let i = 0; i < 28; i++) this.spawnPowerUp();
     let last = performance.now();
