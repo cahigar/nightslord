@@ -61,6 +61,7 @@ export const FR: Dict = {
     loginFail: 'Impossible de se connecter avec Google.',
     skinMedalOnly: 'Cette apparence s\'obtient avec une médaille.',
     summoned: 'Un sectaire t\'a invoqué ! Tu arrives avec la moitié de ta vie.',
+    catchUp: 'De retour au niveau {l} : expérience x{m} jusqu\'au niveau {b}.',
     allyOffer: '🤝 {n} te propose une alliance : appuie sur H pour accepter.',
     pts: '{n} pts',
     ultLocked: 'Nv 10',

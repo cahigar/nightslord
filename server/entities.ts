@@ -126,6 +126,8 @@ export interface Player extends Mob {
   waved: boolean;
   taunted: boolean;
   lastAttacker: string;
+  /** Mejor nivel alcanzado en esta sala: al reaparecer se empieza en su última evolución y hasta volver a él la XP rinde doble. */
+  bestLevel: number;
   allies: Set<number>; // alianzas (H): solo simbólicas, se pueden traicionar
 }
 

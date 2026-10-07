@@ -61,6 +61,7 @@ export const EU: Dict = {
     loginFail: 'Ezin izan da Googlerekin saioa hasi.',
     skinMedalOnly: 'Itxura hau domina batekin lortzen da.',
     summoned: 'Sektario batek deitu zaitu! Biziaren erdiarekin iristen zara.',
+    catchUp: '{l}. mailarekin itzuli zara: esperientzia x{m} {b}. mailara arte.',
     allyOffer: '🤝 {n}(e)k aliantza eskaintzen dizu: sakatu H onartzeko.',
     pts: '{n} pt',
     ultLocked: 'Mn 10',

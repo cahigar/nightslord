@@ -61,6 +61,7 @@ export const ZH: Dict = {
     loginFail: '无法使用 Google 登录。',
     skinMedalOnly: '此皮肤需通过勋章获得。',
     summoned: '一名邪教徒召唤了你！你只带着一半生命降临。',
+    catchUp: '以 {l} 级回归：经验 x{m}，直到 {b} 级。',
     allyOffer: '🤝 {n} 向你提出结盟：按 H 接受。',
     pts: '{n} 分',
     ultLocked: 'Lv 10',

@@ -65,6 +65,7 @@ const UI = {
   loginFail: 'No se pudo iniciar sesión con Google.',
   skinMedalOnly: 'Esta skin se gana con una medalla.',
   summoned: '¡Un sectario te ha invocado! Llegas con la mitad de tu vida.',
+  catchUp: 'Vuelves con nivel {l}: experiencia x{m} hasta el nivel {b}.',
   allyOffer: '🤝 {n} te ofrece una alianza: pulsa H para aceptar.',
   // HUD
   pts: '{n} pts',

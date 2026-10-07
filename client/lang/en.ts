@@ -61,6 +61,7 @@ export const EN: Dict = {
     loginFail: 'Could not sign in with Google.',
     skinMedalOnly: 'This skin is earned with a medal.',
     summoned: 'A cultist has summoned you! You arrive with half your health.',
+    catchUp: 'Back at level {l}: x{m} experience until level {b}.',
     allyOffer: '🤝 {n} offers you an alliance: press H to accept.',
     pts: '{n} pts',
     ultLocked: 'Lv 10',

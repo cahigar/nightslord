@@ -3,6 +3,9 @@
 
 /** Niveles en los que cambia la evolución del monstruo. */
 export const TIER_LEVELS = [5, 10, 15] as const;
+/** Reaparecer en la misma sala: nivel de partida (última evolución alcanzada) y multiplicador de XP hasta recuperar el nivel anterior. */
+export const CATCH_UP = { milestones: [5, 10, 15], mul: 2 };
+
 export const tierOf = (level: number) => (level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0);
 
 /** Carga de la definitiva (R): se gana con bajas, no con el tiempo. */

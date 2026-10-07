@@ -61,6 +61,7 @@ export const JA: Dict = {
     loginFail: 'Google でログインできませんでした。',
     skinMedalOnly: 'このスキンはメダルで入手します。',
     summoned: '信者に召喚された！体力が半分の状態で現れる。',
+    catchUp: 'レベル{l}で復帰：レベル{b}まで経験値x{m}。',
     allyOffer: '🤝 {n} が同盟を申し込んでいます：H で受け入れる。',
     pts: '{n} pts',
     ultLocked: 'Lv 10',

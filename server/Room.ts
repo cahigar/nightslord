@@ -2,7 +2,7 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, BEASTS, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
+import { BAL, BEASTS, CATCH_UP, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
 import {
   BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAP_SIZE, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
@@ -174,6 +174,21 @@ export class Room {
     if (old && !old.dead) return;
     const p = this.spawnPlayer(conn, char, skin, old);
     conn.send({ t: 'joined', code: this.code, theme: this.theme, seed: this.seed, priv: this.priv, you: p.id });
+    // reaparecer en la misma sala: se empieza en la última evolución alcanzada (5, 10 o 15)
+    // y, hasta recuperar el nivel que tenías, la experiencia rinde más
+    const start = [...CATCH_UP.milestones].reverse().find((l) => p.bestLevel >= l) ?? 1;
+    if (start > 1) this.restoreLevel(p, start);
+    if (p.bestLevel > p.level) conn.send({ t: 'toast', text: `Vuelves con nivel ${p.level}: experiencia x${CATCH_UP.mul} hasta el nivel ${p.bestLevel}.`, k: 'catchUp', a: { l: p.level, m: CATCH_UP.mul, b: p.bestLevel } });
+  }
+
+  /** Sube a un jugador recién aparecido a un nivel sin efectos ni medallas (con sus puntos de mejora para repartir). */
+  private restoreLevel(p: Player, lvl: number) {
+    lvl = Math.min(MAX_LEVEL, lvl);
+    for (let t = p.tier + 1; t <= tierOf(lvl); t++) { p.tier = t; KITS[p.char].onTier?.(this, p, t); }
+    p.level = lvl; p.xp = 0; p.upPts = lvl - 1;
+    if (p.tier >= 2) p.ult = Math.max(p.ult, ULT.onUnlock);
+    if (this.qChargesMax(p) > 1) p.qCharges = this.qChargesMax(p);
+    p.maxHp = p.hp = this.calcMaxHp(p);
   }
 
   private spawnPlayer(conn: Conn, char: CharacterId, skin: string, prev?: Player): Player {
@@ -197,6 +212,7 @@ export class Room {
       submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999, guise: null, flyT: 0, phaseT: 0, leap: null, spiritsT: 0, spiritCd: 0, bootsT: 0, bootsKind: 0, bootsAcc: 0, k: {},
       lifeStart: this.time, lifeKills: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
       lastAttacker: '', allies: new Set(),
+      bestLevel: prev ? Math.max(prev.bestLevel, prev.level) : 1,
     };
     p.maxHp = p.hp = this.calcMaxHp(p);
     if (def.radius) p.r = def.radius;
@@ -1554,6 +1570,7 @@ export class Room {
   }
 
   private addXp(p: Player, xp: number) {
+    if (p.level < p.bestLevel) xp *= CATCH_UP.mul; // recuperando el nivel de la vida anterior
     p.totalXp += xp;
     p.xp += xp;
     while (p.level < MAX_LEVEL && p.xp >= xpForLevel(p.level)) {

@@ -61,6 +61,7 @@ export const CA: Dict = {
     loginFail: 'No s\'ha pogut iniciar sessió amb Google.',
     skinMedalOnly: 'Aquesta aparença s\'aconsegueix amb una medalla.',
     summoned: 'Un sectari t\'ha invocat! Arribes amb la meitat de la vida.',
+    catchUp: 'Tornes amb nivell {l}: experiència x{m} fins al nivell {b}.',
     allyOffer: '🤝 {n} t\'ofereix una aliança: prem H per acceptar.',
     pts: '{n} pts',
     ultLocked: 'Nv 10',
