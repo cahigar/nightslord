@@ -20,7 +20,7 @@ export class RoomManager {
       let publicOpen = [...this.rooms.values()].filter((r) => !r.priv).length;
       for (const [code, room] of this.rooms) {
         if (!room.priv && publicOpen <= MIN_ROOMS) continue; // se queda abierta, lista para el siguiente
-        if (room.playerCount === 0 && now - room.emptySince > ROOM_IDLE_CLOSE_MS) {
+        if (room.playerCount === 0 && (room.tutorial || now - room.emptySince > ROOM_IDLE_CLOSE_MS)) {
           if (!room.priv) publicOpen--;
           room.destroy();
           this.rooms.delete(code);
@@ -40,11 +40,12 @@ export class RoomManager {
     }
   }
 
-  create(priv: boolean, theme?: MapThemeId): Room | null {
+  create(priv: boolean, theme?: MapThemeId, tutorial = false): Room | null {
     if (this.rooms.size >= MAX_ROOMS) return null;
     const t = theme && THEME_IDS.includes(theme) ? theme : THEME_IDS[Math.floor(Math.random() * THEME_IDS.length)];
     const code = this.newCode();
     const room = new Room(code, t, priv);
+    room.tutorial = tutorial;
     this.rooms.set(code, room);
     console.log(`[rooms] sala ${code} creada (${t}${priv ? ', privada' : ''})`);
     return room;

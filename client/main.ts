@@ -3,13 +3,14 @@ import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, upgradeMax, type CharacterI
 import { CHARACTER_UNLOCK, hasCharacter, hasSkin, MEDALS, MEDAL_BY_ID, unlockPrice, type Profile } from '../shared/catalog';
 import { THEMES, type MapThemeId } from '../shared/maps';
 import { Anim, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
-import { initAudio, isMuted, startMusic, toggleMute } from './audio';
+import { initAudio, isMuted, playSfx, startMusic, toggleMute } from './audio';
 import { Game } from './game';
 import { startLogo } from './logo';
 import { startMenuBg } from './menubg';
 import { startParade } from './parade';
 import { Carousel } from './carousel';
 import { adaptQuality, quality } from './quality';
+import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './tutorial';
 import { input, setupInput } from './input';
 import { net } from './net';
 import { ANIMS, getFrame, SH, SW } from './sprites';
@@ -19,7 +20,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 const canvas = $<HTMLCanvasElement>('game');
 const game = new Game(canvas);
 // acceso de depuración desde la consola (solo útil en modo desarrollo)
-(window as unknown as { __nl: unknown }).__nl = { game, net, screen: (w: 'splash' | 'menu' | 'game' | 'death') => showScreen(w), quality };
+(window as unknown as { __nl: unknown }).__nl = { game, net, screen: (w: 'splash' | 'menu' | 'game' | 'death') => showScreen(w), quality, tut: () => tut };
 
 const store = {
   get(k: string) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -334,7 +335,7 @@ $<HTMLDetailsElement>('modes').open = !!urlCode || (innerWidth > 860 && innerHei
 // HUD
 // ---------------------------------------------------------------------------
 function buildAbilities() {
-  const d = CHARACTERS[selChar];
+  const d = CHARACTERS[tut?.char ?? selChar];
   const items = [
     { key: '🖱', name: tc(d.id).attack },
     { key: 'Q', name: tc(d.id).q[0] },
@@ -428,6 +429,7 @@ function escapeHtml(s: string) {
 }
 
 function onGameEvent(ev: GameEvent) {
+  if (tut && ev.e === 'die') tutEvent(ev);
   if (ev.e === 'fx' && ev.f === 'evolve' && ev.o === myId && (ev.n ?? 0) > 0) {
     const ch = (ev.c ?? selChar) as CharacterId;
     const i = (ev.n ?? 1) - 1, m = CHARACTERS[ch]?.evolution[i], x = CHARACTERS[ch] ? tc(ch).evo[i] : undefined;
@@ -498,14 +500,17 @@ function toggleInfo(show = $('infopanel').hidden) {
 }
 $('infobtn').onclick = () => toggleInfo();
 
-function showScreen(which: 'splash' | 'menu' | 'game' | 'death') {
+function showScreen(which: 'splash' | 'menu' | 'game' | 'death' | 'tutorial') {
   $('splash').hidden = which !== 'splash';
+  $('tutorial').hidden = which !== 'tutorial';
+  $('death').classList.toggle('tut', !!tut);
   $('menu').hidden = which !== 'menu';
-  $('menubg').hidden = which !== 'menu' && which !== 'splash';
-  $('hud').hidden = which === 'menu' || which === 'splash';
+  $('menubg').hidden = which !== 'menu' && which !== 'splash' && which !== 'tutorial';
+  $('hud').hidden = which === 'menu' || which === 'splash' || which === 'tutorial';
   $('death').hidden = which !== 'death';
   inGame = which === 'game' || which === 'death';
   if (which === 'menu') carousels.get('chars')?.recenter();
+  if (which === 'tutorial') buildTutorialScreen();
   if (which === 'death') carousels.get('death-chars')?.recenter();
   if (!inGame && !$('infopanel').hidden) toggleInfo(false);
 }
@@ -525,6 +530,7 @@ window.addEventListener('keydown', (e) => { if (!$('splash').hidden && (e.code =
 // Muerte
 // ---------------------------------------------------------------------------
 $('respawn').onclick = () => {
+  if (tut) { net.send({ t: 'respawn', char: tut.char, skin: 'classic' }); return; }
   if (!isOwned(selChar)) { tryUnlock(selChar); return; }
   net.send({ t: 'respawn', char: selChar, skin: selSkin });
 };
@@ -559,14 +565,16 @@ net.on((m: ServerMsg) => {
       $('roominfo').style.pointerEvents = 'auto';
       $('roominfo').style.cursor = 'pointer';
       $('roominfo').onclick = () => { navigator.clipboard?.writeText(link); toast(t('linkCopied')); };
-      if ($('menu').hidden === false || !$('death').hidden) toast(`<b>${th.name}</b><br>${th.subtitle}`);
+      if (!tut && ($('menu').hidden === false || !$('death').hidden)) toast(`<b>${th.name}</b><br>${th.subtitle}`);
       showScreen('game');
-      history.replaceState(null, '', `?sala=${m.code}`);
+      if (tut) { $('roominfo').textContent = `📖 ${tt2('lesson', { i: TUT_CHARS.indexOf(tut.char) + 1 })}`; $('roominfo').onclick = null; renderTut(); }
+      else history.replaceState(null, '', `?sala=${m.code}`);
       break;
     }
     case 'snap':
       game.onSnapshot(m);
       updateHud();
+      if (tut) tickTut();
       break;
     case 'rank':
       renderRank(m.list, m.total);
@@ -594,6 +602,7 @@ net.on((m: ServerMsg) => {
       break;
     case 'left':
       game.stop();
+      if (tut) { endTut(); showScreen('tutorial'); break; }
       showScreen('menu');
       history.replaceState(null, '', location.pathname);
       net.send({ t: 'rooms' });
@@ -613,12 +622,153 @@ net.onClose = () => {
 
 function retranslate() {
   applyStatic();
+  tutStatic();
+  if (!$('tutorial').hidden) buildTutorialScreen();
+  if (tut) renderTut();
   document.querySelectorAll<HTMLOptionElement>('#theme option').forEach((o) => { if (o.value) o.textContent = tt(o.value as MapThemeId).name; });
   buildAccount();
   refreshMenu();
   if (inGame) { buildAbilities(); lastUpKey = ''; }
 }
 onLangChange(retranslate);
+
+// ---------------------------------------------------------------------------
+// Tutorial: instrucciones y lecciones de práctica
+// ---------------------------------------------------------------------------
+interface TutState { char: TutChar; step: number; ctx: TutCtx; base: TutCtx; prev: { x: number; y: number; hp: number; cd1: number; cd2: number } | null; sent: Record<string, number>; done: boolean }
+let tut: TutState | null = null;
+const tutDoneSet = (): Set<string> => new Set((store.get('nl_tut') ?? '').split(',').filter(Boolean));
+const zeroCtx = (): TutCtx => ({ moved: 0, kills: 0, farKills: 0, hunterKills: 0, healed: 0, q: 0, e: 0, minions: 0, lvl: 1, ups: 0, ult: 0 });
+
+function tutStatic() {
+  $('tutbtn').textContent = tt2('btn');
+  $('tutbtn2').textContent = tt2('btn');
+}
+
+function buildTutorialScreen() {
+  $('tut-title').textContent = tt2('title');
+  $('tut-practice').textContent = tt2('practice');
+  $('tut-back').textContent = tt2('back');
+  $('tut-menu').textContent = tt2('toMenu');
+  $('tut-rules').innerHTML = ['goal', 'pc', 'mob', 'lvl', 'ult', 'hunt', 'items', 'pvp', 'death']
+    .map((k) => `<div class="tut-card"><b>${tt2('h_' + k)}</b><p>${tt2(k)}</p></div>`).join('');
+  const done = tutDoneSet();
+  const box = $('tut-lessons');
+  box.innerHTML = '';
+  TUT_CHARS.forEach((ch, i) => {
+    const x = tc(ch);
+    const el = document.createElement('div');
+    el.className = `tut-lesson${done.has(ch) ? ' done' : ''}`;
+    const cv = document.createElement('canvas'); cv.width = SW * 3; cv.height = SH * 3;
+    previews.push({ cv, char: ch, skin: () => 'classic', anim: Anim.Taunt });
+    el.appendChild(cv);
+    el.insertAdjacentHTML('beforeend', `<div><div class="tl-n">${tt2('lesson', { i: i + 1 })}${done.has(ch) ? ` · <span class="ok">${tt2('done')}</span>` : ''}</div><b>${x.name}</b> <span class="tl-t">${x.title}</span><p>${tt2('c_' + ch)}</p></div>`);
+    const b = document.createElement('button'); b.className = 'btn'; b.textContent = tt2('practiceBtn');
+    b.onclick = () => startTut(ch);
+    el.appendChild(b);
+    box.appendChild(el);
+  });
+}
+
+function startTut(ch: TutChar) {
+  initAudio();
+  startMusic();
+  tut = { char: ch, step: 0, ctx: zeroCtx(), base: zeroCtx(), prev: null, sent: {}, done: false };
+  $('tutdone').hidden = true;
+  net.send({ t: 'join', mode: 'tutorial', char: ch, skin: 'classic' });
+}
+
+function endTut() {
+  tut = null;
+  $('tutpanel').hidden = true;
+  $('tutdone').hidden = true;
+  $('death').classList.remove('tut');
+}
+
+function tutEvent(ev: Extract<GameEvent, { e: 'die' }>) {
+  const me = game.ents.get(game.youId);
+  if (!tut || !me) return;
+  const d = Math.hypot(ev.x - me.rx, ev.y - me.ry);
+  if (ev.k === Kind.Npc && d < 360) tut.ctx.kills++;
+  if (ev.k === Kind.Npc && d >= 90 && d < 720) tut.ctx.farKills++;
+  if (ev.k === Kind.Hunter && d < 1000) tut.ctx.hunterKills++;
+}
+
+/** Valor actual de un paso (relativo a cuando empezó, salvo los absolutos). */
+function tutVal(st: { m: keyof TutCtx; abs?: boolean }) {
+  return tut ? (st.abs ? tut.ctx[st.m] : tut.ctx[st.m] - tut.base[st.m]) : 0;
+}
+
+function tickTut() {
+  const y = game.you, me = game.ents.get(game.youId);
+  if (!tut || !y || !me || tut.done) return;
+  const c = tut.ctx;
+  if (tut.prev && y.alive) {
+    c.moved += Math.min(60, Math.hypot(y.x - tut.prev.x, y.y - tut.prev.y));
+    if (y.hp >= tut.prev.hp + 3 && tut.prev.hp < y.mhp) c.healed += y.hp - tut.prev.hp; // los mordiscos curan de golpe (la regeneración va poco a poco)
+    if (y.cd[1] > tut.prev.cd1 + 0.3) c.q++;
+    if (y.cd[2] > tut.prev.cd2 + 0.3) c.e++;
+  }
+  tut.prev = { x: y.x, y: y.y, hp: y.hp, cd1: y.cd[1], cd2: y.cd[2] };
+  let mins = 0;
+  for (const e of game.ents.values()) if (e.k === Kind.Minion && e.o === game.youId) mins++;
+  c.minions = mins; c.lvl = y.lvl; c.ult = y.ultOn > 0 ? 1 : 0;
+  c.ups = Object.values(y.ups).reduce((a, b) => a + b, 0);
+  const steps = LESSONS[tut.char];
+  const st = steps[tut.step];
+  // pasos que necesitan al servidor (nivel 10 con la R cargada, Cazador de práctica); se reintentan si hace falta
+  if (st.action && y.alive) {
+    const last = tut.sent[st.id] ?? 0;
+    const needHunter = st.action === 'hunter' && ![...game.ents.values()].some((e) => e.k === Kind.Hunter);
+    if (!last || (needHunter && performance.now() - last > 15000)) { net.send({ t: 'tut', a: st.action }); tut.sent[st.id] = performance.now(); }
+  }
+  if (tutVal(st) >= st.n) {
+    tut.step++;
+    playSfx('pickup');
+    if (tut.step >= steps.length) { finishTut(); return; }
+    tut.base = { ...c };
+  }
+  renderTut();
+}
+
+function renderTut() {
+  if (!tut) return;
+  const steps = LESSONS[tut.char], st = steps[Math.min(tut.step, steps.length - 1)];
+  const i = TUT_CHARS.indexOf(tut.char);
+  $('tutpanel').hidden = tut.done;
+  const html = `<div class="tp-h">📖 ${tt2('lesson', { i: i + 1 })} · ${tt2('c_' + tut.char)}</div>
+    <div class="tp-bar"><div style="width:${(tut.step / steps.length) * 100}%"></div></div>
+    <div class="tp-s">${tt2('step', { i: tut.step + 1, n: steps.length })}${st.passive ? ` · <span class="tp-p">${tt2('passive')}</span>` : ''}</div>
+    <div class="tp-t" data-step="${tut.step}">${stepText(tut.char, st, tutVal(st))}</div>`;
+  if (html === lastTutHtml) return; // solo se redibuja si cambia (si no, la animación de entrada no acaba nunca)
+  const sameStep = $('tutpanel').querySelector<HTMLElement>('.tp-t')?.dataset.step === String(tut.step);
+  lastTutHtml = html;
+  $('tutpanel').innerHTML = html;
+  if (sameStep) $('tutpanel').querySelector<HTMLElement>('.tp-t')!.style.animation = 'none';
+}
+let lastTutHtml = '';
+
+function finishTut() {
+  if (!tut) return;
+  tut.done = true;
+  const done = tutDoneSet(); done.add(tut.char); store.set('nl_tut', [...done].join(','));
+  const i = TUT_CHARS.indexOf(tut.char), next = TUT_CHARS[i + 1];
+  const all = TUT_CHARS.every((c) => done.has(c));
+  $('tutpanel').hidden = true;
+  $('tutdone').innerHTML = `<h2>${tt2('lessonDone')}</h2><p>${tt2('lessonDoneSub', { n: tc(tut.char).name })}</p>${all ? `<p class="ok">${tt2('allDone')}</p>` : ''}
+    <div class="row center">${next ? `<button class="btn big" id="tut-next">${tt2('next')}</button>` : ''}<button class="btn big" id="tut-real">${tt2('playReal')}</button><button class="btn" id="tut-exit">${tt2('exitTut')}</button></div>`;
+  $('tutdone').hidden = false;
+  playSfx('level');
+  if (next) $('tut-next').onclick = () => startTut(next);
+  $('tut-real').onclick = () => { endTut(); net.send({ t: 'leave' }); setTimeout(() => showScreen('menu'), 150); };
+  $('tut-exit').onclick = () => net.send({ t: 'leave' });
+}
+
+$('tutbtn').onclick = () => { initAudio(); startMusic(); $('splash').hidden = true; showScreen('tutorial'); };
+$('tutbtn2').onclick = () => showScreen('tutorial');
+$('tut-back').onclick = () => showScreen('splash');
+$('tut-menu').onclick = () => showScreen('menu');
+tutStatic();
 
 async function boot() {
   buildLangPicker($('langs'));

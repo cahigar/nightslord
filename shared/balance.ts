@@ -6,6 +6,9 @@ export const TIER_LEVELS = [5, 10, 15] as const;
 /** Reaparecer en la misma sala: nivel de partida (última evolución alcanzada) y multiplicador de XP hasta recuperar el nivel anterior. */
 export const CATCH_UP = { milestones: [5, 10, 15], mul: 2 };
 
+/** Tutorial: personajes de práctica, XP acelerada y Cazador de práctica más blando. */
+export const TUTORIAL = { chars: ['vampire', 'mummy', 'zombie'] as const, themes: ['transylvania', 'camp', 'elm'] as const, xpMul: 3, hunterDmg: 0.4, hunterHp: 0.6, npcSpeed: 0.6 };
+
 export const tierOf = (level: number) => (level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0);
 
 /** Carga de la definitiva (R): se gana con bajas, no con el tiempo. */

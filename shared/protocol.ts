@@ -136,12 +136,13 @@ export interface YouState {
 export type ClientMsg =
   | { t: 'hello'; token?: string; name: string }
   | { t: 'login'; credential: string } // ID token de Google
-  | { t: 'join'; mode: 'random' | 'code' | 'create'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
+  | { t: 'join'; mode: 'random' | 'code' | 'create' | 'tutorial'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
   | { t: 'input'; q: number; mx: number; my: number; a: number; b: number; d?: number } // d: distancia al cursor
   | { t: 'emote'; e: 'wave' | 'taunt' | 'ally' }
   | { t: 'upgrade'; u: UpgradeId }
   | { t: 'respawn'; char?: CharacterId; skin?: string }
   | { t: 'leave' }
+  | { t: 'tut'; a: 'boost' | 'hunter' } // pasos del tutorial (solo en su sala de práctica)
   | { t: 'cheat'; lvl?: number; ult?: boolean; tp?: [number, number]; heal?: boolean } // solo en modo desarrollo
   | { t: 'buy'; item: string } // "char:<id>" o "skin:<char>:<id>"
   | { t: 'rooms' }

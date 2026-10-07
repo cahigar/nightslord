@@ -2,7 +2,7 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, BEASTS, CATCH_UP, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
+import { BAL, BEASTS, CATCH_UP, TUTORIAL, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
 import {
   BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAP_SIZE, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
@@ -141,7 +141,9 @@ export class Room {
   }
 
   get playerCount() { return this.conns.size; }
-  get isFull() { return this.conns.size >= MAX_PLAYERS_PER_ROOM; }
+  /** Sala de práctica del tutorial: un solo jugador, sin Cazadores automáticos, XP acelerada y sin premios reales. */
+  tutorial = false;
+  get isFull() { return this.conns.size >= (this.tutorial ? 1 : MAX_PLAYERS_PER_ROOM); }
 
   destroy() { clearInterval(this.loop); }
 
@@ -149,11 +151,14 @@ export class Room {
   addConn(conn: Conn, char: CharacterId, skin: string) {
     this.conns.set(conn.id, conn);
     conn.roomCode = this.code;
-    conn.profile.stats.games++;
-    if (conn.profile.stats.games >= 10) store.award(conn.profile, 'games10');
-    if (conn.profile.stats.games >= 50) store.award(conn.profile, 'games50');
-    store.touch();
+    if (!this.tutorial) {
+      conn.profile.stats.games++;
+      if (conn.profile.stats.games >= 10) store.award(conn.profile, 'games10');
+      if (conn.profile.stats.games >= 50) store.award(conn.profile, 'games50');
+      store.touch();
+    }
     const p = this.spawnPlayer(conn, char, skin);
+    if (this.tutorial && char === 'vampire') p.hp = Math.round(p.maxHp * 0.5); // para practicar la Sed de sangre
     conn.send({ t: 'joined', code: this.code, theme: this.theme, seed: this.seed, priv: this.priv, you: p.id });
     this.sendRank();
     this.onPlayerCountChange?.();
@@ -179,6 +184,29 @@ export class Room {
     const start = [...CATCH_UP.milestones].reverse().find((l) => p.bestLevel >= l) ?? 1;
     if (start > 1) this.restoreLevel(p, start);
     if (p.bestLevel > p.level) conn.send({ t: 'toast', text: `Vuelves con nivel ${p.level}: experiencia x${CATCH_UP.mul} hasta el nivel ${p.bestLevel}.`, k: 'catchUp', a: { l: p.level, m: CATCH_UP.mul, b: p.bestLevel } });
+  }
+
+  private lastHunter: Hunter | null = null;
+
+  /** Pasos del tutorial que necesita el servidor: saltar al nivel 10 con la R cargada, o traer un Cazador de práctica. */
+  onTutorial(conn: Conn, a: string) {
+    const p = this.players.get(conn.id);
+    if (!this.tutorial || !p || p.dead) return;
+    if (a === 'boost') {
+      if (p.level < 10) { this.restoreLevel(p, 10); p.upPts = Math.max(p.upPts, 1); }
+      p.ult = ULT.max; p.hp = p.maxHp;
+      this.fx('evolve', p.x, p.y, { o: p.id, n: p.tier, c: p.char }); this.sfx('evolve', p.x, p.y);
+    } else if (a === 'hunter') {
+      if ([...this.hunters.values()].some((h) => !isBeast(h.type))) return;
+      this.spawnHunter('cazador');
+      const h = this.lastHunter!;
+      for (let i = 0; i < 24; i++) {
+        const ang = Math.random() * Math.PI * 2, x = p.x + Math.cos(ang) * 420, y = p.y + Math.sin(ang) * 420;
+        if (x > 100 && y > 100 && x < MAP_SIZE - 100 && y < MAP_SIZE - 100 && !this.grid.blocked(x, y, h.r + 2, false)) { h.x = x; h.y = y; break; }
+      }
+      h.hp = h.maxHp = Math.round(h.maxHp * TUTORIAL.hunterHp);
+      this.fx('descend', h.x, h.y, { o: h.id });
+    }
   }
 
   /** Sube a un jugador recién aparecido a un nivel sin efectos ni medallas (con sus puntos de mejora para repartir). */
@@ -839,6 +867,7 @@ export class Room {
       target: -1, thinkT: 0, shootCd: 1, meleeCd: 0, tx: pos.x, ty: pos.y, strafe: Math.random() < 0.5 ? 1 : -1,
     };
     this.hunters.set(h.id, h);
+    this.lastHunter = h;
     if (type === 'heraldo') { this.fx('descend', h.x, h.y, { o: h.id }); this.sfx('smite', h.x, h.y); }
   }
 
@@ -1360,7 +1389,7 @@ export class Room {
     if (m.kind === Kind.Player) {
       const p = m as Player;
       if (p.protectT > 0 || p.mistT > 0 || p.submergeT > 0 || p.phaseT > 0) return 0;
-      if (src.kind === Kind.Hunter) amount *= rookieMul(p.level); // la Orden y las fieras pegan menos a los novatos
+      if (src.kind === Kind.Hunter) amount *= this.tutorial ? TUTORIAL.hunterDmg : rookieMul(p.level); // la Orden y las fieras pegan menos a los novatos
       amount *= (1 - Math.min(0.6, p.def.armor + classOf(p).armor)) * (KITS[p.char].damageTakenMul?.(this, p) ?? 1);
       p.lastHurtT = this.time;
       if (p.shieldHp > 0) {
@@ -1503,7 +1532,7 @@ export class Room {
       this.releaseMinions(v.id);
       KITS[v.char].onDeath?.(this, v);
       this.recordBest(v);
-      v.conn.profile.stats.deaths++;
+      if (!this.tutorial) v.conn.profile.stats.deaths++;
       if (killer) {
         this.reward(killer, (40 + Math.round(v.totalXp * 0.25)) * share, (50 + Math.round(v.points * 0.25)) * share, 5);
         this.chargeUlt(killer, ULT.player * share);
@@ -1556,12 +1585,14 @@ export class Room {
   }
 
   private recordBest(p: Player) {
+    if (this.tutorial) return;
     const st = p.conn.profile.stats;
     if (p.points > st.bestScore) { st.bestScore = Math.round(p.points); store.touch(); }
   }
 
   reward(p: Player, xp: number, pts: number, coins: number) {
     xp = Math.round(xp); pts = Math.round(pts);
+    if (this.tutorial) coins = 0;
     p.points += pts;
     p.coinsEarned += coins;
     p.conn.profile.coins += coins;
@@ -1571,6 +1602,7 @@ export class Room {
 
   private addXp(p: Player, xp: number) {
     if (p.level < p.bestLevel) xp *= CATCH_UP.mul; // recuperando el nivel de la vida anterior
+    if (this.tutorial) xp *= TUTORIAL.xpMul;
     p.totalXp += xp;
     p.xp += xp;
     while (p.level < MAX_LEVEL && p.xp >= xpForLevel(p.level)) {
@@ -1598,6 +1630,7 @@ export class Room {
   }
 
   private medal(p: Player, id: string) {
+    if (this.tutorial) return;
     if (store.award(p.conn.profile, id)) {
       p.conn.send({ t: 'medal', id });
       p.conn.send({ t: 'profile', profile: p.conn.profile });
@@ -1658,7 +1691,7 @@ export class Room {
     if (n.disguiseT > 0) { n.disguiseT -= dt; if (n.disguiseT <= 0) { n.disguiseBy = -1; this.fx('disguise', n.x, n.y, { o: n.id, r: -1 }); } }
     if (this.applyStatus(n, dt)) return;
     if (this.hypnoWalk(n, dt)) return;
-    if (this.flee(n, STATUS.fleeSpeed, dt)) return;
+    if (this.flee(n, STATUS.fleeSpeed * (this.tutorial ? TUTORIAL.npcSpeed : 1), dt)) return;
     if (n.stunT > 0 || n.fearT > 0) { n.moving = false; return; }
     if (this.hexHop(n, dt)) return;
     if (this.rageOrCharm(n, 150, STATUS.rageNpcDmg, 0.9, 22, dt)) return;
@@ -1705,6 +1738,7 @@ export class Room {
     else if (n.panicT > 0) speed = 95;
     else if (n.fleeing) speed = 155;
     if (n.slowT > 0) speed *= n.slowMul;
+    if (this.tutorial) speed *= TUTORIAL.npcSpeed; // en la práctica, los humanos huyen más despacio
     if (n.rootT > 0) speed = 0;
     const dx = n.tx - n.x, dy = n.ty - n.y;
     const d = Math.hypot(dx, dy);
@@ -2413,7 +2447,7 @@ export class Room {
           case 'speed': p.speedT = 6 * pm * tm; break;
           case 'fury': p.furyT = 8 * pm * tm; break;
           case 'shield': p.shieldHp = 50 * pm; p.shieldT = 10 * pm * tm; break;
-          case 'coin': p.coinsEarned += 5; p.conn.profile.coins += 5; store.touch(); break;
+          case 'coin': if (!this.tutorial) { p.coinsEarned += 5; p.conn.profile.coins += 5; store.touch(); } break;
           case 'xp': this.addXp(p, 30 * pm); break;
           case 'spirits': p.spiritsT = ITEMS.spirits.t * tm; p.spiritCd = 0; break;
           case 'boots': p.bootsT = ITEMS.boots.t * tm; p.bootsKind = Math.floor(Math.random() * 3); p.bootsAcc = 0; break;
@@ -2433,6 +2467,7 @@ export class Room {
 
   /** Cuántos cazadores de cada tipo quiere la sala según el nivel medio y el número de jugadores. */
   hunterWants(): Record<OrderType, number> {
+    if (this.tutorial) return { cazador: 0, inquisidor: 0, exorcista: 0, sectario: 0, heraldo: 0 };
     const alive = this.alivePlayers();
     const pc = alive.length;
     const avg = pc ? alive.reduce((s, p) => s + p.level, 0) / pc : 0;

@@ -408,3 +408,53 @@ details.modes .row:first-of-type { margin-top: 8px; }
 #infopanel .irow.locked { opacity: .55; }
 #infopanel .irow.done .key { background: #1a5a2a; color: #a0ffa0; }
 @media (max-height: 480px) { #infopanel { max-height: 90vh; font-size: 16px; padding: 10px 12px; } #infopanel .ihead canvas { width: 52px; height: 68px; } }
+
+/* ---------- Tutorial ---------- */
+#splash .tutbtn { font-size: clamp(10px, 1.6vw, 13px); padding: 10px 18px; background: rgba(31, 20, 48, 0.9); }
+.tutbtn2 { margin-top: 10px; }
+#tutorial { align-items: flex-start; }
+.panel.tutorial { width: min(980px, 100%); margin: 2vh auto; background: rgba(21, 13, 31, 0.94); }
+.tutorial h2 { font-family: var(--px); color: var(--gold); font-size: 20px; text-align: center; margin: 4px 0 14px; text-shadow: 2px 2px 0 #6a0a18; }
+.tutorial h3 { text-align: center; color: #ff8090; }
+.tut-rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+.tut-card { background: #0c0714; border: 2px solid var(--line); padding: 8px 10px; font-size: 18px; line-height: 1.2; }
+.tut-card > b { font-family: var(--px); font-size: 10px; color: var(--gold); }
+.tut-card p { margin: 6px 0 0; color: #d8cce8; }
+.tut-card p b { color: #fff; }
+.tut-lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.tut-lesson { display: grid; grid-template-columns: 78px 1fr; grid-template-rows: auto auto; gap: 4px 10px; align-items: center; background: #0c0714; border: 3px solid var(--line); padding: 8px; }
+.tut-lesson.done { border-color: #2a7a3a; }
+.tut-lesson canvas { width: 78px; height: 102px; image-rendering: pixelated; grid-row: span 2; }
+.tut-lesson b { font-family: var(--px); font-size: 11px; color: #fff; }
+.tut-lesson .tl-n { font-family: var(--px); font-size: 8px; color: var(--muted); margin-bottom: 4px; }
+.tut-lesson .tl-t { color: #c8b0f0; font-size: 16px; }
+.tut-lesson p { margin: 4px 0 0; font-size: 17px; color: #d8cce8; }
+.tut-lesson .ok, #tutdone .ok { color: #60e080; }
+.tut-lesson .btn { grid-column: 2; justify-self: start; background: var(--blood); border-color: #ff5060; color: #fff; }
+.tutorial .row.center { margin-top: 14px; }
+#tutpanel { position: absolute; left: 12px; top: 56px; width: min(330px, 42vw); background: rgba(12, 6, 22, 0.88); border: 2px solid #6a3a8a; box-shadow: 4px 4px 0 #000; padding: 8px 10px; pointer-events: none; font-size: 18px; line-height: 1.15; }
+#tutpanel .tp-h { font-family: var(--px); font-size: 8px; color: var(--gold); line-height: 1.5; }
+#tutpanel .tp-bar { height: 5px; background: #200a30; border: 1px solid #000; margin: 5px 0; }
+#tutpanel .tp-bar div { height: 100%; background: linear-gradient(90deg, #8040ff, #40e080); transition: width 0.3s; }
+#tutpanel .tp-s { font-family: var(--px); font-size: 7px; color: var(--muted); }
+#tutpanel .tp-p { color: #ff8090; }
+#tutpanel .tp-t { margin-top: 4px; color: #f0e8ff; animation: tpIn 0.35s ease-out; }
+#tutpanel .tp-t b { color: var(--gold); }
+@keyframes tpIn { from { transform: translateX(-12px); opacity: 0; } }
+#tutdone { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(520px, 92vw); text-align: center; pointer-events: auto; z-index: 50; background: #0c0616; }
+#tutdone h2 { font-family: var(--px); color: var(--gold); font-size: 18px; }
+#tutdone p { font-size: 18px; }
+#tutdone .btn.big { width: auto; margin-top: 0; font-size: 12px; padding: 12px 14px; }
+#death.tut h3, #death.tut #death-chars { display: none; }
+body.touch #tutpanel { top: calc(92px + env(safe-area-inset-top)); left: calc(6px + env(safe-area-inset-left)); font-size: 15px; width: min(280px, 46vw); }
+@media (max-height: 480px) {
+  body.touch #tutpanel { top: auto; bottom: calc(8px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(300px, 40vw); font-size: 14px; padding: 5px 8px; }
+  .panel.tutorial { margin: 0 auto; }
+}
+.panel.tutorial { display: flex; flex-direction: column; }
+@media (max-width: 640px), (max-height: 480px) {
+  /* en móvil, primero las lecciones de práctica y después las instrucciones */
+  #tut-title { order: 0; } #tut-practice { order: 1; margin-top: 0; } #tut-lessons { order: 2; } #tut-rules { order: 3; margin-top: 12px; } .tutorial .row.center { order: 4; }
+  .tut-card, .tut-lesson p { font-size: 16px; }
+  .tutorial h2 { font-size: 15px; }
+}

@@ -6,6 +6,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, type CharacterId } from '../shared/characters';
 import { FREE_CHARS, hasCharacter, hasSkin, MEDAL_BY_ID, unlockPrice } from '../shared/catalog';
 import { NAME_MAX } from '../shared/constants';
+import { TUTORIAL } from '../shared/balance';
 import type { ClientMsg, ServerMsg } from '../shared/protocol';
 import { RoomManager, SHARD } from './RoomManager';
 import { store } from './store';
@@ -148,6 +149,14 @@ wss.on('connection', (ws: WebSocket, req) => {
         break;
       case 'join': {
         if (room) room.removeConn(c);
+        if (msg.mode === 'tutorial') {
+          // práctica: cualquiera de los 3 monstruos del tutorial, en una sala privada solo para ti
+          const i = Math.max(0, TUTORIAL.chars.indexOf(msg.char as (typeof TUTORIAL.chars)[number]));
+          const t = rooms.create(true, TUTORIAL.themes[i], true);
+          if (!t) return send({ t: 'error', msg: 'El servidor está lleno ahora mismo. Prueba en un momento.', k: 'serverBusy' });
+          t.addConn(c, TUTORIAL.chars[i], 'classic');
+          break;
+        }
         const { char, skin } = validChoice(c, msg.char, msg.skin);
         let target = null;
         if (msg.mode === 'code') {
@@ -182,6 +191,9 @@ wss.on('connection', (ws: WebSocket, req) => {
         if (room) room.removeConn(c);
         send({ t: 'left' });
         send({ t: 'profile', profile: c.profile });
+        break;
+      case 'tut':
+        if (msg.a === 'boost' || msg.a === 'hunter') room?.onTutorial(c, msg.a);
         break;
       case 'cheat':
         if (DEV || c.profile.master) room?.onCheat(c, typeof msg.lvl === 'number' ? msg.lvl : undefined, !!msg.ult, Array.isArray(msg.tp) ? msg.tp : undefined, !!msg.heal);

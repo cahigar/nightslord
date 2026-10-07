@@ -26,7 +26,19 @@
       <div class="logo-wrap"><canvas id="splashlogo" width="220" height="84" aria-hidden="true"></canvas><span class="io">.com</span></div>
       <p class="tagline" data-i18n="splashTag"></p>
       <button id="start" class="btn big start" data-i18n="start"></button>
+      <button id="tutbtn" class="btn tutbtn"></button>
       <p class="splash-hint" data-i18n="splashHint"></p>
+    </div>
+  </div>
+
+  <!-- TUTORIAL: instrucciones y lecciones de práctica -->
+  <div id="tutorial" class="screen" hidden>
+    <div class="panel tutorial">
+      <h2 id="tut-title"></h2>
+      <div id="tut-rules" class="tut-rules"></div>
+      <h3 id="tut-practice"></h3>
+      <div id="tut-lessons" class="tut-lessons"></div>
+      <div class="row center"><button id="tut-back" class="btn"></button><button id="tut-menu" class="btn"></button></div>
     </div>
   </div>
 
@@ -67,6 +79,7 @@
           </div>
           </details>
           <div id="rooms" class="rooms"></div>
+          <button id="tutbtn2" class="btn tiny tutbtn2"></button>
           <div id="menu-error" class="error"></div>
         </div>
 
@@ -123,6 +136,8 @@
     </div>
     <div id="toast"></div>
     <div id="infopanel" class="panel" hidden></div>
+    <div id="tutpanel" hidden></div>
+    <div id="tutdone" class="panel" hidden></div>
   </div>
 
   <!-- MUERTE -->
