@@ -4,7 +4,7 @@
 /** Niveles en los que cambia la evolución del monstruo. */
 export const TIER_LEVELS = [5, 10, 15] as const;
 /** Reaparecer en la misma sala: nivel de partida (última evolución alcanzada) y multiplicador de XP hasta recuperar el nivel anterior. */
-export const CATCH_UP = { milestones: [5, 10, 15], mul: 2 };
+export const CATCH_UP = { milestones: [5], mul: 2 }; // nunca se reaparece por encima del 5: el resto se recupera con XP doble
 
 /** Tutorial: personajes de práctica, XP acelerada y Cazador de práctica más blando. */
 export const TUTORIAL = { chars: ['vampire', 'mummy', 'zombie'] as const, themes: ['transylvania', 'camp', 'elm'] as const, xpMul: 3, hunterDmg: 0.4, hunterHp: 0.6, npcSpeed: 0.6 };
@@ -158,7 +158,7 @@ export const BAL = {
     ult: { range: 420, r: 230, tPlayer: 3, tOther: 5 }, // R: Pasión desatada (rabia que nunca va contra ella)
   },
   poltergeist: {
-    obj: { range: 420, spawnMin: 110, spawnMax: 200, speed: 640, dmg: 1.0, countT3: 2 }, // básico: objetos que salen de cualquier sitio
+    obj: { range: 420, spawnMin: 110, spawnMax: 200, speed: 640, dmg: 0.72, countT3: 2 }, // casi no se puede esquivar (apunta solo y atraviesa muros): daño moderado // básico: objetos que salen de cualquier sitio
     objSlow: { t: 1, mul: 0.6 }, // nivel 5: los objetos ralentizan
     storm: { r: 210, count: 6, dmg: 0.7 }, // Q: revuelo
     phase: { t: 2.2, tT3: 3.2 }, // E: intangible

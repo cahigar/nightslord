@@ -13,8 +13,8 @@ import { adaptQuality, quality } from './quality';
 import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './tutorial';
 import { input, setupInput } from './input';
 import { net } from './net';
-import { ANIMS, getFrame, SH, SW } from './sprites';
-import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, tk, tm, tt, tu, tw } from './i18n';
+import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
+import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, th, tk, tm, tpu, tt, tu, tw } from './i18n';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('game');
@@ -635,7 +635,7 @@ onLangChange(retranslate);
 // ---------------------------------------------------------------------------
 // Tutorial: instrucciones y lecciones de práctica
 // ---------------------------------------------------------------------------
-interface TutState { char: TutChar; step: number; ctx: TutCtx; base: TutCtx; prev: { x: number; y: number; hp: number; cd1: number; cd2: number } | null; sent: Record<string, number>; done: boolean }
+interface TutState { char: TutChar; step: number; ctx: TutCtx; base: TutCtx; prev: { x: number; y: number; hp: number; mhp: number; lvl: number; cd1: number; cd2: number } | null; sent: Record<string, number>; done: boolean }
 let tut: TutState | null = null;
 const tutDoneSet = (): Set<string> => new Set((store.get('nl_tut') ?? '').split(',').filter(Boolean));
 const zeroCtx = (): TutCtx => ({ moved: 0, kills: 0, farKills: 0, hunterKills: 0, healed: 0, q: 0, e: 0, minions: 0, lvl: 1, ups: 0, ult: 0 });
@@ -650,8 +650,23 @@ function buildTutorialScreen() {
   $('tut-practice').textContent = tt2('practice');
   $('tut-back').textContent = tt2('back');
   $('tut-menu').textContent = tt2('toMenu');
-  $('tut-rules').innerHTML = ['goal', 'pc', 'mob', 'lvl', 'ult', 'hunt', 'items', 'pvp', 'death']
-    .map((k) => `<div class="tut-card"><b>${tt2('h_' + k)}</b><p>${tt2(k)}</p></div>`).join('');
+  $('tut-rules').innerHTML = ['goal', 'pc', 'mob', 'lvl', 'ult', 'pvp', 'hunt', 'items', 'death']
+    .map((k) => `<div class="tut-card${k === 'hunt' || k === 'items' ? ' wide' : ''}"><b>${tt2('h_' + k)}</b><p>${tt2(k)}</p>${k === 'hunt' || k === 'items' ? `<div class="tut-icons" id="tut-icons-${k}"></div>` : ''}</div>`).join('');
+  // sprites de los objetos y de los Cazadores, con su nombre
+  const icon = (box: HTMLElement, img: { base: HTMLCanvasElement; glow?: HTMLCanvasElement | null }, label: string, scale: number) => {
+    const cv = document.createElement('canvas');
+    cv.width = img.base.width * scale; cv.height = img.base.height * scale;
+    const c = cv.getContext('2d')!; c.imageSmoothingEnabled = false;
+    c.drawImage(img.base, 0, 0, cv.width, cv.height);
+    if (img.glow) { c.globalCompositeOperation = 'lighter'; c.drawImage(img.glow, 0, 0, cv.width, cv.height); }
+    const d = document.createElement('div'); d.className = 'ti';
+    d.appendChild(cv); d.insertAdjacentHTML('beforeend', `<span>${label}</span>`);
+    box.appendChild(d);
+  };
+  const items = $('tut-icons-items');
+  for (const id of ['blood', 'speed', 'fury', 'shield', 'coin', 'xp', 'spirits', 'boots', 'shovel']) icon(items, getItem(id), tpu(id).replace(/[¡!+]/g, '').trim(), 4);
+  const hunters = $('tut-icons-hunt');
+  for (const id of ['cazador', 'inquisidor', 'exorcista', 'sectario', 'heraldo']) icon(hunters, getFrame('hunter', id, '', Anim.Idle, 0), th(id), 2);
   const done = tutDoneSet();
   const box = $('tut-lessons');
   box.innerHTML = '';
@@ -705,11 +720,13 @@ function tickTut() {
   const c = tut.ctx;
   if (tut.prev && y.alive) {
     c.moved += Math.min(60, Math.hypot(y.x - tut.prev.x, y.y - tut.prev.y));
-    if (y.hp >= tut.prev.hp + 3 && tut.prev.hp < y.mhp) c.healed += y.hp - tut.prev.hp; // los mordiscos curan de golpe (la regeneración va poco a poco)
+    // los mordiscos curan de golpe y poco; no cuentan la regeneración, las pociones (curan mucho) ni subir de nivel (sube la vida máxima)
+    const gain = y.hp - tut.prev.hp;
+    if (gain >= 2 && gain <= y.mhp * 0.2 && y.mhp === tut.prev.mhp && y.lvl === tut.prev.lvl) c.healed += gain;
     if (y.cd[1] > tut.prev.cd1 + 0.3) c.q++;
     if (y.cd[2] > tut.prev.cd2 + 0.3) c.e++;
   }
-  tut.prev = { x: y.x, y: y.y, hp: y.hp, cd1: y.cd[1], cd2: y.cd[2] };
+  tut.prev = { x: y.x, y: y.y, hp: y.hp, mhp: y.mhp, lvl: y.lvl, cd1: y.cd[1], cd2: y.cd[2] };
   let mins = 0;
   for (const e of game.ents.values()) if (e.k === Kind.Minion && e.o === game.youId) mins++;
   c.minions = mins; c.lvl = y.lvl; c.ult = y.ultOn > 0 ? 1 : 0;
@@ -720,7 +737,8 @@ function tickTut() {
   if (st.action && y.alive) {
     const last = tut.sent[st.id] ?? 0;
     const needHunter = st.action === 'hunter' && ![...game.ents.values()].some((e) => e.k === Kind.Hunter);
-    if (!last || (needHunter && performance.now() - last > 15000)) { net.send({ t: 'tut', a: st.action }); tut.sent[st.id] = performance.now(); }
+    const needHurt = st.action === 'hurt' && y.hp > y.mhp * 0.85; // se ha curado con una poción: volvemos a herirle
+    if (!last || (needHunter && performance.now() - last > 15000) || (needHurt && performance.now() - last > 4000)) { net.send({ t: 'tut', a: st.action }); tut.sent[st.id] = performance.now(); }
   }
   if (tutVal(st) >= st.n) {
     tut.step++;

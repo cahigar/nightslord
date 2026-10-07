@@ -192,7 +192,9 @@ export class Room {
   onTutorial(conn: Conn, a: string) {
     const p = this.players.get(conn.id);
     if (!this.tutorial || !p || p.dead) return;
-    if (a === 'boost') {
+    if (a === 'hurt') {
+      if (p.hp > p.maxHp * 0.6) p.hp = Math.round(p.maxHp * 0.45); // para practicar curarse con la pasiva
+    } else if (a === 'boost') {
       if (p.level < 10) { this.restoreLevel(p, 10); p.upPts = Math.max(p.upPts, 1); }
       p.ult = ULT.max; p.hp = p.maxHp;
       this.fx('evolve', p.x, p.y, { o: p.id, n: p.tier, c: p.char }); this.sfx('evolve', p.x, p.y);

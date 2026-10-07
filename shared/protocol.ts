@@ -142,7 +142,7 @@ export type ClientMsg =
   | { t: 'upgrade'; u: UpgradeId }
   | { t: 'respawn'; char?: CharacterId; skin?: string }
   | { t: 'leave' }
-  | { t: 'tut'; a: 'boost' | 'hunter' } // pasos del tutorial (solo en su sala de práctica)
+  | { t: 'tut'; a: 'boost' | 'hunter' | 'hurt' } // pasos del tutorial (solo en su sala de práctica)
   | { t: 'cheat'; lvl?: number; ult?: boolean; tp?: [number, number]; heal?: boolean } // solo en modo desarrollo
   | { t: 'buy'; item: string } // "char:<id>" o "skin:<char>:<id>"
   | { t: 'rooms' }

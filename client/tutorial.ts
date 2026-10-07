@@ -8,7 +8,7 @@ export const TUT_CHARS: TutChar[] = ['vampire', 'mummy', 'zombie'];
 
 /** Contadores que alimentan los pasos. */
 export interface TutCtx { moved: number; kills: number; farKills: number; hunterKills: number; healed: number; q: number; e: number; minions: number; lvl: number; ups: number; ult: number }
-export interface TutStep { id: string; m: keyof TutCtx; n: number; abs?: boolean; action?: 'boost' | 'hunter'; passive?: boolean }
+export interface TutStep { id: string; m: keyof TutCtx; n: number; abs?: boolean; action?: 'boost' | 'hunter' | 'hurt'; passive?: boolean }
 
 const MOVE: TutStep = { id: 'move', m: 'moved', n: 600 };
 const LVL5: TutStep = { id: 'lvl5', m: 'lvl', n: 5, abs: true };
@@ -17,7 +17,7 @@ const ULT: TutStep = { id: 'ult', m: 'ult', n: 1, abs: true, action: 'boost' };
 const HUNTER: TutStep = { id: 'hunter', m: 'hunterKills', n: 1, action: 'hunter' };
 
 export const LESSONS: Record<TutChar, TutStep[]> = {
-  vampire: [MOVE, { id: 'v_bite', m: 'kills', n: 3 }, { id: 'v_passive', m: 'healed', n: 15, passive: true }, { id: 'q', m: 'q', n: 1 }, { id: 'v_e', m: 'e', n: 1 }, LVL5, UPG, ULT, HUNTER],
+  vampire: [MOVE, { id: 'v_bite', m: 'kills', n: 3 }, { id: 'v_passive', m: 'healed', n: 12, passive: true, action: 'hurt' }, { id: 'q', m: 'q', n: 1 }, { id: 'v_e', m: 'e', n: 1 }, LVL5, UPG, ULT, HUNTER],
   mummy: [MOVE, { id: 'm_shoot', m: 'farKills', n: 2, passive: true }, { id: 'm_q', m: 'q', n: 1 }, { id: 'm_e', m: 'e', n: 1 }, LVL5, UPG, ULT, { ...HUNTER, id: 'm_hunter' }],
   zombie: [MOVE, { id: 'z_q', m: 'minions', n: 2, abs: true, passive: true }, { id: 'z_e', m: 'e', n: 1 }, { id: 'z_bite', m: 'kills', n: 4 }, LVL5, UPG, ULT, { ...HUNTER, id: 'z_hunter' }],
 };
@@ -65,7 +65,7 @@ const ES: Txt = {
   // pasos
   s_move: 'Muévete por el mapa: <b>WASD</b> o el joystick.',
   s_v_bite: 'Muerde a 3 humanos con <b>{a}</b>: clic o Espacio (en móvil, ⚔). ¡Caza: {c}/{n}!',
-  s_v_passive: '<b>{pn}</b>: {pd} Empiezas con media vida: recupérala mordiendo ({c}/{n}).',
+  s_v_passive: '<b>{pn}</b>: {pd} Te hemos dejado herido: recupera vida mordiendo humanos ({c}/{n} ❤).',
   s_q: 'Usa la <b>Q · {q}</b>: {qd}',
   s_v_e: 'Usa la <b>E · {e}</b>: {ed} Úsala para escapar o acercarte.',
   s_lvl5: 'Sube a nivel <b>5</b> cazando para evolucionar. En la práctica la experiencia va más rápida.',
@@ -98,7 +98,7 @@ const EN: Txt = {
   h_death: '💀 If you fall', death: 'You come back to the same room from your last evolution, with double experience until you recover your level. Coins unlock monsters and skins; sign in with Google to keep them.',
   s_move: 'Move around the map: <b>WASD</b> or the joystick.',
   s_v_bite: 'Bite 3 humans with <b>{a}</b>: click or Space (⚔ on mobile). Hunt: {c}/{n}!',
-  s_v_passive: '<b>{pn}</b>: {pd} You start with half health: recover it by biting ({c}/{n}).',
+  s_v_passive: '<b>{pn}</b>: {pd} We have wounded you: recover health by biting humans ({c}/{n} ❤).',
   s_q: 'Use <b>Q · {q}</b>: {qd}', s_v_e: 'Use <b>E · {e}</b>: {ed} Use it to escape or close in.',
   s_lvl5: 'Reach level <b>5</b> by hunting to evolve. Experience is faster in practice.',
   s_upgrade: 'You have an upgrade point! Pick one with <b>1-4</b> or by tapping it.',
@@ -127,7 +127,7 @@ const FR: Txt = {
   h_pvp: '🤝 Autres monstres', pvp: 'Tu peux chasser les autres joueurs ou leur proposer une alliance avec <b>H</b>... qui peut être trahie.',
   h_death: '💀 Si tu tombes', death: 'Tu reviens dans le même salon depuis ta dernière évolution, avec expérience double jusqu\'à ton ancien niveau.',
   s_move: 'Déplace-toi : <b>WASD</b> ou le joystick.', s_v_bite: 'Mords 3 humains avec <b>{a}</b> ({c}/{n}).',
-  s_v_passive: '<b>{pn}</b> : {pd} Tu commences à mi-vie : récupère-la en mordant ({c}/{n}).', s_q: 'Utilise <b>Q · {q}</b> : {qd}', s_v_e: 'Utilise <b>E · {e}</b> : {ed}',
+  s_v_passive: '<b>{pn}</b> : {pd} Te voilà blessé : récupère de la vie en mordant des humains ({c}/{n} ❤).', s_q: 'Utilise <b>Q · {q}</b> : {qd}', s_v_e: 'Utilise <b>E · {e}</b> : {ed}',
   s_lvl5: 'Atteins le niveau <b>5</b> pour évoluer.', s_upgrade: 'Choisis une amélioration avec <b>1-4</b> ou en la touchant.',
   s_ult: 'Voici le niveau 10 avec la barre pleine : appuie sur <b>R · {r}</b>. {rd}', s_hunter: 'Un <b>Chasseur</b> ! Il frappe fort mais rapporte beaucoup. Bats-le.',
   s_m_shoot: '<b>{pn}</b> : {pd} Ton attaque est à distance. Chasse 2 humains de loin ({c}/{n}).', s_m_q: 'Utilise <b>Q · {q}</b> : {qd}', s_m_e: 'Utilise <b>E · {e}</b> : {ed}',
@@ -149,7 +149,7 @@ const CA: Txt = {
   h_items: '🧪 Objectes', items: 'Pel mapa hi ha sang (vida), velocitat, fúria, escut, monedes, experiència i objectes especials.',
   h_pvp: '🤝 Altres monstres', pvp: 'Pots caçar altres jugadors o proposar-los una aliança amb <b>H</b>... que es pot trair.',
   h_death: '💀 Si caus', death: 'Tornes a la mateixa sala des de la teva última evolució, amb experiència doble fins a recuperar el nivell.',
-  s_move: 'Mou-te: <b>WASD</b> o el joystick.', s_v_bite: 'Mossega 3 humans amb <b>{a}</b> ({c}/{n}).', s_v_passive: '<b>{pn}</b>: {pd} Comences amb mitja vida: recupera-la mossegant ({c}/{n}).',
+  s_move: 'Mou-te: <b>WASD</b> o el joystick.', s_v_bite: 'Mossega 3 humans amb <b>{a}</b> ({c}/{n}).', s_v_passive: '<b>{pn}</b>: {pd} T\'hem deixat ferit: recupera vida mossegant humans ({c}/{n} ❤).',
   s_q: 'Fes servir la <b>Q · {q}</b>: {qd}', s_v_e: 'Fes servir la <b>E · {e}</b>: {ed}', s_lvl5: 'Arriba al nivell <b>5</b> per evolucionar.', s_upgrade: 'Tria una millora amb <b>1-4</b> o tocant-la.',
   s_ult: 'Et regalem el nivell 10 amb la barra plena: prem <b>R · {r}</b>. {rd}', s_hunter: 'Un <b>Caçador</b>! Pica fort però dona molta experiència. Venç-lo.',
   s_m_shoot: '<b>{pn}</b>: {pd} El teu atac és a distància. Caça 2 humans de lluny ({c}/{n}).', s_m_q: 'Fes servir la <b>Q · {q}</b>: {qd}', s_m_e: 'Fes servir la <b>E · {e}</b>: {ed}',
@@ -171,7 +171,7 @@ const EU: Txt = {
   h_items: '🧪 Objektuak', items: 'Mapan odola (bizitza), abiadura, amorrua, ezkutua, txanponak eta esperientzia daude.',
   h_pvp: '🤝 Beste munstroak', pvp: 'Beste jokalariak ehiza ditzakezu edo <b>H</b>-rekin aliantza proposatu.',
   h_death: '💀 Erortzen bazara', death: 'Gela berera itzultzen zara zure azken eboluziotik, esperientzia bikoitzarekin.',
-  s_move: 'Mugitu: <b>WASD</b> edo joystick-a.', s_v_bite: 'Kosk egin 3 gizakiri <b>{a}</b>-rekin ({c}/{n}).', s_v_passive: '<b>{pn}</b>: {pd} Bizitza erdiarekin hasten zara: berreskuratu koska eginez ({c}/{n}).',
+  s_move: 'Mugitu: <b>WASD</b> edo joystick-a.', s_v_bite: 'Kosk egin 3 gizakiri <b>{a}</b>-rekin ({c}/{n}).', s_v_passive: '<b>{pn}</b>: {pd} Zaurituta zaude: berreskuratu bizitza gizakiei koska eginez ({c}/{n} ❤).',
   s_q: 'Erabili <b>Q · {q}</b>: {qd}', s_v_e: 'Erabili <b>E · {e}</b>: {ed}', s_lvl5: 'Iritsi <b>5</b>. mailara eboluzionatzeko.', s_upgrade: 'Aukeratu hobekuntza bat <b>1-4</b>-rekin.',
   s_ult: '10. maila oparitzen dizugu barra beteta: sakatu <b>R · {r}</b>. {rd}', s_hunter: '<b>Ehiztari</b> bat! Gogor jotzen du baina esperientzia asko ematen du. Garaitu.',
   s_m_shoot: '<b>{pn}</b>: {pd} Zure erasoa urrutikoa da. Ehizatu 2 gizaki urrunetik ({c}/{n}).', s_m_q: 'Erabili <b>Q · {q}</b>: {qd}', s_m_e: 'Erabili <b>E · {e}</b>: {ed}',
@@ -193,7 +193,7 @@ const ZH: Txt = {
   h_items: '🧪 道具', items: '地图上有鲜血（生命）、速度、狂怒、护盾、金币、经验和特殊道具。',
   h_pvp: '🤝 其他怪物', pvp: '你可以猎杀其他玩家，或按 <b>H</b> 提议结盟……盟约可能被背叛。',
   h_death: '💀 倒下之后', death: '你会从上一次进化开始回到同一房间，并获得双倍经验直到恢复等级。',
-  s_move: '移动：<b>WASD</b> 或摇杆。', s_v_bite: '用 <b>{a}</b> 咬 3 个人类（{c}/{n}）。', s_v_passive: '<b>{pn}</b>：{pd} 你开局只有一半生命：通过撕咬恢复（{c}/{n}）。',
+  s_move: '移动：<b>WASD</b> 或摇杆。', s_v_bite: '用 <b>{a}</b> 咬 3 个人类（{c}/{n}）。', s_v_passive: '<b>{pn}</b>：{pd} 你受伤了：撕咬人类来恢复生命（{c}/{n} ❤）。',
   s_q: '使用 <b>Q · {q}</b>：{qd}', s_v_e: '使用 <b>E · {e}</b>：{ed}', s_lvl5: '升到 <b>5</b> 级来进化。', s_upgrade: '用 <b>1-4</b> 或点击选择一个强化。',
   s_ult: '送你 10 级和满充能：按 <b>R · {r}</b>。{rd}', s_hunter: '一个<b>猎人</b>！他攻击很强，但经验丰厚。击败他。',
   s_m_shoot: '<b>{pn}</b>：{pd} 你的攻击是远程的。从远处猎杀 2 个人类（{c}/{n}）。', s_m_q: '使用 <b>Q · {q}</b>：{qd}', s_m_e: '使用 <b>E · {e}</b>：{ed}',
@@ -215,7 +215,7 @@ const JA: Txt = {
   h_items: '🧪 アイテム', items: 'マップには血（体力）、スピード、怒り、シールド、コイン、経験値、特殊アイテムがある。',
   h_pvp: '🤝 他のモンスター', pvp: '他のプレイヤーを狩るか、<b>H</b> で同盟を提案できる……裏切りもあり。',
   h_death: '💀 倒れたら', death: '同じルームに最後の進化から復帰し、元のレベルまで経験値2倍。',
-  s_move: '移動しよう：<b>WASD</b> かスティック。', s_v_bite: '<b>{a}</b> で人間を3人噛もう（{c}/{n}）。', s_v_passive: '<b>{pn}</b>：{pd} 体力半分から開始：噛んで回復しよう（{c}/{n}）。',
+  s_move: '移動しよう：<b>WASD</b> かスティック。', s_v_bite: '<b>{a}</b> で人間を3人噛もう（{c}/{n}）。', s_v_passive: '<b>{pn}</b>：{pd} 傷を負った：人間を噛んで体力を回復しよう（{c}/{n} ❤）。',
   s_q: '<b>Q · {q}</b> を使おう：{qd}', s_v_e: '<b>E · {e}</b> を使おう：{ed}', s_lvl5: '狩ってレベル <b>5</b> にして進化しよう。', s_upgrade: '<b>1-4</b> かタップで強化を選ぼう。',
   s_ult: 'レベル10とフルチャージをプレゼント：<b>R · {r}</b> を押そう。{rd}', s_hunter: '<b>ハンター</b>だ！強いが経験値がたくさん。倒そう。',
   s_m_shoot: '<b>{pn}</b>：{pd} 攻撃は遠距離。遠くから人間を2人狩ろう（{c}/{n}）。', s_m_q: '<b>Q · {q}</b> を使おう：{qd}', s_m_e: '<b>E · {e}</b> を使おう：{ed}',

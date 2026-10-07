@@ -193,7 +193,7 @@ wss.on('connection', (ws: WebSocket, req) => {
         send({ t: 'profile', profile: c.profile });
         break;
       case 'tut':
-        if (msg.a === 'boost' || msg.a === 'hunter') room?.onTutorial(c, msg.a);
+        if (msg.a === 'boost' || msg.a === 'hunter' || msg.a === 'hurt') room?.onTutorial(c, msg.a);
         break;
       case 'cheat':
         if (DEV || c.profile.master) room?.onCheat(c, typeof msg.lvl === 'number' ? msg.lvl : undefined, !!msg.ult, Array.isArray(msg.tp) ? msg.tp : undefined, !!msg.heal);

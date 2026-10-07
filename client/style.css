@@ -458,3 +458,8 @@ body.touch #tutpanel { top: calc(92px + env(safe-area-inset-top)); left: calc(6p
   .tut-card, .tut-lesson p { font-size: 16px; }
   .tutorial h2 { font-size: 15px; }
 }
+.tut-card.wide { grid-column: 1 / -1; }
+.tut-icons { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; }
+.tut-icons .ti { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; min-width: 64px; background: #160d22; border: 1px solid #2e2044; padding: 6px 6px 4px; }
+.tut-icons canvas { image-rendering: pixelated; max-height: 72px; width: auto; }
+.tut-icons span { font-family: var(--px); font-size: 7px; color: var(--gold); text-align: center; line-height: 1.4; }
