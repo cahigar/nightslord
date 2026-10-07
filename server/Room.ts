@@ -258,7 +258,7 @@ export class Room {
     const mx = len > 1 ? m.mx / len : m.mx || 0;
     const my = len > 1 ? m.my / len : m.my || 0;
     p.queue.push({ q: m.q | 0, mx, my, a: +m.a || 0, b: m.b | 0, d: Math.max(0, Math.min(1200, +(m.d ?? 200) || 0)) });
-    if (p.queue.length > 6) p.queue.splice(0, p.queue.length - 3);
+    if (p.queue.length > 14) p.queue.splice(0, p.queue.length - 6); // solo si se ha atascado muchísimo (las demás se recuperan, ver updatePlayer)
   }
 
   /** Peticiones de alianza pendientes: quién → a quién y hasta cuándo. */
@@ -1227,6 +1227,9 @@ export class Room {
       p.ack = inp.q;
     }
     let { mx, my, a, b } = p.input;
+    // sin entrada nueva este tick (red a rachas): no se repite el último paso; llegará con la siguiente racha
+    // y se recupera (ver más abajo). Así el servidor no se adelanta a lo que predijo el cliente.
+    if (!inp) { mx = 0; my = 0; }
     // rabia: ataca a lo más cercano · engatusado: camina hacia quien lo engatusó
     if (p.rageT > 0 || p.charmT > 0) {
       const t = p.charmT > 0 ? this.findPlayerById(p.charmBy) : this.nearestAny(p, 600, p.rageSafe ? p.rageBy : -1);
@@ -1300,6 +1303,16 @@ export class Room {
         const res = this.grid.move(p.x, p.y, mx * sp * dt, my * sp * dt, p.r, walksWater(p));
         p.x = res.x; p.y = res.y;
         if (p.anim === Anim.Wave || p.anim === Anim.Taunt) p.animUntil = 0;
+      }
+      // red a rachas (móvil): si llegan varias entradas de golpe, se aplica una más por tick en vez de tirarlas;
+      // así el servidor hace exactamente los pasos que predijo el cliente y no hay «tirones» hacia atrás
+      if (p.queue.length > 1 && p.queue[0].b === p.input.b && p.rageT <= 0 && p.charmT <= 0 && p.fearT <= 0 && sp > 0) { // (sin perder pulsaciones de habilidades)
+        const ex = p.queue.shift()!;
+        p.input = ex; p.ack = ex.q;
+        if (ex.mx || ex.my) {
+          const r2 = this.grid.move(p.x, p.y, ex.mx * sp * dt, ex.my * sp * dt, p.r, walksWater(p));
+          p.x = r2.x; p.y = r2.y; p.moving = true;
+        }
       }
     }
     p.facing = Math.cos(a) >= 0 ? 1 : -1;

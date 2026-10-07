@@ -76,7 +76,10 @@ function setupTouch() {
         const dd = Math.hypot(dx, dy);
         if (dd > MAX) { dx = (dx / dd) * MAX; dy = (dy / dd) * MAX; }
         knob.style.transform = `translate(${dx}px, ${dy}px)`;
-        input.touch.mx = dx / MAX; input.touch.my = dy / MAX;
+        // zona muerta pequeña y velocidad máxima a poco más de media carrera (no hace falta llevar el pulgar al borde)
+        const DEAD = 6, FULL = MAX * 0.55;
+        const k = dd <= DEAD ? 0 : Math.min(1, (dd - DEAD) / (FULL - DEAD));
+        input.touch.mx = dd > 0 ? (dx / dd) * k : 0; input.touch.my = dd > 0 ? (dy / dd) * k : 0;
         if (dd > 10) input.touch.moveAim = Math.atan2(dy, dx);
         e.preventDefault();
         continue;

@@ -105,6 +105,25 @@ export class Terrain {
     }
   }
 
+  /** Adelanta trabajo: construye los chunks que faltan alrededor de un punto (los más cercanos primero)
+   *  hasta agotar el tiempo dado. Así, al moverse, el suelo ya está hecho y no hay tirones. */
+  warmStep(x: number, y: number, radius: number, deadline: number) {
+    const cx0 = Math.max(0, Math.floor((x - radius) / CW)), cy0 = Math.max(0, Math.floor((y - radius) / CW));
+    const cx1 = Math.min(this.nx - 1, Math.floor((x + radius) / CW)), cy1 = Math.min(this.nx - 1, Math.floor((y + radius) / CW));
+    const pcx = x / CW - 0.5, pcy = y / CW - 0.5;
+    while (performance.now() < deadline) {
+      let best = -1, bd = Infinity, bx = 0, by = 0;
+      for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+        const key = (cy + this.ext) * 1000 + (cx + this.ext);
+        if (this.chunks.has(key)) continue;
+        const d = (cx - pcx) ** 2 + (cy - pcy) ** 2;
+        if (d < bd) { bd = d; best = key; bx = cx; by = cy; }
+      }
+      if (best < 0) return;
+      this.chunks.set(best, this.build(bx, by));
+    }
+  }
+
   /** Pregenera chunks alrededor de un punto (al entrar a la sala). */
   warm(x: number, y: number, radius: number) {
     const cx0 = Math.max(0, Math.floor((x - radius) / CW)), cy0 = Math.max(0, Math.floor((y - radius) / CW));

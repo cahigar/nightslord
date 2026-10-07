@@ -58,7 +58,27 @@ export class Game {
   private pred = { x: 0, y: 0, px: 0, py: 0, t: 0 };
   private corr = { x: 0, y: 0 };
   private aim = 0;
-  private sendTimer: number | null = null;
+  /** Entradas a ritmo fijo (20 por segundo) contadas desde el bucle de dibujo: el movimiento propio se ve fluido
+   *  aunque el móvil retrase los temporizadores, y si hay un tirón se envían las que falten (el servidor las recupera). */
+  private inOn = false;
+  private inAcc = 0;
+  private inLast = 0;
+  /** Llamar una vez por fotograma. */
+  tickInput() {
+    if (!this.inOn) return;
+    const now = performance.now();
+    this.inAcc += Math.min(0.25, (now - this.inLast) / 1000);
+    this.inLast = now;
+    let n = 0;
+    while (this.inAcc >= TICK_DT && n < 5) { this.sendInput(); this.inAcc -= TICK_DT; n++; }
+    if (this.inAcc >= TICK_DT) this.inAcc = 0;
+  }
+  /** Al ocultar la pestaña: el personaje se para (si no, el servidor seguiría usando la última dirección). */
+  stopInput() {
+    if (!this.inOn || !this.you) return;
+    net.send({ t: 'input', q: ++this.seq, mx: 0, my: 0, a: +this.aim.toFixed(3), b: 0, d: 200 });
+    this.inLast = performance.now(); this.inAcc = 0;
+  }
   private lastSnapAt = 0;
 
   // arte
@@ -116,11 +136,11 @@ export class Game {
       this.corpses = [];
       this.decals = [];
     }
-    if (this.sendTimer === null) this.sendTimer = window.setInterval(() => this.sendInput(), TICK_DT * 1000);
+    this.inAcc = 0; this.inLast = performance.now(); this.inOn = true;
   }
 
   stop() {
-    if (this.sendTimer !== null) { clearInterval(this.sendTimer); this.sendTimer = null; }
+    this.inOn = false;
     this.ents.clear();
     this.you = null;
     this.alive = false;
@@ -263,7 +283,7 @@ export class Game {
   }
 
   renderPos() {
-    const t = Math.min(1, (performance.now() - this.pred.t) / (TICK_DT * 1000));
+    const t = this.inOn ? Math.min(1, this.inAcc / TICK_DT) : 1; // fracción del paso actual (ritmo fijo)
     return { x: this.pred.px + (this.pred.x - this.pred.px) * t + this.corr.x, y: this.pred.py + (this.pred.y - this.pred.py) * t + this.corr.y };
   }
 
@@ -342,6 +362,7 @@ export class Game {
 
   // ------------------------------------------------------------------ render
   render(dt: number) {
+    this.tickInput();
     const cv = this.canvas;
     const ctx = cv.getContext('2d')!;
     pixelizeShapes(ctx);
@@ -396,7 +417,7 @@ export class Game {
 
     // suelo procedural (por chunks) + bordes del mapa
     this.terrain.draw(ctx, vx0, vy0, vx1, vy1, this.chunkBudget);
-    this.chunkBudget = 3;
+    this.chunkBudget = quality.touch ? 1 : 2;
     // brillos del agua
     ctx.fillStyle = '#7aa6d0';
     for (const g of this.terrain.waterGlints) {
@@ -646,6 +667,9 @@ export class Game {
     this.floaters = this.floaters.filter((f) => f.life > 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ambient.drawVignette(ctx, W, H);
+    // tiempo sobrante del fotograma: adelantar el suelo de alrededor (hacia donde vas, más lejos)
+    const frameStart = now;
+    this.terrain.warmStep(me.x, me.y, (Math.max(W, H) / z) * 0.9, frameStart + (quality.touch ? 8 : 12));
   }
 
   private drawLighting(ctx: CanvasRenderingContext2D, W: number, H: number, camX: number, camY: number, z: number, now: number, me: { x: number; y: number }, dyn: Light[], cones: { x: number; y: number; a: number }[]) {

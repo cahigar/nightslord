@@ -80,6 +80,8 @@ function frame(now: number) {
   if (inGame && mmT <= 0) { game.minimap($<HTMLCanvasElement>('minimap')); mmT = 0.2; game.focusY += (measureFocus() - game.focusY) * 0.5; }
   animatePreviews(now);
   requestAnimationFrame(frame);
+// pestaña o app en segundo plano: el personaje se para
+document.addEventListener('visibilitychange', () => { if (document.hidden) game.stopInput(); });
 }
 requestAnimationFrame(frame);
 
