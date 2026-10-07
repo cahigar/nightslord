@@ -21,6 +21,7 @@ export const FR: Dict = {
     guest: '👤 Tu joues en <b>invité</b> : ta progression est perdue en fermant le navigateur.',
     accountNote: 'Connecte-toi avec Google pour garder tes pièces, médailles et achats. Nous utilisons ton e-mail uniquement pour t\'identifier : <b>nous ne t\'enverrons jamais de publicité</b>.',
     privacy: 'Confidentialité',
+    terms: 'Conditions',
     savedIn: '✅ Progression enregistrée sur <b>{email}</b>',
     logout: 'Se déconnecter',
     loginUnavailable: '(connexion indisponible sur ce serveur)',

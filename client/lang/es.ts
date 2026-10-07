@@ -22,6 +22,7 @@ const UI = {
   guest: '👤 Juegas como <b>invitado</b>: tu progreso se pierde al cerrar el navegador.',
   accountNote: 'Entra con Google para guardar monedas, medallas y compras. Solo usamos tu correo para identificarte: <b>nunca te enviaremos publicidad</b>.',
   privacy: 'Privacidad',
+  terms: 'Condiciones',
   savedIn: '✅ Progreso guardado en <b>{email}</b>',
   logout: 'Cerrar sesión',
   loginUnavailable: '(inicio de sesión no disponible en este servidor)',

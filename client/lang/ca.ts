@@ -21,6 +21,7 @@ export const CA: Dict = {
     guest: '👤 Jugues com a <b>convidat</b>: el teu progrés es perd en tancar el navegador.',
     accountNote: 'Entra amb Google per guardar monedes, medalles i compres. Només fem servir el teu correu per identificar-te: <b>mai no t\'enviarem publicitat</b>.',
     privacy: 'Privadesa',
+    terms: 'Condicions',
     savedIn: '✅ Progrés desat a <b>{email}</b>',
     logout: 'Tancar sessió',
     loginUnavailable: '(inici de sessió no disponible en aquest servidor)',

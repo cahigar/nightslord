@@ -21,6 +21,7 @@ export const EN: Dict = {
     guest: '👤 You are playing as a <b>guest</b>: your progress is lost when you close the browser.',
     accountNote: 'Sign in with Google to keep your coins, medals and purchases. We only use your email to identify you: <b>we will never send you advertising</b>.',
     privacy: 'Privacy',
+    terms: 'Terms',
     savedIn: '✅ Progress saved to <b>{email}</b>',
     logout: 'Sign out',
     loginUnavailable: '(sign-in is not available on this server)',

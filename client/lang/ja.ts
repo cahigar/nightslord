@@ -21,6 +21,7 @@ export const JA: Dict = {
     guest: '👤 <b>ゲスト</b>としてプレイ中：ブラウザを閉じると進行状況は失われます。',
     accountNote: 'Google でログインすると、コイン・メダル・購入品を保存できます。メールアドレスは本人確認にのみ使用し、<b>広告を送ることは決してありません</b>。',
     privacy: 'プライバシー',
+    terms: '利用規約',
     savedIn: '✅ <b>{email}</b> に進行状況を保存中',
     logout: 'ログアウト',
     loginUnavailable: '（このサーバーではログインできません）',

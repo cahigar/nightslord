@@ -209,7 +209,7 @@ function buildAccount() {
     return;
   }
   box.innerHTML = `<div class="who">${t('guest')}</div><div id="gbtn"></div>
-    <div class="note">${t('accountNote')} <a href="/privacidad.html" target="_blank">${t('privacy')}</a></div>`;
+    <div class="note">${t('accountNote')} <a href="/privacidad.html" target="_blank">${t('privacy')}</a> · <a href="/condiciones.html" target="_blank">${t('terms')}</a></div>`;
   if (!googleClientId) { $('gbtn').textContent = t('loginUnavailable'); return; }
   loadGoogle().then(() => {
     const g = (window as unknown as { google: GoogleId }).google;

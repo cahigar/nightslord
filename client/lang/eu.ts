@@ -21,6 +21,7 @@ export const EU: Dict = {
     guest: '👤 <b>Gonbidatu</b> gisa jolasten ari zara: nabigatzailea ixtean aurrerapena galtzen da.',
     accountNote: 'Sartu Googlerekin txanponak, dominak eta erosketak gordetzeko. Zure posta zu identifikatzeko soilik erabiltzen dugu: <b>ez dizugu inoiz publizitaterik bidaliko</b>.',
     privacy: 'Pribatutasuna',
+    terms: 'Baldintzak',
     savedIn: '✅ Aurrerapena hemen gordeta: <b>{email}</b>',
     logout: 'Saioa itxi',
     loginUnavailable: '(saio-hasiera ez dago erabilgarri zerbitzari honetan)',

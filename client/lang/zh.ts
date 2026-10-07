@@ -21,6 +21,7 @@ export const ZH: Dict = {
     guest: '👤 你正在以<b>游客</b>身份游玩：关闭浏览器后进度将丢失。',
     accountNote: '使用 Google 登录以保存金币、勋章和购买内容。我们只用你的邮箱来识别你：<b>绝不会向你发送广告</b>。',
     privacy: '隐私',
+    terms: '服务条款',
     savedIn: '✅ 进度已保存到 <b>{email}</b>',
     logout: '退出登录',
     loginUnavailable: '（此服务器不支持登录）',
