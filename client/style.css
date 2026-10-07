@@ -324,7 +324,9 @@ details.modes .row:first-of-type { margin-top: 8px; }
 .carousel .ctrack { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; padding: 20px 0 16px; position: relative; scrollbar-width: none; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; }
 .carousel .ctrack::-webkit-scrollbar { display: none; }
 .carousel .cspace { flex: 0 0 calc(50% - var(--cw) / 2 - 6px); }
-.carousel .char { flex: 0 0 var(--cw); scroll-snap-align: center; transform: scale(calc(1.16 - var(--d, 1) * 0.15)); opacity: calc(1 - var(--d, 1) * 0.22); transition: transform 0.1s linear, opacity 0.1s linear, border-color 0.15s; will-change: transform; padding: 6px 4px 8px; }
+.carousel .char { flex: 0 0 var(--cw); scroll-snap-align: center; transform: scale(calc(1.16 - var(--d, 1) * 0.15)); opacity: calc(1 - var(--d, 1) * 0.22); transition: border-color 0.15s; will-change: transform; padding: 6px 4px 8px; }
+.carousel.moving .ctrack { scroll-snap-type: none; } /* sin «imán» mientras lo anima el carrusel */
+.carousel .cprev, .carousel .cnext { touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .carousel .char canvas { width: 66px; height: 86px; }
 .carousel.small .char canvas { width: 54px; height: 70px; }
 .carousel .char.center { border-color: var(--gold); background: #22162e; box-shadow: 0 0 18px rgba(255, 208, 64, 0.25); z-index: 1; }
@@ -463,3 +465,6 @@ body.touch #tutpanel { top: calc(92px + env(safe-area-inset-top)); left: calc(6p
 .tut-icons .ti { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; min-width: 64px; background: #160d22; border: 1px solid #2e2044; padding: 6px 6px 4px; }
 .tut-icons canvas { image-rendering: pixelated; max-height: 72px; width: auto; }
 .tut-icons span { font-family: var(--px); font-size: 7px; color: var(--gold); text-align: center; line-height: 1.4; }
+
+/* silenciar en portada, menú y tutorial */
+.menumute { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); z-index: 12; font-size: 16px; padding: 6px 9px; }

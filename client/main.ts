@@ -86,13 +86,16 @@ requestAnimationFrame(frame);
 // ---------------------------------------------------------------------------
 // Previsualizaciones animadas de personajes
 // ---------------------------------------------------------------------------
-const previews: { cv: HTMLCanvasElement; char: CharacterId; skin: () => string; anim: Anim | (() => Anim) }[] = [];
+const previews: { cv: HTMLCanvasElement; char: CharacterId; skin: () => string; anim: Anim | (() => Anim); last?: string }[] = [];
 function animatePreviews(now: number) {
   for (const p of previews) {
-    if (!p.cv.isConnected) continue;
+    if (!p.cv.isConnected || p.cv.offsetParent === null) continue; // pantalla oculta: no se dibuja
     const anim = typeof p.anim === 'function' ? p.anim() : p.anim;
     const def = ANIMS[anim];
     const f = Math.floor(now / 1000 / def.dur) % def.frames.length;
+    const key = `${anim}|${f}|${p.skin()}`;
+    if (p.last === key) continue; // mismo fotograma que ya está pintado
+    p.last = key;
     const c = p.cv.getContext('2d')!;
     c.imageSmoothingEnabled = false;
     c.clearRect(0, 0, p.cv.width, p.cv.height);
@@ -160,10 +163,12 @@ function selectChar(id: CharacterId) {
     c.root.querySelectorAll<HTMLElement>('.char').forEach((el) => el.classList.toggle('sel', el.dataset.id === id));
     if (c.index !== CHARACTER_IDS.indexOf(id)) c.go(CHARACTER_IDS.indexOf(id), !$(cid === 'chars' ? 'menu' : 'death').hidden);
   }
-  buildCharInfo();
-  buildSkins();
   updatePlayButtons();
+  // la ficha y las skins se rehacen cuando el carrusel se para (si no, al pasar rápido va a tirones)
+  clearTimeout(selDetailT);
+  selDetailT = window.setTimeout(() => { buildCharInfo(); buildSkins(); }, 140);
 }
+let selDetailT = 0;
 
 /** «Jugar» y «Volver a la noche» avisan si el monstruo elegido aún está bloqueado. */
 function updatePlayButtons() {
@@ -182,8 +187,13 @@ window.addEventListener('keydown', (e) => {
   const c = !$('menu').hidden ? carousels.get('chars') : !$('death').hidden ? carousels.get('death-chars') : null;
   if (!c) return;
   e.preventDefault();
+  // tecla mantenida: como mucho un paso cada 120 ms (la repetición del teclado va mucho más rápido)
+  const now = performance.now();
+  if (e.repeat && now - lastArrowAt < 120) return;
+  lastArrowAt = now;
   c.go(c.index + (e.code === 'ArrowLeft' ? -1 : 1));
 });
+let lastArrowAt = 0;
 
 // ---------------------------------------------------------------------------
 // Cuenta: invitado o Google
@@ -449,7 +459,7 @@ function onGameEvent(ev: GameEvent) {
 game.onEvent = onGameEvent;
 
 input.onKey = (code) => {
-  if (code === 'KeyM') { $('mute').textContent = toggleMute() ? '🔇' : '🔊'; return; }
+  if (code === 'KeyM') { toggleMuteUi(); return; }
   if (!inGame) return;
   if (devMode && input.keys.has('ShiftLeft') || devMode && input.keys.has('ShiftRight')) {
     if (code === 'KeyL') { const lv = game.you?.lvl ?? 1; net.send({ t: 'cheat', lvl: lv < 5 ? 5 : lv < 10 ? 10 : lv < 15 ? 15 : lv + 1 }); return; }
@@ -463,8 +473,14 @@ input.onKey = (code) => {
   const up = UPGRADES.find((u) => `Digit${u.key}` === code || `Numpad${u.key}` === code);
   if (up) net.send({ t: 'upgrade', u: up.id });
 };
-$('mute').onclick = () => { $('mute').textContent = toggleMute() ? '🔇' : '🔊'; };
-$('mute').textContent = isMuted() ? '🔇' : '🔊';
+// silenciar: botón del HUD y botón flotante en portada, menú y tutorial (los dos van sincronizados)
+function toggleMuteUi() {
+  const m = toggleMute();
+  for (const id of ['mute', 'menumute']) $(id).textContent = m ? '🔇' : '🔊';
+}
+$('mute').onclick = toggleMuteUi;
+$('menumute').onclick = () => { initAudio(); toggleMuteUi(); };
+for (const id of ['mute', 'menumute']) $(id).textContent = isMuted() ? '🔇' : '🔊';
 $('exit').onclick = () => { net.send({ t: 'leave' }); };
 
 // ---------------------------------------------------------------------------
@@ -507,6 +523,7 @@ function showScreen(which: 'splash' | 'menu' | 'game' | 'death' | 'tutorial') {
   $('menu').hidden = which !== 'menu';
   $('menubg').hidden = which !== 'menu' && which !== 'splash' && which !== 'tutorial';
   $('hud').hidden = which === 'menu' || which === 'splash' || which === 'tutorial';
+  $('menumute').hidden = !$('hud').hidden;
   $('death').hidden = which !== 'death';
   inGame = which === 'game' || which === 'death';
   if (which === 'menu') carousels.get('chars')?.recenter();
