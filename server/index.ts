@@ -36,6 +36,7 @@ async function verifyGoogle(credential: string): Promise<{ sub: string; email: s
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png',
   '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.json': 'application/json', '.wav': 'audio/wav',
+  '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.mp4': 'video/mp4',
 };
 
 const rooms = new RoomManager();
@@ -66,7 +67,12 @@ const server = createServer((req, res) => {
   }
   let file = normalize(join(STATIC_DIR, url === '/' ? 'index.html' : url));
   if (!file.startsWith(STATIC_DIR)) { res.writeHead(403); res.end(); return; }
-  if (!existsSync(file) || statSync(file).isDirectory()) file = join(STATIC_DIR, 'index.html');
+  // páginas estáticas (monstruos, mapas, guías): /monstruos/vampiro → /monstruos/vampiro/index.html
+  if (existsSync(file) && statSync(file).isDirectory()) {
+    if (!url.endsWith('/')) { res.writeHead(301, { location: url + '/' }); res.end(); return; }
+    file = join(file, 'index.html');
+  }
+  if (!existsSync(file)) file = join(STATIC_DIR, 'index.html');
   if (!existsSync(file)) {
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('Servidor de Mooonsters activo. En desarrollo abre el cliente en http://localhost:5173');

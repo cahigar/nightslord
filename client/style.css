@@ -386,6 +386,11 @@ details.modes .row:first-of-type { margin-top: 8px; }
 #splash .start { display: inline-block; width: auto; margin-top: 6px; font-size: clamp(14px, 2.4vw, 22px); padding: 16px 34px; animation: startBeat 1.2s ease-in-out infinite; box-shadow: 0 0 0 3px #000, 0 0 24px rgba(255, 60, 80, .55); }
 #splash .start:hover { animation-play-state: paused; transform: scale(1.08); }
 #splash .splash-hint { font-family: 'VT323', monospace; font-size: 20px; color: #9a88c0; margin: 0; }
+#splash .splash-links { font-family: 'VT323', monospace; font-size: 18px; color: #6a5a88; }
+#splash .splash-links a { color: #9a88c0; text-decoration: none; }
+#splash .splash-links a:hover { color: #ffd040; }
+#splash .splash-links .ig { white-space: nowrap; }
+#splash .splash-links .ig img { width: 24px; height: 20px; vertical-align: -4px; margin-right: 5px; image-rendering: pixelated; }
 #parade { position: absolute; left: 0; bottom: 0; width: 100vw; image-rendering: pixelated; pointer-events: none; z-index: 1; }
 @keyframes startBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); filter: brightness(1.25); } }
 @media (max-height: 480px) { #splash .splash-inner { margin-bottom: 26vh; gap: 8px; } #splashlogo { width: min(560px, 80vw, 110vh); } #splash .splash-hint { font-size: 16px; } }

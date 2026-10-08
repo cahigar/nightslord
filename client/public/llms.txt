@@ -1,0 +1,53 @@
+# Mooonsters
+
+> Mooonsters (https://mooonsters.com) is a free online multiplayer .io game played in the browser on phone or PC, with no downloads. Players pick one of 30 classic horror monsters, hunt humans to gain experience, level up, evolve at levels 5, 10 and 15 and compete for the best score in the room, while avoiding or defeating the Hunters. Available in Spanish, English, Basque, French, Catalan, Chinese and Japanese.
+
+## Play
+- [Play Mooonsters](https://mooonsters.com/): opens the game directly in the browser. Free, no real-money purchases.
+
+## Guides
+- [How to play](https://mooonsters.com/en/how-to-play/): goal, controls for PC and mobile, levels, ultimates, Hunters, items and rooms.
+- [Cómo jugar (español)](https://mooonsters.com/como-jugar/)
+
+## Monsters
+- [The Count (Vampire)](https://mooonsters.com/en/monsters/vampire/): Bloodthirst: your bite heals you for 30% of the damage.
+- [Howler (Werewolf)](https://mooonsters.com/en/monsters/werewolf/): Wide claw swipe that hits several enemies.
+- [Ramses (Mummy)](https://mooonsters.com/en/monsters/mummy/): Bandages: 15% less damage taken. His scarabs slow.
+- [The Veiled Lady (Invisible woman)](https://mooonsters.com/en/monsters/invisible-woman/): The first hit from invisibility deals double damage. Taking damage or attacking makes you visible.
+- [Patient Zero (Zombie)](https://mooonsters.com/en/monsters/zombie/): Infection: his zombies attack humans, monsters and Hunters on their own.
+- [K'thula (Abyssal horror)](https://mooonsters.com/en/monsters/abyssal-horror/): Walks on deep water; in water (and in any puddle) it is faster, regenerates and its attack becomes a jet. Standing still out of water, a puddle springs up beneath it.
+- [Nightmare (Dream creature)](https://mooonsters.com/en/monsters/dream-creature/): Drowsiness: its hits and abilities fill a bar on enemies; when full, they fall asleep for a moment.
+- [Bloody Mary (Mirror legend)](https://mooonsters.com/en/monsters/mirror-legend/): Can have several mirrors active around the map.
+- [Reanimated (Stitched corpse)](https://mooonsters.com/en/monsters/stitched-corpse/): Galvanized: regenerates much faster after a few seconds without taking damage.
+- [Doppy (Doppelgänger)](https://mooonsters.com/en/monsters/doppelganger/): A thousand faces: after a while without fighting, it looks like an ordinary human. Its first hit from the disguise stuns.
+- [Hecuba (Swamp witch)](https://mooonsters.com/en/monsters/swamp-witch/): Alchemist: throws random flasks of acid (poisons for a few seconds) or fire (the ground burns).
+- [Lilith (Succubus)](https://mooonsters.com/en/monsters/succubus/): Steals life with every hit. Humans she hits don't die: they fall in love and fight for her against hunters and monsters.
+- [Poltergeist (Noisy ghost)](https://mooonsters.com/en/monsters/noisy-ghost/): Levitates: moves over water. Its attacks don't come from it: objects fly at the enemy from anywhere in the area.
+- [Blackroot (Cursed tree)](https://mooonsters.com/en/monsters/cursed-tree/): Deep roots: standing still it takes root, regenerates health and takes 25% less damage (it can keep attacking).
+- [Captain Drowned (Ghost pirate)](https://mooonsters.com/en/monsters/ghost-pirate/): Cursed loot: his victims may drop coins or blood.
+- [Arachne (Spider woman)](https://mooonsters.com/en/monsters/spider-woman/): Her bites poison (drain life for a few seconds). Every 3 attacks a spiderling comes out, bites 3 times and falls apart.
+- [The Harvester (Scarecrow)](https://mooonsters.com/en/monsters/scarecrow/): Lurking: if he stands still for 5 s, his next hit deals 80% more damage (it lasts up to 3 s after moving).
+- [Brimstone (Fire demon)](https://mooonsters.com/en/monsters/fire-demon/): Immune to fire. His hits leave a small burn.
+- [Goo (Slime)](https://mooonsters.com/en/monsters/slime/): Every time it loses 30% of its health it splits into 2 small slimes for a few seconds: it takes less damage but hits softer, and while any is alive it regenerates. Its hits leave sticky stains.
+- [The Visitor (Alien)](https://mooonsters.com/en/monsters/alien/): Three plasma hits in a row on the same target silence it for 2 s (no abilities).
+- [Interference (Cursed signal)](https://mooonsters.com/en/monsters/cursed-signal/): While she is in the room, the TVs on the map turn on. Nearby TVs repeat her attacks. Her Noise hypnotizes: when full, the victim walks towards her or a TV.
+- [Kappa (River imp)](https://mooonsters.com/en/monsters/river-imp/): Water creature: crosses deep water and in any water (puddles included) runs faster and regenerates. From the water, its attack shoots bubbles at long range.
+- [The Reaper (Soul slayer)](https://mooonsters.com/en/monsters/soul-slayer/): Soul harvest: each takedown gives her a soul (+damage) until she dies; on death she loses them all.
+- [Unity (The swarm)](https://mooonsters.com/en/monsters/the-swarm/): We Are One: if it dies while another of its Units is still alive, it respawns in that one and the death does not count. When it attacks, all its linked Units fire at once. After standing still for 5 s, it and its swarm look like ordinary humans out for a stroll (moving or attacking reveals them): perfect for ambushes.
+- [The Necromancer (Lord of bones)](https://mooonsters.com/en/monsters/lord-of-bones/): Summoner: shoots balls of dark magic and raises skeletons that follow him. He heals a little with every kill his skeletons make.
+- [Dune Worm (Sand burrower)](https://mooonsters.com/en/monsters/sand-burrower/): Colossus: bigger than the rest, with more health and knockback, but slow to turn and get going. Water hurts and slows it.
+- [Dinozombie (Jurassic shapeshifter)](https://mooonsters.com/en/monsters/jurassic-shapeshifter/): Three forms: Velociraptor (fast bites; runs faster when chasing), Triceratops (wide horn strike; very tough and hardly ever slowed or stunned) and Pterodactyl (ranged eggs; flies over water and obstacles).
+- [R-800 (Pursuer android)](https://mooonsters.com/en/monsters/pursuer-android/): Relentless machine: immune to fear, infatuation and hypnosis; slows only affect it half as much. Its blows discharge electricity and, with nobody within reach, it fires balls of electric energy.
+- [The Huntress (Veteran deserter)](https://mooonsters.com/en/monsters/veteran-deserter/): Arm the people: she doesn't kill humans; wounding them gives them torches and pitchforks and they become allies who go after monsters on their own (each one gives her experience). After a while they disarm and go back to being ordinary humans. The hunters' order does not attack her. She fires silver bolts.
+- [Candle Man (Lord of wax)](https://mooonsters.com/en/monsters/lord-of-wax/): Wax body: leaves wax drops as he moves. Whoever steps on a lot of wax slows down and builds up waxing; if the bar fills, they get stuck to the ground for 1 s (they can still attack). Near fire he attacks faster.
+
+## Maps
+- [Elm Street](https://mooonsters.com/en/maps/elm-street/): A suburban neighbourhood with grid streets, houses, fences and a park with a pond. Teens and neighbours stroll around without a care… until night falls.
+- [Transylvania](https://mooonsters.com/en/maps/transylvania/): A valley below the castle, with cobbled roads and a river you can only cross over wooden bridges. Villagers, priests and maids: dinner is served.
+- [Camp Serene Lake](https://mooonsters.com/en/maps/camp-serene-lake/): Cabins among the pines, a bonfire that is the only light for miles and a lake where something moves beneath the water. Campers and counselors with flashlights… and a full moon.
+- [Witch's Swamp](https://mooonsters.com/en/maps/witch-s-swamp/): Pools of black water joined by mud paths and, in the middle, the witch’s dry hut. The muddy trails slow down anyone who does not know the swamp.
+- [Banks of the Nile](https://mooonsters.com/en/maps/banks-of-the-nile/): A river full of crocodiles that bite everyone, pyramids, a sphinx and a sandworm lurking under the sand. Tourists, archaeologists and careless villagers.
+- [Jurassic Jungle](https://mooonsters.com/en/maps/jurassic-jungle/): A shallow river with a current, a deep lagoon, a ruined temple and the expedition camp. Careful: the dinosaurs hunt here too.
+
+## Social
+- [Instagram @mooonsters.game](https://www.instagram.com/mooonsters.game/)
