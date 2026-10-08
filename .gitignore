@@ -6,3 +6,6 @@ deploy/.env
 deploy/data/
 deploy/caddy_data/
 deploy/caddy_config/
+social/media/
+social/estado.json
+social/publicar.log

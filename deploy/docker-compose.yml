@@ -41,4 +41,5 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy_data:/data
       - ./caddy_config:/config
+      - ../social/media:/srv/social-media:ro   # vídeos que publica social/publicar.sh
     depends_on: [game-a, game-b]

@@ -7,6 +7,11 @@
 	handle_path /B/* {
 		reverse_proxy game-b:3000
 	}
+	# vídeos para Instagram (social/media): Meta los descarga desde aquí al publicar
+	handle_path /media/* {
+		root * /srv/social-media
+		file_server
+	}
 	# la web (cliente) la sirve cualquier shard
 	handle {
 		reverse_proxy game-a:3000

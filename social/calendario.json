@@ -1,0 +1,58 @@
+[
+  {
+    "id": "01-presentacion",
+    "fecha": "2026-10-08T20:30:00+02:00",
+    "tipo": "reel",
+    "archivo": "mooonsters-reel-v2.mp4",
+    "historia": true,
+    "texto": "30 monstruos. Una sola noche. 🌕\n\nElige tu monstruo, caza humanos, evoluciona y reina la noche… antes de que los cazadores te encuentren.\n\n🎮 Gratis en mooonsters.com\n📱 Móvil y PC · Sin descargas · Multijugador online\n\n¿Cuál eliges tú? 👇\n\n#mooonsters #juegosgratis #pixelart #indiegame #iogame #halloween #monstruos #juegosonline #gamedev #indiedev"
+  },
+  {
+    "id": "02-vampiro",
+    "fecha": "2026-10-09T20:30:00+02:00",
+    "tipo": "reel",
+    "archivo": "trailer-vampiro.mp4",
+    "historia": true,
+    "texto": "🧛 EL CONDE\nCada mordisco te cura. Murciélagos, niebla para escapar… y con la Noche Carmesí, el pánico es suyo.\n\nEvoluciona en los niveles 5, 10 y 15 y caza al cazador: pegan fuerte… pero pagan bien.\n\n🌕 Juega gratis en mooonsters.com\n\n#mooonsters #vampiro #pixelart #indiegame #iogame #juegosgratis #halloween #retrogaming #terror #indiedev"
+  },
+  {
+    "id": "03-campamento",
+    "fecha": "2026-10-10T20:30:00+02:00",
+    "tipo": "reel",
+    "archivo": "trailer-campamento.mp4",
+    "historia": true,
+    "texto": "🏕️ CAMPAMENTO LAGO SERENO\nAlgo se mueve bajo el agua. Los monitores llevan linterna. La hoguera es la única luz en kilómetros…\n\nY esta noche hay luna llena. 🐺\n\n¿Te atreves a acampar? → mooonsters.com\n\n#mooonsters #campamento #slasher #pixelart #indiegame #iogame #halloween #terror #juegosgratis #gamedev"
+  },
+  {
+    "id": "04-zombi",
+    "fecha": "2026-10-11T20:30:00+02:00",
+    "tipo": "reel",
+    "archivo": "trailer-zombi.mp4",
+    "historia": true,
+    "texto": "🧟 PACIENTE CERO\nUno muerde… y ya son muchos.\n\nCada humano que cae se levanta como zombi aliado. Tu horda corre a por el filete, y al nivel 15 salen de la tumba… con un gordo que explota. 💥\n\nEmpieza la infección en mooonsters.com\n\n#mooonsters #zombie #zombi #pixelart #indiegame #iogame #halloween #juegosgratis #retrogaming #indiedev"
+  },
+  {
+    "id": "05-nilo",
+    "fecha": "2026-10-12T20:30:00+02:00",
+    "tipo": "reel",
+    "archivo": "trailer-nilo.mp4",
+    "historia": true,
+    "texto": "🐊 ORILLAS DEL NILO\nCocodrilos que muerden a todos, una gusarena bajo la arena, pirámides, esfinge… y turistas despistados para cenar.\n\n6 mapas · 30 monstruos · 0 descargas\n\nJuega gratis en mooonsters.com\n\n#mooonsters #egipto #pixelart #indiegame #iogame #juegosgratis #halloween #gamedev #indiedev #retrogaming"
+  },
+  {
+    "id": "06-momia",
+    "fecha": "2026-10-13T20:30:00+02:00",
+    "tipo": "reel",
+    "archivo": "trailer-ramses.mp4",
+    "historia": true,
+    "texto": "🏺 RAMSÉS\n3000 años de experiencia. Vendas que inmovilizan, una maldición que ralentiza y la Tormenta del Faraón, que encierra a tus enemigos en sarcófagos.\n\nRecibe un 15 % menos de daño. Paciencia de faraón. 😌\n\nDespiértalo en mooonsters.com\n\n#mooonsters #momia #egipto #pixelart #indiegame #iogame #halloween #juegosgratis #indiedev #terror"
+  },
+  {
+    "id": "07-candleman",
+    "fecha": "2026-10-14T20:30:00+02:00",
+    "tipo": "reel",
+    "archivo": "trailer-candleman.mp4",
+    "historia": true,
+    "texto": "🕯️ CANDLE MAN, SEÑOR DE LA CERA\nUna luz en la oscuridad… que no es amiga.\n\nSu cera atrapa y arde. Y cuando se apagan las luces, ellos no ven… él sí.\n\nNuevo monstruo nº 30 → mooonsters.com\n\n#mooonsters #candleman #pixelart #indiegame #iogame #halloween #terror #juegosgratis #gamedev #indiedev"
+  }
+]
