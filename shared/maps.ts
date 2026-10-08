@@ -81,8 +81,8 @@ export const ALL_THEME_IDS = Object.keys(THEMES) as MapThemeId[];
 /** Tamaño de cada mapa (los que no aparecen usan MAP_SIZE). */
 export const MAP_SIZES: Partial<Record<MapThemeId, number>> = { cemetery: 2000, cityz: 5600 };
 export const mapSizeOf = (t: MapThemeId) => MAP_SIZES[t] ?? MAP_SIZE;
-/** Variante de humano zombi (Ciudad Z): 'z:citizen'. */
-export const isZombieNpc = (variant: string) => variant.startsWith('z:');
+/** Variante de humano zombi (Ciudad Z): 'z-citizen' (sin «:», que separa los campos de los disfraces 'npc:variante:semilla'). */
+export const isZombieNpc = (variant: string) => variant.startsWith('z-');
 
 /** Humanos que pasean por cada mapa. */
 export const NPC_VARIANTS: Record<MapThemeId, string[]> = {
@@ -93,7 +93,7 @@ export const NPC_VARIANTS: Record<MapThemeId, string[]> = {
   nile: ['fellah', 'fellah', 'tourist', 'archaeologist'],
   jungle: ['explorer', 'explorer', 'porter', 'scientist'],
   cemetery: ['gravedigger', 'priest', 'villager', 'maid'],
-  cityz: ['z:citizen', 'z:citizen', 'z:citizen', 'z:survivor', 'z:soldier', 'survivor', 'survivor'],
+  cityz: ['z-citizen', 'z-citizen', 'z-citizen', 'z-survivor', 'z-soldier', 'survivor', 'survivor'],
 };
 
 

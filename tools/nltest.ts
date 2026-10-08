@@ -80,7 +80,7 @@ console.log(logs.join(' | '), 'previa jugadores', lobby.players.size, 'monedas',
   const Z = new Room('Z', 'cityz', true, undefined, 'br'); Z.destroy();
   const zc = mk(21, 'pz'); Z.addConn(zc, 'zombie', 'classic'); Z.beginMatch();
   const zp = [...Z.players.values()][0]; zp.protectT = 0;
-  const zn = [...Z.npcs.values()].find((n) => n.variant.startsWith('z:'))!;
+  const zn = [...Z.npcs.values()].find((n) => n.variant.startsWith('z-'))!;
   zn.x = zp.x + 60; zn.y = zp.y;
   Z.onInput(zc, { q: 1, mx: 0, my: 0, a: 0, b: BTN_Q, d: 60 }); step(Z, 2);
   console.log('Paciente Cero: esbirros', Z.minions.size, 'look', [...Z.minions.values()][0]?.look);

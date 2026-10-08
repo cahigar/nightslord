@@ -2648,7 +2648,7 @@ export class Room {
       this.damage(t, 4, { name: 'un zombi', kind: Kind.Npc });
       this.sfx('bite', t.x, t.y);
     }
-    let speed = n.fleeing ? (n.variant === 'z:survivor' ? 105 : 72) : 30;
+    let speed = n.fleeing ? (n.variant === 'z-survivor' ? 105 : 72) : 30;
     if (n.slowT > 0) speed *= n.slowMul;
     if (n.rootT > 0) speed = 0;
     const dx = n.tx - n.x, dy = n.ty - n.y, d = Math.hypot(dx, dy);

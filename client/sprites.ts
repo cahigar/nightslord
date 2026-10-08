@@ -1765,6 +1765,7 @@ const NPC_LOOKS: Record<string, NpcLook[]> = {
 /** Aspecto determinista de un NPC (lo usa también el juego para saber qué luz lleva). */
 export function npcLook(variant: string, seed: number) {
   const looks = NPC_LOOKS[variant] ?? NPC_LOOKS.teen;
+  if (!Number.isFinite(seed)) seed = 0; // (una semilla rota no debe tumbar el dibujo)
   const r = (k: number) => { const n = Math.sin(seed * 9.13 + k * 47.7) * 43758.5453; return n - Math.floor(n); };
   const L = looks[Math.floor(r(1) * looks.length)];
   return {
@@ -2005,7 +2006,7 @@ export function getFrame(kind: 'monster' | 'npc' | 'hunter' | 'zombie', variant:
     (dinoForm >= 0 ? DINO_FORMS[dinoForm] : FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim, tier);
   } else if (kind === 'hunter') drawHunterType(b, pose, variant);
   else if (kind === 'zombie') drawNpc(b, pose, variant, sd, (skin as ZombieKind) || 'normal', anim);
-  else if (variant.startsWith('z:')) { const v = variant.slice(2); drawNpc(b, pose, v, sd, v === 'soldier' ? 'tough' : v === 'survivor' ? 'fast' : 'normal', anim); } // zombis de la Ciudad Z
+  else if (variant.startsWith('z-')) { const v = variant.slice(2); drawNpc(b, pose, v, sd, v === 'soldier' ? 'tough' : v === 'survivor' ? 'fast' : 'normal', anim); } // zombis de la Ciudad Z
   else drawNpc(b, pose, variant, sd);
   f = b.finish({ outline: kind === 'monster' && variant === 'invisible' ? 'faint' : 'selout' });
   cache.set(key, f);

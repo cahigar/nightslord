@@ -53,6 +53,7 @@ export class Game {
   tv: TvState | null = null;
   /** El Señor de la Noche: estado recibido (y cuándo, para extrapolar el sol y la niebla). */
   night: (NightState & { at: number }) | null = null;
+  private drawErr = false;
   /** Avisos en el mapa (Ojos rituales). */
   alerts: { x: number; y: number; until: number; k: string }[] = [];
   setNight(s: NightState | null) { this.night = s ? { ...s, at: performance.now() } : null; }
@@ -572,7 +573,7 @@ export class Game {
       if (!inView(e.rx, e.ry) || e.k === Kind.Projectile || e.k === Kind.Zone) continue;
       draws.push({ y: e.ry, fn: () => this.drawEnt(ctx, e, now, glows) });
       if (e.k === Kind.Npc) {
-        const held = e.c.startsWith('c_') || e.c.startsWith('z:') ? 'none' : npcLook(e.c, e.id % 97).held; // las alimañas y los zombis no llevan luz
+        const held = e.c.startsWith('c_') || e.c.startsWith('z-') ? 'none' : npcLook(e.c, e.id % 97).held; // las alimañas y los zombis no llevan luz
         if (held === 'flashlight') cones.push({ x: e.rx + e.f * 20, y: e.ry - 40, a: e.f === 1 ? 0 : Math.PI });
         else if (held === 'torch') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 60, r: 200, c: 'warm', flicker: true });
         else if (held === 'lantern' || held === 'candle') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 40, r: 130, c: 'warm', flicker: true });
@@ -599,7 +600,10 @@ export class Game {
       else if (e.c === 'ritual') dyn.push({ x: e.rx, y: e.ry, r: (e.rr ?? 60) * 1.8, c: 'warm', flicker: true });
     }
     draws.sort((a, b) => a.y - b.y);
-    for (const d of draws) d.fn();
+    for (const d of draws) {
+      // una entidad con datos raros no debe dejar la pantalla en negro: se salta y se sigue dibujando
+      try { d.fn(); } catch (err) { ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none'; world(); if (!this.drawErr) { this.drawErr = true; console.error(err); } }
+    }
 
     cones.sort((a, b) => (a.x - me.x) ** 2 + (a.y - me.y) ** 2 - ((b.x - me.x) ** 2 + (b.y - me.y) ** 2));
     cones.length = Math.min(cones.length, 5);
