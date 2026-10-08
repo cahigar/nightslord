@@ -1746,6 +1746,17 @@ const NPC_LOOKS: Record<string, NpcLook[]> = {
   porter: [
     { top: '#e8e0d0', top2: '#a03020', legs: '#5a4a3a', shoe: '#2a1a10', styles: ['bald', 'short', 'beanie'], kind: 'tshirt', held: ['lantern', 'none'], cap: '#a03020' },
   ],
+  // Ciudad Z: ciudadanos, supervivientes y soldados (vivos o zombis)
+  citizen: [
+    { top: '#5a6a7a', top2: '#c0c0c8', legs: '#3a3a48', shoe: '#202020', styles: ['short', 'long', 'bald'], kind: 'jacket', held: ['none'] },
+    { top: '#8a5a4a', top2: '#e0d0c0', legs: '#4a4a5a', shoe: '#3a2a20', styles: ['ponytail', 'bun', 'short'], kind: 'sweater', held: ['none'] },
+    { top: '#d0d0d8', top2: '#6080a0', legs: '#2a3a5a', shoe: '#e0e0e0', styles: ['spiky', 'cap', 'afro'], kind: 'tshirt', held: ['none'], cap: '#a03030' },
+  ],
+  survivor: [
+    { top: '#4a5a3a', top2: '#a09070', legs: '#3a3a30', shoe: '#2a2018', styles: ['beanie', 'short', 'long'], kind: 'jacket', held: ['flashlight', 'torch', 'none'], cap: '#3a3a3a' },
+    { top: '#7a3a2a', top2: '#d0b090', legs: '#3a4050', shoe: '#2a2018', styles: ['ponytail', 'cap', 'mohawk'], kind: 'overalls', held: ['flashlight', 'lantern'], cap: '#5a4a2a' },
+  ],
+  soldier: [{ top: '#4a5a3a', top2: '#2a3420', legs: '#4a5a3a', shoe: '#1a1a14', styles: ['cap'], kind: 'uniform', held: ['flashlight', 'none'], cap: '#3a4a2a' }],
   scientist: [
     { top: '#f0f0f4', top2: '#a0b0c0', legs: '#3a3a4a', shoe: '#2a2a30', styles: ['short', 'bun', 'slick'], kind: 'robe', held: ['flashlight', 'none'], glasses: 1 },
   ],
@@ -1994,6 +2005,7 @@ export function getFrame(kind: 'monster' | 'npc' | 'hunter' | 'zombie', variant:
     (dinoForm >= 0 ? DINO_FORMS[dinoForm] : FORMS[ch] ?? FORMS.vampire)(b, pose, getSkin(ch, skin).palette, anim, tier);
   } else if (kind === 'hunter') drawHunterType(b, pose, variant);
   else if (kind === 'zombie') drawNpc(b, pose, variant, sd, (skin as ZombieKind) || 'normal', anim);
+  else if (variant.startsWith('z:')) { const v = variant.slice(2); drawNpc(b, pose, v, sd, v === 'soldier' ? 'tough' : v === 'survivor' ? 'fast' : 'normal', anim); } // zombis de la Ciudad Z
   else drawNpc(b, pose, variant, sd);
   f = b.finish({ outline: kind === 'monster' && variant === 'invisible' ? 'faint' : 'selout' });
   cache.set(key, f);
@@ -2005,6 +2017,15 @@ export function getFrame(kind: 'monster' | 'npc' | 'hunter' | 'zombie', variant:
 // ---------------------------------------------------------------------------
 type Art = string[];
 const ITEM_ART: Record<string, { art: Art; pal: Record<string, string>; glow?: string }> = {
+  // trampas (El Señor de la Noche y modo normal)
+  trap_salt: { art: ['...wwww...', '..w....w..', '.w......w.', 'w...ss...w', 'w..sSSs..w', 'w..sSSs..w', 'w...ss...w', '.w......w.', '..w....w..', '...wwww...'], pal: { w: '#f0f0ff', s: '#c0c8e0', S: '#ffffff' }, glow: 'S' },
+  trap_seal: { art: ['..kkkkkk..', '.kRkkkkRk.', 'kkkRkkRkkk', 'kRRRRRRRRk', 'kkkRkkRkkk', 'kkRkRRkRkk', 'kkRkkkkRkk', 'kRkkkkkkRk', '.kkkkkkkk.', '..kkkkkk..'], pal: { k: '#2a0a14', R: '#ff3040' }, glow: 'R' },
+  trap_hand: { art: ['..w.w.w...', '..w.w.w.w.', '..w.w.w.w.', '..wwwwwww.', 'w.wwwwwww.', '.wwwwwwww.', '..wwwwww..', '...wGGw...', '.ddddddddd', 'dDdddDdddd'], pal: { w: '#d8e8d0', G: '#60ff90', d: '#3a2a1a', D: '#5a4028' }, glow: 'G' },
+  trap_eyes: { art: ['..........', '...pppp...', '.ppwwwwpp.', 'pwwwYYwwwp', 'pwwYKKYwwp', 'pwwYKKYwwp', 'pwwwYYwwwp', '.ppwwwwpp.', '...pppp...', '..........'], pal: { p: '#5a2a6a', w: '#f0e8e0', Y: '#ffd040', K: '#100810' }, glow: 'Y' },
+  trap_ritual: { art: ['....f.....', '.f..c...f.', '.c.pppp.c.', '..p....p..', 'fp..PP..pf', 'cp.PPPP.pc', '.p..PP..p.', '..p....p..', '...pppp...', '..........'], pal: { f: '#ffd040', c: '#e8e0c8', p: '#a040ff', P: '#ff4060' }, glow: 'f' },
+  trap_candle: { art: ['....y.....', '...yYy....', '....y.....', '...kkk....', '...kKk....', '...kkk....', '...kkk....', '...kkk....', '..kkkkk...', '.kkkkkkk..'], pal: { y: '#a060ff', Y: '#ffffff', k: '#1a1420', K: '#3a3040' }, glow: 'Y' },
+  trap_silence: { art: ['..bbbbbb..', '.bBBBBBBb.', 'bBwBBBBwBb', 'bBBwBBwBBb', 'bBBBwwBBBb', 'bBBBwwBBBb', 'bBBwBBwBBb', 'bBwBBBBwBb', '.bBBBBBBb.', '..bbbbbb..'], pal: { b: '#203060', B: '#4060c0', w: '#e0f0ff' }, glow: 'w' },
+  trap_blood: { art: ['...rrrr...', '.rr.RR.rr.', 'r...RR...r', 'rRRRRRRRRr', 'r.R.RR.R.r', 'r..R..R..r', 'r.R.RR.R.r', '.rR....Rr.', '..rrrrrr..', '..........'], pal: { r: '#8a1020', R: '#ff2040' }, glow: 'R' },
   blood: { art: ['....dd....', '....ww....', '....ww....', '...wrrw...', '..wrRrrw..', '.wrRRrrrw.', '.wrRrrrrw.', '.wrrrrrrw.', '..wrrrrw..', '...wwww...'], pal: { d: '#6a4020', w: '#c8c8e0', r: '#b01020', R: '#ff5060' }, glow: 'R' },
   speed: { art: ['......yy..', '.....yYy..', '....yYy...', '...yYyyyy.', '..yYYYYYy.', '.yyyyYYy..', '....yYy...', '...yYy....', '..yYy.....', '..yy......'], pal: { y: '#e0a020', Y: '#fff080' }, glow: 'Y' },
   fury: { art: ['..r..r..r.', '.rRr.rRrr.', '.rRRrRRRr.', 'rRRRRRRRRr', 'rRkkRRkkRr', 'rRkkRRkkRr', 'rRRRkkRRRr', '.rRRRRRRr.', '..rwRwRw..', '...wwww...'], pal: { r: '#a01810', R: '#ff5020', k: '#200808', w: '#f0f0f0' }, glow: 'R' },

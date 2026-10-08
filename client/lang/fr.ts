@@ -17,7 +17,7 @@ export const FR: Dict = {
     createRoom: 'Créer une salle',
     modesTitle: 'Rejoindre avec un code ou créer un salon',
     medals: '🏅 Médailles',
-    help: '<b>WASD</b> se déplacer · <b>Souris</b> viser · <b>Clic / Espace</b> attaquer · <b>Q / clic droit</b> et <b>E</b> compétences · <b>R</b> ultime (niveau 10)<br /><b>1-4</b> améliorations en montant de niveau · <b>G</b> saluer · <b>T</b> provoquer · <b>H</b> alliance · <b>I</b> fiche · <b>M</b> couper le son',
+    help: '<b>WASD</b> se déplacer · <b>Souris</b> viser · <b>Clic / Espace</b> attaquer · <b>Q / clic droit</b> et <b>E</b> compétences · <b>R</b> ultime (niveau 10)<br /><b>1-4</b> améliorations en montant de niveau · <b>G</b> saluer · <b>T</b> provoquer · <b>H</b> alliance · <b>I</b> fiche · <b>M</b> couper le son · <b>X</b> piège',
     guest: '👤 Tu joues en <b>invité</b> : ta progression est perdue en fermant le navigateur.',
     accountNote: 'Connecte-toi avec Google pour garder tes pièces, médailles et achats. Nous utilisons ton e-mail uniquement pour t\'identifier : <b>nous ne t\'enverrons jamais de publicité</b>.',
     privacy: 'Confidentialité',

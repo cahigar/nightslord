@@ -1,6 +1,6 @@
 // Terreno procedural en pixel art, generado por trozos (chunks) bajo demanda.
 // Cada píxel de arte (PIXEL px de mundo) se decide con ruido fBm + tramado Bayer, caminos, agua y sombras.
-import { MAP_SIZE, PIXEL } from '../shared/constants';
+import { PIXEL } from '../shared/constants';
 import { BORDER_DEPTH, bridgeAxes, lakeValue, onBridge, riverValue, type GameMap, type Obstacle, type Side, type Trail } from '../shared/maps';
 import { fbm, hashAt } from '../shared/noise';
 
@@ -53,19 +53,22 @@ const THEME_GROUND: Record<string, ThemeGround> = {
   swamp: { base: (n, d) => (n < 0.36 ? 'mud' : n < 0.44 ? 'dirt' : d > 0.58 ? 'moss' : n > 0.66 ? 'forest' : 'bog') },
   nile: { base: (n, d) => (n < 0.32 ? 'sand' : d > 0.66 && n > 0.62 ? 'deadgrass' : 'dune') },
   jungle: { base: (n, d) => (n < 0.3 ? 'mud' : n < 0.38 ? 'moss' : d > 0.6 ? 'forest' : 'jgrass') },
+  cemetery: { base: (n, d) => (n < 0.3 ? 'dirt' : n < 0.4 ? 'gravel' : d > 0.62 ? 'moss' : 'deadgrass') },
+  cityz: { base: (n, d) => (n < 0.28 ? 'dirt' : n < 0.36 ? 'gravel' : d > 0.66 ? 'grass' : n > 0.6 ? 'mud' : 'deadgrass') },
 };
 const muddy = (t: string) => t === 'transylvania' || t === 'swamp' || t === 'jungle';
 
 export class Terrain {
   private chunks = new Map<number, HTMLCanvasElement>();
   private queue: number[] = [];
-  private nx = Math.ceil(MAP_SIZE / CW);
+  private nx: number;
   private ext = Math.ceil(BORDER_DEPTH / CW) + 1; // chunks extra fuera del mapa (el mundo continúa)
   waterGlints: { x: number; y: number; ph: number }[] = [];
   /** Vetas de espuma que la corriente arrastra río abajo (río poco profundo de la jungla). */
   streaks: { x: number; y: number; ph: number; dx: number; dy: number }[] = [];
 
   constructor(private map: GameMap) {
+    this.nx = Math.ceil(map.size / CW);
     // puntos de brillo sobre el agua (animados en el render)
     let s = 0;
     for (const l of map.lakes) {
@@ -259,7 +262,7 @@ export class Terrain {
         else if (rim) { mat = 'poolrim'; tone = ((Math.floor(x / 9) + Math.floor(y / 9)) % 2 ? 0.7 : 0.5) + b * 0.1; }
       }
       // fuera del mapa: el escenario continúa (agua profunda, acantilado...)
-      const outs: [Side, number][] = [['n', -y], ['s', y - MAP_SIZE], ['w', -x], ['e', x - MAP_SIZE]];
+      const outs: [Side, number][] = [['n', -y], ['s', y - map.size], ['w', -x], ['e', x - map.size]];
       let side: Side | null = null, dOut = -Infinity;
       for (const [sd, dd] of outs) if (dd > dOut) { dOut = dd; side = sd; }
       if (side) {

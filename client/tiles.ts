@@ -8,7 +8,7 @@ import { PB, shade, type Baked } from './pixel';
 
 export interface Prerendered { base: HTMLCanvasElement; glow: HTMLCanvasElement | null; ox: number; oy: number } // offset en mundo desde (o.x, o.y)
 
-export const LIGHT_COLORS = { warm: 'rgba(255,170,60,', cold: 'rgba(120,160,255,', green: 'rgba(90,255,120,', white: 'rgba(255,240,200,' };
+export const LIGHT_COLORS = { warm: 'rgba(255,170,60,', cold: 'rgba(120,160,255,', green: 'rgba(90,255,120,', white: 'rgba(255,240,200,', purple: 'rgba(170,80,255,' };
 export interface Light { x: number; y: number; r: number; c: keyof typeof LIGHT_COLORS; flicker?: boolean }
 
 const GLASS_LIT = '#ffd36a', GLASS_DARK = '#141a2a';
@@ -51,8 +51,9 @@ const house: Draw = (b, W, H, up, o, r, theme) => {
     b.rect(dx, base - 10, 7, 10, beam); b.rect(dx + 1, base - 9, 5, 9, '#2a1810'); b.set(dx + 5, base - 5, '#c0a040', false, true);
     return;
   }
-  const walls = ['#7a6a8a', '#6a7a6a', '#8a6a5a', '#5a6a7a'][o.v % 4];
-  const roof = ['#3a2434', '#2a2a3c', '#46301e', '#22303a'][o.v % 4];
+  const ruined = theme === 'cityz';
+  const walls = ruined ? ['#5a5258', '#4e564e', '#5e4e46', '#4a525a'][o.v % 4] : ['#7a6a8a', '#6a7a6a', '#8a6a5a', '#5a6a7a'][o.v % 4];
+  const roof = ruined ? ['#2a2024', '#22222a', '#30241a', '#1e2428'][o.v % 4] : ['#3a2434', '#2a2a3c', '#46301e', '#22303a'][o.v % 4];
   const trim = '#d8d0c8';
   // tejado a dos aguas visto desde arriba
   for (let i = 0; i < top; i++) {
@@ -83,6 +84,12 @@ const house: Draw = (b, W, H, up, o, r, theme) => {
   b.set(dx + 5, base - 6, '#e0c040', false, true);
   b.set(dx + 9, base - 10, lit ? '#fff0b0' : '#806040', lit); // luz del porche
   b.rect(dx - 1, base - 1, 10, 1, '#8a8088'); // escalón
+  if (ruined) {
+    // abandonada: agujeros en el tejado, tablones en las ventanas y pintadas
+    for (let k = 0; k < 2; k++) { const x = 6 + Math.floor(r() * (W - 18)), y = 3 + Math.floor(r() * Math.max(1, top - 10)); b.rect(x, y, 7, 4, '#0c0a0e'); b.rect(x + 1, y + 4, 5, 1, '#0c0a0e'); }
+    for (let wx = 4; wx < W - 10; wx += 13) { if (Math.abs(wx + 3 - W / 2) < 7 || r() < 0.4) continue; b.line(wx - 1, top + 5, wx + 7, top + 9, '#6a4a2a'); b.line(wx - 1, top + 9, wx + 7, top + 6, '#5a3a20'); }
+    for (let k = 0; k < W; k++) { const x = Math.floor(r() * W), y = top + Math.floor(r() * F); if (b.get(x, y)) b.set(x, y, r() < 0.5 ? shade(walls, -0.35) : '#3a4a2a'); }
+  }
 };
 
 const cabin: Draw = (b, W, H, up, o, r) => {
@@ -624,6 +631,68 @@ const crate: Draw = (b, W, H, up, o) => {
   if (o.v % 2) { b.rect(2, top + 4, 3, 2, '#c02020'); } else b.set(3, top + 5, '#202020');
 };
 
+// ---- Ciudad Z (tras la invasión zombi) ----
+const block: Draw = (b, W, H, up, o, r) => {
+  // bloque de pisos abandonado: azotea, fachada de hormigón con ventanas rotas o tapiadas y alguna encendida
+  const base = up + H - 1, F = Math.min(up + Math.floor(H * 0.55), 34), top = base - F;
+  const conc = ['#5a5a62', '#6a6058', '#4e5660', '#665a5a'][o.v % 4], concD = shade(conc, -0.3), concL = shade(conc, 0.2);
+  b.rect(0, 0, W, top, shade(conc, -0.12)); // azotea
+  b.rect(0, 0, W, 1, concL); b.rect(0, top - 1, W, 1, concD);
+  for (let k = 0; k < 3; k++) { const x = 3 + Math.floor(r() * (W - 10)), y = 2 + Math.floor(r() * Math.max(1, top - 8)); b.rect(x, y, 5, 4, '#3a3a40'); b.rect(x + 1, y + 1, 3, 1, '#5a5a62'); } // máquinas del aire
+  if (r() < 0.6) { const x = 4 + Math.floor(r() * (W - 14)), y = 3 + Math.floor(r() * Math.max(1, top - 10)); b.rect(x, y, 8, 6, '#0c0a0e'); b.rect(x - 1, y + 6, 10, 1, concD); } // boquete en la azotea
+  b.rect(0, top, W, F, conc);
+  for (let y = top + 1; y < base; y += 9) b.rect(0, y, W, 1, concD); // forjados
+  const lit = isLit(o);
+  for (let y = top + 3; y < base - 6; y += 9) for (let x = 3; x < W - 5; x += 7) {
+    const k = r();
+    if (k < 0.3) { b.rect(x, y, 4, 5, '#0a0a10'); b.set(x + 1, y + 1, '#2a3040'); b.set(x + 3, y + 4, '#8090a0'); } // cristal roto
+    else if (k < 0.55) { b.rect(x, y, 4, 5, '#5a4028'); b.line(x, y + 1, x + 3, y + 3, '#7a5a38'); } // tapiada
+    else if (k < 0.6 && lit) b.rect(x, y, 4, 5, '#ffc860', true);
+    else b.rect(x, y, 4, 5, GLASS_DARK);
+  }
+  const dx = Math.floor(W / 2) - 4;
+  b.rect(dx, base - 8, 8, 8, '#141016'); b.rect(dx - 1, base - 9, 10, 1, concD); // portal
+  for (let k = 0; k < W * 0.6; k++) { const x = Math.floor(r() * W), y = top + Math.floor(r() * F); if (b.get(x, y)) b.set(x, y, r() < 0.5 ? concD : '#3a4a2a'); } // grietas y musgo
+  for (let k = 0; k < 3; k++) { const x = Math.floor(r() * W); for (let y = top; y < top + 4 + Math.floor(r() * 10); y++) b.set(x, y, '#2a2420'); } // churretones
+  b.rect(-1, base, 3, 1, concD); b.rect(W - 3, base, 4, 1, concD); // cascotes
+  if (r() < 0.5) { const x = 2 + Math.floor(r() * (W - 20)); b.rect(x, top + 2, 14, 3, '#e0d8c8'); b.rect(x + 1, top + 3, 12, 1, '#c02020'); } // pintada SOS
+};
+
+const wreck: Draw = (b, W, H, up, o, r) => {
+  // coche calcinado: chapa oxidada, sin cristales, ruedas reventadas
+  const vertical = H > W, y0 = up;
+  const rust = ['#5a3a24', '#4a3a34', '#3a3030', '#6a4a2a'][o.v % 4];
+  b.rect(1, y0 + 1, W - 2, H - 2, rust); b.rect(0, y0 + 3, W, H - 6, rust);
+  for (let k = 0; k < W * H * 0.08; k++) b.set(Math.floor(r() * W), y0 + Math.floor(r() * H), r() < 0.5 ? '#2a1a14' : '#8a5a30');
+  if (vertical) { b.rect(3, y0 + 6, W - 6, 5, '#0c0a0c'); b.rect(3, y0 + H - 10, W - 6, 4, '#0c0a0c'); b.rect(3, y0 + 11, W - 6, H - 21, shade(rust, -0.25)); }
+  else { b.rect(5, y0 + 3, 5, H - 6, '#0c0a0c'); b.rect(W - 9, y0 + 3, 4, H - 6, '#0c0a0c'); b.rect(10, y0 + 3, W - 19, H - 6, shade(rust, -0.25)); }
+  b.rect(0, y0 + 2, 1, 3, '#101010'); b.rect(W - 1, y0 + H - 5, 1, 3, '#101010');
+  if (o.v === 0) for (let k = 0; k < 3; k++) b.set(2 + Math.floor(r() * (W - 4)), y0 + 2 + Math.floor(r() * (H - 4)), '#ff7020', true); // brasas
+};
+
+const barn: Draw = (b, W, H, up, o, r) => {
+  // granero rojo con tejado a dos aguas y portón
+  const base = up + H - 1, F = 20, top = base - F;
+  const red = ['#7a2a22', '#6a2a2a', '#5a3a2a'][o.v % 3], roof = '#3a3034';
+  for (let i = 0; i < top; i++) { const inset = Math.max(0, Math.round((top - i) * 0.6) - 6); b.rect(inset, i, W - inset * 2, 1, i % 4 === 0 ? shade(roof, -0.3) : roof); }
+  for (let k = 0; k < 6; k++) b.set(Math.floor(r() * W), Math.floor(r() * top), '#0c0a0c'); // tejas que faltan
+  b.rect(0, top, W, F, red);
+  for (let x = 0; x < W; x += 3) b.rect(x, top, 1, F, shade(red, -0.2));
+  const dw = 16, dx = Math.floor(W / 2) - dw / 2;
+  b.rect(dx, base - 15, dw, 15, '#e0d8c8'); b.rect(dx + 1, base - 14, dw - 2, 14, shade(red, -0.35));
+  b.line(dx + 1, base - 14, dx + dw - 2, base - 1, '#e0d8c8'); b.line(dx + dw - 2, base - 14, dx + 1, base - 1, '#e0d8c8');
+  b.rect(dx + 4, top + 1, 8, 3, '#141014'); // ventanuco del pajar
+};
+
+const hay: Draw = (b, W, H, up, o, r) => {
+  const base = up + H - 1, top = 3;
+  const c = '#c8a850', d = '#8a7030';
+  b.rect(0, top, W, base - top + 1, c); b.rect(0, top, W, 2, shade(c, 0.2)); b.rect(0, base - 1, W, 2, d);
+  b.rect(Math.floor(W / 3), top, 1, base - top, d); b.rect(Math.floor((W * 2) / 3), top, 1, base - top, d);
+  for (let k = 0; k < W; k++) b.set(Math.floor(r() * W), top + Math.floor(r() * (base - top)), r() < 0.5 ? d : '#e8d080');
+  void o;
+};
+
 const DRAWS: Partial<Record<Obstacle['type'], { up: number; draw: Draw; pad?: number }>> = {
   shop: { up: 12, draw: shop }, barricade: { up: 8, draw: barricade },
   house: { up: 16, draw: house }, cabin: { up: 14, draw: cabin },
@@ -638,6 +707,7 @@ const DRAWS: Partial<Record<Obstacle['type'], { up: number; draw: Draw; pad?: nu
   pyramid: { up: 70, draw: pyramid }, sphinx: { up: 26, draw: sphinx }, obelisk: { up: 44, draw: obelisk }, column: { up: 34, draw: column, pad: 4 },
   palm: { up: 34, draw: palm, pad: 12 }, adobe: { up: 12, draw: adobe },
   jtree: { up: 46, draw: jtree, pad: 12 }, temple: { up: 60, draw: temple }, ruin: { up: 10, draw: ruin }, tent: { up: 16, draw: tent, pad: 3 }, crate: { up: 6, draw: crate },
+  block: { up: 40, draw: block }, wreck: { up: 2, draw: wreck }, barn: { up: 26, draw: barn }, hay: { up: 5, draw: hay },
 };
 
 export function renderObstacle(o: Obstacle, theme: string): Prerendered {
@@ -760,7 +830,7 @@ export function lightsFor(map: GameMap): Light[] {
     const cx = o.x + o.w / 2;
     switch (o.type) {
       case 'house': case 'cabin': if (isLit(o)) lights.push({ x: cx, y: o.y + o.h + 10, r: 170, c: 'warm' }); break;
-      case 'lamp': lights.push({ x: cx, y: o.y - 50, r: 210, c: 'white', flicker: hashAt(o.x, o.y, 2) < 0.25 }); break;
+      case 'lamp': if (map.theme === 'cityz' && hashAt(o.x, o.y, 3) > 0.45) break; lights.push({ x: cx, y: o.y - 50, r: 210, c: 'white', flicker: hashAt(o.x, o.y, 2) < 0.25 }); break;
       case 'brazier': lights.push({ x: cx, y: o.y - 10, r: 230, c: 'warm', flicker: true }); break;
       case 'firepit': lights.push({ x: cx, y: o.y, r: 340, c: 'warm', flicker: true }); break;
       case 'tower': lights.push({ x: cx, y: o.y + 20, r: 140, c: 'warm', flicker: true }); break;
@@ -772,10 +842,13 @@ export function lightsFor(map: GameMap): Light[] {
       case 'adobe': if (isLit(o)) lights.push({ x: cx, y: o.y + o.h + 10, r: 150, c: 'warm' }); break;
       case 'tent': lights.push({ x: cx, y: o.y + o.h, r: 120, c: 'warm', flicker: true }); break;
       case 'temple': lights.push({ x: cx, y: o.y + 20, r: 220, c: 'green', flicker: true }); break;
+      case 'block': if (isLit(o)) lights.push({ x: cx, y: o.y + o.h + 6, r: 130, c: 'warm' }); break;
+      case 'wreck': if (o.v === 0) lights.push({ x: cx, y: o.y + o.h / 2, r: 90, c: 'warm', flicker: true }); break;
       case 'pyramid': if (o.v % 2 === 0) lights.push({ x: cx, y: o.y - 160, r: 90, c: 'warm' }); break;
     }
   }
   for (const l of map.lakes) lights.push({ x: l.cx, y: l.cy, r: Math.max(l.rx, l.ry) * 1.1, c: 'cold' });
+  for (const a of map.altars) lights.push({ x: a.x, y: a.y, r: 230, c: 'purple', flicker: true });
   for (const o of map.obstacles) if (o.type === 'shop') lights.push({ x: o.x + o.w / 2, y: o.y + o.h + 20, r: 180, c: 'cold' });
   for (const o of map.border) if (o.type === 'barricade') lights.push({ x: o.x + o.w / 2, y: o.y, r: 60, c: 'warm', flicker: true });
   return lights;

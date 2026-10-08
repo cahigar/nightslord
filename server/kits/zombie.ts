@@ -1,5 +1,6 @@
 // 🧟 Paciente Cero: infección y una pequeña horda de zombis.
 import { BAL } from '../../shared/balance';
+import { isZombieNpc } from '../../shared/maps';
 import { Anim, Kind } from '../../shared/protocol';
 import type { Npc } from '../entities';
 import type { Kit } from './types';
@@ -29,6 +30,8 @@ export const zombieKit: Kit = {
       }
       if (!best) { p.cd[1] = 0.3; return; } // sin objetivo no se gasta
       const n = best as Npc;
+      // Ciudad Z: un zombi del mapa se une a su horda al instante
+      if (isZombieNpc(n.variant)) { room.setAnim(p, Anim.Cast, 0.35); room.fx('infect', n.x, n.y, { o: n.id, n: 0, tx: Math.round(p.x), ty: Math.round(p.y) }); room.convertZombie(n, p); return; }
       // la vida del humano baja poco a poco (~5 s) y al llegar a cero se levanta como zombi
       n.infectT = B.infectT;
       n.infectBy = p.id;

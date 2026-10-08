@@ -17,7 +17,7 @@ export const CA: Dict = {
     createRoom: 'Crear sala',
     modesTitle: 'Unir-se amb codi o crear sala',
     medals: '🏅 Medalles',
-    help: '<b>WASD</b> moure\'s · <b>Ratolí</b> apuntar · <b>Clic / Espai</b> atacar · <b>Q / clic dret</b> i <b>E</b> habilitats · <b>R</b> definitiva (nivell 10)<br /><b>1-4</b> millores en pujar de nivell · <b>G</b> saludar · <b>T</b> provocar · <b>H</b> aliança · <b>I</b> fitxa · <b>M</b> silenciar',
+    help: '<b>WASD</b> moure\'s · <b>Ratolí</b> apuntar · <b>Clic / Espai</b> atacar · <b>Q / clic dret</b> i <b>E</b> habilitats · <b>R</b> definitiva (nivell 10)<br /><b>1-4</b> millores en pujar de nivell · <b>G</b> saludar · <b>T</b> provocar · <b>H</b> aliança · <b>I</b> fitxa · <b>M</b> silenciar · <b>X</b> parany',
     guest: '👤 Jugues com a <b>convidat</b>: el teu progrés es perd en tancar el navegador.',
     accountNote: 'Entra amb Google per guardar monedes, medalles i compres. Només fem servir el teu correu per identificar-te: <b>mai no t\'enviarem publicitat</b>.',
     privacy: 'Privadesa',

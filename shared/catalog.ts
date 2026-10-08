@@ -28,6 +28,7 @@ export const MEDALS: MedalDef[] = [
   { id: 'ally', name: 'Pacto de sangre', desc: 'Forma una alianza con otro monstruo (H).', icon: '🤝', coins: 20 },
   { id: 'traitor', name: 'Traidor', desc: 'Derrota a tu propio aliado.', icon: '🔪', coins: 50 },
   { id: 'survivor', name: 'Inmortal', desc: 'Sobrevive 5 minutos seguidos.', icon: '⏳', coins: 60 },
+  { id: 'nightlord', name: 'Señor de la Noche', desc: 'Gana una partida de El Señor de la Noche.', icon: '👑', coins: 100 },
   { id: 'eternal', name: 'Eterno', desc: 'Sobrevive 10 minutos seguidos.', icon: '♾️', coins: 150 },
   { id: 'lord', name: 'Señor de la Noche', desc: 'Sé el nº 1 de una sala con 3+ jugadores.', icon: '👑', coins: 100 },
   { id: 'level10', name: 'Criatura ancestral', desc: 'Alcanza el nivel 10 en una vida.', icon: '🌕', coins: 50 },

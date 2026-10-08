@@ -29,7 +29,7 @@ const ROLE: Record<Lang, Record<string, string>> = {
   en: { melee: 'Melee', assassin: 'Assassin', summoner: 'Summoner', ranged: 'Ranged', hybrid: 'Hybrid' },
 };
 
-const MAPDESC: Record<Lang, Record<MapThemeId, string>> = {
+const MAPDESC: Record<Lang, Partial<Record<MapThemeId, string>>> = {
   es: {
     elm: 'Un barrio residencial con calles en cuadrícula, casas, vallas y un parque con estanque. Los adolescentes y los vecinos pasean como si nada… hasta que cae la noche.',
     transylvania: 'Un valle a los pies del castillo, con caminos empedrados y un río que solo se cruza por los puentes de madera. Aldeanos, curas y doncellas: la cena está servida.',
@@ -286,18 +286,18 @@ ${grid(IDS.filter((x) => x !== id))}`;
   }
 
   // mapas
-  const mapCard = (m: MapThemeId) => `<div class="ab"><h2 style="margin:4px 0"><a href="${mapUrl(m, lang)}">${esc(themeName(m, lang))}</a></h2><p class="sub">${esc(themeSub(m, lang))}</p><p>${esc(MAPDESC[lang][m])}</p></div>`;
+  const mapCard = (m: MapThemeId) => `<div class="ab"><h2 style="margin:4px 0"><a href="${mapUrl(m, lang)}">${esc(themeName(m, lang))}</a></h2><p class="sub">${esc(themeSub(m, lang))}</p><p>${esc(MAPDESC[lang][m] ?? "")}</p></div>`;
   for (const m of THEME_IDS) {
     const path = mapUrl(m, lang), name = themeName(m, lang);
     const cr: [string, string][] = [['Mooonsters', t.home], [t.maps, t.mapsPath], [name, path]];
     const trailer = TRAILER_MAP[m];
-    const body = `${crumbHtml(cr)}<h1>${esc(name)}</h1><p class="sub">${esc(themeSub(m, lang))}</p><p>${esc(MAPDESC[lang][m])}</p><a class="cta" href="/">${t.play}</a>
+    const body = `${crumbHtml(cr)}<h1>${esc(name)}</h1><p class="sub">${esc(themeSub(m, lang))}</p><p>${esc(MAPDESC[lang][m] ?? "")}</p><a class="cta" href="/">${t.play}</a>
 ${trailer ? `<h2>${t.trailer}</h2><video controls preload="none" playsinline poster="/img/trailers/${trailer.replace('.mp4', '.jpg')}" src="/media/${trailer}"></video>` : ''}
 <h2>${t.maps}</h2>${THEME_IDS.filter((x) => x !== m).map(mapCard).join('')}
 <h2>${t.monsters}</h2>${grid(IDS.slice(0, 12))}<p><a href="${t.monstersPath}">${t.monsters} →</a></p>`;
     const ld: object[] = [crumbs(lang, cr)];
-    if (trailer) ld.push(video(trailer, `/img/trailers/${trailer.replace('.mp4', '.jpg')}`, `${name} — Mooonsters`, MAPDESC[lang][m]));
-    emit(lang, path, page(lang, { path, alt: mapUrl(m, other), title: t.mapTitle(name), desc: t.mapDesc(name, MAPDESC[lang][m]), body, ld }), mapUrl(m, other));
+    if (trailer) ld.push(video(trailer, `/img/trailers/${trailer.replace('.mp4', '.jpg')}`, `${name} — Mooonsters`, MAPDESC[lang][m] ?? ""));
+    emit(lang, path, page(lang, { path, alt: mapUrl(m, other), title: t.mapTitle(name), desc: t.mapDesc(name, MAPDESC[lang][m] ?? ""), body, ld }), mapUrl(m, other));
   }
   {
     const path = t.mapsPath, cr: [string, string][] = [['Mooonsters', t.home], [t.maps, path]];

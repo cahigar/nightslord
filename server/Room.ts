@@ -2,13 +2,13 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, BEASTS, CATCH_UP, TUTORIAL, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
+import { BAL, BEASTS, CATCH_UP, NIGHTLORD, TRAPS, TRAP_IDS, type TrapId, TUTORIAL, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
 import {
-  BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAP_SIZE, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
+  BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
 } from '../shared/constants';
 import { CHARACTERS, MAX_LEVEL, UPGRADES, upgradeMax, xpForLevel, type CharacterId, type UpgradeId } from '../shared/characters';
-import { currentAt, distToSegment, generateMap, NPC_VARIANTS, tvLinks, tvSpot, type GameMap, type MapThemeId } from '../shared/maps';
+import { currentAt, distToSegment, generateMap, isZombieNpc, NPC_VARIANTS, tvLinks, tvSpot, type GameMap, type MapThemeId } from '../shared/maps';
 import { ObstacleGrid } from '../shared/physics';
 import {
   Anim, Flag, Flag2, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type ServerMsg, type SfxId, type TvState, type YouState,
@@ -25,6 +25,12 @@ const profileTag = (token: string) => createHash('sha256').update(token).digest(
 import { store } from './store';
 import type { Conn } from './types';
 
+/** normal: salas de siempre · lobby: previa del Señor de la Noche (Cementerio) · br: partida del Señor de la Noche (Ciudad Z). */
+export type RoomMode = 'normal' | 'lobby' | 'br';
+/** Lo que la sala necesita del gestor para mover jugadores entre la previa y la partida. */
+export interface RoomHooks { startMatch(lobby: Room): void; toLobby(conn: Conn, char: CharacterId, skin: string, home?: string): void }
+const NL = NIGHTLORD;
+
 /** Alimañas de cada mapa (bichos que huyen y siempre sueltan un objeto). */
 const CRITTER_KINDS: Record<MapThemeId, string[]> = {
   elm: ['c_rat', 'c_crow', 'c_rat'],
@@ -33,6 +39,8 @@ const CRITTER_KINDS: Record<MapThemeId, string[]> = {
   swamp: ['c_toad', 'c_bat', 'c_rat', 'c_toad'],
   nile: ['c_scarab', 'c_bat', 'c_rat', 'c_scarab'],
   jungle: ['c_toad', 'c_bat', 'c_parrot', 'c_parrot'],
+  cemetery: ['c_bat', 'c_crow', 'c_rat'],
+  cityz: ['c_rat', 'c_crow', 'c_rat', 'c_bat'],
 };
 /** Fieras que viven en cada mapa (cuántas como mucho). */
 const BEAST_PLAN: Partial<Record<MapThemeId, Partial<Record<BeastType, number>>>> = {
@@ -110,19 +118,22 @@ export class Room {
   private loop: NodeJS.Timeout;
   private hunterRespawnT = 15; // sala nueva: unos segundos de calma antes del primer cazador
   private powerupRespawnT = 0;
+  private trapRespawnT = 0;
   emptySince = Date.now();
   private critterT = 2;
   private beastT = BEASTS.every;
   bountyId = -1;
 
-  constructor(public code: string, public theme: MapThemeId, public priv: boolean, private onPlayerCountChange?: () => void) {
+  constructor(public code: string, public theme: MapThemeId, public priv: boolean, private onPlayerCountChange?: () => void, readonly mode: RoomMode = 'normal') {
     this.seed = (Math.random() * 2 ** 31) >>> 0;
     this.map = generateMap(theme, this.seed);
     this.grid = new ObstacleGrid(this.map);
-    for (let i = 0; i < 45; i++) this.spawnNpc();
+    for (let i = 0; i < this.npcTarget(0); i++) this.spawnNpc();
     // sin cazadores al principio: van llegando según hunterWants() tras unos segundos de calma
     for (const [type, n] of Object.entries(BEAST_PLAN[theme] ?? {}) as [BeastType, number][]) for (let i = 0; i < n * 2 && this.beastCount(type) < n; i++) this.spawnBeast(type);
-    for (let i = 0; i < 28; i++) this.spawnPowerUp();
+    for (let i = 0; i < this.powerupTarget(); i++) this.spawnPowerUp();
+    for (let i = 0; i < this.trapTarget(); i++) this.spawnTrap();
+    if (mode === 'br') this.initMatch();
     let last = performance.now();
     let acc = 0;
     // Bucle con acumulador para mantener 20 Hz estables.
@@ -141,9 +152,16 @@ export class Room {
   }
 
   get playerCount() { return this.conns.size; }
+  /** Gestor de salas (para pasar de la previa a la partida y volver). */
+  mgr: RoomHooks | null = null;
+  /** Sala de la previa a la que vuelven los jugadores al terminar la partida. */
+  home = '';
+  private npcTarget(pc: number) { return this.mode === 'br' ? NL.npcs : this.mode === 'lobby' ? 18 : Math.min(95, 45 + pc * 4); }
+  private powerupTarget() { return this.mode === 'br' ? NL.powerups : this.mode === 'lobby' ? 8 : 28; }
+  private trapTarget() { return this.mode === 'br' ? NL.traps : this.mode === 'lobby' ? 5 : TRAPS.perMap; }
   /** Sala de práctica del tutorial: un solo jugador, sin Cazadores automáticos, XP acelerada y sin premios reales. */
   tutorial = false;
-  get isFull() { return this.conns.size >= (this.tutorial ? 1 : MAX_PLAYERS_PER_ROOM); }
+  get isFull() { return this.mode === 'br' || this.conns.size >= (this.tutorial ? 1 : MAX_PLAYERS_PER_ROOM); }
 
   destroy() { clearInterval(this.loop); }
 
@@ -166,6 +184,7 @@ export class Room {
 
   removeConn(conn: Conn) {
     const p = this.players.get(conn.id);
+    if (p && this.mode === 'br' && this.nl.phase === 'match' && !p.dead) this.nl.deaths.push(p.id); // abandonar cuenta como caer
     if (p) { this.recordBest(p); this.releaseMinions(p.id); for (const o of this.players.values()) o.allies.delete(p.id); }
     this.players.delete(conn.id);
     this.conns.delete(conn.id);
@@ -177,6 +196,7 @@ export class Room {
   respawn(conn: Conn, char: CharacterId, skin: string) {
     const old = this.players.get(conn.id);
     if (old && !old.dead) return;
+    if (this.mode === 'br') return; // en El Señor de la Noche no se reaparece
     const p = this.spawnPlayer(conn, char, skin, old);
     conn.send({ t: 'joined', code: this.code, theme: this.theme, seed: this.seed, priv: this.priv, you: p.id });
     // reaparecer en la misma sala: se empieza en la última evolución alcanzada (5, 10 o 15)
@@ -204,7 +224,7 @@ export class Room {
       const h = this.lastHunter!;
       for (let i = 0; i < 24; i++) {
         const ang = Math.random() * Math.PI * 2, x = p.x + Math.cos(ang) * 420, y = p.y + Math.sin(ang) * 420;
-        if (x > 100 && y > 100 && x < MAP_SIZE - 100 && y < MAP_SIZE - 100 && !this.grid.blocked(x, y, h.r + 2, false)) { h.x = x; h.y = y; break; }
+        if (x > 100 && y > 100 && x < this.map.size - 100 && y < this.map.size - 100 && !this.grid.blocked(x, y, h.r + 2, false)) { h.x = x; h.y = y; break; }
       }
       h.hp = h.maxHp = Math.round(h.maxHp * TUTORIAL.hunterHp);
       this.fx('descend', h.x, h.y, { o: h.id });
@@ -493,7 +513,7 @@ export class Room {
 
   /** Salta por encima de todo hasta (tx, ty) en t segundos (aterriza siempre en un sitio libre). */
   leapTo(p: Player, tx: number, ty: number, t: number) {
-    tx = Math.max(p.r, Math.min(MAP_SIZE - p.r, tx)); ty = Math.max(p.r, Math.min(MAP_SIZE - p.r, ty));
+    tx = Math.max(p.r, Math.min(this.map.size - p.r, tx)); ty = Math.max(p.r, Math.min(this.map.size - p.r, ty));
     p.leap = { sx: p.x, sy: p.y, tx, ty, t: 0, T: t };
     p.dash = null; p.knock = null;
   }
@@ -829,8 +849,8 @@ export class Room {
   // ------------------------------------------------------------------ utilidades internas
   private findSpawn(minDist: number, r = PLAYER_RADIUS + 4): { x: number; y: number } {
     for (let i = 0; i < 40; i++) {
-      const x = 150 + Math.random() * (MAP_SIZE - 300);
-      const y = 150 + Math.random() * (MAP_SIZE - 300);
+      const x = 150 + Math.random() * (this.map.size - 300);
+      const y = 150 + Math.random() * (this.map.size - 300);
       if (this.grid.blocked(x, y, r)) continue;
       let ok = true;
       const md2 = minDist * minDist * (i < 30 ? 1 : 0.25);
@@ -839,7 +859,7 @@ export class Room {
       if (ok) return { x, y };
     }
     for (;;) {
-      const x = 150 + Math.random() * (MAP_SIZE - 300), y = 150 + Math.random() * (MAP_SIZE - 300);
+      const x = 150 + Math.random() * (this.map.size - 300), y = 150 + Math.random() * (this.map.size - 300);
       if (!this.grid.blocked(x, y, r)) return { x, y };
     }
   }
@@ -879,7 +899,7 @@ export class Room {
     let pos = at ?? null;
     if (!pos && type === 'croc') {
       for (let i = 0; i < 300 && !pos; i++) {
-        const x = 150 + Math.random() * (MAP_SIZE - 300), y = 150 + Math.random() * (MAP_SIZE - 300);
+        const x = 150 + Math.random() * (this.map.size - 300), y = 150 + Math.random() * (this.map.size - 300);
         if (!this.grid.deepWater(x, y) || !this.grid.deepWater(x + 30, y) || !this.grid.deepWater(x - 30, y)) continue;
         if ([...this.players.values()].some((p) => !p.dead && dist2(x, y, p.x, p.y) < 500 * 500)) continue;
         pos = { x, y };
@@ -1100,7 +1120,9 @@ export class Room {
     this.tvOn = [...this.players.values()].some((p) => !p.dead && p.char === 'static');
     if (this.broadcast && this.broadcast.until <= this.time) this.broadcast = null;
     for (const [id, c] of this.tvChannel) if (c.until <= this.time) this.tvChannel.delete(id);
-    for (const p of this.players.values()) if (!p.dead) this.updatePlayer(p, dt);
+    if (this.mode === 'lobby') this.stepLobby(dt);
+    else if (this.mode === 'br') this.stepMatch(dt);
+    for (const p of this.players.values()) { if (!p.dead) this.updatePlayer(p, dt); else if (p.ecto) this.updateEcto(p, dt); }
     for (const n of this.npcs.values()) this.updateNpc(n, dt);
     for (const h of this.hunters.values()) this.updateHunter(h, dt);
     for (const m of this.minions.values()) this.updateMinion(m, dt);
@@ -1117,7 +1139,7 @@ export class Room {
     this.maintainPopulation(dt);
 
     if (this.tick % SNAPSHOT_EVERY === 0) this.sendSnapshots();
-    if (this.tick % RANK_EVERY === 0) { this.sendRank(); this.checkTimedMedals(); }
+    if (this.tick % RANK_EVERY === 0) { this.sendRank(); this.checkTimedMedals(); if (this.mode !== 'normal') this.sendNight(); }
   }
 
   /** Estados genéricos. Devuelve true si el empujón controla el movimiento este tick. */
@@ -1287,8 +1309,8 @@ export class Room {
       // vuelo / intangible: atraviesa obstáculos; al terminar, aterriza siempre en un sitio libre
       const sp = this.calcSpeed(p);
       p.moving = mx !== 0 || my !== 0;
-      p.x = Math.max(p.r, Math.min(MAP_SIZE - p.r, p.x + mx * sp * dt));
-      p.y = Math.max(p.r, Math.min(MAP_SIZE - p.r, p.y + my * sp * dt));
+      p.x = Math.max(p.r, Math.min(this.map.size - p.r, p.x + mx * sp * dt));
+      p.y = Math.max(p.r, Math.min(this.map.size - p.r, p.y + my * sp * dt));
       const phased = p.phaseT > 0;
       if (phased) p.phaseT -= dt; else p.flyT -= dt;
       if (p.flyT <= 0 && p.phaseT <= 0) {
@@ -1404,6 +1426,7 @@ export class Room {
     if (m.kind === Kind.Player) {
       const p = m as Player;
       if (p.protectT > 0 || p.mistT > 0 || p.submergeT > 0 || p.phaseT > 0) return 0;
+      if (this.mode === 'lobby' || (this.mode === 'br' && this.nl.phase !== 'match')) return 0; // en la previa (y en el podio) nadie se hace daño
       if (src.kind === Kind.Hunter) amount *= this.tutorial ? TUTORIAL.hunterDmg : rookieMul(p.level); // la Orden y las fieras pegan menos a los novatos
       amount *= (1 - Math.min(0.6, p.def.armor + classOf(p).armor)) * (KITS[p.char].damageTakenMul?.(this, p) ?? 1);
       p.lastHurtT = this.time;
@@ -1541,6 +1564,7 @@ export class Room {
       const v = m as Player;
       c = v.char;
       v.diedAt = this.time;
+      v.trap = null;
       v.dash = null;
       v.ultT = 0;
       v.submergeT = 0;
@@ -1548,8 +1572,12 @@ export class Room {
       KITS[v.char].onDeath?.(this, v);
       this.recordBest(v);
       if (!this.tutorial) v.conn.profile.stats.deaths++;
+      // El Señor de la Noche: un ectoplasma que mata a un vivo resucita
+      const ecto = this.mode === 'br' && src.player?.ecto && src.player.dead ? src.player : undefined;
+      if (ecto && !killer) killer = ecto;
       if (killer) {
-        this.reward(killer, (40 + Math.round(v.totalXp * 0.25)) * share, (50 + Math.round(v.points * 0.25)) * share, 5);
+        this.reward(killer, (40 + Math.round(v.totalXp * 0.25)) * share, (50 + Math.round(v.points * 0.25)) * share, this.mode === 'br' ? NL.killCoins : 5);
+        if (this.mode === 'br') killer.brKills = (killer.brKills ?? 0) + 1;
         this.chargeUlt(killer, ULT.player * share);
         killer.lifeKills++;
         killer.conn.profile.stats.playerKills++;
@@ -1566,6 +1594,18 @@ export class Room {
       const by = src.name || v.lastAttacker || 'la noche';
       this.emit({ e: 'kill', a: by, v: v.name, ak: src.kind, vk: Kind.Player }, m.x, m.y, true);
       this.sfx('death', v.x, v.y);
+      if (this.mode === 'br') {
+        // no se reaparece: se vaga como ectoplasma (y matando a un vivo se resucita)
+        v.ecto = true; v.ectoCd = [0, 0];
+        this.nl.deaths.push(v.id);
+        this.fx('ghostRise', v.x, v.y, { o: v.id });
+        v.conn.send({ t: 'toast', text: '👻 Eres un ectoplasma: Q ralentiza, E vibra. Mata a un vivo para resucitar.', k: 'ectoBorn' });
+        if (ecto) this.revive(ecto);
+        else if (killer && !src.minion) KITS[killer.char].onKill?.(this, killer, m);
+        this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c }, m.x, m.y);
+        store.touch();
+        return;
+      }
       const died = { t: 'died' as const, by, pts: Math.round(v.points), lvl: v.level, kills: v.lifeKills, time: Math.round(this.time - v.lifeStart), coins: v.coinsEarned };
       // Último conjuro del Nigromante: la pantalla de muerte espera a que se desintegre su fantasma
       const wait = v.char === 'necro' && v.tier >= 1 ? BAL.necro.last.delay + BAL.necro.last.t : 0;
@@ -1606,6 +1646,7 @@ export class Room {
   }
 
   reward(p: Player, xp: number, pts: number, coins: number) {
+    if (this.mode === 'br') xp *= NL.xpMul;
     xp = Math.round(xp); pts = Math.round(pts);
     if (this.tutorial) coins = 0;
     p.points += pts;
@@ -1704,6 +1745,7 @@ export class Room {
       if (n.infectT <= 0 || n.hp <= 0) { this.turnZombie(n); return; }
     }
     if (n.disguiseT > 0) { n.disguiseT -= dt; if (n.disguiseT <= 0) { n.disguiseBy = -1; this.fx('disguise', n.x, n.y, { o: n.id, r: -1 }); } }
+    if (isZombieNpc(n.variant)) { this.updateZombieNpc(n, dt); return; }
     if (this.applyStatus(n, dt)) return;
     if (this.hypnoWalk(n, dt)) return;
     if (this.flee(n, STATUS.fleeSpeed * (this.tutorial ? TUTORIAL.npcSpeed : 1), dt)) return;
@@ -1844,8 +1886,8 @@ export class Room {
       if (!t) {
         if (h.hp < h.maxHp) h.hp = Math.min(h.maxHp, h.hp + 10);
         if (Math.random() < 0.2 || dist2(h.x, h.y, h.tx, h.ty) < 400) {
-          h.tx = Math.max(100, Math.min(MAP_SIZE - 100, h.x + (Math.random() - 0.5) * 600));
-          h.ty = Math.max(100, Math.min(MAP_SIZE - 100, h.y + (Math.random() - 0.5) * 600));
+          h.tx = Math.max(100, Math.min(this.map.size - 100, h.x + (Math.random() - 0.5) * 600));
+          h.ty = Math.max(100, Math.min(this.map.size - 100, h.y + (Math.random() - 0.5) * 600));
         }
       }
       if (Math.random() < 0.1) h.strafe *= -1;
@@ -1919,8 +1961,8 @@ export class Room {
     if (h.flyT > 0) {
       h.flyT -= dt; h.flyTotal += dt;
       h.moving = mx !== 0 || my !== 0;
-      h.x = Math.max(h.r, Math.min(MAP_SIZE - h.r, h.x + mx * speed * 1.3 * dt));
-      h.y = Math.max(h.r, Math.min(MAP_SIZE - h.r, h.y + my * speed * 1.3 * dt));
+      h.x = Math.max(h.r, Math.min(this.map.size - h.r, h.x + mx * speed * 1.3 * dt));
+      h.y = Math.max(h.r, Math.min(this.map.size - h.r, h.y + my * speed * 1.3 * dt));
       if (h.flyT <= 0) {
         if (this.grid.blocked(h.x, h.y, h.r) && h.flyTotal < 6) h.flyT = 0.3; // sigue planeando hasta un hueco libre
         else {
@@ -1981,7 +2023,7 @@ export class Room {
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2;
         const px = x + Math.cos(a) * rad, py = y + Math.sin(a) * rad;
-        if (px > r && py > r && px < MAP_SIZE - r && py < MAP_SIZE - r && !this.grid.blocked(px, py, r)) return { x: px, y: py };
+        if (px > r && py > r && px < this.map.size - r && py < this.map.size - r && !this.grid.blocked(px, py, r)) return { x: px, y: py };
       }
     }
     return this.findSpawn(0, r);
@@ -2355,6 +2397,7 @@ export class Room {
     for (const z of this.zones) {
       if (z.kind === 'meat' || z.kind === 'ritual' || z.kind === 'mirror' || z.kind === 'nail' || z.kind === 'portal' || z.kind === 'laser') continue;
       if (z.kind === 'lastspell') { this.lastSpell(z); continue; }
+      if (z.kind.startsWith('trap_')) { this.updateTrap(z); continue; }
       const owner = this.findPlayerById(z.owner);
       const inside = (m: Mob) => distToSegment(m.x, m.y, z.ax, z.ay, z.bx, z.by) < z.w / 2 + (z.kind === 'puddle' ? 0 : m.r);
       const all: Mob[] = [...this.npcs.values(), ...this.hunters.values(), ...this.minions.values(), ...[...this.players.values()].filter((p) => !p.dead)];
@@ -2454,6 +2497,15 @@ export class Room {
       if (p.dead || p.entombT > 0) continue;
       for (const u of this.powerups.values()) {
         if (dist2(p.x, p.y, u.x, u.y) > (p.r + POWERUP_RADIUS) ** 2) continue;
+        if (u.type.startsWith('trap_')) {
+          // trampa: solo se puede llevar una
+          if (p.trap) continue;
+          this.powerups.delete(u.id);
+          p.trap = u.type.slice(5) as TrapId;
+          this.emit({ e: 'pick', x: Math.round(u.x), y: Math.round(u.y), p: u.type }, u.x, u.y);
+          this.sfx('pickup', u.x, u.y);
+          continue;
+        }
         this.powerups.delete(u.id);
         const pm = KITS[p.char].powerupMul?.(p) ?? 1;
         const tm = KITS[p.char].powerupTimeMul?.(p) ?? 1; // la bruja (nv. 15) los alarga
@@ -2482,7 +2534,7 @@ export class Room {
 
   /** Cuántos cazadores de cada tipo quiere la sala según el nivel medio y el número de jugadores. */
   hunterWants(): Record<OrderType, number> {
-    if (this.tutorial) return { cazador: 0, inquisidor: 0, exorcista: 0, sectario: 0, heraldo: 0 };
+    if (this.tutorial || this.mode !== 'normal') return { cazador: 0, inquisidor: 0, exorcista: 0, sectario: 0, heraldo: 0 };
     const alive = this.alivePlayers();
     const pc = alive.length;
     const avg = pc ? alive.reduce((s, p) => s + p.level, 0) / pc : 0;
@@ -2529,7 +2581,7 @@ export class Room {
 
   private maintainPopulation(dt: number) {
     const pc = this.alivePlayers().length;
-    const npcTarget = Math.min(95, 45 + pc * 4);
+    const npcTarget = this.npcTarget(pc);
     let critters = 0;
     for (const n of this.npcs.values()) if (isCritter(n)) critters++;
     if (this.npcs.size - critters < npcTarget && this.tick % 10 === 0) this.spawnNpc();
@@ -2552,10 +2604,376 @@ export class Room {
       for (const [type, n] of Object.entries(BEAST_PLAN[this.theme] ?? {}) as [BeastType, number][]) if (this.beastCount(type) < n) { this.spawnBeast(type); break; }
     }
     this.powerupRespawnT -= dt;
-    if (this.powerups.size < 28 && this.powerupRespawnT <= 0) {
+    let traps = 0;
+    for (const u of this.powerups.values()) if (u.type.startsWith('trap_')) traps++;
+    if (this.powerups.size - traps < this.powerupTarget() && this.powerupRespawnT <= 0) {
       this.spawnPowerUp();
-      this.powerupRespawnT = 1.5;
+      this.powerupRespawnT = this.mode === 'br' ? 0.5 : 1.5;
     }
+    this.trapRespawnT -= dt;
+    if (traps < this.trapTarget() && this.trapRespawnT <= 0) { this.spawnTrap(); this.trapRespawnT = 5; }
+  }
+
+  // ------------------------------------------------------------------ zombis de la Ciudad Z
+  /** Zombis del mapa: vagan despacio y persiguen y muerden a los monstruos cercanos (menos a Paciente Cero, que es de los suyos). */
+  private updateZombieNpc(n: Npc, dt: number) {
+    if (this.applyStatus(n, dt)) return;
+    if (this.hypnoWalk(n, dt)) return;
+    n.screamCd = Math.max(0, n.screamCd - dt);
+    if (n.stunT > 0 || n.fearT > 0 || n.sleepT > 0) { n.moving = false; return; }
+    const prey = (R: number) => {
+      let best: Player | null = null, bd = R * R;
+      for (const p of this.players.values()) {
+        if (p.dead || p.char === 'zombie' || p.invisKind !== 'none' || p.submergeT > 0 || this.isHiddenGuise(p) || p.flyT > 0) continue;
+        const d = dist2(n.x, n.y, p.x, p.y);
+        if (d < bd) { bd = d; best = p; }
+      }
+      return best;
+    };
+    n.thinkT -= dt;
+    if (n.thinkT <= 0) {
+      n.thinkT = 0.35 + Math.random() * 0.3;
+      const t = prey(this.mode === 'lobby' ? 0 : 280);
+      if (t) { n.tx = t.x; n.ty = t.y; n.fleeing = true; if (n.screamCd <= 0 && Math.random() < 0.25) this.sfx('groan', n.x, n.y); }
+      else {
+        n.fleeing = false;
+        if (Math.random() < 0.1 || dist2(n.x, n.y, n.tx, n.ty) < 400) { n.tx = n.x + (Math.random() - 0.5) * 300; n.ty = n.y + (Math.random() - 0.5) * 300; }
+      }
+    }
+    // mordisco
+    const t = n.screamCd <= 0 ? prey(n.r + PLAYER_RADIUS + 14) : null;
+    if (t) {
+      n.screamCd = 1.3;
+      this.setAnim(n, Anim.Attack, 0.3);
+      this.damage(t, 4, { name: 'un zombi', kind: Kind.Npc });
+      this.sfx('bite', t.x, t.y);
+    }
+    let speed = n.fleeing ? (n.variant === 'z:survivor' ? 105 : 72) : 30;
+    if (n.slowT > 0) speed *= n.slowMul;
+    if (n.rootT > 0) speed = 0;
+    const dx = n.tx - n.x, dy = n.ty - n.y, d = Math.hypot(dx, dy);
+    n.moving = d > 8 && speed > 0;
+    if (n.moving) {
+      const step = Math.min(d, speed * dt);
+      const res = this.grid.move(n.x, n.y, (dx / d) * step, (dy / d) * step, n.r);
+      if (res.hit && !n.fleeing) { n.tx = n.x; n.ty = n.y; }
+      n.x = res.x; n.y = res.y;
+      n.facing = dx >= 0 ? 1 : -1;
+    }
+  }
+
+  /** Paciente Cero convierte a un zombi del mapa en uno de su horda. */
+  convertZombie(n: Npc, owner: Player) {
+    this.npcs.delete(n.id);
+    n.dead = true;
+    const z = this.spawnMinion(owner, n.x, n.y, this.minionVariant(owner), n.variant.slice(2), n.id % 97, ZB.minionLife, true);
+    this.fx('emerge', z.x, z.y, { o: z.id });
+    this.sfx('groan', z.x, z.y);
+  }
+
+  // ------------------------------------------------------------------ trampas
+  private spawnTrap() {
+    const pos = this.findSpawn(200, POWERUP_RADIUS + 6);
+    const id = TRAP_IDS[Math.floor(Math.random() * TRAP_IDS.length)];
+    this.powerups.set(this.nextId, { id: this.nextId++, x: pos.x, y: pos.y, type: `trap_${id}` });
+  }
+
+  /** X: coloca la trampa que llevas a tus pies. */
+  onTrap(conn: Conn) {
+    const p = this.players.get(conn.id);
+    if (!p || p.dead || !p.trap || p.entombT > 0 || p.hexT > 0) return;
+    const id = p.trap, T = TRAPS;
+    p.trap = null;
+    const at = (kind: ZoneKind, r: number, life: number) => this.addZone({ kind, ax: p.x, ay: p.y, bx: p.x, by: p.y, w: r * 2, until: this.time + life, owner: p.id, v: this.time + T.arm });
+    this.setAnim(p, Anim.Cast, 0.35);
+    this.sfx('curse', p.x, p.y);
+    switch (id) {
+      case 'salt': {
+        const z = at('trap_salt', T.salt.r, T.salt.t);
+        z.v = this.time; // activo al momento
+        z.hit = new Set(); // quien queda dentro del círculo al trazarlo, dentro se queda
+        for (const m of this.trapMobs(p)) if (dist2(m.x, m.y, p.x, p.y) < T.salt.r ** 2) z.hit.add(m.id);
+        break;
+      }
+      case 'seal': at('trap_seal', TRAPS.stepR, T.seal.life); break;
+      case 'hand': at('trap_hand', TRAPS.stepR, T.hand.root + T.hand.life); break;
+      case 'silence': at('trap_silence', TRAPS.stepR, T.silence.life); break;
+      case 'blood': at('trap_blood', TRAPS.stepR, T.blood.life); break;
+      case 'eyes': at('trap_eyes', T.eyes.r, T.eyes.life); break;
+      case 'candle': { const z = at('trap_candle', T.candle.r, T.candle.t); z.v = this.time; break; }
+      case 'ritual': {
+        // invoca a un jugador al azar dentro del círculo en 3 s (y se lo avisa)
+        const victims = [...this.players.values()].filter((o) => o !== p && !o.dead && this.isEnemyOf(p, o));
+        const z = at('trap_ritual', 60, T.ritual.delay + 0.6);
+        const v = victims[Math.floor(Math.random() * victims.length)];
+        if (!v) { z.until = this.time + 1.2; break; }
+        z.next = v.id;
+        v.conn.send({ t: 'toast', text: `🕯️ ¡Un ritual de ${p.name} te reclama! En 3 s te invocará.`, k: 'ritualWarn', a: { n: p.name } });
+        this.fx('summon', v.x, v.y, { o: v.id, d: T.ritual.delay });
+        const zid = z.id;
+        this.later(T.ritual.delay, () => {
+          const zz = this.zones.find((q) => q.id === zid);
+          if (!zz || v.dead || !this.players.has(v.conn.id)) return;
+          const f = this.findFreeSpot(zz.ax, zz.ay, v.r);
+          this.fx('vanish', v.x, v.y, { o: v.id });
+          v.x = f.x; v.y = f.y; v.dash = null; v.leap = null;
+          v.stunT = Math.max(v.stunT, 0.6);
+          this.fx('summon', v.x, v.y, { o: v.id, d: 0 });
+          this.sfx('chant', v.x, v.y);
+        });
+        break;
+      }
+    }
+  }
+
+  /** Quién puede caer en las trampas de p: monstruos enemigos y cazadores (los humanos no las pisan). */
+  private trapMobs(owner: Player | null): Mob[] {
+    const out: Mob[] = [];
+    for (const o of this.players.values()) if (!o.dead && o !== owner && (!owner || this.isEnemyOf(owner, o)) && o.flyT <= 0 && !o.leap) out.push(o);
+    for (const h of this.hunters.values()) if (!h.dead) out.push(h);
+    for (const m of this.minions.values()) if (!m.dead && m.owner !== owner?.id) out.push(m);
+    return out;
+  }
+
+  private updateTrap(z: Zone) {
+    const owner = this.findPlayerById(z.owner);
+    if (z.v !== undefined && this.time < z.v) return; // aún armándose
+    const T = TRAPS;
+    if (z.kind === 'trap_candle' || z.kind === 'trap_ritual') return; // solo visual (la vela la oscurece el cliente)
+    if (z.kind === 'trap_salt') {
+      // anillo de sal: los enemigos no pueden cruzarlo (ni para entrar ni para salir)
+      const R = z.w / 2;
+      for (const m of this.trapMobs(owner)) {
+        const dx = m.x - z.ax, dy = m.y - z.ay, d = Math.hypot(dx, dy) || 1;
+        if (z.hit!.has(m.id)) { if (d > R - m.r) { m.x = z.ax + (dx / d) * (R - m.r); m.y = z.ay + (dy / d) * (R - m.r); } }
+        else if (d < R + m.r) { const f = this.grid.move(m.x, m.y, (dx / d) * (R + m.r - d), (dy / d) * (R + m.r - d), m.r, walksWater(m)); m.x = f.x; m.y = f.y; }
+      }
+      return;
+    }
+    if (z.kind === 'trap_eyes') {
+      if ((z.next ?? 0) > this.time || !owner) return;
+      for (const m of this.trapMobs(owner)) {
+        if (m.kind !== Kind.Player && m.kind !== Kind.Hunter) continue;
+        if (dist2(m.x, m.y, z.ax, z.ay) > (z.w / 2) ** 2) continue;
+        z.next = this.time + T.eyes.cd;
+        const who = m.kind === Kind.Player ? (m as Player).name : (m as Hunter).def.name;
+        owner.conn.send({ t: 'alert', x: Math.round(m.x), y: Math.round(m.y), k: who });
+        owner.conn.send({ t: 'toast', text: `👁️ ${who} ha pasado junto a tus Ojos rituales.`, k: 'eyesAlert', a: { n: who } });
+        this.fx('reveal', m.x, m.y, { o: m.id });
+        break;
+      }
+      return;
+    }
+    // trampas que se activan al pisarlas (una sola vez)
+    for (const m of this.trapMobs(owner)) {
+      if (dist2(m.x, m.y, z.ax, z.ay) > (z.w / 2 + m.r) ** 2) continue;
+      z.until = 0;
+      this.sfx('curse', m.x, m.y);
+      if (z.kind === 'trap_seal') { m.vulnT = Math.max(m.vulnT, T.seal.t); m.vulnMul = Math.max(m.vulnMul, T.seal.mul); this.fx('curseMark', m.x, m.y, { o: m.id, d: T.seal.t }); }
+      else if (z.kind === 'trap_hand') { this.root(m, T.hand.root); this.fx('rooted', m.x, m.y, { o: m.id, c: 'hand', d: T.hand.root }); }
+      else if (z.kind === 'trap_silence') { m.silenceT = Math.max(m.silenceT, T.silence.t); this.fx('hexzone', m.x, m.y, { o: m.id, c: 'silence' }); }
+      else if (z.kind === 'trap_blood') {
+        const dmg = this.damage(m, m.maxHp * T.blood.dmg, owner ? { ...this.src(owner), raw: true } : { name: 'un pentáculo', kind: Kind.Player, raw: true });
+        if (owner && !owner.dead) { owner.hp = Math.min(owner.maxHp, owner.hp + dmg); this.fx('drain', m.x, m.y, { tx: Math.round(owner.x), ty: Math.round(owner.y), o: owner.id, n: 2 }); }
+      }
+      if (m.kind === Kind.Player) (m as Player).conn.send({ t: 'toast', text: '¡Has pisado una trampa!', k: 'trapHit', a: { t: z.kind.slice(5) } });
+      return;
+    }
+  }
+
+  // ------------------------------------------------------------------ El Señor de la Noche
+  nl = {
+    phase: 'lobby' as 'lobby' | 'match' | 'podium',
+    t: 0, startIn: -1, allReady: false, autoT: NL.lobby.autoT,
+    sunAng: 0, fogX: 0, fogY: 0, total: 0, podiumT: 0,
+    deaths: [] as number[],
+    roster: new Map<number, { name: string; char: CharacterId; skin: string; p: Player }>(),
+  };
+
+  /** Partida nueva: el sol saldrá por un lado al azar y la niebla cubrirá un círculo al azar. */
+  private initMatch() {
+    this.nl.phase = 'match';
+    this.nl.sunAng = Math.random() * Math.PI * 2;
+    const S = this.map.size, R = NL.fog.r;
+    for (let i = 0; i < 40; i++) {
+      this.nl.fogX = R * 0.6 + Math.random() * (S - R * 1.2);
+      this.nl.fogY = R * 0.6 + Math.random() * (S - R * 1.2);
+      if (!this.grid.deepWater(this.nl.fogX, this.nl.fogY) && !this.grid.blocked(this.nl.fogX, this.nl.fogY, 30, true)) break;
+    }
+  }
+
+  /** La partida empieza con los jugadores ya dentro. */
+  beginMatch() {
+    this.nl.t = Number(process.env.NL_T0 ?? 0) || 0; // (solo para probar: empezar la partida ya avanzada)
+    this.nl.total = this.players.size;
+    for (const p of this.players.values()) this.nl.roster.set(p.id, { name: p.name, char: p.char, skin: p.skin, p });
+  }
+
+  fogR(t = this.nl.t) {
+    const F = NL.fog;
+    if (t < F.shrinkAt) return F.r;
+    if (t < F.shrinkEnd) return F.r + ((F.rEnd - F.r) * (t - F.shrinkAt)) / (F.shrinkEnd - F.shrinkAt);
+    if (t < F.gone) return F.rEnd * (1 - (t - F.shrinkEnd) / (F.gone - F.shrinkEnd));
+    return 0;
+  }
+  private sunFront(t = this.nl.t) {
+    const D = this.map.size * 0.72, k = Math.max(0, Math.min(1, (t - NL.sun.start) / NL.sun.cover));
+    return -D + 2 * D * k;
+  }
+  /** ¿Le da el sol a este punto? (el frente avanza desde un lado; la niebla lo tapa) */
+  sunlit(x: number, y: number) {
+    if (this.mode !== 'br' || this.nl.phase !== 'match' || this.nl.t < NL.sun.start) return false;
+    const S = this.map.size, a = this.nl.sunAng;
+    if ((x - S / 2) * Math.cos(a) + (y - S / 2) * Math.sin(a) >= this.sunFront()) return false;
+    return dist2(x, y, this.nl.fogX, this.nl.fogY) > this.fogR() ** 2;
+  }
+
+  private stepLobby(dt: number) {
+    const L = NL.lobby, R = this.map.ready;
+    const ps = [...this.players.values()];
+    const n = ps.length;
+    const ready = R ? ps.filter((p) => !p.dead && dist2(p.x, p.y, R.x, R.y) < R.r ** 2).length : 0;
+    const allReady = n >= L.minPlayers && ready === n;
+    if (allReady && !this.nl.allReady) this.nl.startIn = L.readyT;
+    this.nl.allReady = allReady;
+    if (n === 0) this.nl.autoT = L.autoT; else this.nl.autoT -= dt;
+    if (allReady) this.nl.startIn -= dt;
+    else this.nl.startIn = n >= L.minPlayers ? this.nl.autoT : -1;
+    if (n < L.minPlayers && this.nl.autoT <= 0) this.nl.autoT = L.autoT; // solo: el reloj vuelve a empezar
+    if (n >= L.minPlayers && ((allReady && this.nl.startIn <= 0) || this.nl.autoT <= 0)) {
+      this.nl.autoT = L.autoT; this.nl.startIn = -1; this.nl.allReady = false;
+      this.mgr?.startMatch(this);
+    }
+  }
+
+  private stepMatch(dt: number) {
+    const N = this.nl;
+    if (N.phase === 'podium') {
+      N.podiumT -= dt;
+      if (N.podiumT <= 0 && this.conns.size) {
+        for (const c of [...this.conns.values()]) {
+          const p = this.players.get(c.id);
+          this.removeConn(c);
+          if (p) this.mgr?.toLobby(c, p.char, p.skin, this.home);
+        }
+      }
+      return;
+    }
+    N.t += dt;
+    const t = N.t;
+    const alive = this.alivePlayers();
+    const pass = (NL.passiveXp.base + t * NL.passiveXp.perSec) * dt;
+    const AL = NL.altar, F = NL.sun;
+    for (const p of alive) {
+      this.addXp(p, pass);
+      // altares oscuros: experiencia creciente mientras sigues encima
+      if (this.map.altars.some((a) => dist2(p.x, p.y, a.x, a.y) < AL.r ** 2)) {
+        p.altarT = (p.altarT ?? 0) + dt;
+        this.addXp(p, Math.min(AL.max, AL.base + AL.perSec * p.altarT) * dt);
+        if (this.tick % 10 === 0) this.fx('drain', p.x, p.y + 20, { tx: Math.round(p.x), ty: Math.round(p.y - 40), o: p.id, n: 2, c: 'altar' });
+      } else p.altarT = 0;
+      // el sol quema (cada vez más, cuanto más tiempo sigues al sol)
+      if (this.sunlit(p.x, p.y) && p.protectT <= 0) {
+        p.sunT = (p.sunT ?? 0) + dt;
+        p.hp -= p.maxHp * Math.min(F.dpsMax, F.dps + F.dpsGrow * p.sunT) * dt;
+        p.lastAttacker = 'el amanecer';
+        if (p.hp <= 0) this.kill(p, { name: 'el amanecer', kind: Kind.Player, raw: true });
+      } else p.sunT = Math.max(0, (p.sunT ?? 0) - dt * 2);
+    }
+    const left = this.alivePlayers();
+    const hardEnd = t > NL.fog.gone + 45;
+    if ((N.total >= 2 && left.length <= 1) || left.length === 0 || hardEnd) this.endMatch(left);
+  }
+
+  private endMatch(left: Player[]) {
+    const N = this.nl;
+    N.phase = 'podium';
+    N.podiumT = NL.podiumT;
+    // puesto: los vivos primero (por vida), después en orden inverso de caída
+    const order: number[] = left.sort((a, b) => b.hp / b.maxHp - a.hp / a.maxHp).map((p) => p.id);
+    for (let i = N.deaths.length - 1; i >= 0; i--) if (!order.includes(N.deaths[i])) order.push(N.deaths[i]);
+    for (const id of N.roster.keys()) if (!order.includes(id)) order.push(id);
+    const ranked = order.map((id) => N.roster.get(id)!).filter(Boolean);
+    ranked.forEach((r, i) => {
+      const c = NL.coins[i] ?? 0;
+      const p = r.p;
+      if (c && this.players.get(p.conn.id) === p) { p.coinsEarned += c; p.conn.profile.coins += c; }
+      if (i === 0 && this.players.get(p.conn.id) === p) this.medal(p, 'nightlord');
+    });
+    store.touch();
+    const top = ranked.slice(0, 3).map((r) => [r.name, r.char, r.skin, r.p.brKills ?? 0, NL.coins[ranked.indexOf(r)] ?? 0] as [string, CharacterId, string, number, number]);
+    for (const c of this.conns.values()) {
+      const p = this.players.get(c.id);
+      const place = p ? ranked.findIndex((r) => r.p === p) + 1 : 0;
+      c.send({ t: 'nl', s: { ph: 'podium', top, place, coins: p?.coinsEarned ?? 0, left: NL.podiumT } });
+      c.send({ t: 'profile', profile: c.profile });
+    }
+  }
+
+  private revive(p: Player) {
+    p.dead = false; p.ecto = false;
+    p.hp = Math.round(p.maxHp * NL.ecto.reviveHp);
+    p.protectT = 2; p.lifeStart = this.time; p.sunT = 0;
+    p.anim = Anim.Idle; p.animUntil = 0;
+    this.nl.deaths = this.nl.deaths.filter((id) => id !== p.id);
+    this.fx('evolve', p.x, p.y, { o: p.id, n: 0, c: p.char });
+    this.sfx('evolve', p.x, p.y);
+    p.conn.send({ t: 'toast', text: '¡Has resucitado!', k: 'ectoRevive' });
+  }
+
+  /** Ectoplasma: vuela por el mapa; Q ralentiza alrededor, E vibra (poco daño). A los 9 min queda silenciado. */
+  private updateEcto(p: Player, dt: number) {
+    const E = NL.ecto, S = this.map.size;
+    const inp = p.queue.shift();
+    if (inp) { p.input = inp; p.ack = inp.q; }
+    let { mx, my } = p.input;
+    const { a, b } = p.input;
+    if (!inp) { mx = 0; my = 0; }
+    const sp = this.mode === 'br' && this.nl.phase === 'match' ? E.speed : 0;
+    const move = (x: number, y: number) => { p.x = Math.max(p.r, Math.min(S - p.r, p.x + x * sp * dt)); p.y = Math.max(p.r, Math.min(S - p.r, p.y + y * sp * dt)); };
+    move(mx, my);
+    p.moving = mx !== 0 || my !== 0;
+    if (p.queue.length > 1 && p.queue[0].b === p.input.b) { const ex = p.queue.shift()!; p.input = ex; p.ack = ex.q; move(ex.mx, ex.my); }
+    if (mx) p.facing = mx > 0 ? 1 : -1;
+    const cd = (p.ectoCd ??= [0, 0]);
+    cd[0] = Math.max(0, cd[0] - dt); cd[1] = Math.max(0, cd[1] - dt);
+    if (this.nl.t >= NL.silenceAt || this.nl.phase !== 'match') return;
+    const living = () => [...this.players.values()].filter((o) => !o.dead && o.protectT <= 0);
+    if (b & BTN_Q && cd[0] <= 0) {
+      cd[0] = E.q.cd;
+      for (const m of [...living(), ...this.npcs.values(), ...this.minions.values()]) if (dist2(m.x, m.y, p.x, p.y) < E.q.r ** 2) this.slow(m, E.q.t, E.q.mul);
+      this.fx('ectoQ', p.x, p.y, { o: p.id, r: E.q.r });
+      this.sfx('vanish', p.x, p.y);
+    }
+    if (b & BTN_E && cd[1] <= 0) {
+      cd[1] = E.e.cd;
+      const src: Source = { player: p, name: p.name, kind: Kind.Player, raw: true };
+      for (const m of [...living(), ...this.npcs.values()]) if (dist2(m.x, m.y, p.x, p.y) < (E.e.r + m.r) ** 2) this.damage(m, E.e.dmg, src);
+      this.fx('ectoE', p.x, p.y, { o: p.id, r: E.e.r });
+      this.sfx('zap', p.x, p.y);
+    }
+    void a;
+  }
+
+  private sendNight() {
+    if (this.mode === 'lobby') {
+      const ready = this.map.ready, ps = [...this.players.values()];
+      const s = { ph: 'lobby' as const, n: ps.length, ready: ready ? ps.filter((p) => !p.dead && dist2(p.x, p.y, ready.x, ready.y) < ready.r ** 2).length : 0, start: this.nl.startIn < 0 ? -1 : Math.ceil(this.nl.startIn), auto: !this.nl.allReady };
+      for (const c of this.conns.values()) c.send({ t: 'nl', s });
+      return;
+    }
+    if (this.nl.phase !== 'match') return;
+    const t = this.nl.t, F = NL.fog, Sun = NL.sun;
+    const D = this.map.size * 0.72;
+    const sunV = t >= Sun.start && t < Sun.start + Sun.cover ? (2 * D) / Sun.cover : 0;
+    const fogV = t < F.shrinkAt ? 0 : t < F.shrinkEnd ? (F.rEnd - F.r) / (F.shrinkEnd - F.shrinkAt) : t < F.gone ? -F.rEnd / (F.gone - F.shrinkEnd) : 0;
+    const s = {
+      ph: 'match' as const, t: Math.round(t), alive: this.alivePlayers().length, total: this.nl.total,
+      sun: [+this.nl.sunAng.toFixed(3), t < Sun.start ? -99999 : Math.round(this.sunFront()), +sunV.toFixed(2)] as [number, number, number],
+      fog: [Math.round(this.nl.fogX), Math.round(this.nl.fogY), Math.round(this.fogR()), +fogV.toFixed(2)] as [number, number, number, number],
+      sil: Math.max(0, Math.round(NL.silenceAt - t)),
+    };
+    for (const c of this.conns.values()) c.send({ t: 'nl', s });
   }
 
   // ------------------------------------------------------------------ red
@@ -2615,6 +3033,8 @@ export class Room {
     if (m.kind === Kind.Player && (m as Player).leap) f2 |= Flag2.Leaping;
     if (m.kind === Kind.Player && ((m as Player).k.engulfed ?? 0) > this.time) f2 |= Flag2.Engulfed;
     if (m.kind === Kind.Player && ((m as Player).k.darkEnd ?? 0) > this.time) f2 |= Flag2.Dim;
+    if (m.kind === Kind.Player && (m as Player).ecto) f2 |= Flag2.Ecto;
+    else if (this.mode === 'br' && m.kind === Kind.Player && !m.dead && this.sunlit(m.x, m.y)) f2 |= Flag2.Sunlit;
     if (f2) s.f2 = f2;
     if (m.hp < m.maxHp) s.h = Math.max(1, Math.round((m.hp / m.maxHp) * 100));
     if (m.drowsy > 0) s.z = Math.round(m.drowsy);
@@ -2687,7 +3107,7 @@ export class Room {
       const ents: EntSnap[] = [];
       const inView = (x: number, y: number) => dist2(cx, cy, x, y) < R2;
       for (const p of this.players.values()) {
-        if (p.dead || !inView(p.x, p.y)) continue;
+        if ((p.dead && !p.ecto) || !inView(p.x, p.y)) continue;
         if (p !== me && p.phaseT > 0 && this.grid.blocked(p.x, p.y, p.r * 0.5, true)) continue; // intangible dentro de un obstáculo: nadie lo ve
         if (p !== me && (p.k.tvEnd ?? 0) > this.time) continue; // Interferencia dentro de una tele
         const locked = me.char === 'r800' && me.k.lockId === p.id && (me.k.lockEnd ?? 0) > this.time; // R-800 ve a su objetivo fijado
@@ -2752,6 +3172,13 @@ export class Room {
         tier: me.tier, ult: Math.round(me.ult), ultOn: +me.ultT.toFixed(1),
       };
       if (me.flyT > 0 || me.phaseT > 0) you.fly = true;
+      if (me.trap) you.trap = me.trap;
+      if (me.ecto) {
+        you.alive = true; you.ecto = true; you.fly = true; you.st = this.nl.phase !== 'match';
+        you.spd = NL.ecto.speed; you.hp = 0;
+        you.cd = [0, +(me.ectoCd?.[0] ?? 0).toFixed(2), +(me.ectoCd?.[1] ?? 0).toFixed(2)]; you.cdm = [1, NL.ecto.q.cd, NL.ecto.e.cd];
+        if (this.nl.t >= NL.silenceAt) you.sil = true;
+      }
       if (qMax > 1) { you.qc = me.qCharges; you.qcm = qMax; }
       const eMax = KITS[me.char].eCharges?.(me) ?? 1;
       if (eMax > 1) { you.ec = me.k.ec ?? eMax; you.ecm = eMax; }

@@ -2,7 +2,8 @@
 import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, upgradeMax, type CharacterId, type UpgradeId } from '../shared/characters';
 import { CHARACTER_UNLOCK, hasCharacter, hasSkin, MEDALS, MEDAL_BY_ID, unlockPrice, type Profile } from '../shared/catalog';
 import { THEMES, type MapThemeId } from '../shared/maps';
-import { Anim, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
+import { Anim, Flag2, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
+import { NIGHTLORD } from '../shared/balance';
 import { initAudio, isMuted, playSfx, startMusic, toggleMute } from './audio';
 import { Game } from './game';
 import { startLogo } from './logo';
@@ -309,7 +310,7 @@ function toast(html: string) {
 const nameInput = $<HTMLInputElement>('name');
 nameInput.value = store.get('nl_name') ?? '';
 
-async function join(mode: 'random' | 'code' | 'create', code?: string) {
+async function join(mode: 'random' | 'code' | 'create' | 'nightlord', code?: string) {
   if (!isOwned(selChar)) { tryUnlock(selChar); return; }
   initAudio();
   startMusic();
@@ -321,13 +322,17 @@ async function join(mode: 'random' | 'code' | 'create', code?: string) {
   }
   // re-hello por si cambió el nombre
   net.send({ t: 'hello', token: savedToken(), name });
+  const th = $<HTMLSelectElement>('theme').value;
+  if (mode === 'create' && th === 'nightlord') mode = 'nightlord'; // crear una previa de El Señor de la Noche
   net.send({
     t: 'join', mode, code, char: selChar, skin: selSkin,
-    priv: $<HTMLInputElement>('priv').checked, theme: ($<HTMLSelectElement>('theme').value || undefined) as MapThemeId | undefined,
+    priv: mode === 'nightlord' ? mode === 'nightlord' && $<HTMLSelectElement>('theme').value === 'nightlord' && $<HTMLInputElement>('priv').checked : $<HTMLInputElement>('priv').checked,
+    theme: (th && th !== 'nightlord' ? th : undefined) as MapThemeId | undefined,
   });
 }
 
 $('play').onclick = () => join('random');
+$('playnl').onclick = () => join('nightlord');
 $('join').onclick = () => {
   const code = $<HTMLInputElement>('code').value.trim().toUpperCase();
   if (code.length !== 4) return showError(t('code4'));
@@ -348,7 +353,12 @@ $<HTMLDetailsElement>('modes').open = !!urlCode || (innerWidth > 860 && innerHei
 // ---------------------------------------------------------------------------
 function buildAbilities() {
   const d = CHARACTERS[tut?.char ?? selChar];
-  const items = [
+  const items = game.you?.ecto ? [
+    { key: '🖱', name: '—' },
+    { key: 'Q', name: t('ectoQ') },
+    { key: 'E', name: t('ectoE') },
+    { key: 'R', name: '—' },
+  ] : [
     { key: '🖱', name: tc(d.id).attack },
     { key: 'Q', name: tc(d.id).q[0] },
     { key: 'E', name: tc(d.id).e[0] },
@@ -358,11 +368,41 @@ function buildAbilities() {
 }
 
 let lastUpKey = '';
+/** Icono de una trampa (como imagen, para el HUD). */
+const trapImgs = new Map<string, string>();
+function trapImg(id: string) {
+  let u = trapImgs.get(id);
+  if (!u) { u = getItem(`trap_${id}`).base.toDataURL(); trapImgs.set(id, u); }
+  return u;
+}
+let lastTrap = '', lastEcto = false, lastNightKey = '';
 function updateHud() {
   const y = game.you;
   if (!y) return;
+  // trampa que llevas (X)
+  const trap = y.trap ?? '';
+  if (trap !== lastTrap) {
+    lastTrap = trap;
+    $('trapslot').hidden = !trap;
+    $('tb-trap').hidden = !trap;
+    if (trap) {
+      $('trapslot').innerHTML = `<img src="${trapImg(trap)}" alt=""><span>${t(`trapN_${trap}` as never)}</span> <kbd>X</kbd>`;
+      $('trapslot').title = t(`trapD_${trap}` as never);
+      $('tb-trap').innerHTML = `<img src="${trapImg(trap)}" alt="">`;
+      toast(`<img src="${trapImg(trap)}" style="width:30px;image-rendering:pixelated;vertical-align:middle"> <b>${t(`trapN_${trap}` as never)}</b><br><span style="font-family:var(--vt);font-size:16px">${t(`trapD_${trap}` as never)}</span><br>${t(input.touch.active ? 'trapUseTouch' : 'trapUse')}`);
+    }
+  }
+  // ectoplasma (El Señor de la Noche)
+  const ecto = !!y.ecto;
+  if (ecto !== lastEcto) { lastEcto = ecto; document.body.classList.toggle('ecto', ecto); buildAbilities(); }
+  renderNight();
+  if (ecto) {
+    $('hpfill').style.width = '100%';
+    $('hptext').textContent = t(y.sil ? 'ectoSil' : 'ectoHp');
+  } else {
   $('hpfill').style.width = `${(y.hp / y.mhp) * 100}%`;
   $('hptext').textContent = `${y.hp} / ${y.mhp}`;
+  }
   $('xpfill').style.width = `${(y.xp / y.xpn) * 100}%`;
   $('lvl').textContent = String(y.lvl);
   $('pts').textContent = t('pts', { n: y.pts });
@@ -414,11 +454,11 @@ function updateHud() {
   }
   $('lvl').classList.toggle('t1', y.tier === 1); $('lvl').classList.toggle('t2', y.tier === 2); $('lvl').classList.toggle('t3', y.tier >= 3);
   $('buffs').innerHTML = y.buffs.map((b) => `<span class="buff">${tb(b.t)}${b.t === 'horde' || b.t === 'mirrors' || b.t === 'thralls' ? ' ' + b.r : b.t === 'ambush' ? ' ' + Math.round(b.r) + '%' : b.r < 900 ? ' ' + Math.ceil(b.r) : ''}</span>`).join('');
-  const upKey = `${y.up}|${Object.values(y.ups).join(',')}|${y.lvl >= 15}`;
+  const upKey = `${y.up}|${Object.values(y.ups).join(',')}|${y.lvl >= 15}|${!!y.ecto}`;
   if (upKey !== lastUpKey) {
     lastUpKey = upKey;
     const box = $('upgrades');
-    box.hidden = y.up <= 0;
+    box.hidden = y.up <= 0 || !!y.ecto;
     box.innerHTML = `<div class="up-title">${y.up > 1 ? t('upMany', { n: y.up }) : t('upOne')}</div>` + UPGRADES.map((u) => {
       const lv = y.ups[u.id];
       const mx = upgradeMax(u, y.lvl);
@@ -434,6 +474,56 @@ $('rank').addEventListener('click', () => $('rank').classList.toggle('open'));
 function renderRank(list: [string, number, CharacterId, number][], total: number) {
   $('rank').innerHTML = `<div class="title">${t('rank')} · ${total}👤</div>` + list.map((r, i) =>
     `<div class="r${r[3] === myId ? ' me' : ''}"><span>${i === 0 ? '👑' : `${i + 1}.`} ${escapeHtml(r[0])}</span><span>${r[1]}</span></div>`).join('');
+}
+
+// ---------------------------------------------------------------------------
+// El Señor de la Noche: barra de estado y podio
+// ---------------------------------------------------------------------------
+const mmss = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+function renderNight() {
+  const n = game.night, bar = $('nlbar');
+  if (!n || n.ph === 'podium') { if (!bar.hidden) bar.hidden = true; document.body.classList.remove('nl'); return; }
+  document.body.classList.add('nl');
+  const me = game.ents.get(myId);
+  const hot = n.ph === 'match' && !!me && !!(me.f2 & Flag2.Sunlit);
+  const ecto = !!game.you?.ecto;
+  let html = '';
+  if (n.ph === 'lobby') {
+    html = `<span class="big">${t('nlTitle')}</span><br>${t('nlLobby', { n: n.n, r: n.ready })}<br>`;
+    html += n.n < NIGHTLORD.lobby.minPlayers ? t('nlWait') : n.start >= 0 ? (n.auto ? t('nlAuto', { s: mmss(n.start) }) : `<span class="big">${t('nlGo', { s: n.start })}</span>`) : '';
+    html += `<br><small>${t('nlReadyHint')}</small>`;
+  } else {
+    html = `⏱ ${mmss(n.t)} · ${t('nlAlive', { a: n.alive, n: n.total })}<br>`;
+    if (ecto) html += game.you?.sil ? t('nlEctoSil') : `${t('nlEcto')}${n.sil > 0 ? ` · ${t('nlSilIn', { s: n.sil })}` : ''}`;
+    else if (hot) html += `<span class="big">${t('nlBurn')}</span>`;
+    else if (n.sun[1] < -9999) html += t('nlSunIn', { s: Math.max(0, NIGHTLORD.sun.start - n.t) });
+    else html += n.fog[3] < 0 ? t('nlFogShrink') : t('nlSunMoves');
+  }
+  const key = html + hot + ecto;
+  if (key === lastNightKey) return;
+  lastNightKey = key;
+  bar.hidden = false;
+  bar.innerHTML = html;
+  bar.classList.toggle('hot', hot);
+  bar.classList.toggle('ecto', ecto);
+}
+
+let podiumT = 0;
+function showPodium(s: Extract<import('../shared/protocol').NightState, { ph: 'podium' }>) {
+  const box = $('podium');
+  const medal = ['🥇', '🥈', '🥉'];
+  const order = [1, 0, 2].filter((i) => s.top[i]); // 2º, 1º, 3º
+  box.innerHTML = `<h2>${t('podiumTitle')}</h2><div class="steps">${order.map((i) => { const r = s.top[i]; return `<div class="step p${i + 1}"><canvas data-c="${r[1]}" data-s="${r[2]}" width="${SW}" height="${SH}"></canvas><b>${medal[i]} ${escapeHtml(r[0])}</b>⚔ ${r[3]} · +${r[4]}🪙</div>`; }).join('')}</div>
+    <div class="you">${s.place ? t('podiumPlace', { p: s.place }) : ''} · ${t('podiumCoins', { c: s.coins })}</div><div class="back" id="podback"></div>`;
+  box.querySelectorAll<HTMLCanvasElement>('canvas').forEach((cv) => {
+    const fr = getFrame('monster', cv.dataset.c as CharacterId, cv.dataset.s ?? 'classic', Anim.Taunt, 1);
+    const c = cv.getContext('2d')!; c.imageSmoothingEnabled = false; c.drawImage(fr.base, 0, 0, SW, SH);
+  });
+  box.hidden = false;
+  let left = Math.round(s.left);
+  const tick = () => { const el = document.getElementById('podback'); if (el) el.textContent = t('podiumBack', { s: Math.max(0, left) }); left--; };
+  clearInterval(podiumT); tick(); podiumT = window.setInterval(tick, 1000);
+  playSfx('evolve');
 }
 
 function escapeHtml(s: string) {
@@ -472,6 +562,7 @@ input.onKey = (code) => {
   if (code === 'KeyG') net.send({ t: 'emote', e: 'wave' });
   if (code === 'KeyT') net.send({ t: 'emote', e: 'taunt' });
   if (code === 'KeyH') net.send({ t: 'emote', e: 'ally' });
+  if (code === 'KeyX') net.send({ t: 'trap' });
   const up = UPGRADES.find((u) => `Digit${u.key}` === code || `Numpad${u.key}` === code);
   if (up) net.send({ t: 'upgrade', u: up.id });
 };
@@ -575,6 +666,10 @@ net.on((m: ServerMsg) => {
     case 'joined': {
       myId = m.you;
       game.start(m);
+      $('podium').hidden = true;
+      clearInterval(podiumT);
+      lastNightKey = ''; lastTrap = '-'; lastEcto = false; document.body.classList.remove('ecto');
+      renderNight();
       buildAbilities();
       lastUpKey = '';
       const th = tt(m.theme);
@@ -584,7 +679,9 @@ net.on((m: ServerMsg) => {
       $('roominfo').style.pointerEvents = 'auto';
       $('roominfo').style.cursor = 'pointer';
       $('roominfo').onclick = () => { navigator.clipboard?.writeText(link); toast(t('linkCopied')); };
-      if (!tut && ($('menu').hidden === false || !$('death').hidden)) toast(`<b>${th.name}</b><br>${th.subtitle}`);
+      if (!tut && ($('menu').hidden === false || !$('death').hidden || m.theme === 'cemetery' || m.theme === 'cityz')) toast(`<b>${th.name}</b><br>${th.subtitle}`);
+      if (m.theme === 'cemetery') toast(t('nlLobbyHelp'));
+      if (m.theme === 'cityz') toast(t('nlMatchHelp'));
       showScreen('game');
       if (tut) { $('roominfo').textContent = `📖 ${tt2('lesson', { i: TUT_CHARS.indexOf(tut.char) + 1 })}`; $('roominfo').onclick = null; renderTut(); }
       else history.replaceState(null, '', `?sala=${m.code}`);
@@ -607,7 +704,19 @@ net.on((m: ServerMsg) => {
       setTimeout(() => { if (inGame && !game.alive) { showScreen('death'); } }, 1400);
       break;
     }
-    case 'toast': toast(escapeHtml((m.k && tk(m.k, m.a ?? {})) || m.text)); break;
+    case 'toast':
+      if (m.k === 'trapHit') toast(escapeHtml(t('trapHit', { t: t(`trapN_${m.a?.t}` as never) })));
+      else toast(escapeHtml((m.k && tk(m.k, m.a ?? {})) || m.text));
+      break;
+    case 'nl':
+      game.setNight(m.s);
+      renderNight();
+      if (m.s.ph === 'podium') showPodium(m.s);
+      break;
+    case 'alert':
+      game.addAlert(m.x, m.y, m.k);
+      playSfx('curse');
+      break;
     case 'medal': {
       const md = MEDAL_BY_ID[m.id];
       if (md) toast(`${md.icon} ${t('medalUnlocked')}<br>${tm(md.id).name}<br><span style="color:var(--gold)">${t('coinsPlus', { c: md.coins })}</span>`);
@@ -615,12 +724,13 @@ net.on((m: ServerMsg) => {
     }
     case 'rooms':
       $('rooms').innerHTML = m.list.length
-        ? m.list.map((r) => `<span class="room" data-code="${r.code}">${r.code} · ${tt(r.theme).name} · ${r.players}/${r.max}</span>`).join('')
+        ? m.list.map((r) => `<span class="room" data-code="${r.code}">${r.nl ? '🌅 ' : ''}${r.code} · ${r.nl ? t('playNl').replace(/^\S+\s/, '') : tt(r.theme).name} · ${r.players}/${r.max}</span>`).join('')
         : '';
       $('rooms').querySelectorAll<HTMLElement>('.room').forEach((el) => { el.onclick = () => join('code', el.dataset.code); });
       break;
     case 'left':
       game.stop();
+      game.setNight(null); renderNight(); $('podium').hidden = true; clearInterval(podiumT); document.body.classList.remove('ecto');
       if (tut) { endTut(); showScreen('tutorial'); break; }
       showScreen('menu');
       history.replaceState(null, '', location.pathname);
@@ -644,7 +754,7 @@ function retranslate() {
   tutStatic();
   if (!$('tutorial').hidden) buildTutorialScreen();
   if (tut) renderTut();
-  document.querySelectorAll<HTMLOptionElement>('#theme option').forEach((o) => { if (o.value) o.textContent = tt(o.value as MapThemeId).name; });
+  document.querySelectorAll<HTMLOptionElement>('#theme option').forEach((o) => { if (o.value && o.value !== 'nightlord') o.textContent = tt(o.value as MapThemeId).name; });
   buildAccount();
   refreshMenu();
   if (inGame) { buildAbilities(); lastUpKey = ''; }

@@ -1,14 +1,15 @@
 // Colisiones círculo-rectángulo con rejilla espacial de obstáculos (compartido servidor/cliente para predicción).
-import { MAP_SIZE } from './constants';
 import type { GameMap, Obstacle } from './maps';
 
 const CELL = 200;
 
 export class ObstacleGrid {
   cols: number;
+  size: number;
   cells: Obstacle[][];
   constructor(public map: GameMap) {
-    this.cols = Math.ceil(MAP_SIZE / CELL);
+    this.size = map.size;
+    this.cols = Math.ceil(map.size / CELL);
     this.cells = Array.from({ length: this.cols * this.cols }, () => []);
     for (const o of map.obstacles) {
       const x0 = Math.max(0, Math.floor(o.x / CELL)), x1 = Math.min(this.cols - 1, Math.floor((o.x + o.w) / CELL));
@@ -52,8 +53,8 @@ export class ObstacleGrid {
         }
       }
     }
-    nx = Math.max(r, Math.min(MAP_SIZE - r, nx));
-    ny = Math.max(r, Math.min(MAP_SIZE - r, ny));
+    nx = Math.max(r, Math.min(this.size - r, nx));
+    ny = Math.max(r, Math.min(this.size - r, ny));
     return { x: nx, y: ny, hit };
   }
 
@@ -71,7 +72,7 @@ export class ObstacleGrid {
       const ex = x - cx, ey = y - cy;
       if (ex * ex + ey * ey < r * r) return true;
     }
-    return x < r || y < r || x > MAP_SIZE - r || y > MAP_SIZE - r;
+    return x < r || y < r || x > this.size - r || y > this.size - r;
   }
 
   /** Línea de visión (el agua no bloquea). */

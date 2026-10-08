@@ -11,9 +11,11 @@ import { FR } from './lang/fr';
 import { CA } from './lang/ca';
 import { ZH } from './lang/zh';
 import { JA } from './lang/ja';
+import { addNightlordTexts } from './lang/nightlord';
 
 export type Lang = 'es' | 'eu' | 'en' | 'fr' | 'ca' | 'zh' | 'ja';
 const DICTS: Record<Lang, Dict> = { es: ES, eu: EU, en: EN, fr: FR, ca: CA, zh: ZH, ja: JA };
+addNightlordTexts(DICTS);
 
 /** Banderitas en pixel art (cada letra es un color). */
 const FLAGS: Record<Lang, { art: string[]; pal: Record<string, string>; name: string }> = {

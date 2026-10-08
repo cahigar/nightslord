@@ -1,4 +1,5 @@
 // Tipos de entidades del servidor (compartidos por la sala y los kits de personaje).
+import type { TrapId } from '../shared/balance';
 import type { HunterDef, HunterType } from '../shared/balance';
 import type { CharacterDef, CharacterId, UpgradeId } from '../shared/characters';
 import type { Anim, Kind, PowerUpType, ProjectileType } from '../shared/protocol';
@@ -77,6 +78,14 @@ export interface Player extends Mob {
   input: { mx: number; my: number; a: number; b: number; d: number };
   queue: { q: number; mx: number; my: number; a: number; b: number; d: number }[];
   ack: number;
+  /** Trampa que lleva encima (se coloca con la X). */
+  trap?: TrapId | null;
+  /** El Señor de la Noche: ectoplasma (muerto que vaga), segundos al sol, segundos en un altar, bajas de jugadores, posición final. */
+  ecto?: boolean;
+  sunT?: number;
+  altarT?: number;
+  brKills?: number;
+  ectoCd?: [number, number];
   // efectos
   speedT: number;
   furyT: number;
@@ -214,7 +223,8 @@ export interface Projectile {
 
 /** Zona temporal con efecto. Cápsula entre A y B (si A = B es un círculo de radio w/2).
  *  mistTrail: niebla del Conde · puddle: charca poco profunda (agua) · toxic: contaminación · meat: carne fresca */
-export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation' | 'whirl' | 'lastspell' | 'portal' | 'quicksand' | 'laser' | 'wax' | 'waxfire' | 'candle' | 'lightsout';
+export type ZoneKind = 'mistTrail' | 'puddle' | 'toxic' | 'meat' | 'holy' | 'ritual' | 'mirror' | 'glass' | 'nail' | 'storm' | 'fire' | 'hex' | 'thorns' | 'forest' | 'snare' | 'web' | 'bigweb' | 'thread' | 'wheat' | 'goo' | 'venom' | 'radiation' | 'whirl' | 'lastspell' | 'portal' | 'quicksand' | 'laser' | 'wax' | 'waxfire' | 'candle' | 'lightsout'
+  | 'trap_salt' | 'trap_seal' | 'trap_hand' | 'trap_eyes' | 'trap_ritual' | 'trap_candle' | 'trap_silence' | 'trap_blood';
 /** owner: id del jugador (o del cazador en 'holy' y 'ritual'). */
 export interface Zone { id: number; kind: ZoneKind; ax: number; ay: number; bx: number; by: number; w: number; until: number; born: number; owner: number; hit?: Set<number>; next?: number /* próximo evento (rayo del clavo) */; v?: number }
 

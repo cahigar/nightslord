@@ -127,6 +127,7 @@ function setupTouch() {
   };
   bind('tb-atk', BTN_ATTACK, true); bind('tb-q', BTN_Q, false); bind('tb-e', BTN_E, false); bind('tb-r', BTN_R, false);
   document.getElementById('tb-emote')!.addEventListener('touchstart', (e) => { input.onKey?.('KeyT'); e.preventDefault(); }, { passive: false });
+  document.getElementById('tb-trap')!.addEventListener('touchstart', (e) => { input.onKey?.('KeyX'); e.preventDefault(); }, { passive: false });
 }
 
 export function readMove(): { mx: number; my: number } {

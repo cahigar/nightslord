@@ -2,6 +2,7 @@
 import type { CharacterId, UpgradeId } from './characters';
 import type { Profile } from './catalog';
 import type { MapThemeId } from './maps';
+import type { TrapId } from './balance';
 
 export enum Kind { Player = 0, Npc = 1, Hunter = 2, PowerUp = 3, Projectile = 4, Minion = 5, Zone = 6, Prop = 7 }
 
@@ -43,9 +44,11 @@ export enum Flag2 {
   Engulfed = 32, // atrapado dentro del slime
   Hypnotized = 64, // hipnotizado: camina hacia la Interferencia o una tele
   Dim = 128, // Candle Man con la llama apagada: casi invisible fuera de la luz
+  Sunlit = 256, // al sol (El Señor de la Noche): se quema
+  Ecto = 512, // ectoplasma (El Señor de la Noche): muerto que vaga
 }
 
-export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp' | 'spirits' | 'boots' | 'shovel';
+export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp' | 'spirits' | 'boots' | 'shovel' | `trap_${TrapId}`;
 export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy'
   | 'nail' | 'nailback' | 'boulder' | 'potion0' | 'potion1' | 'potion2' | 'bigpotion0' | 'bigpotion1' | 'bigpotion2'
   | 'heart' | 'obj0' | 'obj1' | 'obj2' | 'obj3' | 'thorn' | 'skull' | 'hook' | 'cannon' | 'web' | 'crows' | 'crowsback' | 'fireball' | 'ember' | 'firewave' | 'bubble' | 'plasma' | 'noise' | 'tongue' | 'wbubble' | 'eye' | 'orb' | 'bonearrow' | 'egg' | 'twister' | 'bullet' | 'zapball' | 'rocket' | 'silver' | 'bigsilver' | 'candleflame' | 'waxglob';
@@ -97,7 +100,8 @@ export type FxId =
   | 'tvBolt' | 'tvPop' | 'lick' | 'reap' | 'deathMark' | 'blink' | 'unitBoom' | 'assimilate' | 'boneSlam' | 'boneWarn' | 'raise' | 'ghostRise' | 'critterPop'
   | 'lockOn' | 'asteroid' | 'hatch' | 'burrow' | 'quake' | 'spit' | 'arm' | 'buttStroke' | 'shapeshift'
   | 'zapHit' | 'rocketBoom' | 'sizzle' | 'roar' | 'chomp' | 'disarm' | 'huntSpin'
-  | 'waxed' | 'waxIgnite' | 'relight' | 'snuff' | 'candlePick' | 'lightsOut';
+  | 'waxed' | 'waxIgnite' | 'relight' | 'snuff' | 'candlePick' | 'lightsOut'
+  | 'ectoQ' | 'ectoE';
 
 export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
 
@@ -130,16 +134,20 @@ export interface YouState {
   kills: number;
   buffs: { t: string; r: number }[];
   fly?: boolean; // volando: la predicción ignora obstáculos
+  trap?: TrapId; // trampa que llevas (X para colocarla)
+  ecto?: boolean; // eres un ectoplasma (El Señor de la Noche)
+  sil?: boolean; // ectoplasma silenciado
 }
 
 // ---------- Cliente -> Servidor ----------
 export type ClientMsg =
   | { t: 'hello'; token?: string; name: string }
   | { t: 'login'; credential: string } // ID token de Google
-  | { t: 'join'; mode: 'random' | 'code' | 'create' | 'tutorial'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
+  | { t: 'join'; mode: 'random' | 'code' | 'create' | 'tutorial' | 'nightlord'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
   | { t: 'input'; q: number; mx: number; my: number; a: number; b: number; d?: number } // d: distancia al cursor
   | { t: 'emote'; e: 'wave' | 'taunt' | 'ally' }
   | { t: 'upgrade'; u: UpgradeId }
+  | { t: 'trap' } // coloca la trampa que llevas
   | { t: 'respawn'; char?: CharacterId; skin?: string }
   | { t: 'leave' }
   | { t: 'tut'; a: 'boost' | 'hunter' | 'hurt' } // pasos del tutorial (solo en su sala de práctica)
@@ -151,7 +159,13 @@ export type ClientMsg =
 // ---------- Servidor -> Cliente ----------
 /** Teles del mapa (solo existen si hay una Interferencia en la sala): ids con Cambio de canal y color de la Emisión nacional. */
 export interface TvState { ch?: number[]; bc?: string }
-export interface RoomInfo { code: string; players: number; max: number; theme: MapThemeId; priv: boolean }
+export interface RoomInfo { code: string; players: number; max: number; theme: MapThemeId; priv: boolean; nl?: boolean }
+
+/** Estado del modo El Señor de la Noche (1 vez por segundo). */
+export type NightState =
+  | { ph: 'lobby'; n: number; ready: number; start: number; auto: boolean } // start: segundos para empezar (-1 = esperando)
+  | { ph: 'match'; t: number; alive: number; total: number; sun: [number, number, number]; fog: [number, number, number, number]; sil: number } // sun: [ángulo, frente, velocidad]; fog: [x, y, radio, velocidad]
+  | { ph: 'podium'; top: [string, CharacterId, string, number, number][]; place: number; coins: number; left: number }; // nombre, personaje, skin, bajas, monedas
 
 export type ServerMsg =
   | { t: 'welcome'; profile: Profile; dev?: boolean; google?: string } // google: ID de cliente OAuth (si hay inicio de sesión)
@@ -165,4 +179,6 @@ export type ServerMsg =
   | { t: 'rooms'; list: RoomInfo[] }
   | { t: 'left' }
   | { t: 'error'; msg: string; k?: string }
-  | { t: 'pong'; c: number };
+  | { t: 'pong'; c: number }
+  | { t: 'nl'; s: NightState }
+  | { t: 'alert'; x: number; y: number; k: string }; // aviso en el mapa (Ojos rituales)

@@ -75,15 +75,16 @@ export function showSpriteSheet() {
 
 /** Visor de mapas (abre /#mapa o /#mapa=camp:1234): todo el mapa a 1 píxel de arte por píxel, sin oscuridad. */
 export async function showMapPreview(spec: string) {
-  const { generateMap, THEME_IDS } = await import('../shared/maps');
+  const { generateMap, ALL_THEME_IDS: THEME_IDS } = await import('../shared/maps');
   const { Terrain } = await import('./terrain');
   const { renderObstacle, renderDecor, renderTV } = await import('./tiles');
-  const { MAP_SIZE, PIXEL } = await import('../shared/constants');
+  const { PIXEL } = await import('../shared/constants');
   const [t, sd] = spec.split(':');
   const theme = (THEME_IDS as string[]).includes(t) ? (t as (typeof THEME_IDS)[number]) : 'elm';
   const map = generateMap(theme, Number(sd) || 1234);
   const cv = document.createElement('canvas');
   const M = 300; // margen exterior visible
+  const MAP_SIZE = map.size;
   const S = (MAP_SIZE + 2 * M) / PIXEL;
   cv.width = S; cv.height = S;
   Object.assign(cv.style, { imageRendering: 'pixelated' });

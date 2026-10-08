@@ -1,10 +1,13 @@
 // Mapas procedurales deterministas: servidor y cliente generan el mismo mapa a partir de (tema, semilla).
 // Se usa ruido (fBm) para bosques, lagos y terreno, y caminos serpenteantes por "random walk".
 import { MAP_SIZE } from './constants';
+
+/** Tamaño del mapa que se está generando (cada tema puede tener el suyo). */
+let MS = MAP_SIZE;
 import { fbm } from './noise';
 import { mulberry32, rint, rpick, rrange, type Rng } from './rng';
 
-export type MapThemeId = 'elm' | 'transylvania' | 'camp' | 'swamp' | 'nile' | 'jungle';
+export type MapThemeId = 'elm' | 'transylvania' | 'camp' | 'swamp' | 'nile' | 'jungle' | 'cemetery' | 'cityz';
 
 export type ObstacleType =
   | 'house' | 'fence' | 'tree' | 'car' | 'hedge' | 'lamp' | 'mailbox'
@@ -13,7 +16,8 @@ export type ObstacleType =
   | 'shop' | 'barricade'
   | 'cypress' | 'hut' | 'cauldron'
   | 'pyramid' | 'sphinx' | 'obelisk' | 'column' | 'palm' | 'adobe'
-  | 'jtree' | 'temple' | 'ruin' | 'tent' | 'crate';
+  | 'jtree' | 'temple' | 'ruin' | 'tent' | 'crate'
+  | 'block' | 'wreck' | 'barn' | 'hay';
 
 export type DecorType =
   | 'bones' | 'pumpkin' | 'candle' | 'skull' | 'tricycle' | 'cross' | 'mushroom' | 'stump' | 'lantern' | 'sign' | 'reeds' | 'totem'
@@ -67,9 +71,18 @@ export const THEMES: Record<MapThemeId, MapTheme> = {
   swamp: { id: 'swamp', name: 'Pantano de la Bruja', subtitle: 'El caldero lleva siglos sin apagarse', ambient: '#050e08', moon: 'rgba(120,200,120,' },
   nile: { id: 'nile', name: 'Orillas del Nilo', subtitle: 'Algo se mueve bajo el agua', ambient: '#0e0a14', moon: 'rgba(210,180,120,' },
   jungle: { id: 'jungle', name: 'Jungla Jurásica', subtitle: 'La expedición no volvió del templo', ambient: '#04100a', moon: 'rgba(120,210,150,' },
+  cemetery: { id: 'cemetery', name: 'Cementerio', subtitle: 'Los monstruos se reúnen antes del amanecer', ambient: '#0a0812', moon: 'rgba(150,140,220,' },
+  cityz: { id: 'cityz', name: 'Ciudad Z', subtitle: 'Nadie quedó vivo tras la invasión... casi nadie', ambient: '#0a0a0c', moon: 'rgba(170,190,160,' },
 };
 
-export const THEME_IDS = Object.keys(THEMES) as MapThemeId[];
+/** Mapas del modo normal (rotación de salas). El Cementerio y la Ciudad Z son del modo El Señor de la Noche. */
+export const THEME_IDS: MapThemeId[] = ['elm', 'transylvania', 'camp', 'swamp', 'nile', 'jungle'];
+export const ALL_THEME_IDS = Object.keys(THEMES) as MapThemeId[];
+/** Tamaño de cada mapa (los que no aparecen usan MAP_SIZE). */
+export const MAP_SIZES: Partial<Record<MapThemeId, number>> = { cemetery: 2000, cityz: 5600 };
+export const mapSizeOf = (t: MapThemeId) => MAP_SIZES[t] ?? MAP_SIZE;
+/** Variante de humano zombi (Ciudad Z): 'z:citizen'. */
+export const isZombieNpc = (variant: string) => variant.startsWith('z:');
 
 /** Humanos que pasean por cada mapa. */
 export const NPC_VARIANTS: Record<MapThemeId, string[]> = {
@@ -79,6 +92,8 @@ export const NPC_VARIANTS: Record<MapThemeId, string[]> = {
   swamp: ['villager', 'camper', 'priest', 'maid'],
   nile: ['fellah', 'fellah', 'tourist', 'archaeologist'],
   jungle: ['explorer', 'explorer', 'porter', 'scientist'],
+  cemetery: ['gravedigger', 'priest', 'villager', 'maid'],
+  cityz: ['z:citizen', 'z:citizen', 'z:citizen', 'z:survivor', 'z:soldier', 'survivor', 'survivor'],
 };
 
 
@@ -101,6 +116,10 @@ export interface GameMap {
   edges: Record<Side, EdgeKind>;
   /** Obstáculos decorativos fuera del área jugable (solo visuales). */
   border: Obstacle[];
+  /** Altares oscuros (dan experiencia mientras estás encima, modo El Señor de la Noche). */
+  altars: { x: number; y: number }[];
+  /** Círculo de «listos» de la previa (Cementerio). */
+  ready?: { x: number; y: number; r: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -164,13 +183,32 @@ export function waterAt(map: GameMap, x: number, y: number) {
 const MARGIN = 100;
 const hashTV = (o: Obstacle) => { const n = Math.sin(o.x * 12.9898 + o.y * 78.233) * 43758.5453; return n - Math.floor(n); };
 
+const PCELL = 240;
 class Placer {
   obs: Obstacle[] = [];
+  /** Rejilla espacial para comprobar huecos rápido (los mapas grandes tienen miles de obstáculos). */
+  private cells = new Map<number, Obstacle[]>();
   constructor(public r: Rng, public trails: Trail[], public blocked: (x: number, y: number) => boolean = () => false) {}
 
+  private index(o: Obstacle) {
+    const x0 = Math.floor(o.x / PCELL), x1 = Math.floor((o.x + o.w) / PCELL), y0 = Math.floor(o.y / PCELL), y1 = Math.floor((o.y + o.h) / PCELL);
+    for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
+      const k = cx * 4096 + cy;
+      let c = this.cells.get(k);
+      if (!c) this.cells.set(k, (c = []));
+      c.push(o);
+    }
+  }
+
+  push(...list: Obstacle[]) { for (const o of list) { this.obs.push(o); this.index(o); } }
+
   free(x: number, y: number, w: number, h: number, pad: number, trailPad = 20) {
-    if (x < MARGIN || y < MARGIN || x + w > MAP_SIZE - MARGIN || y + h > MAP_SIZE - MARGIN) return false;
-    for (const o of this.obs) if (x < o.x + o.w + pad && x + w + pad > o.x && y < o.y + o.h + pad && y + h + pad > o.y) return false;
+    if (x < MARGIN || y < MARGIN || x + w > MS - MARGIN || y + h > MS - MARGIN) return false;
+    const x0 = Math.floor((x - pad) / PCELL), x1 = Math.floor((x + w + pad) / PCELL), y0 = Math.floor((y - pad) / PCELL), y1 = Math.floor((y + h + pad) / PCELL);
+    for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) {
+      const c = this.cells.get(cx * 4096 + cy);
+      if (c) for (const o of c) if (x < o.x + o.w + pad && x + w + pad > o.x && y < o.y + o.h + pad && y + h + pad > o.y) return false;
+    }
     for (const t of this.trails) if (distToTrail(t, x + w / 2, y + h / 2) < t.w / 2 + Math.max(w, h) / 2 + trailPad) return false;
     if (this.blocked(x, y) || this.blocked(x + w, y) || this.blocked(x, y + h) || this.blocked(x + w, y + h) || this.blocked(x + w / 2, y + h / 2)) return false;
     return true;
@@ -178,7 +216,7 @@ class Placer {
 
   add(type: ObstacleType, x: number, y: number, w: number, h: number, v = rint(this.r, 0, 3)) {
     const o: Obstacle = { x: Math.round(x), y: Math.round(y), w, h, type, v };
-    this.obs.push(o);
+    this.push(o);
     return o;
   }
 
@@ -188,7 +226,7 @@ class Placer {
   }
 
   scatter(type: ObstacleType, n: number, w: number, h: number, pad: number, area?: [number, number, number, number], tries = 25) {
-    const [ax, ay, aw, ah] = area ?? [MARGIN, MARGIN, MAP_SIZE - 2 * MARGIN, MAP_SIZE - 2 * MARGIN];
+    const [ax, ay, aw, ah] = area ?? [MARGIN, MARGIN, MS - 2 * MARGIN, MS - 2 * MARGIN];
     let placed = 0;
     for (let i = 0; i < n * tries && placed < n; i++) {
       if (this.tryAdd(type, rrange(this.r, ax, ax + aw - w), rrange(this.r, ay, ay + ah - h), w, h, pad)) placed++;
@@ -200,7 +238,7 @@ class Placer {
   cluster(type: ObstacleType, n: number, w: number, h: number, pad: number, seed: number, scale: number, threshold: number) {
     let placed = 0;
     for (let i = 0; i < n * 12 && placed < n; i++) {
-      const x = rrange(this.r, MARGIN, MAP_SIZE - MARGIN - w), y = rrange(this.r, MARGIN, MAP_SIZE - MARGIN - h);
+      const x = rrange(this.r, MARGIN, MS - MARGIN - w), y = rrange(this.r, MARGIN, MS - MARGIN - h);
       if (fbm(x, y, seed, scale, 3) < threshold) continue;
       if (this.tryAdd(type, x, y, w, h, pad)) placed++;
     }
@@ -245,7 +283,7 @@ function riverObstacles(r: River): Obstacle[] {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const [x, y] of r.pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
   x0 = Math.max(0, Math.floor((x0 - r.w) / C) * C); y0 = Math.max(0, Math.floor((y0 - r.w) / C) * C);
-  x1 = Math.min(MAP_SIZE, x1 + r.w); y1 = Math.min(MAP_SIZE, y1 + r.w);
+  x1 = Math.min(MS, x1 + r.w); y1 = Math.min(MS, y1 + r.w);
   for (let y = y0; y < y1; y += C) {
     let run = -1;
     for (let x = x0; x <= x1 + C; x += C) {
@@ -294,8 +332,8 @@ function houseTV(o: Obstacle, idx: number, id: number): TV | null {
 
 /** Franja exterior temática: el mundo continúa, pero se entiende que no se puede pasar. */
 function buildBorder(r: Rng, theme: MapThemeId, edges: Record<Side, EdgeKind>, trails: Trail[]): Obstacle[] {
-  const S = MAP_SIZE, D = BORDER_DEPTH, out: Obstacle[] = [];
-  const treeType: ObstacleType = theme === 'elm' ? 'tree' : theme === 'transylvania' ? 'deadtree' : theme === 'swamp' ? 'cypress' : theme === 'nile' ? 'palm' : theme === 'jungle' ? 'jtree' : 'pine';
+  const S = MS, D = BORDER_DEPTH, out: Obstacle[] = [];
+  const treeType: ObstacleType = theme === 'elm' || theme === 'cityz' ? 'tree' : theme === 'cemetery' ? 'deadtree' : theme === 'transylvania' ? 'deadtree' : theme === 'swamp' ? 'cypress' : theme === 'nile' ? 'palm' : theme === 'jungle' ? 'jtree' : 'pine';
   const nearRoad = (x: number, y: number, pad: number) => trails.some((t) => t.kind === 'road' && distToTrail(t, x, y) < t.w / 2 + pad);
   const add = (type: ObstacleType, x: number, y: number, w: number, h: number, v = rint(r, 0, 3)) => {
     if (nearRoad(x + w / 2, y + h / 2, Math.max(w, h) / 2 + 6)) return;
@@ -375,9 +413,147 @@ function buildBorder(r: Rng, theme: MapThemeId, edges: Record<Side, EdgeKind>, t
 }
 
 // ---------------------------------------------------------------------------
+// Modo El Señor de la Noche: Cementerio (previa) y Ciudad Z (partida)
+// ---------------------------------------------------------------------------
+function genCemetery(r: Rng, S: number, seed: number, trails: Trail[], plazas: GameMap['plazas'], decor: Decor[]) {
+  const c = S / 2;
+  const ready = { x: c, y: c, r: 150 };
+  plazas.push({ x: c - 240, y: c - 240, w: 480, h: 480, kind: 'stone' });
+  // cuatro caminos empedrados desde el círculo de los listos
+  for (const [ex, ey] of [[c + rrange(r, -200, 200), -BORDER_DEPTH], [c + rrange(r, -200, 200), S + BORDER_DEPTH], [-BORDER_DEPTH, c + rrange(r, -200, 200)], [S + BORDER_DEPTH, c + rrange(r, -200, 200)]] as [number, number][]) {
+    trails.push(windingTrail(r, [c, c], [ex, ey], 70, 'cobble', 120));
+  }
+  const P = new Placer(r, trails, (x, y) => Math.hypot(x - c, y - c) < 300);
+  for (let k = 0; k < 4; k++) { const a = Math.PI / 4 + (k * Math.PI) / 2; P.add('brazier', c + Math.cos(a) * 250 - 13, c + Math.sin(a) * 250 - 13, 26, 26, 0); }
+  // un mausoleo por cuadrante y filas de tumbas
+  for (const [qx, qy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const ax = qx ? c + 300 : MARGIN + 40, ay = qy ? c + 300 : MARGIN + 40, aw = c - 300 - MARGIN - 40, ah = aw;
+    P.scatter('crypt', 1, 150, 110, 60, [ax, ay, aw, ah], 40);
+    for (let row = ay + 30; row < ay + ah - 40; row += 74) {
+      for (let col = ax + 20; col < ax + aw - 30; col += rint(r, 56, 72)) {
+        if (r() < 0.7) P.tryAdd(r() < 0.12 ? 'statue' : 'tomb', col + rint(r, -6, 6), row + rint(r, -6, 6), 28, 34, 10, 10);
+      }
+    }
+  }
+  P.cluster('deadtree', 30, 50, 50, 40, seed + 3, 300, 0.5);
+  for (let k = 0; k < 50; k++) decor.push({ x: rrange(r, 80, S - 80), y: rrange(r, 80, S - 80), type: rpick(r, ['candle', 'candle', 'cross', 'skull', 'bones', 'pumpkin'] as const), v: rint(r, 0, 3) });
+  for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; decor.push({ x: c + Math.cos(a) * 175, y: c + Math.sin(a) * 175, type: 'candle', v: k % 3 }); } // velas alrededor del círculo
+  return { P, ready };
+}
+
+function genCityZ(r: Rng, S: number, seed: number, trails: Trail[], plazas: GameMap['plazas'], decor: Decor[], lakes: Lake[], rivers: River[], altars: GameMap['altars'], shops: Obstacle[]): Placer {
+  const west = r() < 0.5; // lado del agua (río, lagos y marismas)
+  const rx = west ? S * 0.17 : S * 0.83;
+  // ciudad: rejilla de calles en el centro, desplazada hacia el lado contrario al agua
+  const cx0 = west ? S * 0.3 : S * 0.12, cx1 = west ? S * 0.88 : S * 0.7, cy0 = S * 0.18, cy1 = S * 0.8;
+  const xs: number[] = [], ys: number[] = [];
+  for (let x = cx0; x <= cx1 + 1; x += 580) xs.push(Math.round(x + rint(r, -50, 50)));
+  for (let y = cy0; y <= cy1 + 1; y += 580) ys.push(Math.round(y + rint(r, -50, 50)));
+  const hw = ys[Math.floor(ys.length / 2)], vw = xs[Math.floor(xs.length / 2)];
+  for (const x of xs) trails.push(x === vw ? { pts: [[x, -BORDER_DEPTH], [x, S + BORDER_DEPTH]], w: 120, kind: 'road' } : { pts: [[x, cy0 - 160], [x, cy1 + 160]], w: 100, kind: 'road' });
+  for (const y of ys) trails.push(y === hw ? { pts: [[-BORDER_DEPTH, y], [S + BORDER_DEPTH, y]], w: 120, kind: 'road' } : { pts: [[cx0 - 160, y], [cx1 + 160, y]], w: 100, kind: 'road' });
+  // río ancho
+  const river: River = { ...windingTrail(r, [rx + rrange(r, -150, 150), -BORDER_DEPTH], [rx + rrange(r, -150, 150), S + BORDER_DEPTH], 0, 'dirt', 300), w: 210, seed: seed + 21, bridges: [], vertical: true };
+  for (const pt of river.pts) pt[0] = Math.max(rx - 260, Math.min(rx + 260, pt[0]));
+  // caminos de tierra hacia las granjas (uno cruza el río por un puente de madera)
+  const farmYs = [S * 0.1, S * 0.9];
+  trails.push(windingTrail(r, [vw, cy0 - 160], [rrange(r, S * 0.3, S * 0.7), 40], 60, 'dirt', 260));
+  trails.push(windingTrail(r, [vw, cy1 + 160], [rrange(r, S * 0.3, S * 0.7), S - 40], 60, 'dirt', 260));
+  trails.push(windingTrail(r, [west ? cx0 - 160 : cx1 + 160, ys[0]], [west ? 40 : S - 40, farmYs[0] + rrange(r, 200, 600)], 56, 'dirt', 260));
+  trails.push(windingTrail(r, [west ? cx1 + 160 : cx0 - 160, ys[ys.length - 1]], [west ? S - 40 : 40, farmYs[1] - rrange(r, 200, 600)], 56, 'dirt', 260));
+  findBridges(river, trails);
+  rivers.push(river);
+  // lagos y charcas en el lado del agua
+  const wx = west ? S * 0.06 : S * 0.94;
+  for (const fy of [0.28, 0.66]) lakes.push({ cx: wx + rrange(r, -60, 60), cy: S * fy + rrange(r, -150, 150), rx: rrange(r, 200, 260), ry: rrange(r, 240, 340), seed: seed + 40 + fy * 10 });
+  const reserved: [number, number, number, number][] = [];
+  const inRes = (x: number, y: number) => reserved.some(([a, b, w, h]) => x > a && x < a + w && y > b && y < b + h);
+  const P = new Placer(r, trails, (x, y) => riverValue(river, x, y) > -60 || lakes.some((l) => lakeValue(l, x, y) > -0.2) || inRes(x, y));
+  P.push(...riverObstacles(river));
+  for (const l of lakes) P.push(...lakeObstacles(l));
+  // altares oscuros: plaza de la ciudad, junto al agua y en el campo
+  const altarAt = (x: number, y: number) => { altars.push({ x: Math.round(x), y: Math.round(y) }); plazas.push({ x: x - 90, y: y - 90, w: 180, h: 180, kind: 'stone' }); reserved.push([x - 110, y - 110, 220, 220]); };
+  const bi = Math.floor(xs.length / 2) - 1, bj = Math.floor(ys.length / 2) - 1;
+  const sqx = (xs[Math.max(0, bi)] + xs[Math.max(1, bi + 1)]) / 2, sqy = (ys[Math.max(0, bj)] + ys[Math.max(1, bj + 1)]) / 2;
+  plazas.push({ x: sqx - 210, y: sqy - 210, w: 420, h: 420, kind: 'stone' });
+  altarAt(sqx, sqy);
+  reserved.push([sqx - 220, sqy - 220, 440, 440]);
+  const tryAltar = (ax: number, ay: number, aw: number, ah: number) => {
+    for (let k = 0; k < 60; k++) {
+      const x = rrange(r, ax, ax + aw), y = rrange(r, ay, ay + ah);
+      if (x < 300 || y < 300 || x > S - 300 || y > S - 300 || !P.free(x - 110, y - 110, 220, 220, 10, 10) || altars.some((a) => Math.hypot(a.x - x, a.y - y) < 1300)) continue;
+      altarAt(x, y); return;
+    }
+  };
+  tryAltar(west ? rx + 200 : rx - 600, S * 0.3, 400, S * 0.4); // junto al río
+  tryAltar(S * 0.15, 200, S * 0.7, S * 0.12); // campo norte
+  tryAltar(S * 0.15, S * 0.86, S * 0.7, S * 0.12); // campo sur
+  tryAltar(200, 200, S - 400, S - 400);
+  // manzanas de la ciudad: bloques de pisos en ruinas, tiendas saqueadas y parques
+  const cityRect: [number, number, number, number] = [cx0 - 200, cy0 - 200, cx1 - cx0 + 400, cy1 - cy0 + 400];
+  for (let i = 0; i < xs.length - 1; i++) for (let j = 0; j < ys.length - 1; j++) {
+    const x0 = xs[i] + 70, x1 = xs[i + 1] - 70, y0 = ys[j] + 70, y1 = ys[j + 1] - 70;
+    const area: [number, number, number, number] = [x0, y0, x1 - x0, y1 - y0];
+    if (r() < 0.14) { P.scatter('tree', 6, 60, 60, 40, area); P.scatter('lamp', 2, 16, 16, 60, area); continue; } // parque
+    const nb = rint(r, 3, 5);
+    for (let k = 0; k < nb; k++) { if (r() < 0.75) P.scatter('block', 1, rint(r, 150, 210), rint(r, 120, 160), 34, area, 30); else P.scatter('house', 1, rint(r, 160, 200), rint(r, 120, 150), 34, area, 30); }
+    if (r() < 0.45) { const sw = 210, sh = 132; const o = P.tryAdd('shop', rrange(r, x0, x1 - sw), rrange(r, y0, y1 - sh), sw, sh, 30); if (o) shops.push(o); }
+    P.scatter('crate', rint(r, 1, 3), 30, 26, 20, area);
+    P.scatter('barricade', r() < 0.3 ? 1 : 0, 120, 20, 30, area);
+    for (let k = 0; k < 3; k++) decor.push({ x: rrange(r, x0, x1), y: rrange(r, y0, y1), type: rpick(r, ['bones', 'skull', 'sign'] as const), v: rint(r, 0, 3) });
+  }
+  // coches calcinados y farolas por las calles
+  for (const t of trails) {
+    if (t.kind !== 'road') continue;
+    const [a, b] = [t.pts[0], t.pts[t.pts.length - 1]];
+    const vert = a[0] === b[0];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    for (let d = 200; d < len - 100; d += rint(r, 240, 420)) {
+      const px = a[0] + ((b[0] - a[0]) * d) / len, py = a[1] + ((b[1] - a[1]) * d) / len;
+      if (r() < 0.42) {
+        const off = rpick(r, [-26, 26]);
+        if (vert) P.tryAdd('wreck', px + off - 27, py - 48, 54, 96, 30, -1000); else P.tryAdd('wreck', px - 48, py + off - 27, 96, 54, 30, -1000);
+      }
+      if (r() < 0.4) { if (vert) P.tryAdd('lamp', px + t.w / 2 + 12, py, 16, 16, 30, -200); else P.tryAdd('lamp', px, py + t.w / 2 + 8, 16, 16, 30, -200); }
+    }
+  }
+  reserved.push(cityRect);
+  // afueras: granjas con granero, pacas de heno y campos vallados
+  for (let k = 0; k < 9; k++) {
+    for (let tries = 0; tries < 40; tries++) {
+      const fw = rint(r, 460, 620), fh = rint(r, 340, 460);
+      const fx = rrange(r, MARGIN, S - MARGIN - fw), fy = rrange(r, MARGIN, S - MARGIN - fh);
+      if (!P.free(fx - 30, fy - 30, fw + 60, fh + 60, 40, 20)) continue;
+      plazas.push({ x: fx, y: fy, w: fw, h: fh, kind: 'dirt' });
+      P.add('barn', fx + 20, fy + 20, 210, 160, rint(r, 0, 3));
+      P.add('house', fx + fw - 200, fy + 30, 180, 140, rint(r, 0, 3));
+      for (let h = 0; h < 6; h++) P.tryAdd('hay', fx + rrange(r, 30, fw - 70), fy + rrange(r, 220, fh - 50), 40, 30, 16, 0);
+      P.add('fence', fx, fy + fh, fw / 2 - 50, 20, 0); P.add('fence', fx + fw / 2 + 50, fy + fh, fw / 2 - 50, 20, 0);
+      P.add('fence', fx, fy, 20, fh, 0); P.add('fence', fx + fw - 20, fy, 20, fh, 0);
+      decor.push({ x: fx + fw / 2, y: fy + fh + 30, type: 'sign', v: 0 });
+      break;
+    }
+  }
+  // campamento de supervivientes
+  P.scatter('tent', 3, 96, 66, 40);
+  P.scatter('firepit', 2, 50, 36, 300);
+  // bosquecillos y árboles sueltos fuera de la ciudad
+  for (let i = 0, placed = 0; i < 2600 && placed < 260; i++) {
+    const x = rrange(r, MARGIN, S - MARGIN - 60), y = rrange(r, MARGIN, S - MARGIN - 60);
+    if (fbm(x, y, seed + 5, 520, 3) < 0.48) continue;
+    if (P.tryAdd(r() < 0.25 ? 'deadtree' : 'tree', x, y, 56, 56, 26)) placed++;
+  }
+  P.scatter('rock', 26, 44, 34, 40);
+  P.scatter('wreck', 10, 96, 54, 50);
+  for (let k = 0; k < 120; k++) decor.push({ x: rrange(r, 80, S - 80), y: rrange(r, 80, S - 80), type: rpick(r, ['bones', 'skull', 'stump', 'mushroom', 'bones'] as const), v: rint(r, 0, 3) });
+  for (const l of lakes) for (let k = 0; k < 8; k++) { const a = r() * Math.PI * 2; decor.push({ x: l.cx + Math.cos(a) * l.rx * 1.12, y: l.cy + Math.sin(a) * l.ry * 1.15, type: 'reeds', v: rint(r, 0, 3) }); }
+  return P;
+}
+
+// ---------------------------------------------------------------------------
 export function generateMap(theme: MapThemeId, seed: number): GameMap {
   const r = mulberry32(seed);
-  const S = MAP_SIZE;
+  const S = (MS = MAP_SIZES[theme] ?? MAP_SIZE);
   const trails: Trail[] = [];
   const lakes: Lake[] = [];
   const plazas: GameMap['plazas'] = [];
@@ -386,6 +562,8 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
   const pools: Pool[] = [];
   const tvs: TV[] = [];
   const shops: Obstacle[] = [];
+  const altars: GameMap['altars'] = [];
+  let ready: GameMap['ready'];
   let P: Placer;
 
   if (theme === 'elm') {
@@ -402,7 +580,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     const parkCx = (bxEdges[parkBx] + bxEdges[parkBx + 1]) / 2, parkCy = (byEdges[parkBy] + byEdges[parkBy + 1]) / 2;
     lakes.push({ cx: parkCx, cy: parkCy, rx: 170, ry: 120, seed: seed + 7 });
     P = new Placer(r, trails, (x, y) => lakes.some((l) => lakeValue(l, x, y) > -0.25));
-    for (const l of lakes) P.obs.push(...lakeObstacles(l));
+    for (const l of lakes) P.push(...lakeObstacles(l));
     // Casas por parcelas, mirando a la calle más cercana
     for (let bx = 0; bx < 4; bx++) for (let by = 0; by < 4; by++) {
       const x0 = bxEdges[bx] + 70, x1 = bxEdges[bx + 1] - 70, y0 = byEdges[by] + 70, y1 = byEdges[by + 1] - 70;
@@ -466,7 +644,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     }
     rivers.push(river);
     P = new Placer(r, trails, (x, y) => (x > cx - 60 && x < cx + 860 && y > cy - 60 && y < cy + 700) || riverValue(river, x, y) > -40);
-    P.obs.push(...riverObstacles(river));
+    P.push(...riverObstacles(river));
     // Castillo
     const t = 40;
     P.add('wall', cx, cy, 800, t, 0);
@@ -531,7 +709,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
       trails.push(windingTrail(r, door, [ex, ey], 54, 'dirt', 260));
     }
     P = new Placer(r, trails, (x, y) => lakes.some((l) => lakeValue(l, x, y) > -0.2) || (x > hx - 140 && x < hx + 360 && y > hy - 90 && y < hy + 270));
-    for (const l of lakes) P.obs.push(...lakeObstacles(l));
+    for (const l of lakes) P.push(...lakeObstacles(l));
     P.add('hut', hx, hy, 220, 160, 0);
     P.add('cauldron', hx + 280, hy + 150, 44, 36, 0);
     for (const [dx, dy] of [[-100, 40], [-80, 210], [300, 20]]) decor.push({ x: hx + dx, y: hy + dy, type: 'totem', v: rint(r, 0, 3) });
@@ -565,7 +743,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     const tx = other[0] + rrange(r, 40, Math.max(41, other[2] - tw - 40)), ty = S / 2 - thh / 2 + rint(r, -500, 500);
     plazas.push({ x: tx, y: ty, w: tw, h: thh, kind: 'stone' });
     P = new Placer(r, trails, (x, y) => riverValue(river, x, y) > -70 || (x > tx - 40 && x < tx + tw + 40 && y > ty - 40 && y < ty + thh + 40));
-    P.obs.push(...riverObstacles(river));
+    P.push(...riverObstacles(river));
     for (let x = tx + 20; x < tx + tw - 30; x += 96) { P.add('column', x, ty + 10, 28, 28, rint(r, 0, 3)); if (r() < 0.75) P.add('column', x, ty + thh - 40, 28, 28, rint(r, 0, 3)); }
     for (let y = ty + 110; y < ty + thh - 110; y += 96) { P.add('column', tx + 10, y, 28, 28, 1); P.add('column', tx + tw - 38, y, 28, 28, 2); }
     P.add('statue', tx + tw / 2 - 20, ty + thh / 2 - 20, 40, 40, 0);
@@ -592,6 +770,10 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     P.cluster('palm', 24, 52, 52, 24, seed + 9, 260, 0.62);
     P.scatter('rock', 16, 44, 34, 50);
     for (let k = 0; k < 26; k++) decor.push({ x: rrange(r, 80, S - 80), y: rrange(r, 80, S - 80), type: rpick(r, ['bones', 'skull', 'urn', 'urn', 'bones'] as const), v: rint(r, 0, 3) });
+  } else if (theme === 'cemetery') {
+    ({ P, ready } = genCemetery(r, S, seed, trails, plazas, decor));
+  } else if (theme === 'cityz') {
+    P = genCityZ(r, S, seed, trails, plazas, decor, lakes, rivers, altars, shops);
   } else if (theme === 'jungle') {
     // Jungla: un río poco profundo con corriente cruza de oeste a este; templo en ruinas y campamento de la expedición
     const ry = S * (0.38 + r() * 0.24);
@@ -613,7 +795,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     trails.push(windingTrail(r, [tX + 160, tY + 120], [rpick(r, [40, S - 40]), tY + rrange(r, -300, 300)], 50, 'dirt', 260));
     P = new Placer(r, trails, (x, y) => riverValue(river, x, y) > -40 || lakes.some((l) => lakeValue(l, x, y) > -0.2)
       || (x > tX - 120 && x < tX + 440 && y > tY - 90 && y < tY + 330) || (x > cX - 60 && x < cX + 380 && y > cY - 60 && y < cY + 280));
-    for (const l of lakes) P.obs.push(...lakeObstacles(l));
+    for (const l of lakes) P.push(...lakeObstacles(l));
     // templo escalonado en ruinas, con bloques caídos
     P.add('temple', tX, tY, 320, 220, 0);
     for (const [dx, dy] of [[-90, 40], [350, 60], [-70, 250], [380, 250]]) P.add('ruin', tX + dx, tY + dy, 70, 40, rint(r, 0, 3));
@@ -653,7 +835,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
       if (cut !== 0 && cut !== 1) trails.push(tr);
     }
     P = new Placer(r, trails, (x, y) => lakeValue(lake, x, y) > -0.2 || (x > fx - 230 && x < fx + 230 && y > fy - 180 && y < fy + 180));
-    P.obs.push(...lakeObstacles(lake));
+    P.push(...lakeObstacles(lake));
     P.add('firepit', fx - 25, fy - 18, 50, 36, 0);
     P.add('log', fx - 120, fy - 90, 80, 24, 0); P.add('log', fx + 40, fy + 60, 80, 24, 1);
     // Cabañas en anillo alrededor del claro
@@ -708,7 +890,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
         const ax = f.winX + 1 + Math.floor((winW / n) * k) + 1, ay = H - f.F + f.winY + 3;
         tvs.push({ id: tid++, x: o.x + ax * 3, y: o.y + ay * 3, w: 8 * 3, h: 7 * 3, kind: 'shop', host: i });
       }
-    } else if (o.type === 'house' && theme === 'elm' && hashTV(o) < 0.16) {
+    } else if (o.type === 'house' && (theme === 'elm' || theme === 'cityz') && hashTV(o) < 0.16) {
       const tv = houseTV(o, i, tid);
       if (tv) { tvs.push(tv); tid++; }
     } else if (o.type === 'cabin' && hashTV(o) < 0.3) {
@@ -717,7 +899,7 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     }
   });
   // televisores abandonados a la intemperie (inquietantes)
-  const outdoor = theme === 'transylvania' ? 9 : theme === 'camp' || theme === 'swamp' || theme === 'nile' || theme === 'jungle' ? 8 : 4; // solo se ven si hay una Interferencia en la sala
+  const outdoor = theme === 'cityz' ? 14 : theme === 'transylvania' ? 9 : theme === 'camp' || theme === 'swamp' || theme === 'nile' || theme === 'jungle' ? 8 : 4; // solo se ven si hay una Interferencia en la sala
   for (let k = 0, tries = 0; k < outdoor && tries < 80; tries++) {
     const x = rrange(r, 200, S - 200), y = rrange(r, 200, S - 200);
     if (!P.free(x - 20, y - 20, 40, 34, 20)) continue;
@@ -734,6 +916,8 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
     swamp: ['forest', 'water', 'forest', 'graves'],
     nile: ['cliff', 'forest', 'cliff', 'water'],
     jungle: ['forest', 'forest', 'water', 'cliff'],
+    cemetery: ['graves', 'wall', 'graves', 'forest'],
+    cityz: ['houses', 'fence', 'forest', 'houses'],
   };
   const edges = {} as Record<Side, EdgeKind>;
   let usedWater = false, usedCliff = false;
@@ -749,5 +933,5 @@ export function generateMap(theme: MapThemeId, seed: number): GameMap {
   // Quitar decoración que caiga sobre obstáculos
   const clean = decor.filter((d) => !obstacles.some((o) => d.x > o.x - 20 && d.x < o.x + o.w + 20 && d.y > o.y - 20 && d.y < o.y + o.h + 20));
   void shops;
-  return { theme, seed, size: S, obstacles, decor: clean, trails, lakes, plazas, rivers, pools, water, tvs, edges, border };
+  return { theme, seed, size: S, obstacles, decor: clean, trails, lakes, plazas, rivers, pools, water, tvs, edges, border, altars, ready };
 }

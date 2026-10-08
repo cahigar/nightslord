@@ -9,6 +9,37 @@ export const CATCH_UP = { milestones: [5], mul: 2 }; // nunca se reaparece por e
 /** Tutorial: personajes de práctica, XP acelerada y Cazador de práctica más blando. */
 export const TUTORIAL = { chars: ['vampire', 'mummy', 'zombie'] as const, themes: ['transylvania', 'camp', 'elm'] as const, xpMul: 3, hunterDmg: 0.4, hunterHp: 0.6, npcSpeed: 0.6 };
 
+/** Modo «El Señor de la Noche» (todos contra todos, sin reaparecer). Tiempos en segundos. */
+export const NIGHTLORD = {
+  lobby: { readyT: 10, autoT: 180, minPlayers: 2 },
+  matchT: 600, // duración aproximada: a los 10 min la niebla ya casi ha desaparecido
+  silenceAt: 540, // a los 9 min los ectoplasmas quedan silenciados para siempre
+  podiumT: 9,
+  xpMul: 2, // la experiencia de bajas y objetos rinde el doble
+  passiveXp: { base: 6, perSec: 0.04 }, // experiencia por segundo para todos los vivos (crece con el tiempo)
+  altar: { r: 70, base: 10, perSec: 3, max: 60 }, // experiencia por segundo encima de un altar (crece mientras sigues encima)
+  sun: { start: 45, cover: 480, dps: 0.02, dpsGrow: 0.012, dpsMax: 0.09 }, // % de la vida máxima por segundo (crece con el tiempo al sol)
+  fog: { r: 950, shrinkAt: 500, shrinkEnd: 600, rEnd: 160, gone: 690 }, // círculo de niebla que tapa el sol
+  ecto: { speed: 300, q: { r: 230, t: 2, mul: 0.4, cd: 9 }, e: { r: 120, dmg: 9, cd: 2.5 }, reviveHp: 0.5 },
+  coins: [100, 50, 25], killCoins: 15,
+  npcs: 150, powerups: 70, traps: 26,
+};
+
+/** Trampas: se recogen del mapa (como mucho una) y se colocan con la X. */
+export type TrapId = 'salt' | 'seal' | 'hand' | 'eyes' | 'ritual' | 'candle' | 'silence' | 'blood';
+export const TRAP_IDS: TrapId[] = ['salt', 'seal', 'hand', 'eyes', 'ritual', 'candle', 'silence', 'blood'];
+export const TRAPS = {
+  arm: 0.8, stepR: 44, perMap: 9,
+  salt: { r: 120, t: 14 },
+  seal: { t: 60, mul: 1.3, life: 90 },
+  hand: { root: 5, life: 90 },
+  eyes: { r: 300, life: 120, cd: 6 },
+  ritual: { delay: 3 },
+  candle: { r: 300, t: 18, sight: 150 },
+  silence: { t: 5, life: 90 },
+  blood: { dmg: 0.18, life: 90 }, // fracción de la vida máxima de quien la pisa
+};
+
 export const tierOf = (level: number) => (level >= 15 ? 3 : level >= 10 ? 2 : level >= 5 ? 1 : 0);
 
 /** Carga de la definitiva (R): se gana con bajas, no con el tiempo. */

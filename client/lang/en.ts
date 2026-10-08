@@ -17,7 +17,7 @@ export const EN: Dict = {
     createRoom: 'Create room',
     modesTitle: 'Join by code or create a room',
     medals: '🏅 Medals',
-    help: '<b>WASD</b> move · <b>Mouse</b> aim · <b>Click / Space</b> attack · <b>Q / right click</b> and <b>E</b> abilities · <b>R</b> ultimate (level 10)<br /><b>1-4</b> upgrades on level up · <b>G</b> wave · <b>T</b> taunt · <b>H</b> alliance · <b>I</b> info · <b>M</b> mute',
+    help: '<b>WASD</b> move · <b>Mouse</b> aim · <b>Click / Space</b> attack · <b>Q / right click</b> and <b>E</b> abilities · <b>R</b> ultimate (level 10)<br /><b>1-4</b> upgrades on level up · <b>G</b> wave · <b>T</b> taunt · <b>H</b> alliance · <b>I</b> info · <b>M</b> mute · <b>X</b> trap',
     guest: '👤 You are playing as a <b>guest</b>: your progress is lost when you close the browser.',
     accountNote: 'Sign in with Google to keep your coins, medals and purchases. We only use your email to identify you: <b>we will never send you advertising</b>.',
     privacy: 'Privacy',

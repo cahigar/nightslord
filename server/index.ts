@@ -165,9 +165,13 @@ wss.on('connection', (ws: WebSocket, req) => {
         }
         const { char, skin } = validChoice(c, msg.char, msg.skin);
         let target = null;
-        if (msg.mode === 'code') {
+        if (msg.mode === 'nightlord') {
+          // El Señor de la Noche: a la previa (pública o una privada nueva)
+          target = msg.priv ? rooms.create(true, undefined, false, 'lobby') : rooms.findLobby();
+        } else if (msg.mode === 'code') {
           target = msg.code ? rooms.get(msg.code) : undefined;
           if (!target) return send({ t: 'error', msg: 'No existe ninguna sala con ese código.', k: 'noRoom' });
+          if (target.mode === 'br') return send({ t: 'error', msg: 'Esa partida ya ha empezado: espera en la previa a la siguiente.', k: 'matchRunning' });
           if (target.isFull) return send({ t: 'error', msg: 'La sala está llena.', k: 'roomFull' });
         } else if (msg.mode === 'create') {
           target = rooms.create(!!msg.priv, msg.theme);
@@ -183,6 +187,9 @@ wss.on('connection', (ws: WebSocket, req) => {
         break;
       case 'emote':
         if (msg.e === 'wave' || msg.e === 'taunt' || msg.e === 'ally') room?.onEmote(c, msg.e);
+        break;
+      case 'trap':
+        room?.onTrap(c);
         break;
       case 'upgrade':
         if (UPGRADES.some((u) => u.id === msg.u)) room?.onUpgrade(c, msg.u);

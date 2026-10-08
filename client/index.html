@@ -76,6 +76,7 @@
             <div class="coins">🪙 <span id="coins">0</span></div>
           </div>
           <button id="play" class="btn big" data-i18n="play"></button>
+          <button id="playnl" class="btn nlbtn"><span data-i18n="playNl"></span><small data-i18n="playNlSub"></small></button>
           <details id="modes" class="modes">
           <summary data-i18n="modesTitle"></summary>
           <div class="row">
@@ -91,6 +92,7 @@
               <option value="swamp"></option>
               <option value="nile"></option>
               <option value="jungle"></option>
+              <option value="nightlord" data-i18n="nlCreate"></option>
             </select>
             <label class="check"><input type="checkbox" id="priv" /> <span data-i18n="private"></span></label>
             <button id="create" class="btn" data-i18n="createRoom"></button>
@@ -141,7 +143,7 @@
     <canvas id="minimap" width="160" height="160"></canvas>
     <div id="upgrades" hidden></div>
     <div id="bottom">
-      <div id="buffs"></div>
+      <div class="buffrow"><div id="trapslot" hidden></div><div id="buffs"></div></div>
       <div class="bars">
         <div class="lvl" id="lvl">1</div>
         <div class="barstack">
@@ -152,6 +154,8 @@
       </div>
       <div id="abilities"></div>
     </div>
+    <div id="nlbar" hidden></div>
+    <div id="podium" class="panel podium" hidden></div>
     <div id="toast"></div>
     <div id="infopanel" class="panel" hidden></div>
     <div id="tutpanel" hidden></div>
@@ -183,6 +187,7 @@
       <button id="tb-e"><i class="cd"></i><b>E</b><small></small></button>
       <button id="tb-r"><i class="cd"></i><b>R</b><small></small></button>
       <button id="tb-emote">😜</button>
+      <button id="tb-trap" hidden></button>
     </div>
   </div>
 

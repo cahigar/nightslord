@@ -3,13 +3,13 @@ import { CHARACTERS, type CharacterId } from '../shared/characters';
 import { pixelizeShapes } from './pixelshapes';
 import { MAP_SIZE, PIXEL, TICK_DT } from '../shared/constants';
 import { BORDER_DEPTH, currentAt, generateMap, THEMES, tvLinks, tvSpot, type GameMap, type MapThemeId, type Obstacle } from '../shared/maps';
-import { BAL, CURRENT, isBeast, tierOf } from '../shared/balance';
-import { Ambient } from './ambient';
+import { BAL, CURRENT, isBeast, NIGHTLORD, TRAPS, tierOf } from '../shared/balance';
+import { Ambient, setAmbientMapSize } from './ambient';
 import { Effects, pixelEllipse } from './effects';
 import { t as tr, tally, tc, th as thunter, tpu } from './i18n';
 import { Terrain } from './terrain';
 import { ObstacleGrid } from '../shared/physics';
-import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type ServerMsg, type TvState, type YouState } from '../shared/protocol';
+import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type NightState, type ServerMsg, type TvState, type YouState } from '../shared/protocol';
 import { playSfx, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
@@ -51,6 +51,27 @@ export class Game {
   burnt = new Map<number, { flame: number; until: number }>();
   /** Teles del mapa (solo si hay una Interferencia en la sala). */
   tv: TvState | null = null;
+  /** El Señor de la Noche: estado recibido (y cuándo, para extrapolar el sol y la niebla). */
+  night: (NightState & { at: number }) | null = null;
+  /** Avisos en el mapa (Ojos rituales). */
+  alerts: { x: number; y: number; until: number; k: string }[] = [];
+  setNight(s: NightState | null) { this.night = s ? { ...s, at: performance.now() } : null; }
+  addAlert(x: number, y: number, k: string) { this.alerts.push({ x, y, k, until: performance.now() + 4500 }); }
+  /** Sol y niebla en este instante (solo en partida). */
+  sky(now = performance.now()) {
+    const n = this.night;
+    if (!n || n.ph !== 'match') return null;
+    const dt = (now - n.at) / 1000;
+    const [ang, front, sv] = n.sun, [fx, fy, fr, fv] = n.fog;
+    return { ang, front: front < -9999 ? -99999 : front + sv * dt, fx, fy, fr: Math.max(0, fr + fv * dt) };
+  }
+  sunlitAt(x: number, y: number) {
+    const k = this.sky();
+    if (!k || !this.map) return false;
+    const S = this.map.size;
+    if ((x - S / 2) * Math.cos(k.ang) + (y - S / 2) * Math.sin(k.ang) >= k.front) return false;
+    return (x - k.fx) ** 2 + (y - k.fy) ** 2 > k.fr ** 2;
+  }
 
   // predicción
   private seq = 0;
@@ -123,9 +144,12 @@ export class Game {
     this.you = null;
     this.pending = [];
     this.corr = { x: 0, y: 0 };
+    this.alerts = [];
     if (!sameMap) {
+      this.night = null;
       this.theme = msg.theme;
       this.map = generateMap(msg.theme, msg.seed);
+      setAmbientMapSize(this.map.size);
       this.grid = new ObstacleGrid(this.map);
       this.art.clear();
       this.terrain = new Terrain(this.map);
@@ -260,7 +284,7 @@ export class Game {
 
   /** Movimiento predicho: con colisiones, o libre si vuela. */
   private predMove(x: number, y: number, dx: number, dy: number, aqua: boolean, fly: boolean) {
-    if (fly) return { x: Math.max(18, Math.min(MAP_SIZE - 18, x + dx)), y: Math.max(18, Math.min(MAP_SIZE - 18, y + dy)) };
+    if (fly) { const S = this.map?.size ?? MAP_SIZE; return { x: Math.max(18, Math.min(S - 18, x + dx)), y: Math.max(18, Math.min(S - 18, y + dy)) }; }
     const c = this.ents.get(this.youId)?.c as CharacterId | undefined;
     const rad = (c && CHARACTERS[c]?.radius) || 18;
     const r = this.grid.move(x, y, dx, dy, rad, aqua);
@@ -453,7 +477,7 @@ export class Game {
     this.decals = this.decals.filter((d) => d.life > 0);
     this.effects.update(dt);
     this.effects.draw(ctx, 'ground', now);
-    for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) this.effects.drawZone(ctx, e.c, e.rx, e.ry, e.rr ?? 60, (e.h ?? 100) / 100, now, e.id % 97, e.bx, e.by);
+    for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) { if (e.c.startsWith('trap_')) this.drawTrap(ctx, e, now); else this.effects.drawZone(ctx, e.c, e.rx, e.ry, e.rr ?? 60, (e.h ?? 100) / 100, now, e.id % 97, e.bx, e.by); }
     this.drawScentTrails(ctx, now);
 
     // decoración del suelo
@@ -464,6 +488,8 @@ export class Game {
       ctx.drawImage(art.base, d.x, d.y, w, h);
       if (art.glow) glows.push({ img: art.glow, x: d.x, y: d.y, w, h, flip: false, a: 1 });
     }
+
+    this.drawNightGround(ctx, now, inView);
 
     // cadáveres
     for (const c of this.corpses) {
@@ -546,7 +572,7 @@ export class Game {
       if (!inView(e.rx, e.ry) || e.k === Kind.Projectile || e.k === Kind.Zone) continue;
       draws.push({ y: e.ry, fn: () => this.drawEnt(ctx, e, now, glows) });
       if (e.k === Kind.Npc) {
-        const held = e.c.startsWith('c_') ? 'none' : npcLook(e.c, e.id % 97).held; // las alimañas no llevan luz
+        const held = e.c.startsWith('c_') || e.c.startsWith('z:') ? 'none' : npcLook(e.c, e.id % 97).held; // las alimañas y los zombis no llevan luz
         if (held === 'flashlight') cones.push({ x: e.rx + e.f * 20, y: e.ry - 40, a: e.f === 1 ? 0 : Math.PI });
         else if (held === 'torch') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 60, r: 200, c: 'warm', flicker: true });
         else if (held === 'lantern' || held === 'candle') dyn.push({ x: e.rx + e.f * 14, y: e.ry - 40, r: 130, c: 'warm', flicker: true });
@@ -624,13 +650,14 @@ export class Game {
     this.ambient.update(dt, camX, camY, W / z, H / z);
     this.ambient.drawFog(ctx, vx0, vy0, vx1, vy1);
     this.drawEdgeFog(ctx, vx0, vy0, vx1, vy1);
+    this.drawFogRing(ctx, now, vx0, vy0, vx1, vy1);
 
     // iluminación
     this.drawLighting(ctx, W, H, camX, camY, z, now, me, dyn, cones);
     // Gusarena bajo tierra: no ve el mapa, solo las pisadas de quien se mueve cerca
     if (meEnt && meEnt.c === 'worm' && meEnt.fl & Flag.Submerged && this.alive) this.drawUnderground(ctx, W, H, z, camX, camY, now, me);
     // cegado por los cuervos (o en la oscuridad de Candle Man): casi no ves más allá de ti
-    if (this.you?.buffs.some((b) => b.t === 'blind') || [...this.ents.values()].some((z) => z.k === Kind.Zone && z.c === 'lightsout' && z.o !== this.youId && (me.x - z.rx) ** 2 + (me.y - z.ry) ** 2 < (z.rr ?? 500) ** 2)) {
+    if (this.you?.buffs.some((b) => b.t === 'blind') || [...this.ents.values()].some((z) => z.k === Kind.Zone && ((z.c === 'lightsout' && z.o !== this.youId) || z.c === 'trap_candle') && (me.x - z.rx) ** 2 + (me.y - z.ry) ** 2 < (z.rr ?? 500) ** 2)) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       const sx = W / 2 + (me.x - this.cam.x) * z, sy = H * this.focusY + (me.y - 40 - this.cam.y) * z;
       const g = ctx.createRadialGradient(sx, sy, 60 * z, sx, sy, 260 * z);
@@ -655,6 +682,7 @@ export class Game {
 
     // UI en coordenadas de mundo (nombres, vida, números)
     for (const e of this.ents.values()) if (inView(e.rx, e.ry)) this.drawOverlay(ctx, e, now);
+    this.drawAlerts(ctx, now, me, W / z, H / z);
     ctx.textAlign = 'center';
     for (const f of this.floaters) {
       f.life -= dt; f.y -= 40 * dt;
@@ -697,7 +725,7 @@ export class Game {
     };
     const flick = (l: Light) => (l.flicker ? 1 + Math.sin(now / 90 + l.x) * 0.05 + Math.random() * 0.04 : 1);
     // Se apagaron las luces (Candle Man): dentro de la zona de otro no hay luces y apenas se ve
-    const outs = [...this.ents.values()].filter((z) => z.k === Kind.Zone && z.c === 'lightsout' && z.o !== this.youId);
+    const outs = [...this.ents.values()].filter((z) => z.k === Kind.Zone && ((z.c === 'lightsout' && z.o !== this.youId) || z.c === 'trap_candle'));
     const dimmed = (x: number, y: number) => outs.some((z) => (x - z.rx) ** 2 + (y - z.ry) ** 2 < (z.rr ?? 500) ** 2);
     const blind = dimmed(me.x, me.y);
     hole(me.x, me.y - 30, blind ? 120 : this.alive ? 330 : 260, 0.92);
@@ -716,6 +744,10 @@ export class Game {
       dc.fillStyle = g;
       dc.beginPath(); dc.moveTo(px, py); dc.arc(px, py, pr, c.a - 0.3, c.a + 0.3); dc.closePath(); dc.fill();
     }
+    // amanecer (El Señor de la Noche): donde da el sol, es de día
+    const sky = this.sky(now);
+    const sunPath = sky && sky.front > -99999 ? this.sunPath(sky, camX, camY, z, W, H) : null;
+    if (sunPath) { dc.save(); dc.clip(sunPath.half); dc.fillStyle = 'rgba(0,0,0,0.9)'; dc.fill(sunPath.minusFog, 'evenodd'); dc.restore(); }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(d, 0, 0, W, H);
@@ -745,6 +777,7 @@ export class Game {
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.moveTo(px, py); ctx.arc(px, py, pr, c.a - 0.3, c.a + 0.3); ctx.closePath(); ctx.fill();
     }
+    if (sunPath) { ctx.save(); ctx.clip(sunPath.half); ctx.fillStyle = 'rgba(255,160,80,0.16)'; ctx.fill(sunPath.minusFog, 'evenodd'); ctx.restore(); }
     ctx.globalCompositeOperation = 'source-over';
     real.globalCompositeOperation = 'lighter';
     real.drawImage(gcv, 0, 0, W, H);
@@ -763,6 +796,7 @@ export class Game {
   private drawEnt(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     const x = e.rx, y = e.ry;
     if (e.k === Kind.Prop) { this.drawProp(ctx, e.c, x, y, 1, glows); return; }
+    if (e.k === Kind.Player && e.f2 & Flag2.Ecto) { this.drawEcto(ctx, e, now, glows); return; }
     // tu propio disfraz: ves en qué te has convertido (y tu silueta, tenue)
     if (e.id === this.youId && e.fl & Flag.Disguised && e.g) {
       const [gk, ga, gb] = e.g.split(':');
@@ -1010,6 +1044,13 @@ export class Game {
     }
     if (e.f2 & Flag2.Engulfed) { ctx.globalAlpha = 0.45; ctx.fillStyle = '#60d040'; ctx.fillRect(dx, dy, w, h); ctx.globalAlpha = 1; }
     if (e.f2 & Flag2.Burning) this.drawFlames(ctx, x, y - lift, h, now, e.id);
+    if (e.f2 & Flag2.Sunlit) {
+      // al sol: la piel humea y se enrojece
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.22 + Math.sin(now / 100) * 0.08;
+      ctx.filter = 'sepia(1) saturate(6) hue-rotate(-30deg)'; blit(fr.base); ctx.filter = 'none';
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      if (Math.random() < 0.5) this.particles.push({ x: x + (Math.random() - 0.5) * 26, y: y - 20 - Math.random() * 60, vx: (Math.random() - 0.5) * 10, vy: -40 - Math.random() * 30, life: 0.8, max: 0.8, color: Math.random() < 0.6 ? '#8a8078' : '#ffb040', size: Math.random() < 0.3 ? 6 : 3, grav: -10 });
+    }
     if (e.f2 & Flag2.Blind) for (let i = 0; i < 3; i++) { const a = now / 200 + i * 2.1; ctx.fillStyle = '#141018'; ctx.fillRect(Math.round((x + Math.cos(a) * 16) / 3) * 3, Math.round((y - h + 6 - lift + Math.sin(a) * 5) / 3) * 3, 6, 3); }
     if (e.fl & Flag.Poison) {
       // envenenado: burbujas tóxicas que suben, gotas que caen y una calavera de vapor de vez en cuando
@@ -1316,7 +1357,7 @@ export class Game {
 
   /** Niebla espesa más allá del borde jugable: el mundo sigue, pero se pierde en la bruma. */
   private drawEdgeFog(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number) {
-    const S = MAP_SIZE, D = BORDER_DEPTH;
+    const S = this.map?.size ?? MAP_SIZE, D = BORDER_DEPTH;
     const amb = parseInt(THEMES[this.theme].ambient.slice(1), 16);
     const rgb = `${(amb >> 16) & 255},${(amb >> 8) & 255},${amb & 255}`;
     const band = (gx0: number, gy0: number, gx1: number, gy1: number, rx: number, ry: number, rw: number, rh: number) => {
@@ -1429,7 +1470,7 @@ export class Game {
 
   /** ¿Está este punto bajo alguna luz del mapa? (Candle Man apagado solo se ve ahí) */
   private litAt(x: number, y: number) {
-    const outs = [...this.ents.values()].filter((z) => z.k === Kind.Zone && z.c === 'lightsout' && z.o !== this.youId);
+    const outs = [...this.ents.values()].filter((z) => z.k === Kind.Zone && ((z.c === 'lightsout' && z.o !== this.youId) || z.c === 'trap_candle'));
     if (outs.some((z) => (x - z.rx) ** 2 + (y - z.ry) ** 2 < (z.rr ?? 500) ** 2)) return false; // apagón: aquí no hay luz
     for (const l of this.lights) if ((x - l.x) ** 2 + (y - l.y) ** 2 < (l.r * 0.55) ** 2) return true;
     for (const z of this.ents.values()) if (z.k === Kind.Zone && (z.c === 'fire' || z.c === 'waxfire') && (x - z.rx) ** 2 + (y - z.ry) ** 2 < ((z.rr ?? 40) * 1.5) ** 2) return true;
@@ -1592,6 +1633,7 @@ export class Game {
 
   private drawOverlay(ctx: CanvasRenderingContext2D, e: CEnt, now: number) {
     if (e.k === Kind.PowerUp || e.k === Kind.Projectile || e.k === Kind.Zone || e.k === Kind.Prop) return;
+    if (e.f2 & Flag2.Ecto) return; // el ectoplasma lleva su propio nombre
     if (e.fl & Flag.Invisible && e.id !== this.youId) return;
     if (e.fl & Flag.Submerged && e.id !== this.youId) return;
     if (e.f2 & Flag2.Dim && e.id !== this.youId && !this.litAt(e.rx, e.ry)) return;
@@ -1679,7 +1721,7 @@ export class Game {
   minimap(mm: HTMLCanvasElement) {
     if (!this.map) return;
     const c = mm.getContext('2d')!;
-    const s = mm.width / MAP_SIZE;
+    const s = mm.width / this.map.size;
     c.fillStyle = '#120c18'; c.fillRect(0, 0, mm.width, mm.height);
     for (const o of this.map.obstacles) {
       c.fillStyle = o.type === 'water' ? '#1a3a5a' : '#3a3044';
@@ -1690,10 +1732,172 @@ export class Game {
       else if (e.k === Kind.Player && e.id !== this.youId) { c.fillStyle = '#ff3050'; c.fillRect(e.rx * s - 2, e.ry * s - 2, 4, 4); }
       else if (e.k === Kind.Minion && e.o === this.youId) { c.fillStyle = '#80ff60'; c.fillRect(e.rx * s - 1, e.ry * s - 1, 2, 2); }
     }
+    // El Señor de la Noche: altares, niebla, sol y avisos de los Ojos rituales
+    c.fillStyle = '#c070ff';
+    for (const a of this.map.altars) c.fillRect(a.x * s - 2, a.y * s - 2, 5, 5);
+    const sky = this.sky();
+    if (sky) {
+      if (sky.front > -99999) {
+        const S = this.map.size, ca = Math.cos(sky.ang), sa = Math.sin(sky.ang);
+        c.save(); c.globalAlpha = 0.28; c.fillStyle = '#ff9040';
+        const lx = S / 2 + ca * sky.front, ly = S / 2 + sa * sky.front, B = S * 3;
+        c.beginPath(); c.moveTo((lx - sa * B) * s, (ly + ca * B) * s); c.lineTo((lx + sa * B) * s, (ly - ca * B) * s); c.lineTo((lx + sa * B - ca * B) * s, (ly - ca * B - sa * B) * s); c.lineTo((lx - sa * B - ca * B) * s, (ly + ca * B - sa * B) * s); c.closePath();
+        c.moveTo((sky.fx + sky.fr) * s, sky.fy * s); c.arc(sky.fx * s, sky.fy * s, sky.fr * s, 0, Math.PI * 2);
+        c.fill('evenodd'); c.restore();
+      }
+      c.strokeStyle = 'rgba(200,210,230,0.8)'; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(sky.fx * s, sky.fy * s, Math.max(1, sky.fr * s), 0, Math.PI * 2); c.stroke();
+    }
+    if (this.map.ready && this.night?.ph === 'lobby') { c.strokeStyle = '#ffd040'; c.beginPath(); c.arc(this.map.ready.x * s, this.map.ready.y * s, this.map.ready.r * s + 2, 0, Math.PI * 2); c.stroke(); }
+    const nowA = performance.now();
+    for (const al of this.alerts) if (al.until > nowA && Math.floor(nowA / 200) % 2) { c.fillStyle = '#ffd040'; c.fillRect(al.x * s - 3, al.y * s - 3, 7, 7); }
     const me = this.renderPos();
     c.fillStyle = '#ffe080'; c.fillRect(me.x * s - 3, me.y * s - 3, 6, 6);
     c.strokeStyle = 'rgba(255,255,255,0.3)';
     c.strokeRect((this.cam.x - this.canvas.width / 2 / this.cam.zoom) * s, (this.cam.y - (this.canvas.height * this.focusY) / this.cam.zoom) * s, (this.canvas.width / this.cam.zoom) * s, (this.canvas.height / this.cam.zoom) * s);
+  }
+
+  // ------------------------------------------------------------------ El Señor de la Noche y trampas
+  /** Medio plano iluminado por el sol (en coordenadas de pantalla) y el mismo con el agujero de la niebla. */
+  private sunPath(k: { ang: number; front: number; fx: number; fy: number; fr: number }, camX: number, camY: number, z: number, W: number, H: number) {
+    const S = this.map.size, ca = Math.cos(k.ang), sa = Math.sin(k.ang), B = 40000;
+    const lx = S / 2 + ca * k.front, ly = S / 2 + sa * k.front;
+    const P = (x: number, y: number): [number, number] => [(x - camX) * z, (y - camY) * z];
+    const half = new Path2D();
+    const pts = [P(lx - sa * B, ly + ca * B), P(lx + sa * B, ly - ca * B), P(lx + sa * B - ca * B, ly - ca * B - sa * B), P(lx - sa * B - ca * B, ly + ca * B - sa * B)];
+    half.moveTo(...pts[0]); for (const q of pts.slice(1)) half.lineTo(...q); half.closePath();
+    const minusFog = new Path2D();
+    minusFog.rect(-10, -10, W + 20, H + 20);
+    const [cx, cy] = P(k.fx, k.fy);
+    if (k.fr > 1) { minusFog.moveTo(cx + k.fr * z, cy); minusFog.arc(cx, cy, k.fr * z, 0, Math.PI * 2); }
+    return { half, minusFog };
+  }
+
+  /** Altares oscuros y círculo de velas de la previa (en el suelo). */
+  private drawNightGround(ctx: CanvasRenderingContext2D, now: number, inView: (x: number, y: number) => boolean) {
+    for (const a of this.map.altars) {
+      if (!inView(a.x, a.y)) continue;
+      const busy = [...this.ents.values()].some((e) => e.k === Kind.Player && !(e.f2 & Flag2.Ecto) && (e.rx - a.x) ** 2 + (e.ry - a.y) ** 2 < NIGHTLORD.altar.r ** 2);
+      const R = NIGHTLORD.altar.r;
+      ctx.globalAlpha = 0.85;
+      pixelEllipse(ctx, a.x, a.y, R + 12, (R + 12) * 0.6, '#1a0a24');
+      ctx.globalAlpha = 0.7 + Math.sin(now / 300) * 0.2;
+      pixelEllipse(ctx, a.x, a.y, R, R * 0.6, busy ? '#e090ff' : '#8a40c0', 2);
+      // pentagrama
+      ctx.fillStyle = busy ? '#f0c0ff' : '#a050e0';
+      for (let i = 0; i < 5; i++) {
+        const a0 = -Math.PI / 2 + (i * 4 * Math.PI) / 5 + now / 4000, a1 = -Math.PI / 2 + ((i + 1) * 4 * Math.PI) / 5 + now / 4000;
+        for (let k = 0; k <= 10; k++) { const t = k / 10, px = a.x + (Math.cos(a0) * (1 - t) + Math.cos(a1) * t) * R * 0.85, py = a.y + (Math.sin(a0) * (1 - t) + Math.sin(a1) * t) * R * 0.5; ctx.fillRect(Math.round(px / PIXEL) * PIXEL, Math.round(py / PIXEL) * PIXEL, PIXEL, PIXEL); }
+      }
+      ctx.globalAlpha = 1;
+      // monolito
+      ctx.fillStyle = '#241830'; ctx.fillRect(a.x - 9, a.y - 54, 18, 48);
+      ctx.fillStyle = '#3a2a4a'; ctx.fillRect(a.x - 9, a.y - 54, 18, 6);
+      ctx.fillStyle = busy ? '#ffd0ff' : '#c070ff'; ctx.fillRect(a.x - 3, a.y - 42, 6, 6); ctx.fillRect(a.x - 3, a.y - 30, 6, 3);
+      if (Math.random() < (busy ? 0.5 : 0.12)) this.particles.push({ x: a.x + (Math.random() - 0.5) * R * 1.4, y: a.y + (Math.random() - 0.5) * R * 0.6, vx: 0, vy: -50 - Math.random() * 40, life: 1, max: 1, color: Math.random() < 0.5 ? '#c070ff' : '#f0c0ff', size: 3, grav: -10 });
+    }
+    const r = this.map.ready;
+    if (r && inView(r.x, r.y) && this.night?.ph === 'lobby') {
+      const k = (now / 1400) % 1;
+      ctx.globalAlpha = 0.5 + Math.sin(now / 250) * 0.15;
+      pixelEllipse(ctx, r.x, r.y, r.r, r.r * 0.62, '#ffd040', 2);
+      ctx.globalAlpha = 0.4 * (1 - k);
+      pixelEllipse(ctx, r.x, r.y, r.r * k, r.r * k * 0.62, '#ffe8a0', 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /** Bruma del círculo de niebla: un anillo de jirones grises que tapa el sol. */
+  private drawFogRing(ctx: CanvasRenderingContext2D, now: number, vx0: number, vy0: number, vx1: number, vy1: number) {
+    const k = this.sky(now);
+    if (!k || k.fr < 4) return;
+    const n = Math.min(260, Math.max(24, Math.round((k.fr * Math.PI * 2) / 46)));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.sin(now / 3000 + i) * 0.02;
+      const wob = Math.sin(now / 900 + i * 1.7) * 18;
+      const x = k.fx + Math.cos(a) * (k.fr + wob), y = k.fy + Math.sin(a) * (k.fr + wob) * 0.92;
+      if (x < vx0 - 80 || x > vx1 + 80 || y < vy0 - 80 || y > vy1 + 80) continue;
+      ctx.globalAlpha = 0.16 + ((i * 37) % 10) / 70;
+      pixelEllipse(ctx, x, y, 60 + ((i * 13) % 30), 26 + ((i * 7) % 14), '#c8d0dc');
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Trampas: el dueño las ve bien; los demás, apenas (salvo el círculo de sal, el ritual y la vela). */
+  private drawTrap(ctx: CanvasRenderingContext2D, e: CEnt, now: number) {
+    const mine = e.o === this.youId, x = e.rx, y = e.ry, r = e.rr ?? 40;
+    const obvious = e.c === 'trap_salt' || e.c === 'trap_ritual' || e.c === 'trap_candle';
+    const a = mine || obvious ? 1 : 0.22 + Math.sin(now / 400 + e.id) * 0.06;
+    if (e.c === 'trap_salt') {
+      ctx.fillStyle = '#f0f0ff';
+      const n = Math.round((r * Math.PI * 2) / 14);
+      for (let i = 0; i < n; i++) { const t = (i / n) * Math.PI * 2; ctx.globalAlpha = 0.75 + Math.sin(now / 200 + i) * 0.2; ctx.fillRect(Math.round((x + Math.cos(t) * r) / PIXEL) * PIXEL, Math.round((y + Math.sin(t) * r * 0.62) / PIXEL) * PIXEL, PIXEL * 2, PIXEL); }
+      ctx.globalAlpha = 1;
+      return;
+    }
+    if (e.c === 'trap_candle') {
+      ctx.globalAlpha = 0.35; pixelEllipse(ctx, x, y, r, r * 0.62, '#2a1040', 2); ctx.globalAlpha = 1;
+    } else if (e.c === 'trap_ritual') {
+      ctx.globalAlpha = 0.6 + Math.sin(now / 120) * 0.3;
+      pixelEllipse(ctx, x, y, 64, 40, '#c040ff', 2); pixelEllipse(ctx, x, y, 44, 27, '#ff4060', 2);
+      ctx.globalAlpha = 1;
+      if (Math.random() < 0.4) this.particles.push({ x: x + (Math.random() - 0.5) * 100, y: y + (Math.random() - 0.5) * 50, vx: 0, vy: -60, life: 0.6, max: 0.6, color: '#c060ff', size: 3, grav: 0 });
+    } else if (e.c === 'trap_eyes' && mine) {
+      ctx.globalAlpha = 0.18; pixelEllipse(ctx, x, y, r, r * 0.62, '#ffd040', 1); ctx.globalAlpha = 1;
+    }
+    const img = getItem(e.c);
+    const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
+    ctx.globalAlpha = a;
+    ctx.drawImage(img.base, Math.round((x - w / 2) / PIXEL) * PIXEL, Math.round((y - h + 6) / PIXEL) * PIXEL, w, h);
+    ctx.globalAlpha = 1;
+  }
+
+  /** Ectoplasma: un fantasma verdoso translúcido que flota (gris si está silenciado). */
+  private drawEcto(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
+    void glows;
+    const x = e.rx, y = e.ry - 44 + Math.sin(now / 260 + e.id) * 5;
+    const sil = this.night?.ph === 'match' && this.night.sil <= 0;
+    const body = sil ? '#a0a8b0' : '#80ffb0', light = sil ? '#d0d8e0' : '#e0fff0', dark = sil ? '#40484e' : '#1a6a4a';
+    ctx.globalAlpha = e.id === this.youId ? 0.75 : 0.55;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(x, e.ry + 2, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+    for (let py = -33; py <= 30; py += PIXEL) {
+      const half = py < 0 ? Math.sqrt(1 - (py / 33) ** 2) * 24 : 24 - (py > 18 ? Math.abs(Math.sin(now / 150 + py)) * 4 : 0);
+      for (let px = -half; px <= half; px += PIXEL) {
+        if (py > 21 && Math.floor((px + 24 + now / 60) / 9) % 2) continue; // bajo ondulante
+        ctx.fillStyle = px < -half + 6 || py < -27 ? light : body;
+        ctx.fillRect(Math.round((x + px) / PIXEL) * PIXEL, Math.round((y + py) / PIXEL) * PIXEL, PIXEL, PIXEL);
+      }
+    }
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = dark;
+    ctx.fillRect(Math.round((x - 11) / PIXEL) * PIXEL, Math.round((y - 12) / PIXEL) * PIXEL, PIXEL * 3, PIXEL * 4);
+    ctx.fillRect(Math.round((x + 4) / PIXEL) * PIXEL, Math.round((y - 12) / PIXEL) * PIXEL, PIXEL * 3, PIXEL * 4);
+    ctx.fillRect(Math.round((x - 4) / PIXEL) * PIXEL, Math.round((y + 4) / PIXEL) * PIXEL, PIXEL * 3, PIXEL * 3);
+    ctx.globalAlpha = 1;
+    if (!sil && Math.random() < 0.25) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y + 18, vx: 0, vy: 20, life: 0.6, max: 0.6, color: body, size: 3, grav: 30 });
+    ctx.font = '9px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#000'; ctx.fillText(e.n ?? '', x + 1, y - 41);
+    ctx.fillStyle = sil ? '#c0c8d0' : '#a0ffc8'; ctx.fillText(e.n ?? '', x, y - 42);
+  }
+
+  /** Avisos de los Ojos rituales: un ojo que parpadea donde pasó alguien (o una flecha si queda fuera de pantalla). */
+  private drawAlerts(ctx: CanvasRenderingContext2D, now: number, me: { x: number; y: number }, vw: number, vh: number) {
+    this.alerts = this.alerts.filter((a) => a.until > now);
+    for (const a of this.alerts) {
+      const blink = Math.floor(now / 220) % 2 ? 1 : 0.4;
+      const dx = a.x - me.x, dy = a.y - me.y;
+      const lim = Math.min(vw, vh) * 0.42;
+      const d = Math.hypot(dx, dy);
+      const px = d > lim ? me.x + (dx / d) * lim : a.x, py = d > lim ? me.y - 40 + (dy / d) * lim : a.y - 50;
+      ctx.globalAlpha = blink;
+      const img = getItem('trap_eyes');
+      const w = img.base.width * PIXEL, h = img.base.height * PIXEL;
+      ctx.drawImage(img.base, px - w / 2, py - h / 2, w, h);
+      ctx.font = '9px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#000'; ctx.fillText(a.k, px + 1, py + h / 2 + 11);
+      ctx.fillStyle = '#ffd040'; ctx.fillText(a.k, px, py + h / 2 + 10);
+      ctx.globalAlpha = 1;
+    }
   }
 
   get lastSnap() { return this.lastSnapAt; }

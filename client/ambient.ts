@@ -1,5 +1,9 @@
 // Ambiente: niebla que se desplaza, luciérnagas, ascuas, hojas, murciélagos cruzando el cielo y viñeta.
 import { MAP_SIZE, PIXEL } from '../shared/constants';
+
+/** Tamaño del mapa actual (lo fija el juego al cargar un mapa). */
+let curSize = MAP_SIZE;
+export const setAmbientMapSize = (s: number) => { curSize = s; };
 import type { GameMap } from '../shared/maps';
 import { fbm } from '../shared/noise';
 import type { Light } from './tiles';
@@ -147,4 +151,4 @@ export class Ambient {
   }
 }
 
-export const inMap = (x: number, y: number) => x >= 0 && y >= 0 && x <= MAP_SIZE && y <= MAP_SIZE;
+export const inMap = (x: number, y: number) => x >= 0 && y >= 0 && x <= curSize && y <= curSize;

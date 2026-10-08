@@ -473,3 +473,36 @@ body.touch #tutpanel { top: calc(92px + env(safe-area-inset-top)); left: calc(6p
 
 /* silenciar en portada, menú y tutorial */
 .menumute { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); z-index: 12; font-size: 16px; padding: 6px 9px; }
+
+/* ---------- El Señor de la Noche ---------- */
+.nlbtn { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 100%; margin-top: 6px; background: linear-gradient(#5a2a10, #2a0e1e); border-color: #ffb040; color: #ffd890; }
+.nlbtn small { font-family: var(--vt); font-size: 16px; color: #e0c0a0; letter-spacing: 0; }
+#nlbar { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(16, 6, 22, 0.82); border: 2px solid #ffb040; padding: 6px 12px; font-family: var(--px); font-size: 9px; line-height: 1.7; text-align: center; color: #ffe0b0; max-width: min(560px, 62vw); box-shadow: 3px 3px 0 #000; }
+#nlbar small { font-family: var(--vt); font-size: 16px; color: #d0b8e0; }
+#nlbar.hot { border-color: #ff5020; background: rgba(60, 14, 6, 0.88); animation: pulse 0.7s infinite; }
+#nlbar.ecto { border-color: #80ffb0; color: #c0ffe0; }
+#nlbar .big { font-size: 12px; color: var(--gold); }
+.podium { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; min-width: min(420px, 90vw); pointer-events: auto; }
+.podium h2 { font-family: var(--px); font-size: 18px; color: #ffb040; margin: 4px 0 10px; text-shadow: 3px 3px 0 #000; }
+.podium .steps { display: flex; justify-content: center; align-items: flex-end; gap: 8px; margin: 8px 0; }
+.podium .step { background: #1a0e26; border: 2px solid var(--line); padding: 6px; width: 120px; font-size: 16px; }
+.podium .step canvas { width: 72px; height: 96px; image-rendering: pixelated; display: block; margin: 0 auto; }
+.podium .step b { display: block; font-family: var(--px); font-size: 8px; color: var(--gold); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podium .step.p1 { padding-bottom: 34px; border-color: #ffd040; }
+.podium .step.p2 { padding-bottom: 18px; }
+.podium .you { font-family: var(--px); font-size: 10px; margin: 10px 0 4px; color: #ffe0b0; }
+.podium .back { font-size: 16px; color: var(--muted); }
+.buffrow { display: flex; gap: 6px; align-items: center; justify-content: center; flex-wrap: wrap; }
+#trapslot { display: flex; align-items: center; gap: 4px; font-family: var(--px); font-size: 8px; background: rgba(16, 6, 22, 0.9); border: 2px solid #c070ff; padding: 2px 6px 2px 2px; pointer-events: auto; cursor: pointer; }
+#trapslot img { width: 30px; height: 30px; image-rendering: pixelated; }
+#trapslot kbd { color: var(--gold); }
+#tb-trap { right: 150px; bottom: 172px; width: 44px !important; height: 44px !important; background: rgba(40, 10, 60, 0.75) !important; border-color: #c070ff !important; }
+#tb-trap img { width: 30px; height: 30px; image-rendering: pixelated; }
+body.ecto #ab0, body.ecto #ab3, body.ecto #tb-atk, body.ecto #tb-r { opacity: 0.25; filter: grayscale(1); }
+body.ecto .bar.hp div { background: linear-gradient(#a0ffd0, #40a080); }
+body.touch #nlbar { top: calc(54px + env(safe-area-inset-top)); font-size: 7px; padding: 3px 7px; max-width: calc(100vw - 330px); line-height: 1.5; }
+body.touch #nlbar small { font-size: 12px; }
+body.nl #toast { top: 104px; }
+body.touch.nl #toast { top: auto; }
+#theme { flex: 1 1 0; min-width: 0; max-width: 100%; }
+@media (orientation: portrait) { body.touch #nlbar { top: calc(112px + env(safe-area-inset-top)); max-width: 94vw; } }

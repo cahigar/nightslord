@@ -288,6 +288,8 @@ export class Effects {
       case 'boneSlam': this.boneSlam(ev); break;
       case 'raise': this.raise(ev); break;
       case 'ghostRise': this.ghostRise(ev); break;
+      case 'ectoQ': this.ripple(x, y, '#80ffb0', 0.6, ev.r ?? 230); this.burst(x, y - 30, 24, ['#80ffb0', '#e0fff0', '#2a8a5a'], 220, 3, 0, 0.7, true); break;
+      case 'ectoE': this.ripple(x, y, '#c0ffe0', 0.35, ev.r ?? 120); this.ripple(x, y, '#80ffb0', 0.5, (ev.r ?? 120) * 0.7); this.burst(x, y - 30, 14, ['#c0ffe0', '#80ffb0'], 260, 3, 0, 0.4, true); break;
       case 'lockOn': this.lockOn(ev); break;
       case 'asteroid': this.asteroid(ev); break;
       case 'hatch': this.burst(x, y - 20, 24, ['#e8e0c8', '#f8f4e8', '#6a8a4a'], 200, 3, 400, 0.6); this.ripple(x, y, '#e8e0c8', 0.4, 50); break;
@@ -459,9 +461,9 @@ export class Effects {
         const e = t * t * (3 - 2 * t);
         const x = d.x + (tp.x - d.x) * e + Math.sin(now / 60 + d.wob) * 4 * (1 - e);
         const y = d.y + (tp.y - 45 - d.y) * e - Math.sin(e * Math.PI) * 30;
-        ctx.fillStyle = sand ? '#e0c060' : ev.c === 'water' ? '#a0d8f8' : ev.c === 'soul' ? '#60ffd0' : ev.c === 'bone' ? '#80ff60' : '#ff2a40';
+        ctx.fillStyle = sand ? '#e0c060' : ev.c === 'altar' ? '#c070ff' : ev.c === 'water' ? '#a0d8f8' : ev.c === 'soul' ? '#60ffd0' : ev.c === 'bone' ? '#80ff60' : '#ff2a40';
         ctx.fillRect(snap(x), snap(y), PIXEL * 2, PIXEL * 2);
-        ctx.fillStyle = sand ? 'rgba(224,192,96,0.4)' : ev.c === 'water' ? 'rgba(160,216,248,0.4)' : ev.c === 'soul' ? 'rgba(96,255,208,0.4)' : ev.c === 'bone' ? 'rgba(128,255,96,0.4)' : 'rgba(255,40,60,0.4)';
+        ctx.fillStyle = sand ? 'rgba(224,192,96,0.4)' : ev.c === 'altar' ? 'rgba(192,112,255,0.4)' : ev.c === 'water' ? 'rgba(160,216,248,0.4)' : ev.c === 'soul' ? 'rgba(96,255,208,0.4)' : ev.c === 'bone' ? 'rgba(128,255,96,0.4)' : 'rgba(255,40,60,0.4)';
         ctx.fillRect(snap(x - (tp.x - d.x) * 0.04), snap(y - (tp.y - d.y) * 0.04), PIXEL, PIXEL);
       }
     });
