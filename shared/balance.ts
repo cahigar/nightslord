@@ -51,7 +51,7 @@ export const BAL = {
     mistDist: 240, mistInvuln: 1,
     mistTrailT: 2.5, mistTrailW: 56, mistTrailSlow: 0.55, mistTrailSlowT: 1.2, // nivel 15
     orbitBats: 2, orbitRegen: 6, orbitBlockR: 52, // nivel 15
-    ult: { dur: 6, lifesteal: 0.35, batHealMul: 2, cdRate: 1.8, cdCutOnCast: 0.4, panicR: 460, panicT: 3, pulse: 1 },
+    ult: { dur: 6, lifesteal: 0.35, batHealMul: 2, cdRate: 1.8, cdCutOnCast: 0.4, panicR: 460, panicT: 3, pulse: 1, blinkRange: 520, blinkPick: 90, blinkCd: 0.5 }, // blink: atacar apuntando a un enemigo te lleva junto a él
   },
   werewolf: {
     preyHpFrac: 0.35, chaseR: 480, chaseDot: 0.72, chaseSpeedMul: 1.15, // nivel 5

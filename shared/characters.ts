@@ -67,7 +67,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { key: 'Q', name: 'Murciélagos', desc: 'Lanza un abanico de 3 murciélagos.', cooldown: 6 },
       { key: 'E', name: 'Niebla', desc: 'Te teletransportas convertido en niebla, invulnerable 1 s.', cooldown: 9 },
     ],
-    ult: { key: 'R', name: 'Noche Carmesí', desc: '6 s de robo de vida extra, enfriamientos acelerados y pánico entre los humanos cercanos.', cooldown: 0 },
+    ult: { key: 'R', name: 'Noche Carmesí', desc: '6 s de robo de vida extra, enfriamientos acelerados y pánico entre los humanos cercanos. Si atacas apuntando a un enemigo, te teletransportas junto a él.', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Sed de sangre', desc: 'El mordisco cura más y matar humanos te da un acelerón de 2 s.' },
       { lvl: 10, name: 'Noche Carmesí', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
@@ -632,7 +632,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   unit: {
     id: 'unit',
-    name: 'Unidad',
+    name: 'Legión',
     title: 'El enjambre',
     role: 'summoner',
     hp: 95,

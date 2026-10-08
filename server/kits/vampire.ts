@@ -2,11 +2,39 @@
 import { BAL } from '../../shared/balance';
 import { Anim, Kind } from '../../shared/protocol';
 import type { Kit } from './types';
+import type { Room } from '../Room';
+import type { Mob, Player } from '../entities';
 
 const B = BAL.vampire;
 
+/** Noche Carmesí: si atacas apuntando a un enemigo que está fuera del alcance del mordisco, te teletransportas junto a él. */
+function crimsonBlink(room: Room, p: Player, a: number): number {
+  if (room.time < (p.k.blinkAt ?? 0)) return a;
+  const tx = p.x + Math.cos(a) * p.input.d, ty = p.y + Math.sin(a) * p.input.d;
+  let best: Mob | null = null, bd = B.ult.blinkPick ** 2;
+  room.forEachEnemyNear(p, tx, ty, B.ult.blinkPick, (m) => {
+    if (m.dead || m.entombT > 0) return;
+    const d = (m.x - tx) ** 2 + (m.y - ty) ** 2;
+    if (d < bd) { bd = d; best = m; }
+  });
+  const t = best as Mob | null;
+  if (!t) return a;
+  const dist = Math.hypot(t.x - p.x, t.y - p.y);
+  if (dist <= p.def.range + p.r + t.r || dist > B.ult.blinkRange) return a;
+  const ux = (t.x - p.x) / dist, uy = (t.y - p.y) / dist;
+  const nx = t.x - ux * (t.r + p.r + 6), ny = t.y - uy * (t.r + p.r + 6);
+  if (room.grid.blocked(nx, ny, p.r)) return a;
+  room.fx('mist', p.x, p.y, { o: p.id, n: p.tier });
+  p.x = nx; p.y = ny; p.knock = null;
+  room.fx('mist', p.x, p.y, { o: p.id, n: p.tier });
+  room.sfx('mist', p.x, p.y);
+  p.k.blinkAt = room.time + B.ult.blinkCd;
+  return Math.atan2(t.y - p.y, t.x - p.x);
+}
+
 export const vampireKit: Kit = {
   basic(room, p, a) {
+    if (p.ultT > 0) a = crimsonBlink(room, p, a);
     const heal = (p.tier >= 1 ? B.biteHealT1 : B.biteHeal) + (p.ultT > 0 ? B.ult.lifesteal : 0);
     const { hits } = room.meleeSwing(p, a, { sfx: 'bite' });
     for (const h of hits) {
