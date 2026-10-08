@@ -5,6 +5,7 @@
 //   node publicar.mjs                → publica lo que toque según calendario.json (lo lanza el cron)
 //   node publicar.mjs probar <id>    → prepara el vídeo en Instagram sin publicarlo
 //   node publicar.mjs ahora <id>     → publica esa entrada ya, sin esperar a su fecha
+//   node publicar.mjs todos          → publica de golpe, en orden, todo lo que ya toca
 //   node publicar.mjs estado         → lista qué se ha publicado y qué queda
 //
 // Variables (deploy/.env): IG_USER_ID, FB_PAGE_ID, META_APP_ID, META_APP_SECRET, IG_TOKEN, DOMAIN
@@ -214,6 +215,19 @@ async function main() {
   }
 
   if (cmd === 'ahora') return publicarEntrada(state, buscar(arg));
+
+  if (cmd === 'todos') {
+    const lista = cal
+      .filter((e) => Date.parse(e.fecha) <= Date.now() && !completa(state, e))
+      .sort((a, b) => Date.parse(a.fecha) - Date.parse(b.fecha));
+    log(`${lista.length} entradas pendientes.`);
+    for (const e of lista) {
+      try { await publicarEntrada(state, e); }
+      catch (err) { log(`  ✘ «${e.id}» falló: ${err.message}. Paro aquí para no desordenar el feed.`); process.exitCode = 1; return; }
+    }
+    log('Hecho.');
+    return;
+  }
 
   if (cmd !== 'publicar') throw new Error(`Orden desconocida: ${cmd}`);
 

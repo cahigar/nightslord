@@ -1,7 +1,7 @@
 [
   {
     "id": "01-presentacion",
-    "fecha": "2026-10-08T20:30:00+02:00",
+    "fecha": "2026-10-08T11:00:00+02:00",
     "tipo": "reel",
     "archivo": "mooonsters-reel-v2.mp4",
     "historia": true,
@@ -9,7 +9,7 @@
   },
   {
     "id": "02-vampiro",
-    "fecha": "2026-10-09T20:30:00+02:00",
+    "fecha": "2026-10-08T11:01:00+02:00",
     "tipo": "reel",
     "archivo": "trailer-vampiro.mp4",
     "historia": true,
@@ -17,7 +17,7 @@
   },
   {
     "id": "03-campamento",
-    "fecha": "2026-10-10T20:30:00+02:00",
+    "fecha": "2026-10-08T11:02:00+02:00",
     "tipo": "reel",
     "archivo": "trailer-campamento.mp4",
     "historia": true,
@@ -25,7 +25,7 @@
   },
   {
     "id": "04-zombi",
-    "fecha": "2026-10-11T20:30:00+02:00",
+    "fecha": "2026-10-08T11:03:00+02:00",
     "tipo": "reel",
     "archivo": "trailer-zombi.mp4",
     "historia": true,
@@ -33,7 +33,7 @@
   },
   {
     "id": "05-nilo",
-    "fecha": "2026-10-12T20:30:00+02:00",
+    "fecha": "2026-10-08T11:04:00+02:00",
     "tipo": "reel",
     "archivo": "trailer-nilo.mp4",
     "historia": true,
@@ -41,7 +41,7 @@
   },
   {
     "id": "06-momia",
-    "fecha": "2026-10-13T20:30:00+02:00",
+    "fecha": "2026-10-08T11:05:00+02:00",
     "tipo": "reel",
     "archivo": "trailer-ramses.mp4",
     "historia": true,
@@ -49,7 +49,7 @@
   },
   {
     "id": "07-candleman",
-    "fecha": "2026-10-14T20:30:00+02:00",
+    "fecha": "2026-10-08T11:06:00+02:00",
     "tipo": "reel",
     "archivo": "trailer-candleman.mp4",
     "historia": true,
