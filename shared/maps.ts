@@ -93,7 +93,7 @@ export const NPC_VARIANTS: Record<MapThemeId, string[]> = {
   nile: ['fellah', 'fellah', 'tourist', 'archaeologist'],
   jungle: ['explorer', 'explorer', 'porter', 'scientist'],
   cemetery: ['gravedigger', 'priest', 'villager', 'maid'],
-  cityz: ['z-citizen', 'z-citizen', 'z-citizen', 'z-survivor', 'z-soldier', 'survivor', 'survivor'],
+  cityz: ['citizen', 'citizen', 'citizen', 'survivor', 'survivor', 'soldier', 'z-citizen'], // pocos zombis al principio: se contagian
 };
 
 
@@ -450,8 +450,9 @@ function genCityZ(r: Rng, S: number, seed: number, trails: Trail[], plazas: Game
   for (let x = cx0; x <= cx1 + 1; x += 580) xs.push(Math.round(x + rint(r, -50, 50)));
   for (let y = cy0; y <= cy1 + 1; y += 580) ys.push(Math.round(y + rint(r, -50, 50)));
   const hw = ys[Math.floor(ys.length / 2)], vw = xs[Math.floor(xs.length / 2)];
-  for (const x of xs) trails.push(x === vw ? { pts: [[x, -BORDER_DEPTH], [x, S + BORDER_DEPTH]], w: 120, kind: 'road' } : { pts: [[x, cy0 - 160], [x, cy1 + 160]], w: 100, kind: 'road' });
-  for (const y of ys) trails.push(y === hw ? { pts: [[-BORDER_DEPTH, y], [S + BORDER_DEPTH, y]], w: 120, kind: 'road' } : { pts: [[cx0 - 160, y], [cx1 + 160, y]], w: 100, kind: 'road' });
+  // todas las calles siguen fuera del mapa (la ciudad continúa; en el borde, vallas de seguridad)
+  for (const x of xs) trails.push({ pts: [[x, -BORDER_DEPTH], [x, S + BORDER_DEPTH]], w: x === vw ? 120 : 100, kind: 'road' });
+  for (const y of ys) trails.push({ pts: [[-BORDER_DEPTH, y], [S + BORDER_DEPTH, y]], w: y === hw ? 120 : 100, kind: 'road' });
   // río ancho
   const river: River = { ...windingTrail(r, [rx + rrange(r, -150, 150), -BORDER_DEPTH], [rx + rrange(r, -150, 150), S + BORDER_DEPTH], 0, 'dirt', 300), w: 210, seed: seed + 21, bridges: [], vertical: true };
   for (const pt of river.pts) pt[0] = Math.max(rx - 260, Math.min(rx + 260, pt[0]));
@@ -465,7 +466,8 @@ function genCityZ(r: Rng, S: number, seed: number, trails: Trail[], plazas: Game
   rivers.push(river);
   // lagos y charcas en el lado del agua
   const wx = west ? S * 0.06 : S * 0.94;
-  for (const fy of [0.28, 0.66]) lakes.push({ cx: wx + rrange(r, -60, 60), cy: S * fy + rrange(r, -150, 150), rx: rrange(r, 200, 260), ry: rrange(r, 240, 340), seed: seed + 40 + fy * 10 });
+  // lagos entre dos calles (para que ninguna se hunda en el agua)
+  for (const j of [0, ys.length - 2]) lakes.push({ cx: wx + rrange(r, -40, 40), cy: (ys[j] + ys[j + 1]) / 2, rx: rrange(r, 200, 250), ry: rrange(r, 150, 180), seed: seed + 40 + j });
   const reserved: [number, number, number, number][] = [];
   const inRes = (x: number, y: number) => reserved.some(([a, b, w, h]) => x > a && x < a + w && y > b && y < b + h);
   const P = new Placer(r, trails, (x, y) => riverValue(river, x, y) > -60 || lakes.some((l) => lakeValue(l, x, y) > -0.2) || inRes(x, y));

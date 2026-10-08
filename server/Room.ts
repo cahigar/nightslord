@@ -119,6 +119,7 @@ export class Room {
   private hunterRespawnT = 15; // sala nueva: unos segundos de calma antes del primer cazador
   private powerupRespawnT = 0;
   private trapRespawnT = 0;
+  private hordeT = 30;
   emptySince = Date.now();
   private critterT = 2;
   private beastT = BEASTS.every;
@@ -176,6 +177,7 @@ export class Room {
       store.touch();
     }
     const p = this.spawnPlayer(conn, char, skin);
+    if (this.mode === 'br') { p.protectT = 3; this.fx('emerge', p.x, p.y, { o: p.id, n: 1 }); } // sale de bajo tierra: 3 s para ubicarse sin que le hagan daño
     if (this.tutorial && char === 'vampire') p.hp = Math.round(p.maxHp * 0.5); // para practicar la Sed de sangre
     conn.send({ t: 'joined', code: this.code, theme: this.theme, seed: this.seed, priv: this.priv, you: p.id });
     this.sendRank();
@@ -1720,11 +1722,24 @@ export class Room {
       const d = dist2(x, y, m.x, m.y);
       if (d < bd) { bd = d; best = m; }
     }
+    if (this.theme === 'cityz') for (const z of this.npcs.values()) {
+      if (!isZombieNpc(z.variant)) continue; // en la Ciudad Z los humanos también huyen de los zombis
+      const d = dist2(x, y, z.x, z.y);
+      if (d < bd) { bd = d; best = z; }
+    }
     return best;
   }
 
   /** Fin del contagio: el humano se levanta como zombi de quien lo infectó. */
   private turnZombie(n: Npc) {
+    if (n.infectBy === -2) {
+      // mordido por un zombi del mapa: se levanta como uno más (no muere)
+      n.variant = `z-${n.variant.split('#')[0]}`;
+      n.infectT = 0; n.infectBy = -1; n.hp = n.maxHp; n.fleeing = false; n.panicT = 0;
+      this.fx('emerge', n.x, n.y, { o: n.id });
+      this.sfx('groan', n.x, n.y);
+      return;
+    }
     const owner = this.findPlayerById(n.infectBy);
     this.npcs.delete(n.id);
     n.dead = true;
@@ -1743,6 +1758,7 @@ export class Room {
       n.hp -= (n.maxHp / ZB.infectT) * dt;
       n.slowT = Math.max(n.slowT, 0.2); n.slowMul = Math.min(n.slowMul, ZB.infectSlowMul);
       if (n.infectT <= 0 || n.hp <= 0) { this.turnZombie(n); return; }
+      if (n.infectBy === -2 && n.hp < 1) n.hp = 1;
     }
     if (n.disguiseT > 0) { n.disguiseT -= dt; if (n.disguiseT <= 0) { n.disguiseBy = -1; this.fx('disguise', n.x, n.y, { o: n.id, r: -1 }); } }
     if (isZombieNpc(n.variant)) { this.updateZombieNpc(n, dt); return; }
@@ -2603,6 +2619,10 @@ export class Room {
       this.beastT = BEASTS.every;
       for (const [type, n] of Object.entries(BEAST_PLAN[this.theme] ?? {}) as [BeastType, number][]) if (this.beastCount(type) < n) { this.spawnBeast(type); break; }
     }
+    if (this.mode === 'br' && this.nl.phase === 'match') {
+      this.hordeT -= dt;
+      if (this.hordeT <= 0) { this.hordeT = NL.horde.every; this.spawnHorde(); }
+    }
     this.powerupRespawnT -= dt;
     let traps = 0;
     for (const u of this.powerups.values()) if (u.type.startsWith('trap_')) traps++;
@@ -2621,12 +2641,18 @@ export class Room {
     if (this.hypnoWalk(n, dt)) return;
     n.screamCd = Math.max(0, n.screamCd - dt);
     if (n.stunT > 0 || n.fearT > 0 || n.sleepT > 0) { n.moving = false; return; }
+    // presas: monstruos (también los camuflados: los huelen) y humanos sin contagiar
     const prey = (R: number) => {
-      let best: Player | null = null, bd = R * R;
+      let best: Mob | null = null, bd = R * R;
       for (const p of this.players.values()) {
-        if (p.dead || p.char === 'zombie' || p.invisKind !== 'none' || p.submergeT > 0 || this.isHiddenGuise(p) || p.flyT > 0) continue;
+        if (p.dead || p.char === 'zombie' || p.invisKind === 'full' || p.submergeT > 0 || p.flyT > 0) continue;
         const d = dist2(n.x, n.y, p.x, p.y);
         if (d < bd) { bd = d; best = p; }
+      }
+      for (const h of this.npcs.values()) {
+        if (h === n || h.infectT > 0 || isZombieNpc(h.variant) || isCritter(h) || h.disguiseT > 0) continue;
+        const d = dist2(n.x, n.y, h.x, h.y);
+        if (d < bd) { bd = d; best = h; }
       }
       return best;
     };
@@ -2645,7 +2671,12 @@ export class Room {
     if (t) {
       n.screamCd = 1.3;
       this.setAnim(n, Anim.Attack, 0.3);
-      this.damage(t, 4, { name: 'un zombi', kind: Kind.Npc });
+      if (t.kind === Kind.Npc) {
+        // contagio: el humano se convertirá en zombi en unos segundos
+        const h = t as Npc;
+        h.infectT = ZB.infectT; h.infectBy = -2; h.fleeing = true;
+        this.fx('infect', h.x, h.y, { o: h.id, n: 0, tx: Math.round(n.x), ty: Math.round(n.y) });
+      } else this.damage(t, 4, { name: 'un zombi', kind: Kind.Npc });
       this.sfx('bite', t.x, t.y);
     }
     let speed = n.fleeing ? (n.variant === 'z-survivor' ? 105 : 72) : 30;
@@ -2659,6 +2690,20 @@ export class Room {
       if (res.hit && !n.fleeing) { n.tx = n.x; n.ty = n.y; }
       n.x = res.x; n.y = res.y;
       n.facing = dx >= 0 ? 1 : -1;
+    }
+  }
+
+  /** Horda: un grupo de zombis aparece junto en algún sitio lejos de los jugadores. */
+  private spawnHorde() {
+    const [a, b] = NL.horde.size;
+    const n = a + Math.floor(Math.random() * (b - a + 1));
+    const c = this.findSpawn(NL.horde.minDist, 40);
+    for (let i = 0; i < n; i++) {
+      const ang = Math.random() * Math.PI * 2, d = 20 + Math.random() * 90;
+      const x = c.x + Math.cos(ang) * d, y = c.y + Math.sin(ang) * d;
+      if (this.grid.blocked(x, y, NPC_RADIUS + 2)) continue;
+      const z = this.spawnNpc({ x, y }, Math.random() < 0.2 ? 'z-soldier' : Math.random() < 0.3 ? 'z-survivor' : 'z-citizen');
+      this.fx('emerge', z.x, z.y, { o: z.id });
     }
   }
 
@@ -3117,7 +3162,10 @@ export class Room {
         }
         ents.push(this.snapPlayerFor(p, me));
       }
-      for (const n of this.npcs.values()) if (inView(n.x, n.y)) ents.push(this.snapMob(n));
+      // lo lejano (humanos y objetos) se manda una foto sí y otra no: menos datos con la ciudad llena
+      const half = (this.tick / SNAPSHOT_EVERY) & 1, FAR2 = 650 * 650;
+      const near = (x: number, y: number, id: number) => dist2(cx, cy, x, y) < FAR2 || ((id + half) & 1) === 0;
+      for (const n of this.npcs.values()) if (inView(n.x, n.y) && near(n.x, n.y, n.id)) ents.push(this.snapMob(n));
       for (const h of this.hunters.values()) if (inView(h.x, h.y)) ents.push(this.snapMob(h));
       for (const m of this.minions.values()) {
         if (!inView(m.x, m.y)) continue;
@@ -3131,7 +3179,7 @@ export class Room {
         if (z.bx !== z.ax || z.by !== z.ay) { zs.bx = Math.round(z.bx); zs.by = Math.round(z.by); }
         ents.push(zs);
       }
-      for (const u of this.powerups.values()) if (inView(u.x, u.y)) ents.push({ i: u.id, k: Kind.PowerUp, x: Math.round(u.x), y: Math.round(u.y), f: 1, a: Anim.Idle, q: 0, c: u.type });
+      for (const u of this.powerups.values()) if (inView(u.x, u.y) && near(u.x, u.y, u.id)) ents.push({ i: u.id, k: Kind.PowerUp, x: Math.round(u.x), y: Math.round(u.y), f: 1, a: Anim.Idle, q: 0, c: u.type });
       for (const pr of this.projectiles.values()) {
         if (!inView(pr.x, pr.y)) continue;
         ents.push({ i: pr.id, k: Kind.Projectile, x: Math.round(pr.x), y: Math.round(pr.y), f: pr.vx >= 0 ? 1 : -1, a: Anim.Idle, q: 0, c: pr.type, r: +Math.atan2(pr.vy, pr.vx).toFixed(2), o: pr.owner });

@@ -100,6 +100,8 @@ const UI = {
   ritual: '¡RITUAL!',
   wave: '¡Buenas noches!',
   // El Señor de la Noche
+  playSub: 'Todos contra todos · reapareces · sube de nivel',
+  reconnecting: '📡 Reconectando…',
   playNl: '🌅 Jugar El Señor de la Noche',
   nlName: 'El Señor de la Noche',
   playNlSub: 'Battle royale · sin reaparecer · llega el amanecer',

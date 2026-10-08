@@ -508,3 +508,7 @@ body.touch.nl #toast { top: auto; }
 @media (orientation: portrait) { body.touch #nlbar { top: calc(112px + env(safe-area-inset-top)); max-width: 94vw; } }
 #playnl { display: flex; flex-direction: column; align-items: center; gap: 4px; background: linear-gradient(#8a4410, #3a1028); border-color: #ffb040; color: #ffe0a0; }
 #playnl small { display: block; font-family: var(--vt); font-size: 16px; color: #f0d0b0; letter-spacing: 0; text-shadow: none; }
+#play { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#play small { display: block; font-family: var(--vt); font-size: 16px; color: #ffd8dc; letter-spacing: 0; text-shadow: none; }
+#play.locked small { display: none; }
+#lagwarn { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); background: rgba(16, 6, 22, 0.88); border: 2px solid #ff6060; padding: 8px 14px; font-family: var(--px); font-size: 11px; color: #ffb0b0; animation: pulse 0.8s infinite; }

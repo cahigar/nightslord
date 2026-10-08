@@ -44,9 +44,11 @@ const rooms = new RoomManager();
 /** Límite de conexiones por proceso: por encima, se rechaza con un aviso (protege CPU y ancho de banda). */
 const MAX_CONNECTIONS = Number(process.env.MAX_CONNECTIONS ?? 400);
 /** Compresión WebSocket (permessage-deflate): ~3-4x menos tráfico a cambio de algo de CPU. WS_DEFLATE=0 la desactiva. */
+/** Bytes pendientes de enviar a un jugador a partir de los cuales se descartan las fotos de la partida (se manda la siguiente). */
+const SNAP_BACKLOG = 48 * 1024;
 const DEFLATE = process.env.WS_DEFLATE !== '0';
 /** Bytes enviados (para vigilar el consumo de tráfico, que es lo que más cuesta). */
-const traffic = { sent: 0, since: Date.now() };
+const traffic: { sent: number; since: number; dropped?: number } = { sent: 0, since: Date.now() };
 let trafficRate = 0;
 setInterval(() => {
   const s = (Date.now() - traffic.since) / 1000;
@@ -107,6 +109,9 @@ wss.on('connection', (ws: WebSocket, req) => {
   let lastBytes = sock?.bytesWritten ?? 0;
   const send = (m: ServerMsg) => {
     if (ws.readyState !== ws.OPEN) return;
+    // red atascada (móvil con mala cobertura): se tiran las fotos viejas en vez de acumularlas;
+    // así, cuando la conexión se recupera, llega la situación actual y no segundos de retraso
+    if (m.t === 'snap' && ws.bufferedAmount > SNAP_BACKLOG) { traffic.dropped = (traffic.dropped ?? 0) + 1; return; }
     ws.send(JSON.stringify(m), () => { if (sock) { traffic.sent += sock.bytesWritten - lastBytes; lastBytes = sock.bytesWritten; } });
   };
   // limitador simple de mensajes

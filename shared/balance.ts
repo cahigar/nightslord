@@ -23,14 +23,15 @@ export const NIGHTLORD = {
   ecto: { speed: 300, q: { r: 230, t: 2, mul: 0.4, cd: 9 }, e: { r: 120, dmg: 9, cd: 2.5 }, reviveHp: 0.5 },
   coins: [100, 50, 25], killCoins: 15,
   npcs: 150, powerups: 70, traps: 26,
+  horde: { every: 50, size: [7, 11] as [number, number], minDist: 900 }, // hordas de zombis que aparecen por la ciudad
 };
 
 /** Trampas: se recogen del mapa (como mucho una) y se colocan con la X. */
 export type TrapId = 'salt' | 'seal' | 'hand' | 'eyes' | 'ritual' | 'candle' | 'silence' | 'blood';
 export const TRAP_IDS: TrapId[] = ['salt', 'seal', 'hand', 'eyes', 'ritual', 'candle', 'silence', 'blood'];
 export const TRAPS = {
-  arm: 0.8, stepR: 44, perMap: 9,
-  salt: { r: 120, t: 14 },
+  arm: 0.8, stepR: 70, perMap: 9,
+  salt: { r: 190, t: 14 },
   seal: { t: 60, mul: 1.3, life: 90 },
   hand: { root: 5, life: 90 },
   eyes: { r: 300, life: 120, cd: 6 },

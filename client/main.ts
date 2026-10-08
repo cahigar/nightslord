@@ -80,10 +80,13 @@ function frame(now: number) {
   mmT -= dt;
   if (inGame && mmT <= 0) { game.minimap($<HTMLCanvasElement>('minimap')); mmT = 0.2; game.focusY += (measureFocus() - game.focusY) * 0.5; }
   animatePreviews(now);
+  // sin noticias del servidor hace rato: avisar (la red se ha atascado o cortado)
+  const stale = inGame && game.lastSnap > 0 && performance.now() - game.lastSnap > 1200;
+  if (stale !== !$('lagwarn').hidden) { $('lagwarn').hidden = !stale; $('lagwarn').textContent = t('reconnecting'); }
   requestAnimationFrame(frame);
+}
 // pestaña o app en segundo plano: el personaje se para
 document.addEventListener('visibilitychange', () => { if (document.hidden) game.stopInput(); });
-}
 requestAnimationFrame(frame);
 
 // ---------------------------------------------------------------------------
@@ -177,7 +180,7 @@ let selDetailT = 0;
 function updatePlayButtons() {
   const owned = isOwned(selChar);
   const lock = `🔒 ${t('unlockFor', { p: unlockPrice(profile) })}`;
-  $('play').textContent = owned ? t('play') : lock;
+  $('playtxt').textContent = owned ? t('play') : lock;
   $('respawn').textContent = owned ? t('respawn') : lock;
   $('play').classList.toggle('locked', !owned);
   $('respawn').classList.toggle('locked', !owned);

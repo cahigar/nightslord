@@ -6,7 +6,7 @@ type Extra = { ui: Dict['ui']; themes: Dict['themes']; medals: Dict['medals']; w
 const trapPu = (ui: Dict['ui']) => Object.fromEntries(['salt', 'seal', 'hand', 'eyes', 'ritual', 'candle', 'silence', 'blood'].map((k) => [`trap_${k}`, (ui as Record<string, string>)[`trapN_${k}`]]));
 
 const EN: Extra['ui'] = {
-  playNl: '🌅 Play Lord of the Night', nlName: 'Lord of the Night', playNlSub: 'Battle royale · no respawns · dawn is coming', nlCreate: '🌅 Lord of the Night (lobby)',
+  playSub: 'Free-for-all · respawn · level up', reconnecting: '📡 Reconnecting…', playNl: '🌅 Play Lord of the Night', nlName: 'Lord of the Night', playNlSub: 'Battle royale · no respawns · dawn is coming', nlCreate: '🌅 Lord of the Night (lobby)',
   nlTitle: '🌅 LORD OF THE NIGHT', nlLobby: 'In the graveyard: {n} 👤 · ready {r}/{n}', nlWait: 'Waiting for another monster…',
   nlAuto: 'The match starts on its own in {s}', nlGo: 'Everyone ready! Starting in {s}', nlReadyHint: 'Everyone step into the candle circle to start now',
   nlAlive: '{a}/{n} alive', nlSunIn: '☀️ Dawn in {s} s: find the fog', nlSunMoves: '☀️ The sun is rising: hide in the fog', nlFogShrink: '🌫️ The fog is fading!',
@@ -29,7 +29,7 @@ const EN: Extra['ui'] = {
   trapN_blood: 'Blood pentacle', trapD_blood: 'Hurts whoever steps on it and heals you the same.',
 };
 const FR: Extra['ui'] = {
-  playNl: '🌅 Jouer au Seigneur de la Nuit', nlName: 'Le Seigneur de la Nuit', playNlSub: 'Battle royale · sans réapparition · l’aube approche', nlCreate: '🌅 Le Seigneur de la Nuit (salon)',
+  playSub: 'Chacun pour soi · réapparition · monte de niveau', reconnecting: '📡 Reconnexion…', playNl: '🌅 Jouer au Seigneur de la Nuit', nlName: 'Le Seigneur de la Nuit', playNlSub: 'Battle royale · sans réapparition · l’aube approche', nlCreate: '🌅 Le Seigneur de la Nuit (salon)',
   nlTitle: '🌅 LE SEIGNEUR DE LA NUIT', nlLobby: 'Au cimetière : {n} 👤 · prêts {r}/{n}', nlWait: 'En attente d’un autre monstre…',
   nlAuto: 'La partie commence toute seule dans {s}', nlGo: 'Tout le monde est prêt ! Début dans {s}', nlReadyHint: 'Entrez tous dans le cercle de bougies pour commencer tout de suite',
   nlAlive: '{a}/{n} en vie', nlSunIn: '☀️ L’aube dans {s} s : trouve le brouillard', nlSunMoves: '☀️ Le soleil avance : réfugie-toi dans le brouillard', nlFogShrink: '🌫️ Le brouillard se dissipe !',
@@ -52,7 +52,7 @@ const FR: Extra['ui'] = {
   trapN_blood: 'Pentacle de sang', trapD_blood: 'Blesse qui marche dessus et te soigne d’autant.',
 };
 const EU: Extra['ui'] = {
-  playNl: '🌅 Jolastu Gauaren Jauna', nlName: 'Gauaren Jauna', playNlSub: 'Battle royale · berpiztu gabe · egunsentia dator', nlCreate: '🌅 Gauaren Jauna (aurrekoa)',
+  playSub: 'Denak denen aurka · berpiztu · maila igo', reconnecting: '📡 Berriz konektatzen…', playNl: '🌅 Jolastu Gauaren Jauna', nlName: 'Gauaren Jauna', playNlSub: 'Battle royale · berpiztu gabe · egunsentia dator', nlCreate: '🌅 Gauaren Jauna (aurrekoa)',
   nlTitle: '🌅 GAUAREN JAUNA', nlLobby: 'Hilerrian: {n} 👤 · prest {r}/{n}', nlWait: 'Beste munstro baten zain…',
   nlAuto: 'Partida berez hasiko da {s} barru', nlGo: 'Denak prest! {s} barru hasiko da', nlReadyHint: 'Sartu denok kandelen zirkuluan orain hasteko',
   nlAlive: '{a}/{n} bizirik', nlSunIn: '☀️ {s} s barru egunsentia: bilatu lainoa', nlSunMoves: '☀️ Eguzkia aurrera doa: babestu lainoan', nlFogShrink: '🌫️ Lainoa desagertzen ari da!',
@@ -75,7 +75,7 @@ const EU: Extra['ui'] = {
   trapN_blood: 'Odol-pentakulua', trapD_blood: 'Zapaltzen duena zauritzen du eta zu kopuru berean sendatzen zaitu.',
 };
 const CA: Extra['ui'] = {
-  playNl: '🌅 Jugar El Senyor de la Nit', nlName: 'El Senyor de la Nit', playNlSub: 'Battle royale · sense reaparèixer · arriba l’alba', nlCreate: '🌅 El Senyor de la Nit (prèvia)',
+  playSub: 'Tots contra tots · reapareixes · puja de nivell', reconnecting: '📡 Reconnectant…', playNl: '🌅 Jugar El Senyor de la Nit', nlName: 'El Senyor de la Nit', playNlSub: 'Battle royale · sense reaparèixer · arriba l’alba', nlCreate: '🌅 El Senyor de la Nit (prèvia)',
   nlTitle: '🌅 EL SENYOR DE LA NIT', nlLobby: 'Al cementiri: {n} 👤 · a punt {r}/{n}', nlWait: 'Esperant un altre monstre…',
   nlAuto: 'La partida comença sola d’aquí a {s}', nlGo: 'Tots a punt! Comença d’aquí a {s}', nlReadyHint: 'Entreu tots al cercle d’espelmes per començar ja',
   nlAlive: '{a}/{n} vius', nlSunIn: '☀️ Clareja d’aquí a {s} s: busca la boira', nlSunMoves: '☀️ El sol avança: refugia’t a la boira', nlFogShrink: '🌫️ La boira es dissipa!',
@@ -98,7 +98,7 @@ const CA: Extra['ui'] = {
   trapN_blood: 'Pentacle de sang', trapD_blood: 'Fereix qui el trepitja i et cura el mateix.',
 };
 const ZH: Extra['ui'] = {
-  playNl: '🌅 玩 暗夜之王', nlName: '暗夜之王', playNlSub: '大逃杀 · 不能复活 · 黎明将至', nlCreate: '🌅 暗夜之王（等候区）',
+  playSub: '大混战 · 可复活 · 升级', reconnecting: '📡 重新连接中…', playNl: '🌅 玩 暗夜之王', nlName: '暗夜之王', playNlSub: '大逃杀 · 不能复活 · 黎明将至', nlCreate: '🌅 暗夜之王（等候区）',
   nlTitle: '🌅 暗夜之王', nlLobby: '墓地里有 {n} 只怪物 · 准备 {r}/{n}', nlWait: '等待另一只怪物……',
   nlAuto: '比赛将在 {s} 后自动开始', nlGo: '全员准备！{s} 后开始', nlReadyHint: '所有人走进蜡烛圈即可立即开始',
   nlAlive: '存活 {a}/{n}', nlSunIn: '☀️ {s} 秒后天亮：快找雾', nlSunMoves: '☀️ 太阳在推进：躲进雾里', nlFogShrink: '🌫️ 雾正在散去！',
@@ -121,7 +121,7 @@ const ZH: Extra['ui'] = {
   trapN_blood: '血之五芒星', trapD_blood: '伤害踩到的人，并为你恢复等量生命。',
 };
 const JA: Extra['ui'] = {
-  playNl: '🌅 夜の王をプレイ', nlName: '夜の王', playNlSub: 'バトルロイヤル · 復活なし · 夜明けが来る', nlCreate: '🌅 夜の王（ロビー）',
+  playSub: 'バトル · 復活あり · レベルアップ', reconnecting: '📡 再接続中…', playNl: '🌅 夜の王をプレイ', nlName: '夜の王', playNlSub: 'バトルロイヤル · 復活なし · 夜明けが来る', nlCreate: '🌅 夜の王（ロビー）',
   nlTitle: '🌅 夜の王', nlLobby: '墓地に {n} 体 · 準備 {r}/{n}', nlWait: 'ほかのモンスターを待っています…',
   nlAuto: '{s} 後に自動で開始', nlGo: '全員準備完了！{s} 後に開始', nlReadyHint: '全員がロウソクの輪に入るとすぐに始まる',
   nlAlive: '生存 {a}/{n}', nlSunIn: '☀️ {s} 秒で夜明け：霧を探せ', nlSunMoves: '☀️ 太陽が迫る：霧に隠れろ', nlFogShrink: '🌫️ 霧が晴れていく！',

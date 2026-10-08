@@ -54,6 +54,8 @@ export class Game {
   /** El Señor de la Noche: estado recibido (y cuándo, para extrapolar el sol y la niebla). */
   night: (NightState & { at: number }) | null = null;
   private drawErr = false;
+  /** Jugadores que están saliendo de bajo tierra (id → cuándo empezó). */
+  private rising = new Map<number, number>();
   /** Avisos en el mapa (Ojos rituales). */
   alerts: { x: number; y: number; until: number; k: string }[] = [];
   setNight(s: NightState | null) { this.night = s ? { ...s, at: performance.now() } : null; }
@@ -224,7 +226,7 @@ export class Game {
       e.samples.push({ t: st, x: s.x, y: s.y });
       if (e.samples.length > 6) e.samples.shift();
     }
-    for (const [id, e] of this.ents) if (!seenIds.has(id) && now - e.seen > 250) this.ents.delete(id);
+    for (const [id, e] of this.ents) if (!seenIds.has(id) && now - e.seen > 450) this.ents.delete(id); // (lo lejano llega una foto sí y otra no)
     this.tv = m.tv ?? null;
     this.burnt.clear();
     for (const [i, flame, left] of m.burn ?? []) this.burnt.set(i, { flame: now + flame * 1000, until: now + left * 1000 });
@@ -343,7 +345,8 @@ export class Game {
         if (ev.k === Kind.Player) for (let i = 0; i < 10; i++) this.particles.push({ x: ev.x, y: ev.y - 20, vx: (Math.random() - 0.5) * 40, vy: -60 - Math.random() * 60, life: 1.6, max: 1.6, color: '#c0a0ff', size: 4, grav: -10 });
         break;
       }
-      case 'fx': if (ev.f === 'allyAsk' && ev.o !== undefined && ev.n !== -1) this.allySay.set(ev.o, performance.now() + 2600); this.fx(ev); break;
+      case 'fx': if (ev.f === 'emerge' && ev.n === 1 && ev.o !== undefined) this.rising.set(ev.o, performance.now());
+        if (ev.f === 'allyAsk' && ev.o !== undefined && ev.n !== -1) this.allySay.set(ev.o, performance.now() + 2600); this.fx(ev); break;
       case 'pick':
         this.burst(ev.x, ev.y, 10, ev.p === 'coin' ? '#ffd040' : '#ffffff', 120, 2);
         this.floaters.push({ x: ev.x, y: ev.y - 30, text: tpu(ev.p), color: '#a0ffa0', life: 1 });
@@ -654,7 +657,6 @@ export class Game {
     this.ambient.update(dt, camX, camY, W / z, H / z);
     this.ambient.drawFog(ctx, vx0, vy0, vx1, vy1);
     this.drawEdgeFog(ctx, vx0, vy0, vx1, vy1);
-    this.drawFogRing(ctx, now, vx0, vy0, vx1, vy1);
 
     // iluminación
     this.drawLighting(ctx, W, H, camX, camY, z, now, me, dyn, cones);
@@ -671,6 +673,7 @@ export class Game {
 
     // capa emisiva (ojos, ventanas, fuego...) por encima de la oscuridad
     world();
+    this.drawFogRing(ctx, now, vx0, vy0, vx1, vy1); // la bruma se ve también de noche
     ctx.globalCompositeOperation = 'lighter';
     for (const g of glows) {
       ctx.globalAlpha = g.a;
@@ -976,11 +979,18 @@ export class Game {
     if (e.f2 & Flag2.Dim) alpha = e.id === this.youId ? 0.5 : this.litAt(x, y) ? 0.55 : 0.07; // Candle Man apagado: solo se le ve bajo la luz
     ctx.globalAlpha = alpha;
     const w = SW * PIXEL * scale, h = SH * PIXEL * scale;
+    // sale de bajo tierra (El Señor de la Noche): sube desde el suelo, recortado a ras de tierra
+    const riseAt = this.rising.get(e.id);
+    const riseK = riseAt !== undefined ? Math.min(1, (now - riseAt) / 1100) : 1;
+    if (riseK >= 1 && riseAt !== undefined) this.rising.delete(e.id);
+    if (riseK < 1) { lift -= (1 - riseK * riseK) * h * 0.85; if (Math.random() < 0.6) this.particles.push({ x: x + (Math.random() - 0.5) * 40, y: y + 2, vx: (Math.random() - 0.5) * 120, vy: -90 - Math.random() * 90, life: 0.5, max: 0.5, color: this.effects.terrainColors(x, y)[Math.floor(Math.random() * 2)], size: 3, grav: 420 }); }
     const dx = x - w / 2, dy = y - h + 9 * scale - lift;
     const flip = e.f === -1;
     const blit = (img: HTMLCanvasElement) => {
+      if (riseK < 1) { ctx.save(); ctx.beginPath(); ctx.rect(x - w, y - h * 2, w * 2, h * 2 + 6); ctx.clip(); }
       if (flip) { ctx.save(); ctx.translate(x * 2, 0); ctx.scale(-1, 1); ctx.drawImage(img, dx, dy, w, h); ctx.restore(); }
       else ctx.drawImage(img, dx, dy, w, h);
+      if (riseK < 1) ctx.restore();
     };
     blit(fr.base);
     if (flyingBroom) {
@@ -1811,18 +1821,43 @@ export class Game {
     }
   }
 
-  /** Bruma del círculo de niebla: un anillo de jirones grises que tapa el sol. */
+  /** Bruma del círculo de niebla: una banda ligera de cuadritos de niebla que se mueven despacio. */
   private drawFogRing(ctx: CanvasRenderingContext2D, now: number, vx0: number, vy0: number, vx1: number, vy1: number) {
     const k = this.sky(now);
     if (!k || k.fr < 4) return;
-    const n = Math.min(260, Math.max(24, Math.round((k.fr * Math.PI * 2) / 46)));
+    const C = PIXEL * 4, t = now / 1000;
+    const n = Math.max(24, Math.round((k.fr * Math.PI * 2) / C));
+    ctx.fillStyle = '#d0d8e4';
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + Math.sin(now / 3000 + i) * 0.02;
-      const wob = Math.sin(now / 900 + i * 1.7) * 18;
-      const x = k.fx + Math.cos(a) * (k.fr + wob), y = k.fy + Math.sin(a) * (k.fr + wob) * 0.92;
-      if (x < vx0 - 80 || x > vx1 + 80 || y < vy0 - 80 || y > vy1 + 80) continue;
-      ctx.globalAlpha = 0.16 + ((i * 37) % 10) / 70;
-      pixelEllipse(ctx, x, y, 60 + ((i * 13) % 30), 26 + ((i * 7) % 14), '#c8d0dc');
+      const a = (i / n) * Math.PI * 2;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const bx = k.fx + ca * k.fr, by = k.fy + sa * k.fr;
+      if (bx < vx0 - 120 || bx > vx1 + 120 || by < vy0 - 120 || by > vy1 + 120) continue;
+      for (let d = -96; d <= 60; d += C) {
+        // ruido barato que se desplaza con el tiempo: jirones que van y vienen
+        const nz = Math.sin(i * 0.37 + t * 0.6 + d * 0.05) + Math.sin(i * 0.11 - t * 0.35 + d * 0.09) * 0.8;
+        const fade = 1 - Math.abs(d + 18) / 80;
+        const al = (0.04 + Math.max(0, nz) * 0.09) * fade;
+        if (al < 0.02) continue;
+        ctx.globalAlpha = al;
+        ctx.fillRect(Math.round((bx + ca * d) / C) * C, Math.round((by + sa * d) / C) * C, C, C);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** Disco tramado en pixel art (área de una trampa). */
+  private ditherDisc(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, alpha: number) {
+    const C = PIXEL * 2, ry = r * 0.62;
+    ctx.fillStyle = color;
+    for (let py = -ry; py <= ry; py += C) for (let px = -r; px <= r; px += C) {
+      const d = (px / r) ** 2 + (py / ry) ** 2;
+      if (d > 1) continue;
+      const gx = Math.round((x + px) / C), gy = Math.round((y + py) / C);
+      const rim = d > 0.78;
+      if (!rim && (gx + gy) & 1) continue; // tramado por dentro, borde lleno
+      ctx.globalAlpha = alpha * (rim ? 1 : 0.45);
+      ctx.fillRect(gx * C, gy * C, C, C);
     }
     ctx.globalAlpha = 1;
   }
@@ -1833,12 +1868,19 @@ export class Game {
     const obvious = e.c === 'trap_salt' || e.c === 'trap_ritual' || e.c === 'trap_candle';
     const a = mine || obvious ? 1 : 0.22 + Math.sin(now / 400 + e.id) * 0.06;
     if (e.c === 'trap_salt') {
-      ctx.fillStyle = '#f0f0ff';
-      const n = Math.round((r * Math.PI * 2) / 14);
-      for (let i = 0; i < n; i++) { const t = (i / n) * Math.PI * 2; ctx.globalAlpha = 0.75 + Math.sin(now / 200 + i) * 0.2; ctx.fillRect(Math.round((x + Math.cos(t) * r) / PIXEL) * PIXEL, Math.round((y + Math.sin(t) * r * 0.62) / PIXEL) * PIXEL, PIXEL * 2, PIXEL); }
+      const n = Math.round((r * Math.PI * 2) / 10);
+      for (let i = 0; i < n; i++) {
+        const t = (i / n) * Math.PI * 2, j = ((i * 7) % 5) - 2;
+        ctx.globalAlpha = 0.8 + Math.sin(now / 200 + i) * 0.2;
+        ctx.fillStyle = i % 3 ? '#f0f0ff' : '#c0c8e0';
+        ctx.fillRect(Math.round((x + Math.cos(t) * (r + j * 2)) / PIXEL) * PIXEL, Math.round((y + Math.sin(t) * (r + j * 2) * 0.62) / PIXEL) * PIXEL, PIXEL * 2, PIXEL * 2);
+      }
       ctx.globalAlpha = 1;
       return;
     }
+    const TRAP_COL: Record<string, string> = { trap_seal: '#ff3040', trap_hand: '#60ff90', trap_silence: '#6080ff', trap_blood: '#ff2040', trap_eyes: '#ffd040' };
+    const col = TRAP_COL[e.c];
+    if (col && e.c !== 'trap_eyes') this.ditherDisc(ctx, x, y, r, col, (mine ? 0.4 : 0.14) * (0.85 + Math.sin(now / 300 + e.id) * 0.15));
     if (e.c === 'trap_candle') {
       ctx.globalAlpha = 0.35; pixelEllipse(ctx, x, y, r, r * 0.62, '#2a1040', 2); ctx.globalAlpha = 1;
     } else if (e.c === 'trap_ritual') {

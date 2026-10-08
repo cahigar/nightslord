@@ -75,7 +75,7 @@
             <input id="name" maxlength="14" data-i18n-ph="namePh" autocomplete="off" />
             <div class="coins">🪙 <span id="coins">0</span></div>
           </div>
-          <button id="play" class="btn big" data-i18n="play"></button>
+          <button id="play" class="btn big"><span id="playtxt" data-i18n="play"></span><small data-i18n="playSub"></small></button>
           <button id="playnl" class="btn big nlbtn"><span data-i18n="playNl"></span><small data-i18n="playNlSub"></small></button>
           <details id="modes" class="modes">
           <summary data-i18n="modesTitle"></summary>
@@ -155,6 +155,7 @@
       <div id="abilities"></div>
     </div>
     <div id="nlbar" hidden></div>
+    <div id="lagwarn" hidden></div>
     <div id="podium" class="panel podium" hidden></div>
     <div id="toast"></div>
     <div id="infopanel" class="panel" hidden></div>
