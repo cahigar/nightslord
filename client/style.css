@@ -506,3 +506,5 @@ body.nl #toast { top: 104px; }
 body.touch.nl #toast { top: auto; }
 #theme { flex: 1 1 0; min-width: 0; max-width: 100%; }
 @media (orientation: portrait) { body.touch #nlbar { top: calc(112px + env(safe-area-inset-top)); max-width: 94vw; } }
+#playnl { display: flex; flex-direction: column; align-items: center; gap: 4px; background: linear-gradient(#8a4410, #3a1028); border-color: #ffb040; color: #ffe0a0; }
+#playnl small { display: block; font-family: var(--vt); font-size: 16px; color: #f0d0b0; letter-spacing: 0; text-shadow: none; }

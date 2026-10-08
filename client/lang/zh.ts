@@ -9,7 +9,7 @@ export const ZH: Dict = {
     coins: '金币',
     chooseMonster: '选择你的怪物',
     skin: '皮肤',
-    play: '🦇 开始游戏',
+    play: '🦇 玩 Free 4 All',
     codePh: '房间码',
     join: '加入',
     randomMap: '随机地图',

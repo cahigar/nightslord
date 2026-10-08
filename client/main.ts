@@ -724,7 +724,7 @@ net.on((m: ServerMsg) => {
     }
     case 'rooms':
       $('rooms').innerHTML = m.list.length
-        ? m.list.map((r) => `<span class="room" data-code="${r.code}">${r.nl ? '🌅 ' : ''}${r.code} · ${r.nl ? t('playNl').replace(/^\S+\s/, '') : tt(r.theme).name} · ${r.players}/${r.max}</span>`).join('')
+        ? m.list.map((r) => `<span class="room" data-code="${r.code}">${r.nl ? '🌅 ' : ''}${r.code} · ${r.nl ? t('nlName') : tt(r.theme).name} · ${r.players}/${r.max}</span>`).join('')
         : '';
       $('rooms').querySelectorAll<HTMLElement>('.room').forEach((el) => { el.onclick = () => join('code', el.dataset.code); });
       break;

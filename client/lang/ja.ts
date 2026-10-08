@@ -9,7 +9,7 @@ export const JA: Dict = {
     coins: 'コイン',
     chooseMonster: 'モンスターを選ぼう',
     skin: 'スキン',
-    play: '🦇 プレイ',
+    play: '🦇 Free 4 All をプレイ',
     codePh: 'コード',
     join: '参加',
     randomMap: 'ランダムマップ',

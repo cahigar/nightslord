@@ -9,7 +9,7 @@ export const EU: Dict = {
     coins: 'Txanponak',
     chooseMonster: 'Aukeratu zure munstroa',
     skin: 'Itxura',
-    play: '🦇 Jolastu',
+    play: '🦇 Jolastu Free 4 All',
     codePh: 'KODEA',
     join: 'Sartu',
     randomMap: 'Ausazko mapa',

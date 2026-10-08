@@ -9,7 +9,7 @@ export const CA: Dict = {
     coins: 'Monedes',
     chooseMonster: 'Tria el teu monstre',
     skin: 'Aparença',
-    play: '🦇 Jugar',
+    play: '🦇 Jugar Free 4 All',
     codePh: 'CODI',
     join: 'Unir-se',
     randomMap: 'Mapa aleatori',

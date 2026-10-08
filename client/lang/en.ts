@@ -9,7 +9,7 @@ export const EN: Dict = {
     coins: 'Coins',
     chooseMonster: 'Choose your monster',
     skin: 'Skin',
-    play: '🦇 Play',
+    play: '🦇 Play Free 4 All',
     codePh: 'CODE',
     join: 'Join',
     randomMap: 'Random map',
