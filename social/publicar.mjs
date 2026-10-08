@@ -85,7 +85,7 @@ function loadCalendar() {
   for (const e of cal) {
     if (!e.id || ids.has(e.id)) throw new Error(`Entrada sin id o id repetido: ${e.id}`);
     ids.add(e.id);
-    if (!['reel', 'historia'].includes(e.tipo)) throw new Error(`${e.id}: tipo debe ser «reel» o «historia»`);
+    if (!['reel', 'historia', 'imagen'].includes(e.tipo)) throw new Error(`${e.id}: tipo debe ser «reel», «imagen» o «historia»`);
     if (Number.isNaN(Date.parse(e.fecha))) throw new Error(`${e.id}: fecha no válida (${e.fecha})`);
   }
   return cal;
@@ -109,8 +109,12 @@ async function esperarContenedor(state, id) {
 }
 
 async function crearContenedor(state, tipo, e) {
-  const params = { video_url: mediaUrl(e.archivo) };
-  if (tipo === 'reel') {
+  const esImagen = /\.jpe?g$/i.test(e.archivo);
+  const params = esImagen ? { image_url: mediaUrl(e.archivo) } : { video_url: mediaUrl(e.archivo) };
+  if (tipo === 'imagen') {
+    if (!esImagen) throw new Error(`${e.id}: las imágenes tienen que ser .jpg`);
+    params.caption = e.texto || '';
+  } else if (tipo === 'reel') {
     Object.assign(params, {
       media_type: 'REELS',
       caption: e.texto || '',
@@ -140,9 +144,9 @@ async function publicarEntrada(state, e) {
     hecho.principal = { ...(await publicarUno(state, e.tipo, e)), cuando: new Date().toISOString() };
     state.publicados[e.id] = hecho;
     saveState(state);
-    log(`  ✔ ${e.tipo} publicado ${hecho.principal.enlace}`);
+    log(`  ✔ publicado (${e.tipo}) ${hecho.principal.enlace}`);
   }
-  if (e.tipo === 'reel' && e.historia && !hecho.historia) {
+  if ((e.tipo === 'reel' || e.tipo === 'imagen') && e.historia && !hecho.historia) {
     log(`Publicando historia de «${e.id}»…`);
     hecho.historia = { ...(await publicarUno(state, 'historia', e)), cuando: new Date().toISOString() };
     state.publicados[e.id] = hecho;
@@ -155,7 +159,7 @@ async function publicarEntrada(state, e) {
 
 function completa(state, e) {
   const h = state.publicados[e.id];
-  return !!(h && h.principal && (!(e.tipo === 'reel' && e.historia) || h.historia));
+  return !!(h && h.principal && (!e.historia || e.tipo === 'historia' || h.historia));
 }
 
 async function comprobar(state) {
