@@ -17,7 +17,7 @@ const strip = (s: string) => s.replace(/<[^>]+>/g, '');
 const slug = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 // Trailers ya publicados (los sirve Caddy en /media)
-const TRAILER_CHAR: Partial<Record<CharacterId, string>> = { vampire: 'trailer-vampiro.mp4', zombie: 'trailer-zombi.mp4', mummy: 'trailer-ramses.mp4', candle: 'trailer-candleman.mp4' };
+const TRAILER_CHAR: Partial<Record<CharacterId, string>> = { werewolf: 'trailer-aullador.mp4', kthula: 'trailer-kthula.mp4', doppy: 'trailer-doppy.mp4', vampire: 'trailer-vampiro.mp4', zombie: 'trailer-zombi.mp4', mummy: 'trailer-ramses.mp4', candle: 'trailer-candleman.mp4' };
 const TRAILER_MAP: Partial<Record<MapThemeId, string>> = { camp: 'trailer-campamento.mp4', nile: 'trailer-nilo.mp4' };
 const INSTAGRAM = 'https://www.instagram.com/mooonsters.game/';
 
