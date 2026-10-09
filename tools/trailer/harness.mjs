@@ -121,7 +121,7 @@ export const press = (page, code) => page.evaluate((c) => window.pilot.press(c),
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Fija resolución interna y zoom de cámara (encuadre de los trailers). */
-export async function lockView(page, { scale = 1.25, zoom = 2.8 } = {}) {
+export async function lockView(page, { scale = 1.25, zoom = 3.4, focusY = 0.56 } = {}) {
   await page.evaluate(async ({ scale, zoom }) => {
     const { quality } = await import('/quality.ts');
     quality.max = quality.min = quality.scale = scale;
@@ -129,7 +129,8 @@ export async function lockView(page, { scale = 1.25, zoom = 2.8 } = {}) {
     const g = window.__nl.game;
     window.__zoom = zoom;
     Object.defineProperty(g.cam, 'zoom', { get: () => window.__zoom, set() {}, configurable: true });
-  }, { scale, zoom });
+    g.focusY = focusY; Object.defineProperty(g, 'focusY', { get: () => focusY, set() {}, configurable: true }); // el monstruo, algo por debajo del centro (arriba va el título)
+  }, { scale, zoom, focusY });
 }
 
 /** Graba el lienzo del juego + el audio. Devuelve { mark(name), stop() → ruta del .webm }. */

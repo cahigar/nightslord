@@ -1,16 +1,18 @@
 // Monta el trailer final (1080×1920, 30 fps, ~29 s) a partir de la grabación, sus marcas y la música.
 // Uso: node tools/trailer/compose.mjs <werewolf|kthula|doppy> <carpeta de grabación> <salida.mp4>
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { renderCards } from './cards.mjs';
 
 const [char, dir = '/tmp/tr', out = `/tmp/tr/trailer-${char}.mp4`] = process.argv.slice(2);
 const MUSIC = process.env.MUSIC || `${dir}/music.webm`;
-const INTRO = 2.4, END = 5.6;
+const INTRO = 3.2, SKINS = 2.4, END = 4.6;
+const CROP = Number(process.env.CROP || 1); // <1 acerca la cámara recortando (grabaciones antiguas a zoom 2.8: 0.8)
+const SPEED = Number(process.env.SPEED || 1.08); // un pelín más rápido: más frenético
 
 const C = {
   werewolf: {
-    name: 'AULLADOR', title: 'HOMBRE LOBO', accent: '#8fb4ff',
+    name: 'AULLADOR', title: 'HOMBRE LOBO', tagline: '¡AUUUUU!', accent: '#8fb4ff', tint: '#141a30',
     segments: [
       { take: 'basic', off: 1.6, len: 2.6, title: 'ZARPAZO', sub: 'CAZA EN TRANSILVANIA', card: { key: 'P', name: 'ZARPAZO AMPLIO', desc: 'Pasiva: golpea a varios a la vez' } },
       { take: 'q', off: 0.5, len: 2.4, title: 'EMBESTIDA', sub: 'NADIE SE LE ESCAPA', card: { key: 'Q', name: 'EMBESTIDA', desc: 'Carga y arrolla todo a su paso' } },
@@ -22,7 +24,7 @@ const C = {
     ],
   },
   kthula: {
-    name: "K'THULA", title: 'HORROR ABISAL', accent: '#5fe0a8',
+    name: "K'THULA", title: 'HORROR ABISAL', tagline: "PH'NGLUI... ¡GLUB!", accent: '#5fe0a8', tint: '#0c1f1a',
     segments: [
       { take: 'basic', off: 1.2, len: 2.6, title: 'TENTÁCULO', sub: 'ALGO SALE DEL PANTANO', card: { key: 'P', name: 'HIJO DEL ABISMO', desc: 'Pasiva: en el agua es más rápido y dispara chorros' } },
       { take: 'q', off: 0.4, len: 2.4, title: 'TENTÁCULO ABISAL', sub: 'TE ARRASTRA AL FONDO', card: { key: 'Q', name: 'TENTÁCULO ABISAL', desc: 'Surge del suelo y arrastra hacia el centro' } },
@@ -34,7 +36,7 @@ const C = {
     ],
   },
   doppy: {
-    name: 'DOPPY', title: 'DOPPELGÄNGER', accent: '#ff7ad9',
+    name: 'DOPPY', title: 'DOPPELGÄNGER', tagline: '¿QUIÉN ES QUIÉN?', accent: '#ff7ad9', tint: '#24102a',
     segments: [
       { take: 'disguise', off: 0.1, len: 3.0, title: 'MIL CARAS', sub: '¿QUIÉN ES QUIÉN?', card: { key: 'P', name: 'MIL CARAS', desc: 'Pasiva: se disfraza de humano y su golpe aturde' } },
       { take: 'q', off: 0.2, len: 2.6, title: 'ROBAR ROSTRO', sub: 'AHORA ES OTRO MONSTRUO', card: { key: 'Q', name: 'ROBAR ROSTRO', desc: 'Copia el aspecto y los poderes de otro monstruo' } },
@@ -53,29 +55,35 @@ const marks = Object.fromEntries(JSON.parse(readFileSync(`${dir}/${char}.json`, 
 if (process.env.OFFS) for (const [i, v] of process.env.OFFS.split(',').entries()) if (v) C.segments[i].off = +v; // ajuste fino sin tocar el archivo
 const work = `${dir}/${char}-work`; mkdirSync(work, { recursive: true });
 const SRC = `${dir}/${char}.webm`;
+const ENC = ['-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', '-r', '30'];
 
-await renderCards(C, work, END);
+await renderCards(C, work, { intro: INTRO, skins: SKINS, end: END });
 
-const VF = 'fps=30,scale=1080:1920:flags=lanczos,setsar=1';
-const parts = [];
-// intro: juego desenfocado y oscurecido + monstruo y nombre
-const first = marks[C.segments[0].take] + C.segments[0].off;
-ff('-ss', String(first), '-t', String(INTRO), '-i', SRC, '-loop', '1', '-t', String(INTRO), '-i', `${work}/intro.png`,
-  '-filter_complex', `[0:v]${VF},gblur=sigma=26,eq=brightness=-0.18:saturation=0.7[bg];[1:v]format=rgba,fade=t=in:st=0:d=0.25:alpha=1[ov];[bg][ov]overlay=0:0,fade=t=in:st=0:d=0.2[v]`,
-  '-map', '[v]', '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', `${work}/p0.mp4`);
-parts.push({ v: `${work}/p0.mp4`, len: INTRO, a: null });
-// tomas
+const scene = (name, len) => { ff('-i', `${work}/${name}.webm`, '-vf', `fps=30,setsar=1,tpad=stop_mode=clone:stop_duration=2,trim=duration=${len}`, '-an', ...ENC, `${work}/p-${name}.mp4`); return { v: `${work}/p-${name}.mp4`, len, a: null }; };
+const parts = [scene('intro', INTRO)];
+// tomas de juego: recorte/zoom, algo más rápidas, viñeta, título y tarjeta entrando desde la izquierda
+const slideX = (t0, d = 0.2) => `'-W*pow(1-min(1,max(0,(t-${t0})/${d})),3)'`;
 for (const [i, s] of C.segments.entries()) {
-  const at = marks[s.take] + s.off;
-  ff('-ss', String(at), '-t', String(s.len), '-i', SRC, '-loop', '1', '-t', String(s.len), '-i', `${work}/seg${i}.png`,
-    '-filter_complex', `[0:v]${VF}[g];[1:v]format=rgba,fade=t=in:st=0:d=0.12:alpha=1[ov];[g][ov]overlay=0:0[v]`,
-    '-map', '[v]', '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', `${work}/p${i + 1}.mp4`);
-  ff('-ss', String(at), '-t', String(s.len), '-i', SRC, '-vn', '-ac', '2', '-ar', '48000', '-af', `apad=whole_dur=${s.len},afade=t=in:d=0.04,afade=t=out:st=${s.len - 0.06}:d=0.06`, `${work}/a${i + 1}.wav`);
+  const at = marks[s.take] + s.off, raw = s.len * SPEED;
+  const L = (k) => `${work}/seg${i}-${k}.png`;
+  const inputs = ['-ss', String(at), '-t', String(raw), '-i', SRC, '-loop', '1', '-t', String(s.len), '-i', `${work}/vignette.png`];
+  let f = `[0:v]setpts=PTS/${SPEED},crop=iw*${CROP}:ih*${CROP}:(iw-iw*${CROP})/2:0,scale=1080:1920:flags=lanczos,setsar=1,fps=30[g0];[g0][1:v]overlay=0:0[g1]`;
+  let n = 2, last = 'g1';
+  const add = (k, filter) => {
+    if (!existsSync(L(k))) return;
+    inputs.push('-loop', '1', '-t', String(s.len), '-i', L(k));
+    f += `;[${n}:v]format=rgba${filter.pre ?? ''}[o${n}];[${last}][o${n}]overlay=x=${filter.x ?? 0}:y=0:eval=frame[g${n}]`;
+    last = `g${n}`; n++;
+  };
+  add('title', { x: slideX(0) });
+  add('sub', { pre: ',fade=t=in:st=0.18:d=0.15:alpha=1' });
+  add('card', { x: slideX(0.32, 0.22) });
+  ff(...inputs, '-filter_complex', f, '-map', `[${last}]`, '-t', String(s.len), '-an', ...ENC, `${work}/p${i + 1}.mp4`);
+  ff('-ss', String(at), '-t', String(raw), '-i', SRC, '-vn', '-ac', '2', '-ar', '48000', '-af', `atempo=${SPEED},apad=whole_dur=${s.len},atrim=0:${s.len},afade=t=in:d=0.03,afade=t=out:st=${s.len - 0.05}:d=0.05`, `${work}/a${i + 1}.wav`);
   parts.push({ v: `${work}/p${i + 1}.mp4`, len: s.len, a: `${work}/a${i + 1}.wav` });
 }
-// cierre
-ff('-i', `${work}/end.webm`, '-t', String(END), '-vf', `fps=30,setsar=1,tpad=stop_mode=clone:stop_duration=1,trim=duration=${END}`, '-an', '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', `${work}/pend.mp4`);
-parts.push({ v: `${work}/pend.mp4`, len: END, a: null });
+parts.push(scene('skins', SKINS));
+parts.push(scene('end', END));
 
 writeFileSync(`${work}/list.txt`, parts.map((p) => `file '${p.v}'`).join('\n'));
 ff('-f', 'concat', '-safe', '0', '-i', `${work}/list.txt`, '-c', 'copy', `${work}/video.mp4`);
@@ -83,7 +91,7 @@ const total = parts.reduce((s, p) => s + p.len, 0);
 
 // audio: música continua + efectos de cada toma en su sitio
 const inputs = ['-stream_loop', '-1', '-i', MUSIC];
-const filt = [`[0:a]atrim=0:${total},asetpts=N/SR/TB,volume=4.5,afade=t=out:st=${total - 1.2}:d=1.2[m]`];
+const filt = [`[0:a]atrim=0:${total},asetpts=N/SR/TB,volume=4.5,afade=t=in:d=0.4,afade=t=out:st=${total - 1.0}:d=1.0[m]`];
 let t = 0, n = 1; const mix = ['[m]'];
 for (const p of parts) {
   if (p.a) { inputs.push('-i', p.a); filt.push(`[${n}:a]volume=2.2,adelay=${Math.round(t * 1000)}|${Math.round(t * 1000)}[s${n}]`); mix.push(`[s${n}]`); n++; }
