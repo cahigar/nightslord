@@ -516,7 +516,7 @@ function showPodium(s: Extract<import('../shared/protocol').NightState, { ph: 'p
   const box = $('podium');
   const medal = ['🥇', '🥈', '🥉'];
   const order = [1, 0, 2].filter((i) => s.top[i]); // 2º, 1º, 3º
-  box.innerHTML = `<h2>${t('podiumTitle')}</h2><div class="steps">${order.map((i) => { const r = s.top[i]; return `<div class="step p${i + 1}"><canvas data-c="${r[1]}" data-s="${r[2]}" width="${SW}" height="${SH}"></canvas><b>${medal[i]} ${escapeHtml(r[0])}</b>⚔ ${r[3]} · +${r[4]}🪙</div>`; }).join('')}</div>
+  box.innerHTML = `<h2>${t('podiumTitle')}</h2>${s.top[0] ? `<div class="winner">👑 ${escapeHtml(s.top[0][0])}</div>` : ''}<div class="steps">${order.map((i) => { const r = s.top[i]; return `<div class="step p${i + 1}"><canvas data-c="${r[1]}" data-s="${r[2]}" width="${SW}" height="${SH}"></canvas><b>${medal[i]} ${escapeHtml(r[0])}</b>⚔ ${r[3]} · +${r[4]}🪙</div>`; }).join('')}</div>
     <div class="you">${s.place ? t('podiumPlace', { p: s.place }) : ''} · ${t('podiumCoins', { c: s.coins })}</div><div class="back" id="podback"></div>`;
   box.querySelectorAll<HTMLCanvasElement>('canvas').forEach((cv) => {
     const fr = getFrame('monster', cv.dataset.c as CharacterId, cv.dataset.s ?? 'classic', Anim.Taunt, 1);

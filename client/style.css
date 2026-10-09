@@ -512,3 +512,4 @@ body.touch.nl #toast { top: auto; }
 #play small { display: block; font-family: var(--vt); font-size: 16px; color: #ffd8dc; letter-spacing: 0; text-shadow: none; }
 #play.locked small { display: none; }
 #lagwarn { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); background: rgba(16, 6, 22, 0.88); border: 2px solid #ff6060; padding: 8px 14px; font-family: var(--px); font-size: 11px; color: #ffb0b0; animation: pulse 0.8s infinite; }
+.podium .winner { font-family: var(--px); font-size: 20px; color: var(--gold); text-shadow: 3px 3px 0 #000; margin: -2px 0 6px; animation: pulse 1.2s infinite; }

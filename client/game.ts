@@ -1059,6 +1059,7 @@ export class Game {
     if (e.f2 & Flag2.Engulfed) { ctx.globalAlpha = 0.45; ctx.fillStyle = '#60d040'; ctx.fillRect(dx, dy, w, h); ctx.globalAlpha = 1; }
     if (e.f2 & Flag2.Burning) this.drawFlames(ctx, x, y - lift, h, now, e.id);
     if (e.f2 & Flag2.Sunlit) {
+      this.drawBlackFire(ctx, x, y - lift, h, now, e.id);
       // al sol: la piel humea y se enrojece
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.22 + Math.sin(now / 100) * 0.08;
       ctx.filter = 'sepia(1) saturate(6) hue-rotate(-30deg)'; blit(fr.base); ctx.filter = 'none';
@@ -1421,18 +1422,37 @@ export class Game {
   }
 
   /** Llamas pixeladas sobre quien arde. */
-  private drawFlames(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, now: number, seed: number) {
+  private drawFlames(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, now: number, seed: number, black = false) {
     const P = PIXEL;
-    for (let i = 0; i < 5; i++) {
+    // llamas negras (al sol, en El Señor de la Noche): sombra que arde con un núcleo violeta
+    const C = black ? ['#06030a', '#24142e', '#7a40a0', '#140a1c'] : ['#c02010', '#ff7020', '#ffd040', '#ff9030'];
+    for (let i = 0; i < (black ? 7 : 5); i++) {
       const fx = Math.round((x - 15 + i * 7 + Math.sin(now / 90 + i * 1.7 + seed) * 2) / P) * P;
       const base = Math.round((y - 6 - ((i * 13 + seed) % 4) * P - (i % 2 ? h * 0.25 : 0)) / P) * P;
-      const fh = (3 + ((Math.floor(now / 70) + i + seed) % 3)) * P;
-      ctx.fillStyle = '#c02010'; ctx.fillRect(fx - P, base - fh, P * 3, fh);
-      ctx.fillStyle = '#ff7020'; ctx.fillRect(fx - P, base - fh + P, P * 2, fh - P);
-      ctx.fillStyle = '#ffd040'; ctx.fillRect(fx, base - fh + P * 2, P, Math.max(P, fh - P * 3));
-      ctx.fillStyle = '#ff9030'; ctx.fillRect(fx, base - fh - P, P, P);
+      const fh = (3 + ((Math.floor(now / 70) + i + seed) % 3) + (black ? 2 : 0)) * P;
+      const ox = black ? (i - 1) * P - 3 * P : 0;
+      ctx.fillStyle = C[0]; ctx.fillRect(fx - P + ox, base - fh, P * 3, fh);
+      ctx.fillStyle = C[1]; ctx.fillRect(fx - P + ox, base - fh + P, P * 2, fh - P);
+      ctx.fillStyle = C[2]; ctx.fillRect(fx + ox, base - fh + P * 2, P, Math.max(P, fh - P * 3));
+      ctx.fillStyle = C[3]; ctx.fillRect(fx + ox, base - fh - P, P, P);
     }
-    if (Math.random() < 0.5) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y - 10 - Math.random() * h * 0.6, vx: 0, vy: -80, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#ff6020' : '#ffd040', size: 3, grav: 0 });
+    if (Math.random() < (black ? 0.8 : 0.5)) this.particles.push({ x: x + (Math.random() - 0.5) * 30, y: y - 10 - Math.random() * h * 0.6, vx: 0, vy: black ? -110 : -80, life: black ? 0.6 : 0.4, max: black ? 0.6 : 0.4, color: black ? (Math.random() < 0.6 ? '#0a0610' : '#5a2a7a') : Math.random() < 0.5 ? '#ff6020' : '#ffd040', size: black && Math.random() < 0.4 ? 6 : 3, grav: 0 });
+  }
+
+  /** Llamas negras (al sol en El Señor de la Noche): lenguas de sombra por todo el cuerpo, con borde violeta y ceniza. */
+  private drawBlackFire(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, now: number, seed: number) {
+    const P = PIXEL;
+    for (let i = 0; i < 9; i++) {
+      const fx = Math.round((x - 24 + i * 6 + Math.sin(now / 80 + i * 1.9 + seed) * 3) / P) * P;
+      const base = Math.round((y - 4 - ((i * 37 + seed) % 7) * h * 0.08) / P) * P;
+      const fh = (5 + ((Math.floor(now / 60) + i * 3 + seed) % 4)) * P;
+      const wv = Math.round(Math.sin(now / 70 + i) * 1) * P; // la punta se mece
+      ctx.fillStyle = '#9a50d0'; ctx.fillRect(fx - P * 2, base - fh + P, P * 5, fh - P); // borde violeta
+      ctx.fillStyle = '#05020a'; ctx.fillRect(fx - P, base - fh, P * 3, fh);
+      ctx.fillStyle = '#05020a'; ctx.fillRect(fx + wv, base - fh - P * 2, P, P * 2);
+      ctx.fillStyle = '#2a1238'; ctx.fillRect(fx, base - fh + P * 2, P, Math.max(P, fh - P * 3));
+    }
+    if (Math.random() < 0.9) this.particles.push({ x: x + (Math.random() - 0.5) * 40, y: y - 10 - Math.random() * h * 0.7, vx: (Math.random() - 0.5) * 20, vy: -120 - Math.random() * 60, life: 0.7, max: 0.7, color: Math.random() < 0.65 ? '#05020a' : '#b070ff', size: Math.random() < 0.4 ? 6 : 3, grav: 0 });
   }
 
   /** Luna llena detrás del Lobo durante su definitiva. */

@@ -122,7 +122,7 @@ const UI = {
   nlSilIn: 'silencio en {s} s',
   nlLobbyHelp: 'Cementerio: aquí se espera a la siguiente partida. Si todos entráis en el círculo de velas, empieza en 10 s.',
   nlMatchHelp: 'Gana el último monstruo en pie. Si caes, vagas como ectoplasma. Los altares dan experiencia; el sol quema.',
-  podiumTitle: '🌅 AMANECE',
+  podiumTitle: '🌅 El Señor de la Noche es…',
   podiumPlace: 'Has quedado {p}º',
   podiumCoins: '+{c} 🪙 en esta partida',
   podiumBack: 'Volviendo al cementerio en {s}…',
