@@ -3,7 +3,7 @@
 // - Bola infernal (Q): explota y deja el suelo en llamas (nv. 15: suelta llamas secundarias).
 // - Paso ardiente (E): unos segundos corriendo muchísimo más rápido, quemando a quien toca y dejando un rastro de llamas.
 // - Combustión (nv. 5): quien ya arde recibe más daño de sus habilidades de fuego.
-// - Infierno (R): sus golpes lanzan ondas de fuego hacia delante; ataca y corre más rápido.
+// - Infierno (R): se rodea de llamas que queman alrededor, sus golpes lanzan ondas de fuego hacia delante; ataca y corre más rápido.
 // - Nv. 15: el fuego le cura.
 import { BAL } from '../../shared/balance';
 import { Anim } from '../../shared/protocol';
@@ -74,6 +74,15 @@ export const demonKit: Kit = {
   buffs(room, p, add) { if (blazing(room, p)) add('blaze', p.k.blazeEnd - room.time); },
 
   tick(room, p, dt) {
+    // Infierno: aura de llamas que quema alrededor
+    if (p.ultT > 0) {
+      p.k.auraT = (p.k.auraT ?? 0) - dt;
+      if (p.k.auraT <= 0) {
+        const A = B.ult.aura;
+        p.k.auraT = A.every;
+        room.forEachEnemyNear(p, p.x, p.y, A.r, (m) => { if (!m.dead) fireHit(room, p, m, A.dmg); });
+      }
+    }
     // Paso ardiente: rastro de llamas y quema a quien toca (una vez por enemigo)
     if (blazing(room, p) && p.k.lx !== undefined) {
       const d = Math.hypot(p.x - p.k.lx, p.y - p.k.ly);

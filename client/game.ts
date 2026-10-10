@@ -927,6 +927,12 @@ export class Game {
       ctx.fillStyle = 'rgba(30,0,10,0.45)';
       ctx.beginPath(); ctx.ellipse(x, y + 2, 60 + Math.sin(now / 200) * 6, 22, 0, 0, Math.PI * 2); ctx.fill();
     }
+    if (ult && e.c === 'demon') this.drawFireRing(ctx, x, y, now, e.id);
+    if (ult && e.c === 'nightmare') {
+      ctx.fillStyle = 'rgba(60,30,130,0.45)';
+      ctx.beginPath(); ctx.ellipse(x, y + 2, 60 + Math.sin(now / 260) * 5, 20, 0, 0, Math.PI * 2); ctx.fill();
+      if (Math.random() < 0.3) this.effects.particles.push({ x: x + (Math.random() - 0.5) * 60, y: y - 30 - Math.random() * 50, vx: 6, vy: -30, life: 1, max: 1, color: Math.random() < 0.5 ? '#e0d0ff' : '#a070ff', size: 3, grav: 0, glow: true });
+    }
     if (ult && e.c === 'mummy' && Math.random() < 0.5) this.effects.particles.push({ x: x + (Math.random() - 0.5) * 60, y: y - Math.random() * 30, vx: 120 * (Math.random() < 0.5 ? -1 : 1), vy: -20, life: 0.5, max: 0.5, color: '#d8b870', size: 3, grav: 0 });
     // evolución: los niveles altos flotan y llevan aura
     if (tier >= 3 && !invis && (e.c === 'vampire' || e.c === 'invisible')) lift = 5 + Math.sin(now / 320 + e.id) * 3;
@@ -1440,6 +1446,30 @@ export class Game {
   }
 
   /** Llamas negras (al sol en El Señor de la Noche): lenguas de sombra por todo el cuerpo, con borde violeta y ceniza. */
+  /** Infierno (Azufre): anillo de llamas pixeladas girando alrededor. */
+  private drawFireRing(ctx: CanvasRenderingContext2D, x: number, y: number, now: number, seed: number) {
+    const P = PIXEL, R = BAL.demon.ult.aura.r, N = 18;
+    const C = ['#c02010', '#ff7020', '#ffd040', '#ff9030'];
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#ff5010';
+    ctx.beginPath(); ctx.ellipse(x, y, R, R * 0.55, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < N; i++) {
+      const a = now / 700 + (i / N) * Math.PI * 2;
+      const fx = Math.round((x + Math.cos(a) * R) / P) * P, base = Math.round((y + Math.sin(a) * R * 0.55) / P) * P;
+      const fh = (6 + ((Math.floor(now / 70) + i * 2 + seed) % 4)) * P;
+      ctx.fillStyle = C[0]; ctx.fillRect(fx - P * 2, base - fh + P, P * 4, fh - P);
+      ctx.fillStyle = C[0]; ctx.fillRect(fx - P, base - fh, P * 3, fh);
+      ctx.fillStyle = C[1]; ctx.fillRect(fx - P, base - fh + P, P * 2, fh - P);
+      ctx.fillStyle = C[2]; ctx.fillRect(fx, base - fh + P * 2, P, Math.max(P, fh - P * 3));
+      ctx.fillStyle = C[3]; ctx.fillRect(fx, base - fh - P, P, P);
+    }
+    if (Math.random() < 0.6) {
+      const a = Math.random() * Math.PI * 2;
+      this.particles.push({ x: x + Math.cos(a) * R, y: y + Math.sin(a) * R * 0.55 - 10, vx: 0, vy: -90, life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#ff6020' : '#ffd040', size: 3, grav: 0 });
+    }
+  }
+
   private drawBlackFire(ctx: CanvasRenderingContext2D, x: number, y: number, h: number, now: number, seed: number) {
     const P = PIXEL;
     for (let i = 0; i < 9; i++) {

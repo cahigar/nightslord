@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { CHARACTERS, type CharacterId, type CharacterDef } from '../shared/characters';
 import { THEMES, THEME_IDS, type MapThemeId } from '../shared/maps';
 import { EN } from '../client/lang/en';
+import { LORE } from '../shared/lore';
 
 const SITE = 'https://mooonsters.com';
 const PUB = join(import.meta.dirname, '..', 'client', 'public');
@@ -56,7 +57,7 @@ const T = {
     footer: 'Mooonsters es un juego multijugador gratuito tipo .io: se juega desde el navegador del móvil o del PC, sin descargas.',
     privacy: 'Privacidad', terms: 'Condiciones',
     cls: 'Clase', hp: 'Vida', speed: 'Velocidad', armor: 'Armadura', basic: 'Ataque básico', passive: 'Pasiva', abilities: 'Habilidades',
-    ult: 'Definitiva (nivel 10)', evo: 'Evoluciones', lvl: 'Nivel', trailer: 'Tráiler', ranged: 'a distancia', others: 'Otros monstruos',
+    ult: 'Definitiva (nivel 10)', lore: 'Su historia', evo: 'Evoluciones', lvl: 'Nivel', trailer: 'Tráiler', ranged: 'a distancia', others: 'Otros monstruos',
     charTitle: (c: string, t: string) => `${c}, ${t.toLowerCase()} — monstruo jugable de Mooonsters`,
     charDesc: (c: string, t: string, p: string) => `Juega como ${c} (${t}) en Mooonsters, el juego multijugador de monstruos gratis en el navegador. ${p}`,
     charIntro: (c: string, t: string) => `${c} es uno de los 30 monstruos que puedes elegir en Mooonsters. Caza humanos, sube de nivel y evoluciona en los niveles 5, 10 y 15.`,
@@ -77,7 +78,7 @@ const T = {
     footer: 'Mooonsters is a free multiplayer .io game: play it in your phone or PC browser, no downloads.',
     privacy: 'Privacy', terms: 'Terms',
     cls: 'Class', hp: 'Health', speed: 'Speed', armor: 'Armor', basic: 'Basic attack', passive: 'Passive', abilities: 'Abilities',
-    ult: 'Ultimate (level 10)', evo: 'Evolutions', lvl: 'Level', trailer: 'Trailer', ranged: 'ranged', others: 'Other monsters',
+    ult: 'Ultimate (level 10)', lore: 'Backstory', evo: 'Evolutions', lvl: 'Level', trailer: 'Trailer', ranged: 'ranged', others: 'Other monsters',
     charTitle: (c: string, t: string) => `${c}, the ${t.toLowerCase()} — playable monster in Mooonsters`,
     charDesc: (c: string, t: string, p: string) => `Play as ${c} (${t}) in Mooonsters, the free multiplayer monster game in your browser. ${p}`,
     charIntro: (c: string, _t: string) => `${c} is one of the 30 monsters you can pick in Mooonsters. Hunt humans, level up and evolve at levels 5, 10 and 15.`,
@@ -159,9 +160,18 @@ const themeName = (id: MapThemeId, lang: Lang) => (lang === 'en' ? EN.themes[id]
 const themeSub = (id: MapThemeId, lang: Lang) => (lang === 'en' ? EN.themes[id]?.[1] : null) ?? THEMES[id].subtitle;
 
 // slugs únicos por idioma
+// Direcciones ya publicadas que no deben cambiar aunque cambie el nombre o la clase del monstruo
+const KEEP: Record<Lang, Partial<Record<CharacterId, string>>> = {
+  es: { mary: 'leyenda-del-espejo', reanimated: 'cadaver-cosido', pirate: 'pirata-fantasma', candle: 'senor-de-la-cera' },
+  en: { mary: 'mirror-legend', reanimated: 'stitched-corpse', pirate: 'ghost-pirate', candle: 'lord-of-wax' },
+};
 function slugs(lang: Lang) {
-  const used = new Set<string>(); const out = {} as Record<CharacterId, string>;
-  for (const id of IDS) { let s = slug(view(id, lang).title); if (used.has(s)) s = `${s}-${slug(view(id, lang).name)}`; used.add(s); out[id] = s; }
+  const used = new Set<string>(Object.values(KEEP[lang])); const out = {} as Record<CharacterId, string>;
+  for (const id of IDS) {
+    const keep = KEEP[lang][id];
+    if (keep) { out[id] = keep; continue; }
+    let s = slug(view(id, lang).title); if (used.has(s)) s = `${s}-${slug(view(id, lang).name)}`; used.add(s); out[id] = s;
+  }
   return out;
 }
 const CSLUG = { es: slugs('es'), en: slugs('en') };
@@ -171,19 +181,59 @@ const mapUrl = (m: MapThemeId, lang: Lang) => `${T[lang].mapsPath}${MSLUG[lang][
 
 // ---------------------------------------------------------------- plantilla
 const CSS = `
-:root{--bg:#0e0a16;--panel:#1a1226;--text:#e8e0f0;--muted:#a89cc0;--gold:#ffd040;--blood:#c01830}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,sans-serif}
-a{color:var(--gold)}header,main,footer{max-width:900px;margin:0 auto;padding:16px}
-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}header .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#f0e0ff;text-decoration:none;font-size:20px}
-header .brand img{width:40px;height:40px;image-rendering:pixelated}header nav{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto}header nav a{text-decoration:none;color:var(--muted)}header nav .ig{width:24px;height:20px;vertical-align:-4px;image-rendering:pixelated}
-.cta{display:inline-block;background:var(--blood);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:6px;border:2px solid #ff5060;margin:8px 0}
-h1{color:#f0e0ff;line-height:1.2;margin:8px 0}h2{color:var(--gold);font-size:20px;margin-top:28px}.sub{color:var(--muted);margin-top:0}
-.hero{display:flex;gap:24px;align-items:center;flex-wrap:wrap}.hero>div{flex:1;min-width:260px}.hero img{width:156px;height:204px;image-rendering:pixelated;background:radial-gradient(#2a1c40,transparent 70%)}
-.stats{display:flex;gap:10px;flex-wrap:wrap;padding:0;list-style:none}.stats li{background:var(--panel);padding:6px 10px;border-radius:6px}
-.ab{background:var(--panel);border-radius:8px;padding:10px 14px;margin:8px 0}.ab b{color:#f0e0ff}.key{display:inline-block;min-width:26px;text-align:center;background:#2c2040;border-radius:4px;margin-right:6px;font-weight:700;color:var(--gold)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;padding:0;list-style:none}.grid a{display:block;background:var(--panel);border-radius:8px;padding:8px;text-align:center;text-decoration:none;color:var(--text);font-size:14px}
-.grid img{width:78px;height:102px;image-rendering:pixelated;display:block;margin:0 auto 4px}.grid small{color:var(--muted);display:block}
-video{width:100%;max-width:360px;border-radius:8px;display:block}.crumbs{font-size:14px;color:var(--muted)}footer{color:var(--muted);font-size:14px;border-top:1px solid #2c2040;margin-top:32px}
+:root{--bg:#0b0618;--panel:rgba(20,12,34,.88);--panel2:rgba(36,22,56,.92);--line:#3c2a5c;--text:#ece4f6;--muted:#b4a6d0;--gold:#ffd040;--blood:#c01830}
+*{box-sizing:border-box}html{background:var(--bg)}
+body{margin:0;color:var(--text);font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:#0b0618 url(/img/bg-paginas.png) center bottom/cover no-repeat;image-rendering:pixelated}
+body::after{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(11,6,24,.5),rgba(11,6,24,.8) 45%,rgba(11,6,24,.93));pointer-events:none}
+a{color:var(--gold)}img{max-width:100%}
+header{position:sticky;top:0;z-index:5;background:rgba(11,6,24,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-bottom:2px solid var(--line)}
+header .in{max-width:1000px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;font:12px/1 "Press Start 2P",monospace;color:#f4e6ff;text-decoration:none;white-space:nowrap}
+.brand img{width:34px;height:34px;image-rendering:pixelated}
+header nav{display:flex;gap:16px;margin-left:auto;overflow-x:auto;white-space:nowrap;scrollbar-width:none;align-items:center}
+header nav::-webkit-scrollbar{display:none}header nav a{text-decoration:none;color:var(--muted);font:20px/1 VT323,monospace}header nav a:hover{color:#fff}
+header nav .ig{width:22px;height:18px;vertical-align:-3px;image-rendering:pixelated}
+main,footer .in{max-width:1000px;margin:0 auto;padding:18px 16px}
+main{padding-bottom:96px}
+h1{font:clamp(20px,4.4vw,34px)/1.35 "Press Start 2P",monospace;color:#f6eaff;margin:6px 0 10px;text-shadow:3px 3px 0 #6a0a18}
+h2{font:clamp(12px,2.3vw,15px)/1.5 "Press Start 2P",monospace;color:var(--gold);margin:36px 0 12px;text-shadow:2px 2px 0 #000}
+.sub{font:24px/1.2 VT323,monospace;color:var(--muted);margin:0 0 10px}
+.crumbs{font:18px/1.2 VT323,monospace;color:var(--muted);margin:4px 0 14px}.crumbs a{color:var(--muted)}
+.cta{display:inline-block;font:12px/1.2 "Press Start 2P",monospace;background:var(--blood);color:#fff;text-decoration:none;border:3px solid #ff5a6a;box-shadow:4px 4px 0 #000;padding:14px 18px;margin:10px 0;transition:transform .1s}
+.cta:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 #000}
+.hero{display:grid;grid-template-columns:230px 1fr;gap:28px;align-items:center;background:var(--panel);border:2px solid var(--line);box-shadow:5px 5px 0 #000;padding:20px}
+.portrait{display:grid;place-items:end center;height:250px;background:radial-gradient(ellipse at 50% 92%,rgba(120,70,200,.45),transparent 62%),radial-gradient(ellipse at 50% 96%,#000 0,transparent 35%)}
+.portrait img{width:182px;height:238px;image-rendering:pixelated;filter:drop-shadow(0 0 14px rgba(160,110,255,.35))}
+.hero p{margin:6px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;list-style:none;padding:0;margin:16px 0 0}
+.stats li{background:var(--panel2);border:2px solid var(--line);box-shadow:3px 3px 0 #000;padding:8px 12px;font:20px/1.1 VT323,monospace;color:var(--muted)}
+.stats b{display:block;margin-top:4px;font:14px/1.2 "Press Start 2P",monospace;color:var(--gold)}
+.lore{position:relative;background:linear-gradient(#2a1b14,#1c120e);border:2px solid #7a5530;box-shadow:5px 5px 0 #000;padding:22px 22px 18px 54px;font:italic 18px/1.75 Georgia,"Times New Roman",serif;color:#f2e4c8}
+.lore::before{content:"“";position:absolute;left:14px;top:2px;font:64px/1 Georgia,serif;color:#c08a40}
+.lore p{margin:0}
+.abs{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px}
+.ab{background:var(--panel);border:2px solid var(--line);box-shadow:3px 3px 0 #000;padding:12px 14px;margin:0 0 10px}.abs .ab{margin:0}
+.ab b{color:#f4e8ff}.ab h2{margin:4px 0}
+.key{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 6px;margin-right:8px;background:#2c1c48;border:2px solid #6a4ab0;font:12px/1 "Press Start 2P",monospace;color:var(--gold);vertical-align:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:10px;padding:0;list-style:none}
+.grid a{display:block;height:100%;background:var(--panel);border:2px solid var(--line);box-shadow:3px 3px 0 #000;padding:10px 6px;text-align:center;text-decoration:none;color:var(--text);font:20px/1.1 VT323,monospace;transition:transform .1s,border-color .1s}
+.grid a:hover{transform:translateY(-3px);border-color:var(--gold)}
+.grid img{width:78px;height:102px;image-rendering:pixelated;display:block;margin:0 auto 6px}.grid small{color:var(--muted);display:block;font-size:17px;margin-top:2px}
+video{width:100%;max-width:380px;display:block;border:2px solid var(--line);box-shadow:5px 5px 0 #000;background:#000}
+footer{background:rgba(11,6,24,.9);border-top:2px solid var(--line);color:var(--muted);font-size:15px}
+.mcta{display:none}
+@media (max-width:680px){
+  body{font-size:16px}
+  header .in{gap:10px}.brand span{display:none}
+  .hero{grid-template-columns:1fr;text-align:center;padding:16px}.portrait{height:210px}.portrait img{width:152px;height:199px}
+  .hero .cta{display:none}
+  .lore{padding:18px 16px 16px 40px;font-size:17px}.lore::before{left:8px;font-size:52px}
+  .abs{grid-template-columns:1fr}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}.grid img{width:64px;height:84px}
+  .mcta{display:block;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:6;text-align:center;margin:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 `;
 
 function page(lang: Lang, o: { path: string; alt?: string; title: string; desc: string; image?: string; body: string; ld?: object[] }) {
@@ -209,20 +259,24 @@ ${alt}
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
 <style>${CSS}</style>
 ${ld}
 </head>
 <body>
-<header>
-  <a class="brand" href="${t.home}"><img src="/favicon.png" alt="" />Mooonsters</a>
+<header><div class="in">
+  <a class="brand" href="${t.home}"><img src="/favicon.png" alt="" /><span>Mooonsters</span></a>
   <nav><a href="${t.monstersPath}">${t.monsters}</a><a href="${t.mapsPath}">${t.maps}</a><a href="${t.howPath}">${t.how}</a><a href="${o.alt ?? (lang === 'es' ? '/en/' : '/')}" hreflang="${lang === 'es' ? 'en' : 'es'}">${t.other}</a><a href="${INSTAGRAM}" rel="me" title="Instagram @mooonsters.game"><img class="ig" src="/img/ig.svg" alt="Instagram" width="24" height="20" /></a></nav>
-</header>
+</div></header>
 <main>
 ${o.body}
 </main>
-<footer>
+<a class="cta mcta" href="/">${t.play}</a>
+<footer><div class="in">
   <p>${t.footer} <a href="/">mooonsters.com</a> · <a href="${INSTAGRAM}" rel="me">Instagram</a> · <a href="/privacidad.html">${t.privacy}</a> · <a href="/condiciones.html">${t.terms}</a></p>
-</footer>
+</div></footer>
 </body>
 </html>
 `;
@@ -257,18 +311,24 @@ for (const lang of ['es', 'en'] as Lang[]) {
     const trailer = TRAILER_CHAR[id];
     const desc = t.charDesc(v.name, v.title, strip(v.passive));
     const body = `${crumbHtml(cr)}
-<div class="hero"><img src="/img/monstruos/${id}.png" alt="${esc(`${v.name} (${v.title})`)}" width="156" height="204" />
+<div class="hero"><div class="portrait"><img src="/img/monstruos/${id}.png" alt="${esc(`${v.name} (${v.title})`)}" width="156" height="204" /></div>
 <div><h1>${esc(v.name)}</h1><p class="sub">${esc(v.title)} · ${ROLE[lang][d.role ?? 'hybrid']}</p>
-<p>${esc(t.charIntro(v.name, v.title))}</p><a class="cta" href="/">${t.play}</a></div></div>
-<ul class="stats"><li>${t.hp}: <b>${d.hp}</b></li><li>${t.speed}: <b>${d.speed}</b></li><li>${t.armor}: <b>${Math.round(d.armor * 100)} %</b></li><li>${t.cls}: <b>${ROLE[lang][d.role ?? 'hybrid']}</b></li></ul>
+<p>${esc(t.charIntro(v.name, v.title))}</p><a class="cta" href="/">${t.play}</a>
+<ul class="stats"><li>${t.hp}<b>${d.hp}</b></li><li>${t.speed}<b>${d.speed}</b></li><li>${t.armor}<b>${Math.round(d.armor * 100)} %</b></li><li>${t.cls}<b>${ROLE[lang][d.role ?? 'hybrid']}</b></li></ul></div></div>
+<h2>${t.lore}</h2>
+<div class="lore"><p>${esc(LORE[id][lang])}</p></div>
 <h2>${t.abilities}</h2>
+<div class="abs">
 <div class="ab"><span class="key">⚔</span><b>${t.basic}: ${esc(v.attack)}</b>${d.rangedBasic ? ` (${t.ranged})` : ''}</div>
 <div class="ab"><span class="key">✦</span><b>${t.passive}</b> — ${esc(v.passive)}</div>
 <div class="ab"><span class="key">Q</span><b>${esc(v.q[0])}</b> — ${esc(v.q[1])}</div>
 <div class="ab"><span class="key">E</span><b>${esc(v.e[0])}</b> — ${esc(v.e[1])}</div>
 <div class="ab"><span class="key">R</span><b>${t.ult}: ${esc(v.r[0])}</b> — ${esc(v.r[1])}</div>
+</div>
 <h2>${t.evo}</h2>
+<div class="abs">
 ${v.evo.map(([l, n, ds]) => `<div class="ab"><span class="key">${l}</span><b>${esc(n)}</b> — ${esc(ds)}</div>`).join('\n')}
+</div>
 ${trailer ? `<h2>${t.trailer}</h2><video controls preload="none" playsinline poster="/img/trailers/${trailer.replace('.mp4', '.jpg')}" src="/media/${trailer}"></video>` : ''}
 <h2>${t.others}</h2>
 ${grid(IDS.filter((x) => x !== id))}`;

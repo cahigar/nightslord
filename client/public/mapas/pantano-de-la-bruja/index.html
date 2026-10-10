@@ -17,36 +17,80 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
 <style>
-:root{--bg:#0e0a16;--panel:#1a1226;--text:#e8e0f0;--muted:#a89cc0;--gold:#ffd040;--blood:#c01830}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,sans-serif}
-a{color:var(--gold)}header,main,footer{max-width:900px;margin:0 auto;padding:16px}
-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}header .brand{display:flex;align-items:center;gap:8px;font-weight:700;color:#f0e0ff;text-decoration:none;font-size:20px}
-header .brand img{width:40px;height:40px;image-rendering:pixelated}header nav{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto}header nav a{text-decoration:none;color:var(--muted)}header nav .ig{width:24px;height:20px;vertical-align:-4px;image-rendering:pixelated}
-.cta{display:inline-block;background:var(--blood);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:6px;border:2px solid #ff5060;margin:8px 0}
-h1{color:#f0e0ff;line-height:1.2;margin:8px 0}h2{color:var(--gold);font-size:20px;margin-top:28px}.sub{color:var(--muted);margin-top:0}
-.hero{display:flex;gap:24px;align-items:center;flex-wrap:wrap}.hero>div{flex:1;min-width:260px}.hero img{width:156px;height:204px;image-rendering:pixelated;background:radial-gradient(#2a1c40,transparent 70%)}
-.stats{display:flex;gap:10px;flex-wrap:wrap;padding:0;list-style:none}.stats li{background:var(--panel);padding:6px 10px;border-radius:6px}
-.ab{background:var(--panel);border-radius:8px;padding:10px 14px;margin:8px 0}.ab b{color:#f0e0ff}.key{display:inline-block;min-width:26px;text-align:center;background:#2c2040;border-radius:4px;margin-right:6px;font-weight:700;color:var(--gold)}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;padding:0;list-style:none}.grid a{display:block;background:var(--panel);border-radius:8px;padding:8px;text-align:center;text-decoration:none;color:var(--text);font-size:14px}
-.grid img{width:78px;height:102px;image-rendering:pixelated;display:block;margin:0 auto 4px}.grid small{color:var(--muted);display:block}
-video{width:100%;max-width:360px;border-radius:8px;display:block}.crumbs{font-size:14px;color:var(--muted)}footer{color:var(--muted);font-size:14px;border-top:1px solid #2c2040;margin-top:32px}
+:root{--bg:#0b0618;--panel:rgba(20,12,34,.88);--panel2:rgba(36,22,56,.92);--line:#3c2a5c;--text:#ece4f6;--muted:#b4a6d0;--gold:#ffd040;--blood:#c01830}
+*{box-sizing:border-box}html{background:var(--bg)}
+body{margin:0;color:var(--text);font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:#0b0618 url(/img/bg-paginas.png) center bottom/cover no-repeat;image-rendering:pixelated}
+body::after{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(11,6,24,.5),rgba(11,6,24,.8) 45%,rgba(11,6,24,.93));pointer-events:none}
+a{color:var(--gold)}img{max-width:100%}
+header{position:sticky;top:0;z-index:5;background:rgba(11,6,24,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border-bottom:2px solid var(--line)}
+header .in{max-width:1000px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:10px;font:12px/1 "Press Start 2P",monospace;color:#f4e6ff;text-decoration:none;white-space:nowrap}
+.brand img{width:34px;height:34px;image-rendering:pixelated}
+header nav{display:flex;gap:16px;margin-left:auto;overflow-x:auto;white-space:nowrap;scrollbar-width:none;align-items:center}
+header nav::-webkit-scrollbar{display:none}header nav a{text-decoration:none;color:var(--muted);font:20px/1 VT323,monospace}header nav a:hover{color:#fff}
+header nav .ig{width:22px;height:18px;vertical-align:-3px;image-rendering:pixelated}
+main,footer .in{max-width:1000px;margin:0 auto;padding:18px 16px}
+main{padding-bottom:96px}
+h1{font:clamp(20px,4.4vw,34px)/1.35 "Press Start 2P",monospace;color:#f6eaff;margin:6px 0 10px;text-shadow:3px 3px 0 #6a0a18}
+h2{font:clamp(12px,2.3vw,15px)/1.5 "Press Start 2P",monospace;color:var(--gold);margin:36px 0 12px;text-shadow:2px 2px 0 #000}
+.sub{font:24px/1.2 VT323,monospace;color:var(--muted);margin:0 0 10px}
+.crumbs{font:18px/1.2 VT323,monospace;color:var(--muted);margin:4px 0 14px}.crumbs a{color:var(--muted)}
+.cta{display:inline-block;font:12px/1.2 "Press Start 2P",monospace;background:var(--blood);color:#fff;text-decoration:none;border:3px solid #ff5a6a;box-shadow:4px 4px 0 #000;padding:14px 18px;margin:10px 0;transition:transform .1s}
+.cta:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 #000}
+.hero{display:grid;grid-template-columns:230px 1fr;gap:28px;align-items:center;background:var(--panel);border:2px solid var(--line);box-shadow:5px 5px 0 #000;padding:20px}
+.portrait{display:grid;place-items:end center;height:250px;background:radial-gradient(ellipse at 50% 92%,rgba(120,70,200,.45),transparent 62%),radial-gradient(ellipse at 50% 96%,#000 0,transparent 35%)}
+.portrait img{width:182px;height:238px;image-rendering:pixelated;filter:drop-shadow(0 0 14px rgba(160,110,255,.35))}
+.hero p{margin:6px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;list-style:none;padding:0;margin:16px 0 0}
+.stats li{background:var(--panel2);border:2px solid var(--line);box-shadow:3px 3px 0 #000;padding:8px 12px;font:20px/1.1 VT323,monospace;color:var(--muted)}
+.stats b{display:block;margin-top:4px;font:14px/1.2 "Press Start 2P",monospace;color:var(--gold)}
+.lore{position:relative;background:linear-gradient(#2a1b14,#1c120e);border:2px solid #7a5530;box-shadow:5px 5px 0 #000;padding:22px 22px 18px 54px;font:italic 18px/1.75 Georgia,"Times New Roman",serif;color:#f2e4c8}
+.lore::before{content:"“";position:absolute;left:14px;top:2px;font:64px/1 Georgia,serif;color:#c08a40}
+.lore p{margin:0}
+.abs{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:10px}
+.ab{background:var(--panel);border:2px solid var(--line);box-shadow:3px 3px 0 #000;padding:12px 14px;margin:0 0 10px}.abs .ab{margin:0}
+.ab b{color:#f4e8ff}.ab h2{margin:4px 0}
+.key{display:inline-grid;place-items:center;min-width:30px;height:30px;padding:0 6px;margin-right:8px;background:#2c1c48;border:2px solid #6a4ab0;font:12px/1 "Press Start 2P",monospace;color:var(--gold);vertical-align:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(124px,1fr));gap:10px;padding:0;list-style:none}
+.grid a{display:block;height:100%;background:var(--panel);border:2px solid var(--line);box-shadow:3px 3px 0 #000;padding:10px 6px;text-align:center;text-decoration:none;color:var(--text);font:20px/1.1 VT323,monospace;transition:transform .1s,border-color .1s}
+.grid a:hover{transform:translateY(-3px);border-color:var(--gold)}
+.grid img{width:78px;height:102px;image-rendering:pixelated;display:block;margin:0 auto 6px}.grid small{color:var(--muted);display:block;font-size:17px;margin-top:2px}
+video{width:100%;max-width:380px;display:block;border:2px solid var(--line);box-shadow:5px 5px 0 #000;background:#000}
+footer{background:rgba(11,6,24,.9);border-top:2px solid var(--line);color:var(--muted);font-size:15px}
+.mcta{display:none}
+@media (max-width:680px){
+  body{font-size:16px}
+  header .in{gap:10px}.brand span{display:none}
+  .hero{grid-template-columns:1fr;text-align:center;padding:16px}.portrait{height:210px}.portrait img{width:152px;height:199px}
+  .hero .cta{display:none}
+  .lore{padding:18px 16px 16px 40px;font-size:17px}.lore::before{left:8px;font-size:52px}
+  .abs{grid-template-columns:1fr}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))}.grid img{width:64px;height:84px}
+  .mcta{display:block;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:6;text-align:center;margin:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Mooonsters","item":"https://mooonsters.com/"},{"@type":"ListItem","position":2,"name":"Mapas","item":"https://mooonsters.com/mapas/"},{"@type":"ListItem","position":3,"name":"Pantano de la Bruja","item":"https://mooonsters.com/mapas/pantano-de-la-bruja/"}]}</script>
 </head>
 <body>
-<header>
-  <a class="brand" href="/"><img src="/favicon.png" alt="" />Mooonsters</a>
+<header><div class="in">
+  <a class="brand" href="/"><img src="/favicon.png" alt="" /><span>Mooonsters</span></a>
   <nav><a href="/monstruos/">Monstruos</a><a href="/mapas/">Mapas</a><a href="/como-jugar/">Cómo jugar</a><a href="/en/maps/witch-s-swamp/" hreflang="en">English</a><a href="https://www.instagram.com/mooonsters.game/" rel="me" title="Instagram @mooonsters.game"><img class="ig" src="/img/ig.svg" alt="Instagram" width="24" height="20" /></a></nav>
-</header>
+</div></header>
 <main>
 <p class="crumbs"><a href="/">Mooonsters</a> › <a href="/mapas/">Mapas</a> › Pantano de la Bruja</p><h1>Pantano de la Bruja</h1><p class="sub">El caldero lleva siglos sin apagarse</p><p>Charcas de agua negra unidas por pasarelas de barro y, en el centro, la choza seca de la bruja. Los senderos de fango frenan a quien no conoce el pantano.</p><a class="cta" href="/">▶ Jugar gratis</a>
 
 <h2>Mapas</h2><div class="ab"><h2 style="margin:4px 0"><a href="/mapas/calle-del-olmo/">Calle del Olmo</a></h2><p class="sub">Un barrio tranquilo... demasiado tranquilo</p><p>Un barrio residencial con calles en cuadrícula, casas, vallas y un parque con estanque. Los adolescentes y los vecinos pasean como si nada… hasta que cae la noche.</p></div><div class="ab"><h2 style="margin:4px 0"><a href="/mapas/transilvania/">Transilvania</a></h2><p class="sub">El castillo espera a su señor</p><p>Un valle a los pies del castillo, con caminos empedrados y un río que solo se cruza por los puentes de madera. Aldeanos, curas y doncellas: la cena está servida.</p></div><div class="ab"><h2 style="margin:4px 0"><a href="/mapas/campamento-lago-sereno/">Campamento Lago Sereno</a></h2><p class="sub">Nadie volvió del turno de noche</p><p>Cabañas entre pinos, una hoguera que es la única luz en kilómetros y un lago donde algo se mueve bajo el agua. Campistas y monitores con linterna… y luna llena.</p></div><div class="ab"><h2 style="margin:4px 0"><a href="/mapas/orillas-del-nilo/">Orillas del Nilo</a></h2><p class="sub">Algo se mueve bajo el agua</p><p>Un río con cocodrilos que muerden a todos, pirámides, una esfinge y una gusarena acechando bajo la arena. Turistas, arqueólogos y aldeanos despistados.</p></div><div class="ab"><h2 style="margin:4px 0"><a href="/mapas/jungla-jurasica/">Jungla Jurásica</a></h2><p class="sub">La expedición no volvió del templo</p><p>Un río poco profundo con corriente, una laguna profunda, un templo en ruinas y el campamento de la expedición. Cuidado: aquí también cazan los dinosaurios.</p></div>
-<h2>Monstruos</h2><ul class="grid"><li><a href="/monstruos/vampiro/"><img src="/img/monstruos/vampire.png" alt="El Conde" loading="lazy" width="78" height="102" />El Conde<small>Vampiro</small></a></li><li><a href="/monstruos/hombre-lobo/"><img src="/img/monstruos/werewolf.png" alt="Aullador" loading="lazy" width="78" height="102" />Aullador<small>Hombre lobo</small></a></li><li><a href="/monstruos/momia/"><img src="/img/monstruos/mummy.png" alt="Ramsés" loading="lazy" width="78" height="102" />Ramsés<small>Momia</small></a></li><li><a href="/monstruos/mujer-invisible/"><img src="/img/monstruos/invisible.png" alt="La Dama Velada" loading="lazy" width="78" height="102" />La Dama Velada<small>Mujer invisible</small></a></li><li><a href="/monstruos/zombi/"><img src="/img/monstruos/zombie.png" alt="Paciente Cero" loading="lazy" width="78" height="102" />Paciente Cero<small>Zombi</small></a></li><li><a href="/monstruos/horror-abisal/"><img src="/img/monstruos/kthula.png" alt="K'thula" loading="lazy" width="78" height="102" />K'thula<small>Horror abisal</small></a></li><li><a href="/monstruos/criatura-del-sueno/"><img src="/img/monstruos/nightmare.png" alt="Pesadilla" loading="lazy" width="78" height="102" />Pesadilla<small>Criatura del sueño</small></a></li><li><a href="/monstruos/leyenda-del-espejo/"><img src="/img/monstruos/mary.png" alt="Bloody Mary" loading="lazy" width="78" height="102" />Bloody Mary<small>Leyenda del espejo</small></a></li><li><a href="/monstruos/cadaver-cosido/"><img src="/img/monstruos/reanimated.png" alt="Reanimado" loading="lazy" width="78" height="102" />Reanimado<small>Cadáver cosido</small></a></li><li><a href="/monstruos/doppelganger/"><img src="/img/monstruos/doppy.png" alt="Doppy" loading="lazy" width="78" height="102" />Doppy<small>Doppelgänger</small></a></li><li><a href="/monstruos/bruja-del-pantano/"><img src="/img/monstruos/witch.png" alt="Hécuba" loading="lazy" width="78" height="102" />Hécuba<small>Bruja del pantano</small></a></li><li><a href="/monstruos/sucubo/"><img src="/img/monstruos/succubus.png" alt="Lilith" loading="lazy" width="78" height="102" />Lilith<small>Súcubo</small></a></li></ul><p><a href="/monstruos/">Monstruos →</a></p>
+<h2>Monstruos</h2><ul class="grid"><li><a href="/monstruos/vampiro/"><img src="/img/monstruos/vampire.png" alt="El Conde" loading="lazy" width="78" height="102" />El Conde<small>Vampiro</small></a></li><li><a href="/monstruos/hombre-lobo/"><img src="/img/monstruos/werewolf.png" alt="Aullador" loading="lazy" width="78" height="102" />Aullador<small>Hombre lobo</small></a></li><li><a href="/monstruos/momia/"><img src="/img/monstruos/mummy.png" alt="Ramsés" loading="lazy" width="78" height="102" />Ramsés<small>Momia</small></a></li><li><a href="/monstruos/mujer-invisible/"><img src="/img/monstruos/invisible.png" alt="La Dama Velada" loading="lazy" width="78" height="102" />La Dama Velada<small>Mujer invisible</small></a></li><li><a href="/monstruos/zombi/"><img src="/img/monstruos/zombie.png" alt="Paciente Cero" loading="lazy" width="78" height="102" />Paciente Cero<small>Zombi</small></a></li><li><a href="/monstruos/horror-abisal/"><img src="/img/monstruos/kthula.png" alt="K'thula" loading="lazy" width="78" height="102" />K'thula<small>Horror abisal</small></a></li><li><a href="/monstruos/criatura-del-sueno/"><img src="/img/monstruos/nightmare.png" alt="Pesadilla" loading="lazy" width="78" height="102" />Pesadilla<small>Criatura del sueño</small></a></li><li><a href="/monstruos/leyenda-del-espejo/"><img src="/img/monstruos/mary.png" alt="María Sangrienta" loading="lazy" width="78" height="102" />María Sangrienta<small>Bloody Mary del espejo</small></a></li><li><a href="/monstruos/cadaver-cosido/"><img src="/img/monstruos/reanimated.png" alt="Reanimundo" loading="lazy" width="78" height="102" />Reanimundo<small>Criatura de Frankenstein</small></a></li><li><a href="/monstruos/doppelganger/"><img src="/img/monstruos/doppy.png" alt="Doppy" loading="lazy" width="78" height="102" />Doppy<small>Doppelgänger</small></a></li><li><a href="/monstruos/bruja-del-pantano/"><img src="/img/monstruos/witch.png" alt="Hécuba" loading="lazy" width="78" height="102" />Hécuba<small>Bruja del pantano</small></a></li><li><a href="/monstruos/sucubo/"><img src="/img/monstruos/succubus.png" alt="Lilith" loading="lazy" width="78" height="102" />Lilith<small>Súcubo</small></a></li></ul><p><a href="/monstruos/">Monstruos →</a></p>
 </main>
-<footer>
+<a class="cta mcta" href="/">▶ Jugar gratis</a>
+<footer><div class="in">
   <p>Mooonsters es un juego multijugador gratuito tipo .io: se juega desde el navegador del móvil o del PC, sin descargas. <a href="/">mooonsters.com</a> · <a href="https://www.instagram.com/mooonsters.game/" rel="me">Instagram</a> · <a href="/privacidad.html">Privacidad</a> · <a href="/condiciones.html">Condiciones</a></p>
-</footer>
+</div></footer>
 </body>
 </html>

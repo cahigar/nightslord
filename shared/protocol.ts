@@ -93,7 +93,7 @@ export type FxId =
   | 'mistTrail' | 'orbitBlock' | 'step' | 'prey' | 'curseMark' | 'evolve' | 'frenzy' | 'reveal'
   | 'infect' | 'emerge' | 'fatboom' | 'meat' | 'tentacle' | 'tentacleWarn' | 'dive' | 'surface' | 'splash'
   | 'descend' | 'smite' | 'holysplash' | 'summon'
-  | 'sleep' | 'lullaby' | 'prop' | 'ambush' | 'dreamwalk' | 'shards' | 'mirror' | 'mirrorBoom' | 'maryOut'
+  | 'sleep' | 'lullaby' | 'prop' | 'ambush' | 'dreamwalk' | 'dreamField' | 'shards' | 'mirror' | 'mirrorBoom' | 'maryOut'
   | 'slam' | 'spark' | 'lightning' | 'storm' | 'faceSteal' | 'charm' | 'mimic' | 'potion' | 'broom' | 'rage'
   | 'hexed' | 'hexzone' | 'wings' | 'thrall' | 'heartHit' | 'phase' | 'objSpawn' | 'drainBeam'
   | 'rooted' | 'sprout' | 'bramble' | 'forest' | 'treeFire' | 'shock' | 'leapLand' | 'scare' | 'fireBoom' | 'slimeSplit' | 'slimeBoom' | 'ufoBeam' | 'ufoRay' | 'hypno' | 'tvWave' | 'tvBeam' | 'rain' | 'bowl' | 'confetti' | 'allyAsk'

@@ -146,7 +146,7 @@ export const BAL = {
     susceptMul: 1.45, susceptT: 8, // nv. 5: quien ya se durmió acumula más rápido
     lullaby: { range: 210, rangeT3: 270, cone: 0.95, coneT3: 1.15, dmg: 0.45, drowsy: 65 },
     stalk: { maxT: 10, chargeT: 3, chargeTT3: 1.6, bonusMax: 1.2, drowsyBonus: 35 }, // Acecho
-    ult: { range: 1400, nextMul: 2.2, nextDrowsy: 40, buffT: 4 },
+    ult: { range: 1400, hopMul: 1.8, window: 7, hops: 5, fieldR: 520, fieldT: 3, fieldRate: 50 }, // R: zona de sueño y saltos entre dormidos
   },
   mary: {
     maxMirrors: 3, maxMirrorsT3: 4, mirrorLife: 40,
@@ -234,7 +234,7 @@ export const BAL = {
     combustMul: 1.4, // nv. 5: más daño a quien ya arde
     fireball: { speed: 520, life: 0.8, dmg: 1.2, r: 90, zoneT: 3, dps: 8, sparks: 4 }, // Q (nv. 15: llamas secundarias)
     dash: { t: 2.2, speedMul: 1.9, dmg: 0.6, trailT: 3, every: 24 }, // E: paso ardiente (carrera en llamas)
-    ult: { t: 6, atkMul: 0.6, speedMul: 1.3, wave: { speed: 600, life: 0.5, dmg: 0.7 } }, // R: Infierno
+    ult: { t: 6, atkMul: 0.6, speedMul: 1.3, wave: { speed: 600, life: 0.5, dmg: 0.7 }, aura: { r: 95, every: 0.5, dmg: 0.3 } }, // R: Infierno (con aura de llamas)
     fireHealT3: 0.09, // nv. 15: el fuego le cura (fracción de vida por segundo)
   },
   slime: {

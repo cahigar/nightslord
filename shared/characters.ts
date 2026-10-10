@@ -218,7 +218,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { key: 'Q', name: 'Arrullo', desc: 'Nana en cono: poco daño pero mucha somnolencia.', cooldown: 6 },
       { key: 'E', name: 'Acecho', desc: 'Se convierte en un objeto del escenario. Si espera quieto y luego ataca, el primer golpe hace daño extra.', cooldown: 9 },
     ],
-    ult: { key: 'R', name: 'Entre sueños', desc: 'Aparece junto a un enemigo dormido; su siguiente ataque está potenciado.', cooldown: 0 },
+    ult: { key: 'R', name: 'Entre sueños', desc: 'Todos los enemigos y humanos de una gran zona a su alrededor se van durmiendo. Durante 7 s, vuelve a pulsar R para teletransportarte al dormido más cercano al cursor y atacarle potenciado (hasta 5 saltos).', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Mal dormir', desc: 'Quien ya se ha dormido una vez acumula somnolencia más rápido durante un tiempo.' },
       { lvl: 10, name: 'Entre sueños', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
@@ -228,8 +228,8 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   mary: {
     id: 'mary',
     role: 'summoner',
-    name: 'Bloody Mary',
-    title: 'Leyenda del espejo',
+    name: 'María Sangrienta',
+    title: 'Bloody Mary del espejo',
     hp: 100,
     speed: 212,
     damage: 17,
@@ -253,8 +253,8 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   reanimated: {
     id: 'reanimated',
     role: 'melee',
-    name: 'Reanimado',
-    title: 'Cadáver cosido',
+    name: 'Reanimundo',
+    title: 'Criatura de Frankenstein',
     hp: 170,
     speed: 178,
     damage: 24,
@@ -405,8 +405,8 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   pirate: {
     id: 'pirate',
     role: 'melee',
-    name: 'Capitán Ahogado',
-    title: 'Pirata fantasma',
+    name: 'Barbasucia',
+    title: 'Capitán pirata fantasma',
     hp: 130,
     speed: 200,
     damage: 20,
@@ -495,7 +495,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { key: 'Q', name: 'Bola infernal', desc: 'Proyectil que explota y deja el suelo en llamas (y prende los árboles).', cooldown: 6 },
       { key: 'E', name: 'Paso ardiente', desc: 'Corre envuelto en llamas 2 s muchísimo más rápido: quema a quien toca y deja un rastro de fuego.', cooldown: 9 },
     ],
-    ult: { key: 'R', name: 'Infierno', desc: '6 s: sus golpes lanzan ondas de fuego hacia delante y ataca y corre más rápido.', cooldown: 0 },
+    ult: { key: 'R', name: 'Infierno', desc: '6 s: se rodea de llamas que queman a quien esté cerca, sus golpes lanzan ondas de fuego hacia delante y ataca y corre más rápido.', cooldown: 0 },
     evolution: [
       { lvl: 5, name: 'Combustión', desc: 'Quien ya arde recibe un 40 % más de daño de sus habilidades de fuego.' },
       { lvl: 10, name: 'Infierno', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
@@ -786,8 +786,8 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   candle: {
     id: 'candle',
-    name: 'Candle Man',
-    title: 'Señor de la cera',
+    name: 'Cenizo',
+    title: 'Hombre vela',
     role: 'ranged',
     hp: 120,
     speed: 205,

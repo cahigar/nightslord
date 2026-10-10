@@ -18,13 +18,13 @@
 - [K'thula (Abyssal horror)](https://mooonsters.com/en/monsters/abyssal-horror/): Walks on deep water; in water (and in any puddle) it is faster, regenerates and its attack becomes a jet. Standing still out of water, a puddle springs up beneath it.
 - [Nightmare (Dream creature)](https://mooonsters.com/en/monsters/dream-creature/): Drowsiness: its hits and abilities fill a bar on enemies; when full, they fall asleep for a moment.
 - [Bloody Mary (Mirror legend)](https://mooonsters.com/en/monsters/mirror-legend/): Can have several mirrors active around the map.
-- [Reanimated (Stitched corpse)](https://mooonsters.com/en/monsters/stitched-corpse/): Galvanized: regenerates much faster after a few seconds without taking damage.
+- [Reanimund (Frankenstein's creature)](https://mooonsters.com/en/monsters/stitched-corpse/): Galvanized: regenerates much faster after a few seconds without taking damage.
 - [Doppy (Doppelgänger)](https://mooonsters.com/en/monsters/doppelganger/): A thousand faces: after a while without fighting, it looks like an ordinary human. Its first hit from the disguise stuns.
 - [Hecuba (Swamp witch)](https://mooonsters.com/en/monsters/swamp-witch/): Alchemist: throws random flasks of acid (poisons for a few seconds) or fire (the ground burns).
 - [Lilith (Succubus)](https://mooonsters.com/en/monsters/succubus/): Steals life with every hit. Humans she hits don't die: they fall in love and fight for her against hunters and monsters.
 - [Poltergeist (Noisy ghost)](https://mooonsters.com/en/monsters/noisy-ghost/): Levitates: moves over water. Its attacks don't come from it: objects fly at the enemy from anywhere in the area.
 - [Blackroot (Cursed tree)](https://mooonsters.com/en/monsters/cursed-tree/): Deep roots: standing still it takes root, regenerates health and takes 25% less damage (it can keep attacking).
-- [Captain Drowned (Ghost pirate)](https://mooonsters.com/en/monsters/ghost-pirate/): Cursed loot: his victims may drop coins or blood.
+- [Dirtybeard (Ghost pirate captain)](https://mooonsters.com/en/monsters/ghost-pirate/): Cursed loot: his victims may drop coins or blood.
 - [Arachne (Spider woman)](https://mooonsters.com/en/monsters/spider-woman/): Her bites poison (drain life for a few seconds). Every 3 attacks a spiderling comes out, bites 3 times and falls apart.
 - [The Harvester (Scarecrow)](https://mooonsters.com/en/monsters/scarecrow/): Lurking: if he stands still for 5 s, his next hit deals 80% more damage (it lasts up to 3 s after moving).
 - [Brimstone (Fire demon)](https://mooonsters.com/en/monsters/fire-demon/): Immune to fire. His hits leave a small burn.
@@ -39,7 +39,7 @@
 - [Dinozombie (Jurassic shapeshifter)](https://mooonsters.com/en/monsters/jurassic-shapeshifter/): Three forms: Velociraptor (fast bites; runs faster when chasing), Triceratops (wide horn strike; very tough and hardly ever slowed or stunned) and Pterodactyl (ranged eggs; flies over water and obstacles).
 - [R-800 (Pursuer android)](https://mooonsters.com/en/monsters/pursuer-android/): Relentless machine: immune to fear, infatuation and hypnosis; slows only affect it half as much. Its blows discharge electricity and, with nobody within reach, it fires balls of electric energy.
 - [The Huntress (Veteran deserter)](https://mooonsters.com/en/monsters/veteran-deserter/): Arm the people: she doesn't kill humans; wounding them gives them torches and pitchforks and they become allies who go after monsters on their own (each one gives her experience). After a while they disarm and go back to being ordinary humans. The hunters' order does not attack her. She fires silver bolts.
-- [Candle Man (Lord of wax)](https://mooonsters.com/en/monsters/lord-of-wax/): Wax body: leaves wax drops as he moves. Whoever steps on a lot of wax slows down and builds up waxing; if the bar fills, they get stuck to the ground for 1 s (they can still attack). Near fire he attacks faster.
+- [Cinder (Candle man)](https://mooonsters.com/en/monsters/lord-of-wax/): Wax body: leaves wax drops as he moves. Whoever steps on a lot of wax slows down and builds up waxing; if the bar fills, they get stuck to the ground for 1 s (they can still attack). Near fire he attacks faster.
 
 ## Maps
 - [Elm Street](https://mooonsters.com/en/maps/elm-street/): A suburban neighbourhood with grid streets, houses, fences and a park with a pond. Teens and neighbours stroll around without a care… until night falls.

@@ -235,6 +235,7 @@ export class Effects {
       case 'prop': this.burst(x, y - 30, 22, ['#2a2040', '#4a3a6a', '#a070ff', '#1a1424'], 140, 4, -20, 0.7); break;
       case 'ambush': this.clawMarks(x + Math.cos(ev.r ?? 0) * 40, y - 42, ev.r ?? 0, '#ff60a0', 0.35, 1.6); this.ripple(x, y - 30, '#a070ff', 0.4, 60); break;
       case 'dreamwalk': this.dreamwalk(ev); break;
+      case 'dreamField': this.dreamField(ev); break;
       case 'shards': this.burst(x, y - 30, ev.n ?? 5, ['#e8f4ff', '#a0c0e0', '#ff3040'], 170, 2, 500, 0.45); break;
       case 'mirror': this.burst(x, y - 30, 10, ['#e8f4ff', '#ff3040'], 100, 3, -20, 0.6, true); break;
       case 'mirrorBoom': this.mirrorBoom(ev); break;
@@ -872,6 +873,32 @@ export class Effects {
       }
       ctx.globalAlpha = 1;
     });
+  }
+
+  /** Entre sueños (Pesadilla): ondas de sueño que se expanden por una gran zona, con zetas flotando. */
+  private dreamField(ev: FxEv) {
+    const R = ev.r ?? 520, T = ev.d ?? 3;
+    const at = () => (ev.o ? this.entPos(ev.o) : null) ?? { x: ev.x, y: ev.y }; // la zona va con la Pesadilla
+    this.add(T, 'glow', (ctx, k) => {
+      const t = k * T, c = at(), fade = Math.min(1, (1 - k) * 4);
+      ctx.globalAlpha = 0.16 * fade;
+      pixelEllipse(ctx, c.x, c.y, R, R * 0.6, '#5a40c0');
+      for (let w = 0; w < 3; w++) {
+        const kk = ((t / 1.2) + w / 3) % 1, rr = R * kk;
+        ctx.globalAlpha = (1 - kk * 0.5) * fade;
+        ctx.fillStyle = w % 2 ? '#d8c8ff' : '#9a78ff';
+        const n = Math.max(16, Math.round(rr / 2.2));
+        for (let i = 0; i < n; i++) {
+          const aa = (i / n) * Math.PI * 2;
+          ctx.fillRect(snap(c.x + Math.cos(aa) * rr), snap(c.y + Math.sin(aa) * rr * 0.6), PIXEL * 2, PIXEL);
+        }
+      }
+      ctx.globalAlpha = 1;
+    });
+    for (let i = 0; i < 30; i++) {
+      const aa = Math.random() * Math.PI * 2, rr = Math.random() * R;
+      this.particles.push({ x: ev.x + Math.cos(aa) * rr, y: ev.y - 20 + Math.sin(aa) * rr * 0.6, vx: (Math.random() - 0.5) * 10, vy: -25 - Math.random() * 20, life: 1.6, max: 1.6, color: Math.random() < 0.5 ? '#e0d0ff' : '#a070ff', size: 3, grav: 0, glow: true });
+    }
   }
 
   /** Entre sueños / viaje por espejo: desaparece en humo y reaparece. */
