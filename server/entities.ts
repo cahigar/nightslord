@@ -1,4 +1,5 @@
 // Tipos de entidades del servidor (compartidos por la sala y los kits de personaje).
+import type { Brain } from './bots';
 import type { TrapId } from '../shared/balance';
 import type { HunterDef, HunterType } from '../shared/balance';
 import type { CharacterDef, CharacterId, UpgradeId } from '../shared/characters';
@@ -82,6 +83,8 @@ export interface Player extends Mob {
   trap?: TrapId | null;
   /** El Señor de la Noche: ectoplasma (muerto que vaga), segundos al sol, segundos en un altar, bajas de jugadores, posición final. */
   ecto?: boolean;
+  /** Bot de relleno (cerebro del piloto automático). */
+  bot?: Brain;
   sunT?: number;
   altarT?: number;
   brKills?: number;

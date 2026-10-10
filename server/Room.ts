@@ -2,7 +2,7 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, BEASTS, CATCH_UP, NIGHTLORD, TRAPS, TRAP_IDS, type TrapId, TUTORIAL, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
+import { BAL, BEASTS, BOTS, CATCH_UP, PLAYER_KILL_XP, XP_EARLY, NIGHTLORD, TRAPS, TRAP_IDS, type TrapId, TUTORIAL, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
 import {
   BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
@@ -23,6 +23,7 @@ const rookieMul = (lvl: number) => Math.min(1, ORDER.rookie.min + (lvl - 1) * OR
 
 const profileTag = (token: string) => createHash('sha256').update(token).digest('hex').slice(0, 16);
 import { store } from './store';
+import { botChores, botConn, botInput, newBrain, pickChar, releaseName } from './bots';
 import type { Conn } from './types';
 
 /** normal: salas de siempre · lobby: previa del Señor de la Noche (Cementerio) · br: partida del Señor de la Noche (Ciudad Z). */
@@ -164,7 +165,71 @@ export class Room {
   tutorial = false;
   get isFull() { return this.mode === 'br' || this.conns.size >= (this.tutorial ? 1 : MAX_PLAYERS_PER_ROOM); }
 
-  destroy() { clearInterval(this.loop); }
+  destroy() { clearInterval(this.loop); for (const p of this.players.values()) if (p.bot) releaseName(p.name); }
+
+  // ------------------------------------------------------------------ bots de relleno
+  private botT = 1;
+  /** Cuántos bots quiere la sala: 3 vacía, uno menos por cada jugador real (sin bots en salas privadas libres ni en el tutorial). */
+  private wantBots() {
+    if (this.tutorial || (this.priv && this.mode === 'normal')) return 0;
+    return Math.max(0, Math.min(BOTS.max, BOTS.fill - this.conns.size));
+  }
+  addBot() {
+    const conn = botConn();
+    const p = this.spawnPlayer(conn, pickChar(this), 'classic');
+    p.bot = newBrain();
+    if (this.mode === 'br') p.protectT = 3;
+    this.fx('emerge', p.x, p.y, { o: p.id, n: 1 });
+    this.sendRank();
+  }
+  private removeBot(p: Player) {
+    this.fx('dreamwalk', p.x, p.y, { o: p.id, n: 0 }); this.sfx('poof', p.x, p.y);
+    this.releaseMinions(p.id);
+    for (const o of this.players.values()) o.allies.delete(p.id);
+    this.players.delete(p.conn.id);
+    releaseName(p.name);
+    this.sendRank();
+  }
+  /** Nivel máximo de un bot: el suyo (2-3) o, si es mayor, el del jugador real de menor nivel. */
+  private botLevelCap(p: Player) {
+    let min = Infinity;
+    for (const c of this.conns.values()) { const q = this.players.get(c.id); if (q) min = Math.min(min, Math.max(q.level, q.bestLevel)); }
+    return Math.max(p.bot!.cap, min === Infinity ? 0 : min);
+  }
+  private updateBots(dt: number) {
+    const bots = [...this.players.values()].filter((p) => p.bot);
+    if (this.mode !== 'br') {
+      this.botT -= dt;
+      if (this.botT <= 0) {
+        this.botT = 1;
+        const want = this.wantBots();
+        if (bots.length < want) this.addBot();
+        else if (bots.length > want) {
+          // se va el que esté muerto o, si no, el más alejado de los jugadores reales
+          const reals = [...this.conns.values()].map((c) => this.players.get(c.id)).filter((q): q is Player => !!q);
+          const far = (p: Player) => (p.dead ? 1e12 : Math.min(...reals.map((q) => dist2(p.x, p.y, q.x, q.y)), 1e11));
+          this.removeBot(bots.sort((a, b) => far(b) - far(a))[0]);
+        }
+      }
+    }
+    const real = this.conns.size;
+    for (const p of bots) {
+      if (!this.players.has(p.conn.id)) continue;
+      if (p.dead && !p.ecto) {
+        if (this.mode === 'normal' && this.time - p.diedAt > BOTS.respawnT) {
+          const br = p.bot!;
+          this.respawn(p.conn, p.char, p.skin);
+          const np = this.players.get(p.conn.id);
+          if (np) { np.bot = br; br.tgt = -1; }
+        }
+        continue;
+      }
+      const inp = botInput(this, p, p.bot!, dt, real);
+      p.queue.length = 0;
+      p.queue.push({ q: ++p.bot!.q, ...inp });
+      if (!p.dead) botChores(this, p, p.bot!, dt);
+    }
+  }
 
   // ------------------------------------------------------------------ conexión
   addConn(conn: Conn, char: CharacterId, skin: string) {
@@ -1122,6 +1187,7 @@ export class Room {
     this.tvOn = [...this.players.values()].some((p) => !p.dead && p.char === 'static');
     if (this.broadcast && this.broadcast.until <= this.time) this.broadcast = null;
     for (const [id, c] of this.tvChannel) if (c.until <= this.time) this.tvChannel.delete(id);
+    this.updateBots(dt);
     if (this.mode === 'lobby') this.stepLobby(dt);
     else if (this.mode === 'br') this.stepMatch(dt);
     for (const p of this.players.values()) { if (!p.dead) this.updatePlayer(p, dt); else if (p.ecto) this.updateEcto(p, dt); }
@@ -1578,7 +1644,7 @@ export class Room {
       const ecto = this.mode === 'br' && src.player?.ecto && src.player.dead ? src.player : undefined;
       if (ecto && !killer) killer = ecto;
       if (killer) {
-        this.reward(killer, (40 + Math.round(v.totalXp * 0.25)) * share, (50 + Math.round(v.points * 0.25)) * share, this.mode === 'br' ? NL.killCoins : 5);
+        this.reward(killer, (PLAYER_KILL_XP.base + v.level * PLAYER_KILL_XP.perLevel + Math.round(v.totalXp * PLAYER_KILL_XP.share)) * share, (50 + Math.round(v.points * 0.25)) * share, this.mode === 'br' ? NL.killCoins : 5);
         if (this.mode === 'br') killer.brKills = (killer.brKills ?? 0) + 1;
         this.chargeUlt(killer, ULT.player * share);
         killer.lifeKills++;
@@ -1661,9 +1727,12 @@ export class Room {
   private addXp(p: Player, xp: number) {
     if (p.level < p.bestLevel) xp *= CATCH_UP.mul; // recuperando el nivel de la vida anterior
     if (this.tutorial) xp *= TUTORIAL.xpMul;
+    else if (this.mode === 'normal' && p.level < XP_EARLY.upto) xp *= XP_EARLY.mul; // Free 4 All: los primeros niveles van más rápido
+    const cap = p.bot ? Math.min(MAX_LEVEL, this.botLevelCap(p)) : MAX_LEVEL;
+    if (p.level >= cap) { p.xp = Math.min(p.xp + xp, xpForLevel(p.level) - 1); return; } // bots: no pasan del nivel de los jugadores
     p.totalXp += xp;
     p.xp += xp;
-    while (p.level < MAX_LEVEL && p.xp >= xpForLevel(p.level)) {
+    while (p.level < cap && p.xp >= xpForLevel(p.level)) {
       p.xp -= xpForLevel(p.level);
       p.level++;
       p.upPts++;
@@ -2849,6 +2918,7 @@ export class Room {
 
   /** La partida empieza con los jugadores ya dentro. */
   beginMatch() {
+    if (this.conns.size > 0) for (let i = 0, n = this.wantBots(); i < n; i++) this.addBot();
     this.nl.t = Number(process.env.NL_T0 ?? 0) || 0; // (solo para probar: empezar la partida ya avanzada)
     this.nl.total = this.players.size;
     for (const p of this.players.values()) this.nl.roster.set(p.id, { name: p.name, char: p.char, skin: p.skin, p });
@@ -2881,11 +2951,11 @@ export class Room {
     const allReady = n >= L.minPlayers && ready === n;
     if (allReady && !this.nl.allReady) this.nl.startIn = L.readyT;
     this.nl.allReady = allReady;
-    if (n === 0) this.nl.autoT = L.autoT; else this.nl.autoT -= dt;
+    if (this.conns.size === 0) this.nl.autoT = L.autoT; else this.nl.autoT -= dt;
     if (allReady) this.nl.startIn -= dt;
     else this.nl.startIn = n >= L.minPlayers ? this.nl.autoT : -1;
     if (n < L.minPlayers && this.nl.autoT <= 0) this.nl.autoT = L.autoT; // solo: el reloj vuelve a empezar
-    if (n >= L.minPlayers && ((allReady && this.nl.startIn <= 0) || this.nl.autoT <= 0)) {
+    if (n >= L.minPlayers && this.conns.size > 0 && ((allReady && this.nl.startIn <= 0) || this.nl.autoT <= 0)) {
       this.nl.autoT = L.autoT; this.nl.startIn = -1; this.nl.allReady = false;
       this.mgr?.startMatch(this);
     }
@@ -3242,6 +3312,6 @@ export class Room {
     const top = all.find((p) => !p.dead);
     this.bountyId = top && top.points >= 100 ? top.id : -1;
     const list = all.slice(0, 10).map((p) => [p.name, Math.round(p.points), p.char, p.id] as [string, number, CharacterId, number]);
-    for (const c of this.conns.values()) c.send({ t: 'rank', list, total: this.conns.size });
+    for (const c of this.conns.values()) c.send({ t: 'rank', list, total: this.players.size });
   }
 }

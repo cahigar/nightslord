@@ -39,7 +39,7 @@ for (const p of lobby.players.values()) { p.x = R.x + (p.id % 3) * 20; p.y = R.y
 step(lobby, 20 * 4);
 const nl = (id: number) => (last.get(id) ?? []).filter((m) => m.t === 'nl').pop();
 console.log('previa', JSON.stringify(nl(1)));
-step(lobby, 20 * 7);
+step(lobby, 20 * 12); // (el bot de relleno tarda un poco en llegar al círculo)
 if (!br) throw new Error('no empezó la partida');
 const B = br as Room;
 const P = () => [...B.players.values()];

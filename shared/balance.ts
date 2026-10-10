@@ -6,6 +6,23 @@ export const TIER_LEVELS = [5, 10, 15] as const;
 /** Reaparecer en la misma sala: nivel de partida (última evolución alcanzada) y multiplicador de XP hasta recuperar el nivel anterior. */
 export const CATCH_UP = { milestones: [5], mul: 2 }; // nunca se reaparece por encima del 5: el resto se recupera con XP doble
 
+/** Free 4 All: los primeros niveles suben más rápido (multiplicador de XP hasta ese nivel). */
+export const XP_EARLY = { upto: 10, mul: 1.8 };
+/** XP por eliminar a otro monstruo: base + por nivel de la víctima + parte de su XP total. */
+export const PLAYER_KILL_XP = { base: 40, perLevel: 25, share: 0.25 };
+
+/** Bots de relleno: cuántos hay (3 con la sala vacía, uno menos por cada jugador real), sus monstruos y nombres. */
+export const BOTS = {
+  fill: 4, // reales + bots = 4 (con 4 jugadores reales no hay bots)
+  max: 3,
+  capMin: 2, capMax: 3, // nivel máximo propio; luego, el del jugador real de menor nivel
+  respawnT: 5,
+  fightR: 420, // a qué distancia se animan a pelear con otros monstruos (sala libre)
+  emoteMin: 25, emoteMax: 60,
+  chars: ['vampire', 'werewolf', 'witch', 'mummy', 'zombie', 'succubus', 'kthula', 'demon', 'slime', 'reaper', 'scarecrow', 'pirate'] as const,
+  names: ['Lucía', 'Pablo', 'Marta', 'Dani', 'Alex', 'Sara', 'Hugo', 'Leo', 'Nora', 'Iker', 'Nico', 'Vera', 'Sombra77', 'NocheOscura', 'Calabaza', 'Luna22', 'ElTerror', 'ColmilloPro', 'Murci', 'Vlad99', 'Zombito', 'Brujilla', 'Aullido', 'Tumbas', 'Gotico', 'Pesadillo', 'Kraken', 'Garra', 'Espectro', 'Cripta'],
+};
+
 /** Tutorial: personajes de práctica, XP acelerada y Cazador de práctica más blando. */
 export const TUTORIAL = { chars: ['vampire', 'mummy', 'zombie'] as const, themes: ['transylvania', 'camp', 'elm'] as const, xpMul: 3, hunterDmg: 0.4, hunterHp: 0.6, npcSpeed: 0.6 };
 

@@ -103,6 +103,6 @@ export class RoomManager implements RoomHooks {
   list(): RoomInfo[] {
     return [...this.rooms.values()]
       .filter((r) => !r.priv && r.mode !== 'br')
-      .map((r) => ({ code: r.code, players: r.playerCount, max: 16, theme: r.theme, priv: r.priv, ...(r.mode === 'lobby' ? { nl: true } : {}) }));
+      .map((r) => ({ code: r.code, players: r.players.size, max: 16, theme: r.theme, priv: r.priv, ...(r.mode === 'lobby' ? { nl: true } : {}) }));
   }
 }
