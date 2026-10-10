@@ -513,3 +513,8 @@ body.touch.nl #toast { top: auto; }
 #play.locked small { display: none; }
 #lagwarn { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); background: rgba(16, 6, 22, 0.88); border: 2px solid #ff6060; padding: 8px 14px; font-family: var(--px); font-size: 11px; color: #ffb0b0; animation: pulse 0.8s infinite; }
 .podium .winner { font-family: var(--px); font-size: 20px; color: var(--gold); text-shadow: 3px 3px 0 #000; margin: -2px 0 6px; animation: pulse 1.2s infinite; }
+
+/* CrazyGames (compilación del portal): sin selección de texto ni menú contextual largo en móvil */
+body.portal { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-touch-callout: none; }
+body.portal input { -webkit-user-select: text; user-select: text; }
+body.portal .splash-links, body.portal #account { display: none !important; }

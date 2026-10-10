@@ -5,3 +5,4 @@ data
 deploy/data
 deploy/caddy_*
 deploy/.env
+dist-crazygames

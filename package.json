@@ -10,6 +10,7 @@
     "dev:client": "vite",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
+    "build:crazygames": "vite build --mode crazygames",
     "build:server": "esbuild server/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/server.mjs --packages=external",
     "start": "node --disable-warning=ExperimentalWarning dist/server.mjs",
     "demo": "npm run build && node --disable-warning=ExperimentalWarning dist/server.mjs --dev",

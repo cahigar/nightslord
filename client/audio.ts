@@ -7,11 +7,14 @@ let sfxBus: GainNode;
 let musicBus: GainNode;
 let noiseBuf: AudioBuffer;
 let muted = false;
+let forced = false; // silencio impuesto por el portal (CrazyGames): manda sobre el botón del juego
+const gainFor = () => (muted || forced ? 0 : 0.6);
 let musicTimer: number | null = null;
 
 export function initAudio() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   ctx = new AudioContext();
+  (window as unknown as { __nlAudio?: AudioContext }).__nlAudio = ctx;
   master = ctx.createGain(); master.gain.value = 0.6; master.connect(ctx.destination);
   sfxBus = ctx.createGain(); sfxBus.gain.value = 0.55; sfxBus.connect(master);
   musicBus = ctx.createGain(); musicBus.gain.value = 0.22; musicBus.connect(master);
@@ -19,16 +22,20 @@ export function initAudio() {
   const d = noiseBuf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   try { muted = localStorage.getItem('nl_muted') === '1'; } catch { /* sin almacenamiento */ }
-  master.gain.value = muted ? 0 : 0.6;
+  master.gain.value = gainFor();
 }
 
 export function toggleMute(): boolean {
   muted = !muted;
-  if (ctx) master.gain.setTargetAtTime(muted ? 0 : 0.6, ctx.currentTime, 0.05);
+  if (ctx) master.gain.setTargetAtTime(gainFor(), ctx.currentTime, 0.05);
   try { localStorage.setItem('nl_muted', muted ? '1' : '0'); } catch { /* */ }
   return muted;
 }
-export const isMuted = () => muted;
+export const isMuted = () => muted || forced;
+export function setForcedMute(v: boolean) {
+  forced = v;
+  if (ctx) master.gain.setTargetAtTime(gainFor(), ctx.currentTime, 0.05);
+}
 
 function tone(type: OscillatorType, f0: number, f1: number, dur: number, vol: number, delay = 0, bus = sfxBus) {
   if (!ctx) return;

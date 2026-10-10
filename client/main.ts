@@ -4,7 +4,7 @@ import { CHARACTER_UNLOCK, hasCharacter, hasSkin, MEDALS, MEDAL_BY_ID, unlockPri
 import { THEMES, type MapThemeId } from '../shared/maps';
 import { Anim, Flag2, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
 import { NIGHTLORD } from '../shared/balance';
-import { initAudio, isMuted, playSfx, startMusic, toggleMute } from './audio';
+import { initAudio, isMuted, playSfx, setForcedMute, startMusic, toggleMute } from './audio';
 import { Game } from './game';
 import { startLogo } from './logo';
 import { startMenuBg } from './menubg';
@@ -14,6 +14,7 @@ import { adaptQuality, quality } from './quality';
 import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './tutorial';
 import { input, setupInput } from './input';
 import { net } from './net';
+import { isCrazy, initPortal, loadingStop, portalGet, portalSet, setPlaying } from './portal';
 import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
 import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, th, tk, tm, tpu, tt, tu, tw } from './i18n';
 
@@ -35,7 +36,7 @@ const session = {
   set(k: string, v: string) { try { sessionStorage.setItem(k, v); } catch { /* */ } },
   del(k: string) { try { sessionStorage.removeItem(k); } catch { /* */ } },
 };
-const savedToken = () => store.get('nl_token') ?? session.get('nl_token') ?? undefined;
+const savedToken = () => (isCrazy ? portalGet('nl_token') ?? store.get('nl_token') : store.get('nl_token') ?? session.get('nl_token')) ?? undefined;
 let googleClientId = '';
 
 let profile: Profile | null = null;
@@ -216,6 +217,7 @@ type GoogleId = { accounts: { id: { initialize(o: object): void; renderButton(el
 
 function buildAccount() {
   const box = $('account');
+  if (isCrazy) { box.innerHTML = ''; box.hidden = true; return; } // en CrazyGames: solo invitado (progreso guardado con su SDK)
   if (profile?.google) {
     box.innerHTML = `<div class="who">${t('savedIn', { email: escapeHtml(profile.google.email) })}${profile.master ? ' · <span class="master">MASTER</span>' : ''}</div><button id="logout" class="btn tiny">${t('logout')}</button>`;
     $('logout').onclick = () => {
@@ -622,6 +624,7 @@ function showScreen(which: 'splash' | 'menu' | 'game' | 'death' | 'tutorial') {
   $('menumute').hidden = !$('hud').hidden;
   $('death').hidden = which !== 'death';
   inGame = which === 'game' || which === 'death';
+  setPlaying(which === 'game');
   if (which === 'menu') carousels.get('chars')?.recenter();
   if (which === 'tutorial') buildTutorialScreen();
   if (which === 'death') carousels.get('death-chars')?.recenter();
@@ -660,7 +663,8 @@ net.on((m: ServerMsg) => {
     // falls through
     case 'profile':
       profile = m.profile;
-      if (m.profile.google) { store.set('nl_token', m.profile.token); session.del('nl_token'); }
+      if (isCrazy) { portalSet('nl_token', m.profile.token); store.set('nl_token', m.profile.token); }
+      else if (m.profile.google) { store.set('nl_token', m.profile.token); session.del('nl_token'); }
       else { session.set('nl_token', m.profile.token); store.del('nl_token'); }
       buildAccount();
       if (!nameInput.value) nameInput.value = m.profile.name;
@@ -676,7 +680,7 @@ net.on((m: ServerMsg) => {
       buildAbilities();
       lastUpKey = '';
       const th = tt(m.theme);
-      const link = `${location.origin}${location.pathname}?sala=${m.code}`;
+      const link = isCrazy ? m.code : `${location.origin}${location.pathname}?sala=${m.code}`; // en portales: solo el código
       $('roominfo').innerHTML = `${t('room')} <b>${m.code}</b>${m.priv ? ' 🔒' : ''} · ${th.name}`;
       $('roominfo').title = t('share', { l: link });
       $('roominfo').style.pointerEvents = 'auto';
@@ -687,7 +691,7 @@ net.on((m: ServerMsg) => {
       if (m.theme === 'cityz') toast(t('nlMatchHelp'));
       showScreen('game');
       if (tut) { $('roominfo').textContent = `📖 ${tt2('lesson', { i: TUT_CHARS.indexOf(tut.char) + 1 })}`; $('roominfo').onclick = null; renderTut(); }
-      else history.replaceState(null, '', `?sala=${m.code}`);
+      else if (!isCrazy) history.replaceState(null, '', `?sala=${m.code}`);
       break;
     }
     case 'snap':
@@ -921,6 +925,7 @@ $('tut-menu').onclick = () => showScreen('menu');
 tutStatic();
 
 async function boot() {
+  await initPortal((m) => { setForcedMute(m); for (const id of ['mute', 'menumute']) $(id).textContent = isMuted() ? '🔇' : '🔊'; });
   buildLangPicker($('langs'));
   setLang(lang);
   showScreen(new URLSearchParams(location.search).get('sala') ? 'menu' : 'splash');
@@ -930,6 +935,7 @@ async function boot() {
     await net.connect(linkCode ? net.shardOfCode(linkCode) || await net.pickShard() : await net.pickShard());
     net.send({ t: 'hello', token: savedToken(), name: nameInput.value.trim() });
     net.send({ t: 'rooms' });
+    loadingStop();
     setInterval(() => { if (!inGame) net.send({ t: 'rooms' }); }, 5000);
   } catch {
     showError(t('noServer'));
