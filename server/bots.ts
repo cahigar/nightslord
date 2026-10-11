@@ -20,6 +20,7 @@ export interface Brain {
   pauseT: number; // quieto un momento (emote)
   aggro: number; // ganas de pelear con otros monstruos (0-1)
   spot: { x: number; y: number } | null; // sitio en el círculo de velas
+  provoked: number; provokedT: number; // jugador real que le ha atacado (y hasta cuándo se defiende)
 }
 
 let nextBotId = -1;
@@ -57,7 +58,7 @@ export function newBrain(): Brain {
     cap: BOTS.capMin + Math.floor(Math.random() * (BOTS.capMax - BOTS.capMin + 1)),
     tgt: -1, retargetT: 0, wanderT: 0, wx: 0, wy: 0, stuckT: 0, lx: 0, ly: 0,
     emoteT: BOTS.emoteMin + Math.random() * (BOTS.emoteMax - BOTS.emoteMin), upT: 2, q: 0,
-    pauseT: 0, aggro: 0.35 + Math.random() * 0.4, spot: null,
+    pauseT: 0, aggro: 0.35 + Math.random() * 0.4, spot: null, provoked: -1, provokedT: 0,
   };
 }
 
@@ -81,6 +82,11 @@ function chooseTarget(room: Room, p: Player, br: Brain): Mob | null {
   for (const o of room.players.values()) {
     if (o === p || o.dead || o.protectT > 0 || p.allies.has(o.id)) continue;
     if (room.mode === 'lobby') continue;
+    // a los jugadores reales que acaban de llegar no los cazan: solo si ya son fuertes o si les han atacado
+    if (!o.bot && room.mode !== 'br') {
+      const provoked = br.provoked === o.id && br.provokedT > room.time;
+      if (!provoked && (o.level < BOTS.safeLvl || room.time - o.lifeStart < BOTS.safeT)) continue;
+    }
     const near = d2(p, o) < BOTS.fightR ** 2;
     const w = room.mode === 'br' ? 1.2 : near ? br.aggro * (healthy ? 1 : 0.3) : 0;
     consider(o, w);

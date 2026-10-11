@@ -89,6 +89,7 @@ const UI = {
   bugPh: 'Cuéntanos qué pasó: qué estabas haciendo, qué esperabas y qué ocurrió.',
   bugSend: 'Enviar',
   bugCancel: 'Cancelar',
+  coachMove: 'Muévete', coachHunt: 'Caza humanos', coachAbil: 'Habilidades', coachGrow: 'Sube de nivel y evoluciona', coachHunters: 'Cuidado con los cazadores', coachSkip: 'Saltar',
   reportThanks: '¡Gracias! Hemos recibido tu reporte.',
   reportLimit: 'Has enviado muchos reportes seguidos: prueba más tarde.',
   killedBy: 'Te ha cazado: {n}',

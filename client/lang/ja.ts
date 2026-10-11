@@ -83,6 +83,7 @@ export const JA: Dict = {
     bugPh: '何をしていて、何が起きたか教えてください。',
     bugSend: '送信',
     bugCancel: 'キャンセル',
+    coachMove: '移動', coachHunt: '人間を狩れ', coachAbil: 'スキル', coachGrow: 'レベルアップして進化', coachHunters: 'ハンターに注意', coachSkip: 'スキップ',
     reportThanks: 'ありがとう！報告を受け取りました。',
     reportLimit: '報告が多すぎます。しばらくしてからもう一度。',
     killedBy: '狩った相手：{n}',

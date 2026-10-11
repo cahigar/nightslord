@@ -83,6 +83,7 @@ export const CA: Dict = {
     bugPh: 'Explica’ns què ha passat: què feies, què esperaves i què ha passat.',
     bugSend: 'Envia',
     bugCancel: 'Cancel·la',
+    coachMove: 'Mou-te', coachHunt: 'Caça humans', coachAbil: 'Habilitats', coachGrow: 'Puja de nivell i evoluciona', coachHunters: 'Compte amb els caçadors', coachSkip: 'Saltar',
     reportThanks: 'Gràcies! Hem rebut el teu informe.',
     reportLimit: 'Has enviat molts informes seguits: torna-ho a provar més tard.',
     killedBy: 'T\'ha caçat: {n}',

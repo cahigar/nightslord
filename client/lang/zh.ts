@@ -83,6 +83,7 @@ export const ZH: Dict = {
     bugPh: '告诉我们发生了什么：你在做什么、期望什么、结果如何。',
     bugSend: '发送',
     bugCancel: '取消',
+    coachMove: '移动', coachHunt: '猎杀人类', coachAbil: '技能', coachGrow: '升级并进化', coachHunters: '小心猎人', coachSkip: '跳过',
     reportThanks: '谢谢！我们已收到你的报告。',
     reportLimit: '报告太频繁了，请稍后再试。',
     killedBy: '猎杀你的是：{n}',

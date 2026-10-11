@@ -18,6 +18,8 @@ export const BOTS = {
   capMin: 2, capMax: 3, // nivel máximo propio; luego, el del jugador real de menor nivel
   respawnT: 5,
   startPts: [40, 420] as [number, number], // puntos al aparecer (solo suben si hay jugadores reales en la sala)
+  safeLvl: 5, safeT: 90, // no persiguen a jugadores reales de nivel < 5 ni en su primer minuto y medio (salvo si les atacan)
+  revengeT: 12, // segundos que se defienden de quien les ha atacado
   fightR: 420, // a qué distancia se animan a pelear con otros monstruos (sala libre)
   emoteMin: 25, emoteMax: 60,
   chars: ['vampire', 'werewolf', 'witch', 'mummy', 'zombie', 'succubus', 'kthula', 'demon', 'slime', 'reaper', 'scarecrow', 'pirate'] as const,

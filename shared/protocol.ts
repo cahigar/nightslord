@@ -79,7 +79,7 @@ export interface EntSnap {
 }
 
 export type GameEvent =
-  | { e: 'hit'; x: number; y: number; d: number; t: number; crit?: boolean }
+  | { e: 'hit'; x: number; y: number; d: number; t: number; crit?: boolean; s?: number } // s: jugador que golpea (para el impacto en su pantalla)
   | { e: 'die'; x: number; y: number; k: Kind; c: string }
   | { e: 'sfx'; s: SfxId; x: number; y: number }
   | { e: 'fx'; f: FxId; x: number; y: number; r?: number; o?: number; tx?: number; ty?: number; n?: number; c?: string; s?: string; d?: number }

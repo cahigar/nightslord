@@ -83,6 +83,7 @@ export const EU: Dict = {
     bugPh: 'Kontatu zer gertatu den: zer egiten ari zinen eta zer espero zenuen.',
     bugSend: 'Bidali',
     bugCancel: 'Utzi',
+    coachMove: 'Mugitu', coachHunt: 'Ehizatu gizakiak', coachAbil: 'Trebetasunak', coachGrow: 'Igo maila eta eboluzionatu', coachHunters: 'Kontuz ehiztariekin', coachSkip: 'Saltatu',
     reportThanks: 'Eskerrik asko! Zure txostena jaso dugu.',
     reportLimit: 'Txosten gehiegi bidali dituzu: saiatu geroago.',
     killedBy: 'Ehizatu zaitu: {n}',

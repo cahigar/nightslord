@@ -1503,6 +1503,8 @@ export class Room {
       if (p.protectT > 0 || p.mistT > 0 || p.submergeT > 0 || p.phaseT > 0) return 0;
       if (this.mode === 'lobby' || (this.mode === 'br' && this.nl.phase !== 'match')) return 0; // en la previa (y en el podio) nadie se hace daño
       if (src.kind === Kind.Hunter) amount *= this.tutorial ? TUTORIAL.hunterDmg : rookieMul(p.level); // la Orden y las fieras pegan menos a los novatos
+      if (src.player?.bot && !p.bot) amount *= rookieMul(p.level); // los bots también pegan menos a los novatos
+      if (p.bot && src.player && !src.player.bot) { p.bot.provoked = src.player.id; p.bot.provokedT = this.time + BOTS.revengeT; } // y se defienden de quien les ataca
       amount *= (1 - Math.min(0.6, p.def.armor + classOf(p).armor)) * (KITS[p.char].damageTakenMul?.(this, p) ?? 1);
       p.lastHurtT = this.time;
       if (p.shieldHp > 0) {
@@ -1535,7 +1537,7 @@ export class Room {
       if (ls > 0) src.player.hp = Math.min(src.player.maxHp, src.player.hp + Math.min(amount, Math.max(0, m.hp)) * ls);
     }
     m.hp -= amount;
-    if (!quiet) this.emit({ e: 'hit', x: Math.round(m.x), y: Math.round(m.y), d: Math.round(amount), t: m.id, crit }, m.x, m.y);
+    if (!quiet) this.emit({ e: 'hit', x: Math.round(m.x), y: Math.round(m.y), d: Math.round(amount), t: m.id, crit, s: src.player && !src.minion ? src.player.id : undefined }, m.x, m.y);
     if (m.hp <= 0) this.kill(m, src);
     else if (this.time >= m.animUntil && m.entombT <= 0) this.setAnim(m, Anim.Hurt, 0.2);
     return amount;

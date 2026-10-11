@@ -11,6 +11,7 @@ import { startMenuBg } from './menubg';
 import { startParade } from './parade';
 import { Carousel } from './carousel';
 import { adaptQuality, quality } from './quality';
+import { Coach } from './coach';
 import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './tutorial';
 import { input, setupInput } from './input';
 import { net } from './net';
@@ -29,6 +30,7 @@ const store = {
   set(k: string, v: string) { try { localStorage.setItem(k, v); } catch { /* */ } },
   del(k: string) { try { localStorage.removeItem(k); } catch { /* */ } },
 };
+const coach = new Coach(game, canvas, store);
 /** Invitado: su token vive solo en esta pestaña/navegador abierto (al cerrarlo se pierde el progreso).
  *  Con cuenta de Google: el token se guarda y el progreso se recupera desde cualquier sitio. */
 const session = {
@@ -391,6 +393,7 @@ function trapImg(id: string) {
 let lastTrap = '', lastEcto = false, lastNightKey = '';
 function updateHud() {
   const y = game.you;
+  coach.update(y, !tut && !game.night && inGame);
   if (!y) return;
   // trampa que llevas (X)
   const trap = y.trap ?? '';

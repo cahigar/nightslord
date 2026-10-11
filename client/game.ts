@@ -128,6 +128,7 @@ export class Game {
   private swings: Swing[] = [];
   private corpses: Corpse[] = [];
   private shake = 0;
+  private punch = 0; // pequeño «zoom de impacto» al golpear
   cam = { x: MAP_SIZE / 2, y: MAP_SIZE / 2, zoom: 1 };
   /** Altura (fracción de la pantalla) donde se centra el personaje: en móvil, el centro de la zona que no tapan HUD y controles. */
   focusY = 0.5;
@@ -330,6 +331,11 @@ export class Game {
           if (col === '#b0101a') this.splat(ev.x, ev.y, 3 + Math.min(6, ev.d / 6));
         }
         if (mine) this.shake = Math.min(14, this.shake + 6);
+        else if (ev.s === this.youId && ev.d > 0) { // tu golpe: que se note
+          this.shake = Math.max(this.shake, ev.crit ? 6 : 3.5);
+          this.burst(ev.x, ev.y - 40, ev.crit ? 14 : 8, '#fff0c0', 200, 2);
+          this.punch = Math.max(this.punch, ev.crit ? 0.035 : 0.018);
+        }
         break;
       }
       case 'die': {
@@ -426,7 +432,8 @@ export class Game {
     this.cam.x += (target.x - this.cam.x) * Math.min(1, dt * 12);
     this.cam.y += (target.y - 40 - this.cam.y) * Math.min(1, dt * 12);
     this.cam.zoom = Math.max(0.55, Math.min(1.6, Math.max(W / 1500, H / 950)));
-    const z = this.cam.zoom;
+    this.punch = Math.max(0, this.punch - dt * 0.25);
+    const z = this.cam.zoom * (1 + this.punch);
     this.shake = Math.max(0, this.shake - dt * 40);
     const sx = (Math.random() - 0.5) * this.shake, sy = (Math.random() - 0.5) * this.shake;
     const camX = this.cam.x - W / 2 / z + sx, camY = this.cam.y - (H * this.focusY) / z + sy;
@@ -481,6 +488,8 @@ export class Game {
     this.decals = this.decals.filter((d) => d.life > 0);
     this.effects.update(dt);
     this.effects.draw(ctx, 'ground', now);
+    // tu monstruo: anillo en el suelo para encontrarte de un vistazo
+    if (this.alive) { const pr = 0.75 + Math.sin(now / 260) * 0.08; ctx.globalAlpha = 0.55; pixelEllipse(ctx, me.x, me.y + 2, 30 * pr, 11 * pr, '#ffd040', 2); ctx.globalAlpha = 1; }
     for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) { if (e.c.startsWith('trap_')) this.drawTrap(ctx, e, now); else this.effects.drawZone(ctx, e.c, e.rx, e.ry, e.rr ?? 60, (e.h ?? 100) / 100, now, e.id % 97, e.bx, e.by); }
     this.drawScentTrails(ctx, now);
 
@@ -717,7 +726,7 @@ export class Game {
     dc.globalCompositeOperation = 'source-over';
     dc.clearRect(0, 0, W, H);
     const amb = parseInt(THEMES[this.theme].ambient.slice(1), 16);
-    dc.fillStyle = `rgba(${(amb >> 16) & 255},${(amb >> 8) & 255},${amb & 255},0.84)`;
+    dc.fillStyle = `rgba(${(amb >> 16) & 255},${(amb >> 8) & 255},${amb & 255},0.68)`; // noche, pero que se lea el juego
     dc.fillRect(0, 0, W, H);
     dc.globalCompositeOperation = 'destination-out';
     const hole = (x: number, y: number, r: number, strength = 1) => {
@@ -735,12 +744,13 @@ export class Game {
     const outs = [...this.ents.values()].filter((z) => z.k === Kind.Zone && ((z.c === 'lightsout' && z.o !== this.youId) || z.c === 'trap_candle'));
     const dimmed = (x: number, y: number) => outs.some((z) => (x - z.rx) ** 2 + (y - z.ry) ** 2 < (z.rr ?? 500) ** 2);
     const blind = dimmed(me.x, me.y);
-    hole(me.x, me.y - 30, blind ? 120 : this.alive ? 330 : 260, 0.92);
+    hole(me.x, me.y - 30, blind ? 120 : this.alive ? 430 : 300, 0.95);
     const all = this.lights.concat(dyn).filter((l) => !outs.length || !dimmed(l.x, l.y));
     for (const l of all) hole(l.x, l.y, l.r * flick(l), 0.85);
     for (const e of this.ents.values()) {
       if (e.k === Kind.PowerUp) hole(e.rx, e.ry - 20, 70, 0.6);
-      else if (e.k === Kind.Player && e.id !== this.youId && !(e.fl & Flag.Invisible)) hole(e.rx, e.ry - 30, 80, 0.45);
+      else if (e.k === Kind.Player && e.id !== this.youId && !(e.fl & Flag.Invisible)) hole(e.rx, e.ry - 30, 90, 0.5);
+      else if (e.k === Kind.Npc || e.k === Kind.Hunter) hole(e.rx, e.ry - 25, 64, 0.4); // presas y Cazadores siempre se distinguen
     }
     // conos de linterna
     for (const c of cones) {

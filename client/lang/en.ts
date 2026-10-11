@@ -83,6 +83,7 @@ export const EN: Dict = {
     bugPh: 'Tell us what happened: what you were doing, what you expected and what went wrong.',
     bugSend: 'Send',
     bugCancel: 'Cancel',
+    coachMove: 'Move', coachHunt: 'Hunt humans', coachAbil: 'Abilities', coachGrow: 'Level up and evolve', coachHunters: 'Beware the hunters', coachSkip: 'Skip',
     reportThanks: 'Thanks! We got your report.',
     reportLimit: 'You have sent many reports in a row: try again later.',
     killedBy: 'Hunted by: {n}',
