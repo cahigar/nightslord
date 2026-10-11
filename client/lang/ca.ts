@@ -8,6 +8,8 @@ export const CA: Dict = {
     namePh: 'El teu nom',
     coins: 'Monedes',
     chooseMonster: 'Tria el teu monstre',
+    backHome: '← Inici',
+    monsterPage: '📖 Fitxa i història',
     skin: 'Aparença',
     play: '🦇 Jugar Free 4 All',
     codePh: 'CODI',

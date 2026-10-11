@@ -8,6 +8,8 @@ const UI = {
   namePh: 'Tu nombre',
   coins: 'Monedas',
   chooseMonster: 'Elige tu monstruo',
+  backHome: '← Inicio',
+  monsterPage: '📖 Ficha e historia',
   skin: 'Skin',
   play: '🦇 Jugar Free 4 All',
   codePh: 'CÓDIGO',

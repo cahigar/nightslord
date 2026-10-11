@@ -15,6 +15,7 @@ import { Coach } from './coach';
 import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './tutorial';
 import { input, setupInput } from './input';
 import { net } from './net';
+import { MONSTER_PAGE } from '../shared/monsterPages';
 import { invitedRoom, isCrazy, isPortal, PORTAL, initPortal, isInstantMultiplayer, loadingStop, onInviteJoin, onPortalLogin, portalGet, portalInviteLink, portalSet, portalUsername, reportRoom, setPlaying } from './portal';
 import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
 import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, th, tk, tm, tpu, tt, tu, tw } from './i18n';
@@ -248,6 +249,15 @@ function buildAccount() {
   }).catch(() => { const el = document.getElementById('gbtn'); if (el) el.textContent = t('googleFail'); });
 }
 
+/** Enlace a la ficha del monstruo (historia, habilidades, trailer). En CrazyGames no se permiten enlaces a fuera. */
+function monsterLink(id: CharacterId) {
+  if (isCrazy) return '';
+  const path = MONSTER_PAGE[lang === 'es' || lang === 'ca' || lang === 'eu' ? 'es' : 'en'][id];
+  if (!path) return '';
+  const href = (isPortal ? 'https://mooonsters.com' : '') + path;
+  return `<a class="charpage" href="${href}" target="_blank" rel="noopener">${t('monsterPage')}</a>`;
+}
+
 function buildCharInfo() {
   const d = CHARACTERS[selChar], x = tc(selChar);
   $('charinfo').innerHTML = `
@@ -256,7 +266,8 @@ function buildCharInfo() {
     <div><b>E ${x.e[0]}</b> · ${x.e[1]}</div>
     <div><b>R ${x.r[0]}</b> · ${x.r[1]}</div>
     <div class="evo">${d.evolution.map((ev, i) => `<span><b>${t('lvlShort')} ${ev.lvl}</b> ${x.evo[i]?.[0] ?? ev.name}</span>`).join('')}</div>
-    <div class="stats">${t('stats', { hp: d.hp, sp: d.speed, dm: d.damage })}${d.armor ? t('armor', { a: Math.round(d.armor * 100) }) : ''}</div>`;
+    <div class="stats">${t('stats', { hp: d.hp, sp: d.speed, dm: d.damage })}${d.armor ? t('armor', { a: Math.round(d.armor * 100) }) : ''}</div>
+    ${monsterLink(selChar)}`;
   $('charinfo').title = d.evolution.map((ev, i) => `${t('levelLong')} ${ev.lvl} · ${x.evo[i]?.[0] ?? ev.name}: ${x.evo[i]?.[1] ?? ev.desc}`).join('\n');
 }
 
@@ -995,6 +1006,7 @@ function finishTut() {
 $('tutbtn').onclick = () => { initAudio(); startMusic(); $('splash').hidden = true; showScreen('tutorial'); };
 $('tutbtn2').onclick = () => showScreen('tutorial');
 $('tut-back').onclick = () => showScreen('splash');
+$('home').onclick = () => showScreen('splash');
 $('tut-menu').onclick = () => showScreen('menu');
 tutStatic();
 

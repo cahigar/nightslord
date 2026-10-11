@@ -8,6 +8,8 @@ export const JA: Dict = {
     namePh: 'あなたの名前',
     coins: 'コイン',
     chooseMonster: 'モンスターを選ぼう',
+    backHome: '← ホーム',
+    monsterPage: '📖 プロフィールと物語',
     skin: 'スキン',
     play: '🦇 Free 4 All をプレイ',
     codePh: 'コード',

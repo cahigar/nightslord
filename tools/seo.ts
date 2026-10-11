@@ -175,6 +175,11 @@ function slugs(lang: Lang) {
   return out;
 }
 const CSLUG = { es: slugs('es'), en: slugs('en') };
+// rutas de las fichas para el juego (enlace «Ficha e historia» del selector de monstruo)
+writeFileSync(join(import.meta.dirname, '..', 'shared', 'monsterPages.ts'), `// Generado por tools/seo.ts: ruta de la ficha de cada monstruo (castellano / inglés).
+import type { CharacterId } from './characters';
+export const MONSTER_PAGE: Record<'es' | 'en', Record<CharacterId, string>> = ${JSON.stringify({ es: Object.fromEntries(Object.entries(CSLUG.es).map(([k, v]) => [k, `/monstruos/${v}/`])), en: Object.fromEntries(Object.entries(CSLUG.en).map(([k, v]) => [k, `/en/monsters/${v}/`])) }, null, 2)};
+`);
 const MSLUG = { es: Object.fromEntries(THEME_IDS.map((m) => [m, slug(THEMES[m].name)])) as Record<MapThemeId, string>, en: Object.fromEntries(THEME_IDS.map((m) => [m, slug(themeName(m, 'en'))])) as Record<MapThemeId, string> };
 const charUrl = (id: CharacterId, lang: Lang) => `${T[lang].monstersPath}${CSLUG[lang][id]}/`;
 const mapUrl = (m: MapThemeId, lang: Lang) => `${T[lang].mapsPath}${MSLUG[lang][m]}/`;

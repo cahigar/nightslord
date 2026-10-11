@@ -8,6 +8,8 @@ export const EN: Dict = {
     namePh: 'Your name',
     coins: 'Coins',
     chooseMonster: 'Choose your monster',
+    backHome: '← Home',
+    monsterPage: '📖 Profile & backstory',
     skin: 'Skin',
     play: '🦇 Play Free 4 All',
     codePh: 'CODE',

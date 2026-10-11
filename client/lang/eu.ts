@@ -8,6 +8,8 @@ export const EU: Dict = {
     namePh: 'Zure izena',
     coins: 'Txanponak',
     chooseMonster: 'Aukeratu zure munstroa',
+    backHome: '← Hasiera',
+    monsterPage: '📖 Fitxa eta istorioa',
     skin: 'Itxura',
     play: '🦇 Jolastu Free 4 All',
     codePh: 'KODEA',

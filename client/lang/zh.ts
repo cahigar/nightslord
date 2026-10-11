@@ -8,6 +8,8 @@ export const ZH: Dict = {
     namePh: '你的名字',
     coins: '金币',
     chooseMonster: '选择你的怪物',
+    backHome: '← 首页',
+    monsterPage: '📖 档案与背景故事',
     skin: '皮肤',
     play: '🦇 玩 Free 4 All',
     codePh: '房间码',
