@@ -15,7 +15,7 @@ import { Coach } from './coach';
 import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './tutorial';
 import { input, setupInput } from './input';
 import { net } from './net';
-import { invitedRoom, isCrazy, initPortal, isInstantMultiplayer, loadingStop, onInviteJoin, onPortalLogin, portalGet, portalInviteLink, portalSet, portalUsername, reportRoom, setPlaying } from './portal';
+import { invitedRoom, isCrazy, isPortal, PORTAL, initPortal, isInstantMultiplayer, loadingStop, onInviteJoin, onPortalLogin, portalGet, portalInviteLink, portalSet, portalUsername, reportRoom, setPlaying } from './portal';
 import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
 import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, th, tk, tm, tpu, tt, tu, tw } from './i18n';
 
@@ -43,9 +43,9 @@ const origin = () => {
   let ref = '';
   try { const h = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : ''; if (h && h !== location.hostname.replace(/^www\./, '')) ref = h; } catch { /* */ }
   const qs = new URLSearchParams(location.search);
-  return { ref, utm: isCrazy ? 'crazygames' : qs.get('utm_source') ?? qs.get('ref') ?? '', lang: navigator.language ?? '' };
+  return { ref, utm: isPortal ? PORTAL : qs.get('utm_source') ?? qs.get('ref') ?? '', lang: navigator.language ?? '' };
 };
-const savedToken = () => (isCrazy ? portalGet('nl_token') ?? store.get('nl_token') : store.get('nl_token') ?? session.get('nl_token')) ?? undefined;
+const savedToken = () => (isPortal ? portalGet('nl_token') ?? store.get('nl_token') : store.get('nl_token') ?? session.get('nl_token')) ?? undefined;
 let googleClientId = '';
 
 let profile: Profile | null = null;
@@ -226,7 +226,7 @@ type GoogleId = { accounts: { id: { initialize(o: object): void; renderButton(el
 
 function buildAccount() {
   const box = $('account');
-  if (isCrazy) { box.innerHTML = ''; box.hidden = true; return; } // en CrazyGames: solo invitado (progreso guardado con su SDK)
+  if (isPortal) { box.innerHTML = ''; box.hidden = true; return; } // en portales: solo invitado (progreso guardado en el navegador / SDK)
   if (profile?.google) {
     box.innerHTML = `<div class="who">${t('savedIn', { email: escapeHtml(profile.google.email) })}${profile.master ? ' · <span class="master">MASTER</span> · <a class="stats-link" href="/admin/" target="_blank" rel="noopener">📊 Estadísticas</a>' : ''}</div><button id="logout" class="btn tiny">${t('logout')}</button>`;
     $('logout').onclick = () => {
@@ -698,7 +698,7 @@ net.on((m: ServerMsg) => {
     // falls through
     case 'profile':
       profile = m.profile;
-      if (isCrazy) { portalSet('nl_token', m.profile.token); store.set('nl_token', m.profile.token); }
+      if (isPortal) { portalSet('nl_token', m.profile.token); store.set('nl_token', m.profile.token); }
       else if (m.profile.google) { store.set('nl_token', m.profile.token); session.del('nl_token'); }
       else { session.set('nl_token', m.profile.token); store.del('nl_token'); }
       buildAccount();
@@ -715,7 +715,7 @@ net.on((m: ServerMsg) => {
       buildAbilities();
       lastUpKey = '';
       const th = tt(m.theme);
-      const link = isCrazy ? portalInviteLink(m.code) ?? m.code : `${location.origin}${location.pathname}?sala=${m.code}`; // en portales: su enlace de invitación
+      const link = isCrazy ? portalInviteLink(m.code) ?? m.code : isPortal ? m.code : `${location.origin}${location.pathname}?sala=${m.code}`; // en portales: su enlace de invitación
       if (isCrazy) reportRoom(m.code, m.theme !== 'cityz');
       $('roominfo').innerHTML = `${t('room')} <b>${m.code}</b>${m.priv ? ' 🔒' : ''} · ${th.name}`;
       $('roominfo').title = t('share', { l: link });
@@ -727,7 +727,7 @@ net.on((m: ServerMsg) => {
       if (m.theme === 'cityz') toast(t('nlMatchHelp'));
       showScreen('game');
       if (tut) { $('roominfo').textContent = `📖 ${tt2('lesson', { i: TUT_CHARS.indexOf(tut.char) + 1 })}`; $('roominfo').onclick = null; renderTut(); }
-      else if (!isCrazy) history.replaceState(null, '', `?sala=${m.code}`);
+      else if (!isPortal) history.replaceState(null, '', `?sala=${m.code}`);
       break;
     }
     case 'snap':
@@ -979,7 +979,7 @@ $('bugsend').onclick = () => {
   if (text.length < 3) { ta.focus(); return; }
   const me = game.ents.get(game.youId);
   net.send({ t: 'report', text, ctx: {
-    char: selChar, lvl: me?.l ?? 0, lang, portal: isCrazy ? 'crazygames' : 'web',
+    char: selChar, lvl: me?.l ?? 0, lang, portal: PORTAL || 'web',
     screen: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, touch: matchMedia('(pointer: coarse)').matches ? 1 : 0, ua: navigator.userAgent.slice(0, 150),
   } });
   ta.value = '';

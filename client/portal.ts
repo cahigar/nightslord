@@ -3,6 +3,8 @@
 const ENV = (import.meta as unknown as { env?: Record<string, string> }).env ?? {};
 export const PORTAL = ENV.VITE_PORTAL ?? '';
 export const isCrazy = PORTAL === 'crazygames';
+/** Cualquier portal (CrazyGames, itch.io…): sin enlaces a fuera ni cuenta de Google; progreso guardado en el navegador. */
+export const isPortal = PORTAL !== '';
 
 interface CrazySdk {
   init(): Promise<void>;
@@ -27,8 +29,9 @@ let playing = false;
 
 /** Carga e inicia el SDK del portal (como mucho 6 s: si falla, el juego sigue sin él). */
 export async function initPortal(onMute: (m: boolean) => void): Promise<void> {
-  if (!isCrazy) return;
-  document.body.classList.add('portal', 'portal-crazy');
+  if (!isPortal) return;
+  document.body.classList.add('portal', `portal-${PORTAL === 'crazygames' ? 'crazy' : PORTAL}`);
+  if (!isCrazy) { audioResume(); return; }
   try {
     await new Promise<void>((ok, fail) => {
       const s = document.createElement('script');
@@ -45,7 +48,11 @@ export async function initPortal(onMute: (m: boolean) => void): Promise<void> {
     onMute(!!s.game.settings.muteAudio);
     s.game.addSettingsChangeListener((st) => onMute(!!st.muteAudio));
   } catch { /* sin SDK: se juega igual */ }
-  // iOS: el audio se corta al volver de segundo plano; hay que reanudarlo dentro de un gesto del usuario
+  audioResume();
+}
+
+/** iOS: el audio se corta al volver de segundo plano; hay que reanudarlo dentro de un gesto del usuario. */
+function audioResume() {
   const resume = () => { const ac = (window as unknown as { __nlAudio?: AudioContext }).__nlAudio; if (ac && ac.state !== 'running') ac.resume(); };
   document.addEventListener('touchend', resume, { passive: true });
   document.addEventListener('click', resume);
