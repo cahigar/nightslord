@@ -143,7 +143,7 @@ export interface YouState {
 export type ClientMsg =
   | { t: 'hello'; token?: string; name: string; ref?: string; utm?: string; lang?: string } // ref/utm/lang: solo para las estadísticas
   | { t: 'login'; credential: string } // ID token de Google
-  | { t: 'join'; mode: 'random' | 'code' | 'create' | 'tutorial' | 'nightlord'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
+  | { t: 'join'; mode: 'random' | 'code' | 'create' | 'tutorial' | 'nightlord'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId; fill?: boolean } // fill: sala privada con bots de relleno (CrazyGames)
   | { t: 'input'; q: number; mx: number; my: number; a: number; b: number; d?: number } // d: distancia al cursor
   | { t: 'emote'; e: 'wave' | 'taunt' | 'ally' }
   | { t: 'upgrade'; u: UpgradeId }
@@ -154,6 +154,7 @@ export type ClientMsg =
   | { t: 'cheat'; lvl?: number; ult?: boolean; tp?: [number, number]; heal?: boolean } // solo en modo desarrollo
   | { t: 'buy'; item: string } // "char:<id>" o "skin:<char>:<id>"
   | { t: 'rooms' }
+  | { t: 'report'; text: string; ctx?: Record<string, string | number> } // «¿Encontraste algún error?» (se leen en /admin/)
   | { t: 'ping'; c: number };
 
 // ---------- Servidor -> Cliente ----------

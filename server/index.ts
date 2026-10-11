@@ -72,10 +72,33 @@ analytics.setOnline(() => {
 });
 
 /** Panel de estadísticas: solo para cuentas master (token del perfil en la cabecera Authorization). */
-function statsApi(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, query: string) {
+/** ¿La petición viene de una cuenta master? (token del perfil en «Authorization: Bearer …») */
+function isMasterReq(req: import('node:http').IncomingMessage) {
   const token = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '').trim();
   const p = token && token.length <= 64 ? store.find(token) : null;
-  const ok = !!p && p.token === token && !!p.google && ADMIN_EMAILS.includes(p.google.email);
+  return !!p && p.token === token && !!p.google && ADMIN_EMAILS.includes(p.google.email);
+}
+
+/** Reportes de errores de los jugadores para /admin/: GET lista; POST {id, important} marca; POST {id, del: true} borra. */
+function reportsApi(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse) {
+  const ok = isMasterReq(req);
+  res.writeHead(ok ? 200 : 403, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+  if (!ok) { res.end(JSON.stringify({ error: 'Solo para cuentas master.' })); return; }
+  if (req.method !== 'POST') { res.end(JSON.stringify({ list: store.listReports() })); return; }
+  let body = '';
+  req.on('data', (d) => { body += d; if (body.length > 2000) req.destroy(); });
+  req.on('end', () => {
+    try {
+      const b = JSON.parse(body) as { id?: number; important?: boolean; del?: boolean };
+      const id = Number(b.id);
+      if (id > 0) { if (b.del) store.deleteReport(id); else store.markReport(id, !!b.important); }
+    } catch { /* */ }
+    res.end(JSON.stringify({ list: store.listReports() }));
+  });
+}
+
+function statsApi(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, query: string) {
+  const ok = isMasterReq(req);
   res.writeHead(ok ? 200 : 403, { 'content-type': 'application/json', 'cache-control': 'no-store' });
   if (!ok) { res.end(JSON.stringify({ error: 'Solo para cuentas master.' })); return; }
   const qs = new URLSearchParams(query);
@@ -88,6 +111,7 @@ function statsApi(req: import('node:http').IncomingMessage, res: import('node:ht
 const server = createServer((req, res) => {
   const [url, query = ''] = (req.url ?? '/').split('?');
   if (url === '/api/stats') { statsApi(req, res, query); return; }
+  if (url === '/api/reports') { reportsApi(req, res); return; }
   if (url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'cache-control': 'no-store' });
     const players = [...rooms.rooms.values()].reduce((a, r) => a + r.playerCount, 0);
@@ -220,6 +244,7 @@ wss.on('connection', (ws: WebSocket, req) => {
           if (target.isFull) return send({ t: 'error', msg: 'La sala está llena.', k: 'roomFull' });
         } else if (msg.mode === 'create') {
           target = rooms.create(!!msg.priv, msg.theme);
+          if (target && msg.priv && msg.fill) target.fillPriv = true; // sala privada con bots hasta que lleguen los amigos
         } else {
           target = rooms.findRandom();
         }
@@ -259,6 +284,18 @@ wss.on('connection', (ws: WebSocket, req) => {
       case 'buy':
         buy(c, String(msg.item ?? ''));
         break;
+      case 'report': {
+        const text = String(msg.text ?? '').trim();
+        if (text.length < 3) return;
+        const ctx: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(msg.ctx ?? {}).slice(0, 12)) if (typeof v === 'string' || typeof v === 'number') ctx[k.slice(0, 20)] = typeof v === 'string' ? v.slice(0, 160) : v;
+        if (room) { ctx.room = room.code; ctx.theme = room.theme; }
+        if (SHARD) ctx.shard = SHARD;
+        const ok = store.addReport(c.profile.token, c.profile.name || 'Anónimo', text, ctx);
+        send({ t: 'toast', text: ok ? '¡Gracias! Hemos recibido tu reporte.' : 'Has enviado muchos reportes seguidos: prueba más tarde.', k: ok ? 'reportThanks' : 'reportLimit' });
+        break;
+      }
+
     }
   });
 

@@ -14,7 +14,7 @@ import { adaptQuality, quality } from './quality';
 import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './tutorial';
 import { input, setupInput } from './input';
 import { net } from './net';
-import { isCrazy, initPortal, loadingStop, portalGet, portalSet, setPlaying } from './portal';
+import { invitedRoom, isCrazy, initPortal, isInstantMultiplayer, loadingStop, onInviteJoin, portalGet, portalInviteLink, portalSet, reportRoom, setPlaying } from './portal';
 import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
 import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, th, tk, tm, tpu, tt, tu, tw } from './i18n';
 
@@ -322,7 +322,7 @@ function toast(html: string) {
 const nameInput = $<HTMLInputElement>('name');
 nameInput.value = store.get('nl_name') ?? '';
 
-async function join(mode: 'random' | 'code' | 'create' | 'nightlord', code?: string) {
+async function join(mode: 'random' | 'code' | 'create' | 'nightlord', code?: string, opts: { priv?: boolean; fill?: boolean; anyTheme?: boolean } = {}) {
   if (!isOwned(selChar)) { tryUnlock(selChar); return; }
   initAudio();
   startMusic();
@@ -338,8 +338,9 @@ async function join(mode: 'random' | 'code' | 'create' | 'nightlord', code?: str
   if (mode === 'create' && th === 'nightlord') mode = 'nightlord'; // crear una previa de El Señor de la Noche
   net.send({
     t: 'join', mode, code, char: selChar, skin: selSkin,
-    priv: mode === 'nightlord' ? mode === 'nightlord' && $<HTMLSelectElement>('theme').value === 'nightlord' && $<HTMLInputElement>('priv').checked : $<HTMLInputElement>('priv').checked,
-    theme: (th && th !== 'nightlord' ? th : undefined) as MapThemeId | undefined,
+    priv: opts.priv ?? (mode === 'nightlord' ? mode === 'nightlord' && $<HTMLSelectElement>('theme').value === 'nightlord' && $<HTMLInputElement>('priv').checked : $<HTMLInputElement>('priv').checked),
+    theme: opts.anyTheme ? undefined : (th && th !== 'nightlord' ? th : undefined) as MapThemeId | undefined,
+    fill: opts.fill,
   });
 }
 
@@ -665,6 +666,7 @@ $('tomenu').onclick = () => net.send({ t: 'leave' });
 net.on((m: ServerMsg) => {
   switch (m.t) {
     case 'welcome':
+      welcomedOk();
       devMode = !!m.dev || !!m.profile.master;
       googleClientId = m.google ?? '';
     // falls through
@@ -687,7 +689,8 @@ net.on((m: ServerMsg) => {
       buildAbilities();
       lastUpKey = '';
       const th = tt(m.theme);
-      const link = isCrazy ? m.code : `${location.origin}${location.pathname}?sala=${m.code}`; // en portales: solo el código
+      const link = isCrazy ? portalInviteLink(m.code) ?? m.code : `${location.origin}${location.pathname}?sala=${m.code}`; // en portales: su enlace de invitación
+      if (isCrazy) reportRoom(m.code, m.theme !== 'cityz');
       $('roominfo').innerHTML = `${t('room')} <b>${m.code}</b>${m.priv ? ' 🔒' : ''} · ${th.name}`;
       $('roominfo').title = t('share', { l: link });
       $('roominfo').style.pointerEvents = 'auto';
@@ -743,6 +746,7 @@ net.on((m: ServerMsg) => {
       $('rooms').querySelectorAll<HTMLElement>('.room').forEach((el) => { el.onclick = () => join('code', el.dataset.code); });
       break;
     case 'left':
+      reportRoom(null);
       game.stop();
       game.setNight(null); renderNight(); $('podium').hidden = true; clearInterval(podiumT); document.body.classList.remove('ecto');
       if (tut) { endTut(); showScreen('tutorial'); break; }
@@ -931,6 +935,26 @@ $('tut-back').onclick = () => showScreen('splash');
 $('tut-menu').onclick = () => showScreen('menu');
 tutStatic();
 
+let welcomedOk: () => void = () => {};
+const welcomed = new Promise<void>((r) => { welcomedOk = r; });
+
+// ---------------------------------------------------------------------------
+// «¿Encontraste algún error?» (pantalla de muerte). Los reportes se ven en /admin/ (cuentas master).
+// ---------------------------------------------------------------------------
+$('bugbtn').onclick = () => { $('bugform').hidden = false; $<HTMLTextAreaElement>('bugtext').focus(); };
+$('bugcancel').onclick = () => { $('bugform').hidden = true; };
+$('bugsend').onclick = () => {
+  const ta = $<HTMLTextAreaElement>('bugtext');
+  const text = ta.value.trim();
+  if (text.length < 3) { ta.focus(); return; }
+  const me = game.ents.get(game.youId);
+  net.send({ t: 'report', text, ctx: {
+    char: selChar, lvl: me?.l ?? 0, lang, portal: isCrazy ? 'crazygames' : 'web',
+    screen: `${innerWidth}x${innerHeight}@${devicePixelRatio}`, touch: matchMedia('(pointer: coarse)').matches ? 1 : 0, ua: navigator.userAgent.slice(0, 150),
+  } });
+  ta.value = '';
+  $('bugform').hidden = true;
+};
 async function boot() {
   await initPortal((m) => { setForcedMute(m); for (const id of ['mute', 'menumute']) $(id).textContent = isMuted() ? '🔇' : '🔊'; });
   buildLangPicker($('langs'));
@@ -943,6 +967,14 @@ async function boot() {
     net.send({ t: 'hello', token: savedToken(), name: nameInput.value.trim() });
     net.send({ t: 'rooms' });
     loadingStop();
+    if (isCrazy) {
+      await welcomed;
+      const goTo = (code: string) => { $('splash').hidden = true; showScreen('menu'); join('code', code); };
+      const inv = invitedRoom();
+      if (inv) goTo(inv);
+      else if (isInstantMultiplayer()) { $('splash').hidden = true; showScreen('menu'); join('create', undefined, { priv: true, fill: true, anyTheme: true }); }
+      onInviteJoin((code) => { if (game.roomCode !== code) goTo(code); });
+    }
     setInterval(() => { if (!inGame) net.send({ t: 'rooms' }); }, 5000);
   } catch {
     showError(t('noServer'));

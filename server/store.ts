@@ -25,7 +25,9 @@ class ProfileStore {
     this.db = new DatabaseSync(DB_FILE);
     this.db.exec(`PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 3000; PRAGMA synchronous = NORMAL;
       CREATE TABLE IF NOT EXISTS profiles (token TEXT PRIMARY KEY, data TEXT NOT NULL, updated INTEGER NOT NULL);
-      CREATE TABLE IF NOT EXISTS accounts (sub TEXT PRIMARY KEY, token TEXT NOT NULL, email TEXT NOT NULL, created INTEGER NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS accounts (sub TEXT PRIMARY KEY, token TEXT NOT NULL, email TEXT NOT NULL, created INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER NOT NULL, token TEXT NOT NULL, name TEXT NOT NULL,
+        text TEXT NOT NULL, ctx TEXT NOT NULL, important INTEGER NOT NULL DEFAULT 0);`);
     this.importOldJson();
     const n = (this.db.prepare('SELECT COUNT(*) AS n FROM profiles').get() as { n: number }).n;
     console.log(`[store] ${n} perfiles en ${DB_FILE}`);
@@ -111,6 +113,21 @@ class ProfileStore {
     this.dirty = true;
   }
 
+  // ------------------------------------------------------------------ reportes de errores de los jugadores
+  /** Guarda un reporte. Devuelve false si ese jugador ya ha enviado demasiados en la última hora. */
+  addReport(token: string, name: string, text: string, ctx: Record<string, unknown>): boolean {
+    const recent = (this.db.prepare('SELECT COUNT(*) AS n FROM reports WHERE token = ? AND created > ?').get(token, Date.now() - 3600_000) as { n: number }).n;
+    if (recent >= 5) return false;
+    this.db.prepare('INSERT INTO reports (created, token, name, text, ctx) VALUES (?, ?, ?, ?, ?)').run(Date.now(), token, name.slice(0, 40), text.slice(0, 1500), JSON.stringify(ctx).slice(0, 1500));
+    return true;
+  }
+  listReports(): ReportRow[] {
+    const rows = this.db.prepare('SELECT id, created, name, text, ctx, important FROM reports ORDER BY important DESC, created DESC LIMIT 300').all() as unknown as (Omit<ReportRow, 'ctx' | 'important'> & { ctx: string; important: number })[];
+    return rows.map((r) => ({ ...r, important: !!r.important, ctx: (() => { try { return JSON.parse(r.ctx) as Record<string, unknown>; } catch { return {}; } })() }));
+  }
+  markReport(id: number, important: boolean) { this.db.prepare('UPDATE reports SET important = ? WHERE id = ?').run(important ? 1 : 0, id); }
+  deleteReport(id: number) { this.db.prepare('DELETE FROM reports WHERE id = ?').run(id); }
+
   /** Concede una medalla. Devuelve true si es nueva. */
   award(p: Profile, medal: string): boolean {
     if (p.medals.includes(medal) || !MEDAL_BY_ID[medal]) return false;
@@ -150,5 +167,7 @@ function migrate(p: Profile): Profile {
   st.hunterKills ??= 0;
   return p;
 }
+
+export interface ReportRow { id: number; created: number; name: string; text: string; ctx: Record<string, unknown>; important: boolean }
 
 export const store = new ProfileStore();

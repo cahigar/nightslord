@@ -84,6 +84,13 @@ const UI = {
   evoUlt: 'Desbloquea la definitiva R, que se carga con bajas.',
   // muerte
   fallen: 'Has caído',
+  bugBtn: '🐞 ¿Encontraste algún error? Repórtalo',
+  bugTitle: 'Reportar un error',
+  bugPh: 'Cuéntanos qué pasó: qué estabas haciendo, qué esperabas y qué ocurrió.',
+  bugSend: 'Enviar',
+  bugCancel: 'Cancelar',
+  reportThanks: '¡Gracias! Hemos recibido tu reporte.',
+  reportLimit: 'Has enviado muchos reportes seguidos: prueba más tarde.',
   killedBy: 'Te ha cazado: {n}',
   dPoints: 'puntos',
   dLevel: 'nivel',

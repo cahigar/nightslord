@@ -519,3 +519,10 @@ body.touch.nl #toast { top: auto; }
 body.portal { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; -webkit-touch-callout: none; }
 body.portal input { -webkit-user-select: text; user-select: text; }
 body.portal .splash-links, body.portal #account { display: none !important; }
+
+/* Reportar un error */
+.screen.modal { z-index: 40; align-items: center; }
+.linkbtn { display: block; margin: 14px auto 0; background: none; border: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 10px; }
+.linkbtn:hover { color: var(--gold); }
+.bugform { width: min(520px, 100%); }
+.bugform textarea { width: 100%; box-sizing: border-box; background: #0c0714; color: var(--text); border: 2px solid var(--line); padding: 10px; font-family: var(--vt); font-size: 20px; resize: vertical; margin: 8px 0 12px; }

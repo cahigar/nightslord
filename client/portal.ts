@@ -9,6 +9,13 @@ interface CrazySdk {
   environment: 'local' | 'crazygames' | 'disabled';
   game: {
     gameplayStart(): void; gameplayStop(): void; loadingStart(): void; loadingStop(): void;
+    isInstantMultiplayer?: boolean;
+    inviteParams?: Record<string, string> | null;
+    getInviteParam?(k: string): string | null;
+    inviteLink?(p: Record<string, string>): string;
+    addJoinRoomListener?(cb: (p: Record<string, string>) => void): void;
+    updateRoom?(o: { roomId?: string; isJoinable?: boolean; inviteParams?: Record<string, string> }): void;
+    leftRoom?(): void;
     settings: { muteAudio?: boolean };
     addSettingsChangeListener(cb: (s: { muteAudio?: boolean }) => void): void;
   };
@@ -56,3 +63,26 @@ export function setPlaying(on: boolean) {
 /** Guardado del invitado en el portal (sustituye al inicio de sesión con Google). */
 export function portalGet(k: string): string | null { try { return sdk ? sdk.data.getItem(k) : null; } catch { return null; } }
 export function portalSet(k: string, v: string) { call((s) => s.data.setItem(k, v)); }
+
+// ---------------------------------------------------------------------------- multijugador (CrazyGames)
+/** «Instant Multiplayer»: el jugador debe entrar directamente en una sala privada nueva. */
+export const isInstantMultiplayer = () => !!sdk?.game.isInstantMultiplayer;
+/** Código de sala si el juego se abrió desde una invitación. */
+export function invitedRoom(): string | null {
+  try { return (sdk?.game.getInviteParam?.('sala') ?? sdk?.game.inviteParams?.sala ?? null)?.toUpperCase() || null; } catch { return null; }
+}
+/** Invitación aceptada con el juego ya abierto. */
+export function onInviteJoin(cb: (code: string) => void) {
+  try { sdk?.game.addJoinRoomListener?.((p) => { if (p?.sala) cb(String(p.sala).toUpperCase()); }); } catch { /* */ }
+}
+/** Informa al portal de la sala actual (para el botón «Invita a tus amigos»); null = fuera de sala. */
+export function reportRoom(code: string | null, joinable = true) {
+  call((s) => {
+    if (!code) { s.game.leftRoom?.(); return; }
+    s.game.updateRoom?.({ roomId: code, isJoinable: joinable, inviteParams: { sala: code } });
+  });
+}
+/** Enlace de invitación de CrazyGames a una sala (o null). */
+export function portalInviteLink(code: string): string | null {
+  try { return sdk?.game.inviteLink?.({ sala: code }) ?? null; } catch { return null; }
+}

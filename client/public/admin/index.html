@@ -72,6 +72,24 @@ td .mini { display: inline-block; height: 8px; background: var(--s1); border-rad
 .gate a { color: var(--gold); }
 .tiles2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px; }
 .tiles2 .kpi { background: var(--surface2); }
+/* reportes de errores de los jugadores */
+.reports { max-width: 1240px; margin: 0 auto; padding: 16px 16px 0; }
+.reports .card { grid-column: auto; }
+.reports .head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.reports .head h2 { margin: 0; }
+.reports .head .spacer { flex: 1; }
+.badge { font-family: var(--px); font-size: 10px; background: var(--bad); color: #fff; padding: 3px 6px; }
+.rep { border: 2px solid var(--line); background: var(--surface2); padding: 8px 10px; margin: 8px 0 0; }
+.rep.imp { border-color: var(--gold); }
+.rep .meta { color: var(--muted); font-size: 17px; }
+.rep .meta b { color: var(--text); font-weight: normal; }
+.rep .txt { white-space: pre-wrap; word-break: break-word; margin: 4px 0; color: var(--text); }
+.rep .ctx { color: var(--muted); font-size: 16px; word-break: break-all; }
+.rep .acts { display: flex; gap: 6px; margin-top: 6px; }
+.rbtn { font-family: var(--px); font-size: 9px; background: var(--surface); color: var(--text2); border: 2px solid var(--line); padding: 6px 8px; cursor: pointer; }
+.rbtn:hover { color: var(--gold); border-color: var(--gold); }
+.rbtn.on { color: var(--gold); border-color: var(--gold); }
+.rbtn.danger { color: var(--bad); }
 </style>
 </head>
 <body>
@@ -84,6 +102,7 @@ td .mini { display: inline-block; height: 8px; background: var(--s1); border-rad
   </div>
   <span class="updated" id="updated"></span>
 </div></header>
+<section class="reports" id="reports" hidden></section>
 <main id="main"><div class="card w12 empty">Cargando…</div></main>
 <div class="tip" id="tip"></div>
 <script>
@@ -321,6 +340,42 @@ async function load() {
     data = j; render(j);
   } catch { if (!data) gate('No se pudo conectar con el servidor.'); }
 }
+// ---------------------------------------------------------------- reportes de errores de los jugadores
+let repOpen = false;
+try { repOpen = localStorage.getItem('stats_reports') === '1'; } catch { /* */ }
+async function loadReports(body) {
+  try {
+    const r = await fetch('/api/reports', body ? { method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body: JSON.stringify(body) } : { headers: { authorization: 'Bearer ' + token }, cache: 'no-store' });
+    if (!r.ok) return;
+    renderReports((await r.json()).list || []);
+  } catch { /* */ }
+}
+function renderReports(list) {
+  const box = $('reports');
+  box.hidden = false;
+  const recent = list.filter((r) => Date.now() - r.created < DAY).length;
+  const imp = list.filter((r) => r.important).length;
+  const items = list.map((r) => {
+    const when = new Date(r.created).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+    const ctx = Object.entries(r.ctx || {}).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(' · ');
+    return `<div class="rep${r.important ? ' imp' : ''}">
+      <div class="meta">${when} · <b>${esc(r.name)}</b></div>
+      <div class="txt">${esc(r.text)}</div>
+      <div class="ctx">${ctx}</div>
+      <div class="acts"><button class="rbtn${r.important ? ' on' : ''}" data-id="${r.id}" data-a="imp">${r.important ? '★ IMPORTANTE' : '☆ MARCAR'}</button><button class="rbtn danger" data-id="${r.id}" data-a="del">🗑 BORRAR</button></div>
+    </div>`;
+  }).join('');
+  box.innerHTML = `<div class="card"><div class="head"><h2>🐞 REPORTES DE JUGADORES · ${fmt(list.length)}</h2>${recent ? `<span class="badge">${recent} NUEVOS (24 H)</span>` : ''}${imp ? `<span class="badge" style="background:var(--s4)">${imp} ★</span>` : ''}<span class="spacer"></span><button class="rbtn" id="repToggle">${repOpen ? 'OCULTAR' : 'VER'}</button></div>
+    ${repOpen ? (items || '<p class="empty">Nadie ha reportado nada todavía.</p>') : ''}</div>`;
+  $('repToggle').onclick = () => { repOpen = !repOpen; try { localStorage.setItem('stats_reports', repOpen ? '1' : '0'); } catch { /* */ } renderReports(list); };
+  box.querySelectorAll('button[data-a]').forEach((b) => b.addEventListener('click', () => {
+    const id = Number(b.dataset.id), r = list.find((x) => x.id === id);
+    if (b.dataset.a === 'imp') loadReports({ id, important: !r.important });
+    else if (b.dataset.confirm) loadReports({ id, del: true });
+    else { b.dataset.confirm = '1'; b.textContent = '¿SEGURO?'; }
+  }));
+}
+
 function gate(msg) { $('main').innerHTML = `<div class="card w12 gate"><h2>🔒 PANEL PRIVADO</h2><p>${esc(msg)}</p><p><a href="/">Volver al juego</a></p></div>`; }
 
 document.querySelectorAll('#range button').forEach((b) => {
@@ -333,7 +388,9 @@ document.querySelectorAll('#range button').forEach((b) => {
   });
 });
 load();
+if (token) loadReports();
 setInterval(load, 60000);
+setInterval(() => { if (token) loadReports(); }, 60000);
 let rz = 0, wasNarrow = narrow();
 addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (data && narrow() !== wasNarrow) { wasNarrow = narrow(); render(data); } }, 200); });
 </script>

@@ -175,6 +175,27 @@
         <button id="respawn" class="btn big" data-i18n="respawn"></button>
         <button id="tomenu" class="btn" data-i18n="menu"></button>
       </div>
+      <button id="bugbtn" class="linkbtn" data-i18n="bugBtn"></button>
+    </div>
+  </div>
+
+  <!-- REPORTAR UN ERROR -->
+  <div id="bugform" class="screen modal" hidden>
+    <div class="panel bugform">
+      <h2 data-i18n="bugTitle"></h2>
+      <textarea id="bugtext" maxlength="1500" rows="6" data-i18n-ph="bugPh"></textarea>
+      <div class="row center">
+        <button id="bugsend" class="btn big" data-i18n="bugSend"></button>
+        <button id="bugcancel" class="btn" data-i18n="bugCancel"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMIN: reportes de los jugadores (solo cuentas master) -->
+  <div id="admin" class="screen modal" hidden>
+    <div class="panel admin">
+      <div class="row"><h2 data-i18n="adminTitle"></h2><button id="adminclose" class="btn tiny" data-i18n="adminClose"></button></div>
+      <div id="adminlist"></div>
     </div>
   </div>
 

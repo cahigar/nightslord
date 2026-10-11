@@ -169,16 +169,20 @@ export class Room {
   destroy() { clearInterval(this.loop); for (const p of this.players.values()) if (p.bot) releaseName(p.name); }
 
   // ------------------------------------------------------------------ bots de relleno
+  // (puntos iniciales al azar: botStartPts, al final del archivo)
   private botT = 1;
+  /** Sala privada que sí lleva bots de relleno (las de «Instant Multiplayer» de CrazyGames). */
+  fillPriv = false;
   /** Cuántos bots quiere la sala: 3 vacía, uno menos por cada jugador real (sin bots en salas privadas libres ni en el tutorial). */
   private wantBots() {
-    if (this.tutorial || (this.priv && this.mode === 'normal')) return 0;
+    if (this.tutorial || (this.priv && this.mode === 'normal' && !this.fillPriv)) return 0;
     return Math.max(0, Math.min(BOTS.max, BOTS.fill - this.conns.size));
   }
   addBot() {
     const conn = botConn();
     const p = this.spawnPlayer(conn, pickChar(this), 'classic');
     p.bot = newBrain();
+    p.points = botStartPts();
     if (this.mode === 'br') p.protectT = 3;
     this.fx('emerge', p.x, p.y, { o: p.id, n: 1 });
     this.sendRank();
@@ -221,7 +225,7 @@ export class Room {
           const br = p.bot!;
           this.respawn(p.conn, p.char, p.skin);
           const np = this.players.get(p.conn.id);
-          if (np) { np.bot = br; br.tgt = -1; }
+          if (np) { np.bot = br; br.tgt = -1; np.points = botStartPts(); }
         }
         continue;
       }
@@ -1722,9 +1726,13 @@ export class Room {
     if (p.points > st.bestScore) { st.bestScore = Math.round(p.points); store.touch(); }
   }
 
+  /** Los bots solo suman puntos si hay algún jugador real en la sala (si no, sus marcadores crecían sin fin). */
+  private botFrozen(p: Player) { return !!p.bot && this.conns.size === 0; }
+
   reward(p: Player, xp: number, pts: number, coins: number) {
     if (this.mode === 'br') xp *= NL.xpMul;
     xp = Math.round(xp); pts = Math.round(pts);
+    if (this.botFrozen(p)) pts = 0;
     if (this.tutorial) coins = 0;
     p.points += pts;
     p.coinsEarned += coins;
@@ -2619,7 +2627,7 @@ export class Room {
           }
         }
         KITS[p.char].onPickup?.(this, p, u.type);
-        p.points += 5;
+        if (!this.botFrozen(p)) p.points += 5;
         this.emit({ e: 'pick', x: Math.round(u.x), y: Math.round(u.y), p: u.type }, u.x, u.y);
         this.sfx(u.type === 'coin' ? 'coin' : 'pickup', u.x, u.y);
       }
@@ -3330,3 +3338,6 @@ export class Room {
     for (const c of this.conns.values()) c.send({ t: 'rank', list, total: this.players.size });
   }
 }
+
+/** Puntos con los que aparece un bot de relleno: un marcador creíble, ni cero ni de récord. */
+function botStartPts() { return Math.round(BOTS.startPts[0] + Math.random() * (BOTS.startPts[1] - BOTS.startPts[0])); }
