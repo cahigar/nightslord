@@ -23,6 +23,7 @@ const rookieMul = (lvl: number) => Math.min(1, ORDER.rookie.min + (lvl - 1) * OR
 
 const profileTag = (token: string) => createHash('sha256').update(token).digest('hex').slice(0, 16);
 import { store } from './store';
+import { analytics } from './analytics';
 import { botChores, botConn, botInput, newBrain, pickChar, releaseName } from './bots';
 import type { Conn } from './types';
 
@@ -252,6 +253,7 @@ export class Room {
   removeConn(conn: Conn) {
     const p = this.players.get(conn.id);
     if (p && this.mode === 'br' && this.nl.phase === 'match' && !p.dead) this.nl.deaths.push(p.id); // abandonar cuenta como caer
+    if (p && !p.dead) analytics.lifeEnd(p, { cause: 'salir', killer: '' });
     if (p) { this.recordBest(p); this.releaseMinions(p.id); for (const o of this.players.values()) o.allies.delete(p.id); }
     this.players.delete(conn.id);
     this.conns.delete(conn.id);
@@ -334,6 +336,7 @@ export class Room {
     p.maxHp = p.hp = this.calcMaxHp(p);
     if (def.radius) p.r = def.radius;
     this.players.set(conn.id, p);
+    analytics.lifeStart(p, this.tutorial ? 'tutorial' : this.mode, this.theme);
     return p;
   }
 
@@ -1643,6 +1646,12 @@ export class Room {
       // El Señor de la Noche: un ectoplasma que mata a un vivo resucita
       const ecto = this.mode === 'br' && src.player?.ecto && src.player.dead ? src.player : undefined;
       if (ecto && !killer) killer = ecto;
+      {
+        // estadísticas: de qué ha muerto
+        const kp = killer ?? src.player;
+        const cause = kp ? (kp.bot ? 'bot' : 'monstruo') : src.name === 'el amanecer' ? 'sol' : src.kind === Kind.Hunter ? 'cazador' : src.kind === Kind.Npc ? 'npc' : src.kind === Kind.Minion ? 'esbirro' : 'entorno';
+        analytics.lifeEnd(v, { cause, killer: kp ? kp.char : src.name ?? '' });
+      }
       if (killer) {
         this.reward(killer, (PLAYER_KILL_XP.base + v.level * PLAYER_KILL_XP.perLevel + Math.round(v.totalXp * PLAYER_KILL_XP.share)) * share, (50 + Math.round(v.points * 0.25)) * share, this.mode === 'br' ? NL.killCoins : 5);
         if (this.mode === 'br') killer.brKills = (killer.brKills ?? 0) + 1;
@@ -2919,6 +2928,7 @@ export class Room {
   /** La partida empieza con los jugadores ya dentro. */
   beginMatch() {
     if (this.conns.size > 0) for (let i = 0, n = this.wantBots(); i < n; i++) this.addBot();
+    this.matchT0 = Date.now();
     this.nl.t = Number(process.env.NL_T0 ?? 0) || 0; // (solo para probar: empezar la partida ya avanzada)
     this.nl.total = this.players.size;
     for (const p of this.players.values()) this.nl.roster.set(p.id, { name: p.name, char: p.char, skin: p.skin, p });
@@ -3000,6 +3010,7 @@ export class Room {
     if ((N.total >= 2 && left.length <= 1) || left.length === 0 || hardEnd) this.endMatch(left);
   }
 
+  private matchT0 = Date.now();
   private endMatch(left: Player[]) {
     const N = this.nl;
     N.phase = 'podium';
@@ -3016,6 +3027,9 @@ export class Room {
       if (i === 0 && this.players.get(p.conn.id) === p) this.medal(p, 'nightlord');
     });
     store.touch();
+    const win = ranked[0]?.p;
+    analytics.match(this.matchT0, [...N.roster.values()].filter((r) => !r.p.bot).length, [...N.roster.values()].filter((r) => r.p.bot).length, win?.char ?? '', !!win?.bot);
+    for (const p of left) analytics.lifeEnd(p, { cause: p === win ? 'ganador' : 'fin', killer: '' });
     const top = ranked.slice(0, 3).map((r) => [r.name, r.char, r.skin, r.p.brKills ?? 0, NL.coins[ranked.indexOf(r)] ?? 0] as [string, CharacterId, string, number, number]);
     for (const c of this.conns.values()) {
       const p = this.players.get(c.id);
@@ -3027,6 +3041,7 @@ export class Room {
 
   private revive(p: Player) {
     p.dead = false; p.ecto = false;
+    analytics.lifeStart(p, this.mode, this.theme);
     p.hp = Math.round(p.maxHp * NL.ecto.reviveHp);
     p.protectT = 2; p.lifeStart = this.time; p.sunT = 0;
     p.anim = Anim.Idle; p.animUntil = 0;

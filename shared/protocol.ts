@@ -141,7 +141,7 @@ export interface YouState {
 
 // ---------- Cliente -> Servidor ----------
 export type ClientMsg =
-  | { t: 'hello'; token?: string; name: string }
+  | { t: 'hello'; token?: string; name: string; ref?: string; utm?: string; lang?: string } // ref/utm/lang: solo para las estadísticas
   | { t: 'login'; credential: string } // ID token de Google
   | { t: 'join'; mode: 'random' | 'code' | 'create' | 'tutorial' | 'nightlord'; code?: string; char: CharacterId; skin: string; priv?: boolean; theme?: MapThemeId }
   | { t: 'input'; q: number; mx: number; my: number; a: number; b: number; d?: number } // d: distancia al cursor

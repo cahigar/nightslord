@@ -9,4 +9,8 @@ export interface Conn {
   name: string;
   send(msg: ServerMsg): void;
   roomCode: string | null;
+  /** Estadísticas: id de la sesión, cuándo empezó y segundos jugados (en partida). */
+  sid?: number;
+  sessT0?: number;
+  played?: number;
 }

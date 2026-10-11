@@ -403,6 +403,7 @@ ${urls.map((u) => `  <url><loc>${SITE}${u.path}</loc><lastmod>${TODAY}</lastmod>
 writeFileSync(join(PUB, 'robots.txt'), `# Mooonsters: bienvenidos buscadores y asistentes de IA
 User-agent: *
 Allow: /
+Disallow: /admin/
 
 User-agent: GPTBot
 Allow: /

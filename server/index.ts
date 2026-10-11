@@ -10,6 +10,7 @@ import { TUTORIAL } from '../shared/balance';
 import type { ClientMsg, ServerMsg } from '../shared/protocol';
 import { RoomManager, SHARD } from './RoomManager';
 import { store } from './store';
+import { analytics } from './analytics';
 import type { Conn } from './types';
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -56,8 +57,37 @@ setInterval(() => {
   traffic.sent = 0; traffic.since = Date.now();
 }, 10_000).unref();
 
+analytics.setOnline(() => {
+  const byMode: Record<string, number> = {};
+  let playing = 0;
+  for (const r of rooms.rooms.values()) {
+    let n = 0;
+    for (const c of r.conns.values()) if (!c.profile.master) n++;
+    if (r.tutorial) continue;
+    byMode[r.mode] = (byMode[r.mode] ?? 0) + n; playing += n;
+  }
+  let conns = 0;
+  for (const ws of wss.clients) if (!(ws as unknown as { master?: boolean }).master) conns++;
+  return { conns, playing, byMode };
+});
+
+/** Panel de estadísticas: solo para cuentas master (token del perfil en la cabecera Authorization). */
+function statsApi(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, query: string) {
+  const token = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '').trim();
+  const p = token && token.length <= 64 ? store.find(token) : null;
+  const ok = !!p && p.token === token && !!p.google && ADMIN_EMAILS.includes(p.google.email);
+  res.writeHead(ok ? 200 : 403, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+  if (!ok) { res.end(JSON.stringify({ error: 'Solo para cuentas master.' })); return; }
+  const qs = new URLSearchParams(query);
+  const days = Math.max(1, Math.min(365, Number(qs.get('days')) || 30));
+  const tz = Math.max(-840, Math.min(840, Number(qs.get('tz')) || 0));
+  try { res.end(JSON.stringify(analytics.report(days, tz))); }
+  catch (e) { console.error('[stats]', e); res.end(JSON.stringify({ error: 'error calculando' })); }
+}
+
 const server = createServer((req, res) => {
-  const url = (req.url ?? '/').split('?')[0];
+  const [url, query = ''] = (req.url ?? '/').split('?');
+  if (url === '/api/stats') { statsApi(req, res, query); return; }
   if (url === '/health') {
     res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'cache-control': 'no-store' });
     const players = [...rooms.rooms.values()].reduce((a, r) => a + r.playerCount, 0);
@@ -103,7 +133,6 @@ wss.on('connection', (ws: WebSocket, req) => {
     ws.close(1013, 'lleno');
     return;
   }
-  void req;
   let conn: Conn | null = null;
   const sock = (ws as unknown as { _socket?: { bytesWritten: number } })._socket;
   let lastBytes = sock?.bytesWritten ?? 0;
@@ -136,6 +165,15 @@ wss.on('connection', (ws: WebSocket, req) => {
       const profile = store.getOrCreate(typeof msg.token === 'string' ? msg.token : undefined, cleanName(msg.name));
       profile.master = !!profile.google && ADMIN_EMAILS.includes(profile.google.email);
       conn = { id: nextConnId++, profile, name: profile.name, send, roomCode: null };
+      (ws as unknown as { master?: boolean }).master = !!profile.master;
+      const ua = String(req.headers['user-agent'] ?? '');
+      const clip = (v: unknown, n = 40) => String(v ?? '').replace(/[^\w.\-]/g, '').slice(0, n).toLowerCase();
+      analytics.sessionStart(conn, {
+        device: /iPad|Tablet/i.test(ua) ? 'tablet' : /Mobi|Android|iPhone/i.test(ua) ? 'móvil' : 'ordenador',
+        lang: clip(msg.lang || String(req.headers['accept-language'] ?? '').split(/[,;]/)[0], 8).slice(0, 2),
+        ref: clip(msg.ref), utm: clip(msg.utm),
+        isNew: Date.now() - profile.createdAt < 10_000, google: !!profile.google, admin: !!profile.master,
+      });
       send({ t: 'welcome', profile, dev: DEV, google: GOOGLE_CLIENT_ID || undefined });
       return;
     }
@@ -145,6 +183,8 @@ wss.on('connection', (ws: WebSocket, req) => {
         if (!g) return c.send({ t: 'error', msg: 'No se pudo iniciar sesión con Google.', k: 'loginFail' });
         c.profile = store.linkGoogle(c.profile, g.sub, g.email);
         c.profile.master = ADMIN_EMAILS.includes(g.email);
+        (ws as unknown as { master?: boolean }).master = c.profile.master;
+        analytics.sessionAccount(c, c.profile.master);
         c.send({ t: 'welcome', profile: c.profile, dev: DEV, google: GOOGLE_CLIENT_ID || undefined });
       });
       return;
@@ -225,6 +265,7 @@ wss.on('connection', (ws: WebSocket, req) => {
   ws.on('close', () => {
     clearInterval(refill);
     if (conn?.roomCode) rooms.get(conn.roomCode)?.removeConn(conn);
+    if (conn) analytics.sessionEnd(conn);
     store.flush();
   });
 });
@@ -252,6 +293,7 @@ function buy(c: Conn, item: string) {
     if (p.coins < price) return c.send({ t: 'error', msg: 'No tienes monedas suficientes.', k: 'noCoins' });
     p.coins -= price;
     p.chars.push(ch);
+    analytics.event(c, 'buyChar', ch, price);
     if (CHARACTER_IDS.filter((x) => FREE_CHARS.includes(x) || hasCharacter(p, x)).length >= 16) awardOutside(c, 'collector');
   } else if (parts[0] === 'skin') {
     const ch = parts[1] as CharacterId;
@@ -261,6 +303,7 @@ function buy(c: Conn, item: string) {
     if (p.coins < sk.price) return c.send({ t: 'error', msg: 'No tienes monedas suficientes.', k: 'noCoins' });
     p.coins -= sk.price;
     p.skins.push(`${ch}:${sk.id}`);
+    analytics.event(c, 'buySkin', `${ch}:${sk.id}`, sk.price);
     awardOutside(c, 'fashion');
   } else return;
   store.touch();

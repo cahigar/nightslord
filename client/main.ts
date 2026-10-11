@@ -36,6 +36,13 @@ const session = {
   set(k: string, v: string) { try { sessionStorage.setItem(k, v); } catch { /* */ } },
   del(k: string) { try { sessionStorage.removeItem(k); } catch { /* */ } },
 };
+/** De dónde viene el jugador (solo para las estadísticas): web de origen, ?utm_source= / ?ref= e idioma. */
+const origin = () => {
+  let ref = '';
+  try { const h = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : ''; if (h && h !== location.hostname.replace(/^www\./, '')) ref = h; } catch { /* */ }
+  const qs = new URLSearchParams(location.search);
+  return { ref, utm: isCrazy ? 'crazygames' : qs.get('utm_source') ?? qs.get('ref') ?? '', lang: navigator.language ?? '' };
+};
 const savedToken = () => (isCrazy ? portalGet('nl_token') ?? store.get('nl_token') : store.get('nl_token') ?? session.get('nl_token')) ?? undefined;
 let googleClientId = '';
 
@@ -219,7 +226,7 @@ function buildAccount() {
   const box = $('account');
   if (isCrazy) { box.innerHTML = ''; box.hidden = true; return; } // en CrazyGames: solo invitado (progreso guardado con su SDK)
   if (profile?.google) {
-    box.innerHTML = `<div class="who">${t('savedIn', { email: escapeHtml(profile.google.email) })}${profile.master ? ' · <span class="master">MASTER</span>' : ''}</div><button id="logout" class="btn tiny">${t('logout')}</button>`;
+    box.innerHTML = `<div class="who">${t('savedIn', { email: escapeHtml(profile.google.email) })}${profile.master ? ' · <span class="master">MASTER</span> · <a class="stats-link" href="/admin/" target="_blank" rel="noopener">📊 Estadísticas</a>' : ''}</div><button id="logout" class="btn tiny">${t('logout')}</button>`;
     $('logout').onclick = () => {
       store.del('nl_token'); session.del('nl_token');
       (window as unknown as { google?: GoogleId }).google?.accounts.id.disableAutoSelect();
@@ -326,7 +333,7 @@ async function join(mode: 'random' | 'code' | 'create' | 'nightlord', code?: str
     try { await net.switchTo(net.shardOfCode(code)); } catch { showError(t('connectRoomFail')); return; }
   }
   // re-hello por si cambió el nombre
-  net.send({ t: 'hello', token: savedToken(), name });
+  net.send({ t: 'hello', token: savedToken(), name, ...origin() });
   const th = $<HTMLSelectElement>('theme').value;
   if (mode === 'create' && th === 'nightlord') mode = 'nightlord'; // crear una previa de El Señor de la Noche
   net.send({

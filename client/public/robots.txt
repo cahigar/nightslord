@@ -1,6 +1,7 @@
 # Mooonsters: bienvenidos buscadores y asistentes de IA
 User-agent: *
 Allow: /
+Disallow: /admin/
 
 User-agent: GPTBot
 Allow: /

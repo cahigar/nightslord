@@ -83,6 +83,14 @@ class ProfileStore {
     return p;
   }
 
+  /** Busca un perfil sin crearlo (para el panel de estadísticas). */
+  find(token: string): Profile | null {
+    const c = this.cache.get(token);
+    if (c) return c;
+    const row = this.db.prepare('SELECT data FROM profiles WHERE token = ?').get(token) as { data: string } | undefined;
+    return row ? migrate(JSON.parse(row.data) as Profile) : null;
+  }
+
   /** Inicio de sesión con Google: devuelve el perfil de esa cuenta. Si es la primera vez, la cuenta se queda
    *  con el progreso del invitado actual. */
   linkGoogle(guest: Profile, sub: string, email: string): Profile {
