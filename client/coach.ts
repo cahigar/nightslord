@@ -22,6 +22,10 @@ export class Coach {
   private last: { x: number; y: number } | null = null;
   private lastT = 0;
 
+  private t0 = 0; // cuándo empezó la guía (para las estadísticas)
+  /** onStep: paso completado (move, hunt, abil, done) o saltado (skip), con los segundos desde que empezó. */
+  onStep: (step: string, s: number) => void = () => {};
+
   constructor(private game: Game, private canvas: HTMLCanvasElement, private store: { get(k: string): string | null; set(k: string, v: string): void }) {
     this.el = document.createElement('div');
     this.el.id = 'coach';
@@ -35,9 +39,14 @@ export class Coach {
 
   get active() { return this.step >= 0 && this.step < ORDER.length; }
 
-  private finish() { this.step = ORDER.length; this.store.set(KEY, 'done'); this.hide(); }
+  private finish(skipped = false) {
+    if (skipped) this.report('skip');
+    this.step = ORDER.length; this.store.set(KEY, 'done'); this.hide();
+  }
+  private report(step: string) { this.onStep(step, this.t0 ? performance.now() / 1000 - this.t0 : 0); }
   private hide() { this.el.hidden = true; this.arrow.hidden = true; }
   private next() {
+    this.report(ORDER[this.step] === 'grow' ? 'done' : ORDER[this.step]);
     this.step++; this.stepT = 0;
     if (this.step >= ORDER.length) this.finish();
     else this.render();
@@ -54,7 +63,7 @@ export class Coach {
     this.el.innerHTML = `<div class="coach-keys">${keys}</div><div class="coach-text">${text}</div>
       <div class="coach-dots">${ORDER.map((_, i) => `<b class="${i < this.step ? 'ok' : i === this.step ? 'on' : ''}"></b>`).join('')}</div>
       <button class="coach-skip" type="button">${t('coachSkip')} ✕</button>`;
-    this.el.querySelector<HTMLButtonElement>('.coach-skip')!.onclick = () => this.finish();
+    this.el.querySelector<HTMLButtonElement>('.coach-skip')!.onclick = () => this.finish(true);
     this.el.hidden = false;
     this.el.classList.remove('pop'); void this.el.offsetWidth; this.el.classList.add('pop');
   }
@@ -66,6 +75,7 @@ export class Coach {
     const now = performance.now() / 1000;
     const dt = this.lastT ? Math.min(0.5, now - this.lastT) : 0;
     this.lastT = now;
+    if (!this.t0) this.t0 = now;
     if (this.el.hidden) this.render();
     this.stepT += dt;
     const s = ORDER[this.step];

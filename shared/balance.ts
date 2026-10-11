@@ -12,6 +12,9 @@ export const XP_EARLY = { upto: 10, mul: 1.8 };
 export const PLAYER_KILL_XP = { base: 40, perLevel: 25, share: 0.25 };
 
 /** Bots de relleno: cuántos hay (3 con la sala vacía, uno menos por cada jugador real), sus monstruos y nombres. */
+/** Recompensa diaria por volver: monedas según los días seguidos (del 7.º en adelante, la última). */
+export const DAILY = [20, 30, 40, 50, 60, 80, 100];
+
 /** Rachas: cazas seguidas con menos de `window` s entre una y otra. */
 export const COMBO = { window: 3.5 };
 

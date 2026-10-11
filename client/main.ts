@@ -3,8 +3,8 @@ import { CHARACTERS, CHARACTER_IDS, SKINS, UPGRADES, upgradeMax, type CharacterI
 import { CHARACTER_UNLOCK, hasCharacter, hasSkin, MEDALS, MEDAL_BY_ID, unlockPrice, type Profile } from '../shared/catalog';
 import { THEMES, type MapThemeId } from '../shared/maps';
 import { Anim, Flag2, Kind, type GameEvent, type ServerMsg } from '../shared/protocol';
-import { NIGHTLORD } from '../shared/balance';
-import { initAudio, isMuted, playSfx, setForcedMute, startMusic, toggleMute } from './audio';
+import { DAILY, NIGHTLORD } from '../shared/balance';
+import { initAudio, isMuted, playSfx, setForcedMute, startMusic, toggleMute, setMusicKey } from './audio';
 import { Game } from './game';
 import { startLogo } from './logo';
 import { startMenuBg } from './menubg';
@@ -31,6 +31,7 @@ const store = {
   del(k: string) { try { localStorage.removeItem(k); } catch { /* */ } },
 };
 const coach = new Coach(game, canvas, store);
+coach.onStep = (step, s) => net.send({ t: 'coach', step, s: Math.round(s) });
 /** Invitado: su token vive solo en esta pestaña/navegador abierto (al cerrarlo se pierde el progreso).
  *  Con cuenta de Google: el token se guarda y el progreso se recupera desde cualquier sitio. */
 const session = {
@@ -391,6 +392,19 @@ function trapImg(id: string) {
   return u;
 }
 let lastTrap = '', lastEcto = false, lastNightKey = '';
+/** Recompensa diaria: ventana con los 7 días de la racha. */
+function showDaily(coins: number, streak: number) {
+  const box = document.createElement('div');
+  box.className = 'daily';
+  const days = DAILY.map((c, i) => `<div class="${i < Math.min(streak, 7) ? 'got' : ''}${i === Math.min(streak, 7) - 1 ? ' now' : ''}"><small>${i + 1}</small><b>${c}</b>🪙</div>`).join('');
+  box.innerHTML = `<div class="panel"><h2>🎁 ${t('dailyTitle')}</h2><p class="big">+${coins} 🪙</p><p>${t('dailyDay', { d: streak })}</p><div class="days">${days}</div><p class="small">${t('dailyBack')}</p><button class="btn big">${t('dailyOk')}</button></div>`;
+  document.body.appendChild(box);
+  playSfx('coin');
+  const close = () => { box.remove(); };
+  box.querySelector('button')!.onclick = close;
+  box.onclick = (e) => { if (e.target === box) close(); };
+}
+
 /** Contador de cazas del HUD: salta al subir. */
 function setTally(id: string, n: number) {
   const el = $(id), b = el.querySelector('b')!;
@@ -409,6 +423,7 @@ function showCombo(n: number) {
   el.hidden = false;
   void el.offsetWidth; el.classList.add('pop');
   playSfx('combo', Math.min(1, n / 10));
+  game.excite(0.25);
   clearTimeout(comboTimer);
   comboTimer = window.setTimeout(() => { el.hidden = true; }, 1600);
 }
@@ -510,9 +525,11 @@ function updateHud() {
 
 $('rank').addEventListener('click', () => $('rank').classList.toggle('open'));
 
+let rivalId = -1, rivalUntil = 0, deathShownAt = 0;
 function renderRank(list: [string, number, CharacterId, number][], total: number) {
+  const rival = performance.now() < rivalUntil ? rivalId : -1;
   $('rank').innerHTML = `<div class="title">${t('rank')} · ${total}👤</div>` + list.map((r, i) =>
-    `<div class="r${r[3] === myId ? ' me' : ''}"><span>${i === 0 ? '👑' : `${i + 1}.`} ${escapeHtml(r[0])}</span><span>${r[1]}</span></div>`).join('');
+    `<div class="r${r[3] === myId ? ' me' : ''}${r[3] === rival ? ' rival' : ''}"${r[3] === rival ? ` title="${escapeHtml(t('rival'))}"` : ''}><span>${i === 0 ? '👑' : `${i + 1}.`} ${escapeHtml(r[0])}${r[3] === rival ? ' 🎯' : ''}</span><span>${r[1]}</span></div>`).join('');
 }
 
 // ---------------------------------------------------------------------------
@@ -675,6 +692,13 @@ function enterMenu() {
 }
 $('start').onclick = enterMenu;
 window.addEventListener('keydown', (e) => { if (!$('splash').hidden && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); enterMenu(); } });
+// pantalla de muerte: Enter o Espacio para volver a la noche (con un margen para no saltarla atacando)
+window.addEventListener('keydown', (e) => {
+  if ($('death').hidden || !$('bugform').hidden || (e.code !== 'Enter' && e.code !== 'Space') || e.repeat) return;
+  if ((e.target as HTMLElement)?.tagName === 'TEXTAREA' || performance.now() - deathShownAt < 700) return;
+  e.preventDefault();
+  $('respawn').click();
+});
 
 // ---------------------------------------------------------------------------
 // Muerte
@@ -715,6 +739,7 @@ net.on((m: ServerMsg) => {
       buildAbilities();
       lastUpKey = '';
       const th = tt(m.theme);
+      setMusicKey(({ elm: 0, transylvania: -2, camp: 3, swamp: -4, nile: 2, jungle: 5, cemetery: -5, cityz: 1 } as Record<string, number>)[m.theme] ?? 0);
       const link = isCrazy ? portalInviteLink(m.code) ?? m.code : isPortal ? m.code : `${location.origin}${location.pathname}?sala=${m.code}`; // en portales: su enlace de invitación
       if (isCrazy) reportRoom(m.code, m.theme !== 'cityz');
       $('roominfo').innerHTML = `${t('room')} <b>${m.code}</b>${m.priv ? ' 🔒' : ''} · ${th.name}`;
@@ -743,15 +768,23 @@ net.on((m: ServerMsg) => {
       break;
     case 'died': {
       $('death-by').textContent = t('killedBy', { n: tw(m.by) });
+      if (m.kid !== undefined && m.kid !== myId) { rivalId = m.kid; rivalUntil = performance.now() + 150_000; game.rivalId = m.kid; game.rivalUntil = rivalUntil; }
+      // una frase que dé ganas de volver: a punto de evolucionar o récord
+      const nextEvo = [5, 10, 15].find((l) => l > m.lvl);
+      const gap = nextEvo ? nextEvo - m.lvl : 0;
+      const hook = m.record ? t('dRecord') : gap === 1 ? t('dEvo1') : gap === 2 ? t('dEvoN', { n: 2 }) : '';
+      const medals = (m.medals ?? []).map((id) => { const md = MEDAL_BY_ID[id]; return md ? `<span class="dm">${md.icon} ${escapeHtml(tm(id).name)} <b>+${md.coins}🪙</b></span>` : ''; }).join('');
+      $('death-hook').innerHTML = (hook ? `<p class="hook">${escapeHtml(hook)}</p>` : '') + (medals ? `<div class="dmedals"><small>${t('dMedals')}</small>${medals}</div>` : '');
       const mins = Math.floor(m.time / 60), secs = m.time % 60;
       $('death-stats').innerHTML = `
         <div><b>${m.pts}</b>${t('dPoints')}</div><div><b>${m.lvl}</b>${t('dLevel')}</div>
         <div><b>${mins}:${String(secs).padStart(2, '0')}</b>${t('dSurvived')}</div><div><b>+${m.coins}🪙</b>${t('dCoins')}</div>
         <div class="hunt"><b>👤 ${m.npc ?? 0}</b>${t('dHumans')}</div><div class="hunt"><b>🏹 ${m.hunters ?? 0}</b>${t('dHunters')}</div><div class="hunt"><b>👹 ${m.kills}</b>${t('dMonsters')}</div><div class="hunt"><b>×${Math.max(1, m.combo ?? 0)}</b>${t('dCombo')}</div>`;
-      setTimeout(() => { if (inGame && !game.alive) { showScreen('death'); } }, 1400);
+      setTimeout(() => { if (inGame && !game.alive) { showScreen('death'); deathShownAt = performance.now(); } }, 1400);
       break;
     }
     case 'toast':
+      if (m.k === 'daily') { showDaily(Number(m.a?.c ?? 0), Number(m.a?.d ?? 1)); break; }
       if (m.k === 'trapHit') toast(escapeHtml(t('trapHit', { t: t(`trapN_${m.a?.t}` as never) })));
       else toast(escapeHtml((m.k && tk(m.k, m.a ?? {})) || m.text));
       break;

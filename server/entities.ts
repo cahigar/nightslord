@@ -135,6 +135,7 @@ export interface Player extends Mob {
   lifeStart: number;
   lifeKills: number; // monstruos cazados en esta vida
   lifeNpc: number; lifeHunters: number; // humanos y Cazadores cazados en esta vida
+  lifeMedals: string[]; // medallas conseguidas en esta vida (para la pantalla de muerte)
   comboN: number; comboUntil: number; bestCombo: number; // racha de cazas seguidas (y la mejor de esta vida)
   diedAt: number;
   waved: boolean;

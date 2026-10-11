@@ -51,7 +51,7 @@ function tone(type: OscillatorType, f0: number, f1: number, dur: number, vol: nu
   o.start(t); o.stop(t + dur + 0.02);
 }
 
-function noise(dur: number, freq: number, vol: number, delay = 0, type: BiquadFilterType = 'lowpass', f1?: number) {
+function noise(dur: number, freq: number, vol: number, delay = 0, type: BiquadFilterType = 'lowpass', f1?: number, bus = sfxBus) {
   if (!ctx) return;
   const t = ctx.currentTime + delay;
   const s = ctx.createBufferSource();
@@ -63,7 +63,7 @@ function noise(dur: number, freq: number, vol: number, delay = 0, type: BiquadFi
   const g = ctx.createGain();
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  s.connect(f); f.connect(g); g.connect(sfxBus);
+  s.connect(f); f.connect(g); g.connect(bus);
   s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
 }
 
@@ -134,20 +134,28 @@ const NOTE = (n: number) => 440 * Math.pow(2, (n - 69) / 12);
 const PROG = [
   [57, 60, 64, 69], [53, 57, 60, 65], [55, 58, 62, 67], [52, 56, 59, 64], // Am, F, Gm, E
 ];
+/** Intensidad de la música (0 = calma, 1 = combate a tope): más rápida y con percusión. */
+let intensity = 0, musicKey = 0;
+export function setMusicIntensity(x: number) { intensity = Math.max(0, Math.min(1, x)); }
+/** Cada mapa en su tono (semitonos sobre La menor). */
+export function setMusicKey(n: number) { musicKey = n; }
 export function startMusic() {
   if (!ctx || musicTimer !== null) return;
   let step = 0;
   let next = ctx.currentTime + 0.1;
-  const spb = 0.22; // segundos por paso
   const schedule = () => {
     if (!ctx) return;
     while (next < ctx.currentTime + 0.5) {
-      const chord = PROG[Math.floor(step / 16) % PROG.length];
+      const spb = 0.22 - intensity * 0.07; // segundos por paso: se acelera con la acción
+      const chord = PROG[Math.floor(step / 16) % PROG.length].map((n) => n + musicKey);
       const i = step % 16;
       const delay = next - ctx.currentTime;
       const arp = [0, 1, 2, 3, 2, 1, 0, 2][i % 8];
       tone('square', NOTE(chord[arp] + 12), NOTE(chord[arp] + 12), spb * 0.9, 0.06, delay, musicBus);
       if (i % 8 === 0) tone('triangle', NOTE(chord[0] - 12), NOTE(chord[0] - 12), spb * 7, 0.35, delay, musicBus);
+      if (intensity > 0.25 && i % 4 === 0) { tone('sine', 110, 40, 0.14, 0.3 * intensity, delay, musicBus); } // bombo
+      if (intensity > 0.55 && i % 2 === 1) noise(0.04, 7000, 0.05 * intensity, delay, 'highpass', undefined, musicBus); // charles
+      if (intensity > 0.75 && i % 8 === 4) noise(0.12, 1800, 0.12 * intensity, delay, 'bandpass', undefined, musicBus); // caja
       if (i === 0 && Math.floor(step / 16) % 4 === 3) tone('sine', NOTE(chord[0] + 24), NOTE(chord[0] + 24), 2.5, 0.05, delay, musicBus);
       step++;
       next += spb;

@@ -90,6 +90,8 @@ const UI = {
   bugSend: 'Enviar',
   bugCancel: 'Cancelar',
   coachMove: 'Muévete', coachHunt: 'Caza humanos', coachAbil: 'Habilidades', coachGrow: 'Sube de nivel y evoluciona', coachHunters: 'Cuidado con los cazadores', coachSkip: 'Saltar',
+  dEvo1: '¡Estabas a 1 nivel de evolucionar!', dEvoN: '¡Estabas a {n} niveles de evolucionar!', dRecord: '🏆 ¡Nuevo récord!', dMedals: 'Medallas de esta vida', dailyTitle: '¡Recompensa diaria!', dailyDay: 'Día {d} seguido', dailyBack: 'Vuelve mañana: ¡el premio sube cada día seguido!', dailyOk: 'Recoger', rival: 'Tu rival: ¡véngate!',
+  daily: '🎁 +{c} 🪙 · Día {d} seguido',
   dHumans: 'humanos', dHunters: 'cazadores', dCombo: 'mejor racha', combo2: '¡Doble caza!', combo3: '¡Masacre!', combo4: '¡Baño de sangre!', combo5: '¡Señor de la noche!',
   reportThanks: '¡Gracias! Hemos recibido tu reporte.',
   reportLimit: 'Has enviado muchos reportes seguidos: prueba más tarde.',

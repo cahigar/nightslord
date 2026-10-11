@@ -159,6 +159,7 @@ export type ClientMsg =
   | { t: 'cheat'; lvl?: number; ult?: boolean; tp?: [number, number]; heal?: boolean } // solo en modo desarrollo
   | { t: 'buy'; item: string } // "char:<id>" o "skin:<char>:<id>"
   | { t: 'rooms' }
+  | { t: 'coach'; step: string; s: number } // guía del primer minuto: paso completado y segundos desde que empezó
   | { t: 'report'; text: string; ctx?: Record<string, string | number> } // «¿Encontraste algún error?» (se leen en /admin/)
   | { t: 'ping'; c: number };
 
@@ -180,7 +181,7 @@ export type ServerMsg =
   | { t: 'joined'; code: string; theme: MapThemeId; seed: number; priv: boolean; you: number }
   | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[]; burn?: [number, number, number][]; tv?: TvState } // burn: árboles del mapa [índice, s ardiendo, s quemado]
   | { t: 'rank'; list: [string, number, CharacterId, number][]; total: number } // nombre, puntos, personaje, id
-  | { t: 'died'; by: string; pts: number; lvl: number; kills: number; time: number; coins: number; npc?: number; hunters?: number; combo?: number }
+  | { t: 'died'; by: string; pts: number; lvl: number; kills: number; time: number; coins: number; npc?: number; hunters?: number; combo?: number; medals?: string[]; record?: boolean; kid?: number } // kid: id del monstruo que te mató (tu rival)
   | { t: 'combo'; n: number } // racha de cazas seguidas (2, 3, 4…)
   | { t: 'medal'; id: string }
   | { t: 'rooms'; list: RoomInfo[] }

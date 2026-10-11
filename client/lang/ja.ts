@@ -84,6 +84,8 @@ export const JA: Dict = {
     bugSend: '送信',
     bugCancel: 'キャンセル',
     coachMove: '移動', coachHunt: '人間を狩れ', coachAbil: 'スキル', coachGrow: 'レベルアップして進化', coachHunters: 'ハンターに注意', coachSkip: 'スキップ',
+    dEvo1: 'あと1レベルで進化だった！', dEvoN: 'あと{n}レベルで進化だった！', dRecord: '🏆 新記録！', dMedals: '今回のメダル', dailyTitle: 'デイリーボーナス！', dailyDay: '{d}日連続', dailyBack: 'また明日！連続ログインで報酬アップ！', dailyOk: '受け取る', rival: '宿敵：リベンジだ！',
+    daily: '🎁 +{c} 🪙 · {d}日連続',
     dHumans: '人間', dHunters: 'ハンター', dCombo: '最高コンボ', combo2: 'ダブルハント！', combo3: '大虐殺！', combo4: '血の海！', combo5: '夜の王！',
     reportThanks: 'ありがとう！報告を受け取りました。',
     reportLimit: '報告が多すぎます。しばらくしてからもう一度。',

@@ -334,7 +334,7 @@ export class Room {
       ult: 0, ultT: 0, ultExt: 0, qCharges: 1, qLock: 0, orbit: [], lastCombatT: this.time, reinvisT: 0,
       frenzyT: 0, killSpeedT: 0, hits: new Map(), lastAtkFromInvis: false, stepT: 0,
       submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999, guise: null, flyT: 0, phaseT: 0, leap: null, spiritsT: 0, spiritCd: 0, bootsT: 0, bootsKind: 0, bootsAcc: 0, k: {},
-      lifeStart: this.time, lifeKills: 0, lifeNpc: 0, lifeHunters: 0, comboN: 0, comboUntil: 0, bestCombo: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
+      lifeStart: this.time, lifeKills: 0, lifeNpc: 0, lifeHunters: 0, comboN: 0, comboUntil: 0, bestCombo: 0, lifeMedals: [], diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
       lastAttacker: '', allies: new Set(),
       bestLevel: prev ? Math.max(prev.bestLevel, prev.level) : 1,
     };
@@ -1583,7 +1583,7 @@ export class Room {
 
   /** Cuenta la caza (humano, Cazador o monstruo) y la racha; avisa al cazador desde ×2. */
   private tally(killer: Player, what: 'npc' | 'hunter' | 'monster') {
-    if (what === 'npc') killer.lifeNpc++;
+    if (what === 'npc') { killer.lifeNpc++; if (!killer.bot && !this.tutorial && killer.conn.profile.stats.npcKills === 1) analytics.event(killer.conn, 'firstKill', this.theme, Math.round(this.time - killer.lifeStart)); }
     else if (what === 'hunter') killer.lifeHunters++;
     killer.comboN = this.time < killer.comboUntil ? killer.comboN + 1 : 1;
     killer.comboUntil = this.time + COMBO.window;
@@ -1698,6 +1698,7 @@ export class Room {
       v.submergeT = 0;
       this.releaseMinions(v.id);
       KITS[v.char].onDeath?.(this, v);
+      const prevBest = v.conn.profile.stats.bestScore;
       this.recordBest(v);
       if (!this.tutorial) v.conn.profile.stats.deaths++;
       // El Señor de la Noche: un ectoplasma que mata a un vivo resucita
@@ -1741,7 +1742,8 @@ export class Room {
         store.touch();
         return;
       }
-      const died = { t: 'died' as const, by, pts: Math.round(v.points), lvl: v.level, kills: v.lifeKills, time: Math.round(this.time - v.lifeStart), coins: v.coinsEarned, npc: v.lifeNpc, hunters: v.lifeHunters, combo: v.bestCombo };
+      const died = { t: 'died' as const, by, pts: Math.round(v.points), lvl: v.level, kills: v.lifeKills, time: Math.round(this.time - v.lifeStart), coins: v.coinsEarned, npc: v.lifeNpc, hunters: v.lifeHunters, combo: v.bestCombo,
+        medals: v.lifeMedals, record: !this.tutorial && prevBest > 0 && v.points > prevBest, kid: killer && killer !== v ? killer.id : undefined };
       // Último conjuro del Nigromante: la pantalla de muerte espera a que se desintegre su fantasma
       const wait = v.char === 'necro' && v.tier >= 1 ? BAL.necro.last.delay + BAL.necro.last.t : 0;
       if (wait) this.later(wait, () => { v.conn.send(died); v.conn.send({ t: 'profile', profile: v.conn.profile }); });
@@ -1830,6 +1832,7 @@ export class Room {
   private medal(p: Player, id: string) {
     if (this.tutorial) return;
     if (store.award(p.conn.profile, id)) {
+      p.lifeMedals.push(id);
       p.conn.send({ t: 'medal', id });
       p.conn.send({ t: 'profile', profile: p.conn.profile });
     }

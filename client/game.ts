@@ -10,7 +10,7 @@ import { t as tr, tally, tc, th as thunter, tpu } from './i18n';
 import { Terrain } from './terrain';
 import { ObstacleGrid } from '../shared/physics';
 import { Anim, Flag, Flag2, Kind, type EntSnap, type GameEvent, type NightState, type ServerMsg, type TvState, type YouState } from '../shared/protocol';
-import { playSfx, spatialVol } from './audio';
+import { playSfx, setMusicIntensity, spatialVol } from './audio';
 import { input, readButtons, readMove } from './input';
 import { net } from './net';
 import { ANIMS, getBeacon, getBeast, getCritter, getFrame, getItem, getPlant, getSarcophagus, getSkeleton, getSpiderling, getVermin, npcLook, shade, SH, SW } from './sprites';
@@ -130,6 +130,9 @@ export class Game {
   private swings: Swing[] = [];
   private corpses: Corpse[] = [];
   private shake = 0;
+  rivalId = -1; rivalUntil = 0; // quien te mató: marcado sobre su cabeza un rato
+  private heat = 0; // intensidad de la acción (para la música)
+  excite(x: number) { this.heat = Math.min(1, this.heat + x); }
   private punch = 0; // pequeño «zoom de impacto» al golpear
   private hurt = 0; // bordes rojos al recibir daño (0..1)
   private beatAt = 0; // latido con poca vida
@@ -340,6 +343,7 @@ export class Game {
           this.burst(ev.x, ev.y - 40, 6, col, 140, 2);
           if (col === '#b0101a') this.splat(ev.x, ev.y, 3 + Math.min(6, ev.d / 6));
         }
+        if (mine || ev.s === this.youId) this.heat = Math.min(1, this.heat + 0.18);
         if (mine) { // te dan: sacude más cuanto más fuerte es el golpe, y los bordes se tiñen de rojo
           const frac = ev.d / Math.max(1, this.you?.mhp ?? 100);
           this.shake = Math.min(24, Math.max(this.shake, 4 + frac * 70));
@@ -447,6 +451,8 @@ export class Game {
     this.cam.y += (target.y - 40 - this.cam.y) * Math.min(1, dt * 12);
     this.cam.zoom = Math.max(0.55, Math.min(1.6, Math.max(W / 1500, H / 950)));
     this.punch = Math.max(0, this.punch - dt * 0.25);
+    this.heat = Math.max(0, this.heat - dt * 0.07);
+    { let hunterNear = 0; for (const e of this.ents.values()) if (e.k === Kind.Hunter && (e.rx - me.x) ** 2 + (e.ry - me.y) ** 2 < 420 ** 2) { hunterNear = 0.35; break; } setMusicIntensity(Math.max(this.heat, hunterNear)); }
     const z = this.cam.zoom * (1 + this.punch);
     this.shake = Math.max(0, this.shake - dt * 40);
     const sx = (Math.random() - 0.5) * this.shake, sy = (Math.random() - 0.5) * this.shake;
@@ -1768,6 +1774,7 @@ export class Game {
       ctx.fillStyle = '#000'; ctx.fillText(label, x + 1, top - 7);
       ctx.fillStyle = me ? '#ffe080' : '#ffffff'; ctx.fillText(label, x, top - 8);
       if (e.fl & Flag.Bounty) { ctx.font = '16px serif'; ctx.fillText('👑', x, top - 26); }
+      else if (e.id === this.rivalId && now < this.rivalUntil) { ctx.font = '16px serif'; ctx.globalAlpha = 0.75 + Math.sin(now / 150) * 0.25; ctx.fillText('🎯', x, top - 26); ctx.globalAlpha = 1; }
       this.bar(ctx, x, top - 3, 46, e.h ?? 100, me ? '#40e060' : '#e03040');
     } else if (e.k === Kind.Hunter) {
       const info = HUNTER_LABEL[e.c] ?? HUNTER_LABEL.cazador;

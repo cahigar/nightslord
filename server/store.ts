@@ -8,6 +8,7 @@ import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { Profile } from '../shared/catalog';
 import { MEDAL_BY_ID } from '../shared/catalog';
+import { DAILY } from '../shared/balance';
 
 const DB_FILE = process.env.DB_FILE ?? 'data/profiles.db';
 const OLD_JSON = process.env.DATA_FILE ?? 'data/profiles.json';
@@ -107,6 +108,23 @@ class ProfileStore {
     this.dirty = true;
     this.flush();
     return p;
+  }
+
+  /** Recompensa diaria: la primera vez que entra cada día (desde el segundo día) gana monedas; más si no falla ningún día.
+   *  Devuelve { coins, streak } si hay premio. */
+  claimDaily(p: Profile): { coins: number; streak: number } | null {
+    const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' }).format(d);
+    const today = day(new Date());
+    const prev = p.daily;
+    if (prev?.last === today) return null;
+    const yesterday = day(new Date(Date.now() - 86400_000));
+    const streak = prev && prev.last === yesterday ? prev.streak + 1 : 1;
+    p.daily = { last: today, streak };
+    this.dirty = true;
+    if (!prev) return null; // primer día: aún no hay premio (vuelve mañana)
+    const coins = DAILY[Math.min(streak, DAILY.length) - 1];
+    p.coins += coins;
+    return { coins, streak };
   }
 
   touch() {

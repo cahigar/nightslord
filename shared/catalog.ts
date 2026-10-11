@@ -133,6 +133,8 @@ export interface Profile {
   master?: boolean;
   /** Último monstruo que te derrotó (huella anónima de su perfil), para la medalla Venganza. */
   lastKiller?: string;
+  /** Recompensa diaria: último día que entró (YYYY-MM-DD, hora de Madrid) y días seguidos. */
+  daily?: { last: string; streak: number };
 }
 
 export function hasCharacter(p: Profile, c: CharacterId): boolean {

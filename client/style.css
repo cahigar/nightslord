@@ -575,3 +575,23 @@ body.touch #coach .coach-text { font-size: 12px; }
 @keyframes comboPop { 0% { transform: translateX(-50%) scale(2.2) rotate(-6deg); opacity: 0; } 12% { transform: translateX(-50%) scale(1) rotate(0); opacity: 1; } 75% { opacity: 1; } 100% { transform: translateX(-50%) translateY(-24px); opacity: 0; } }
 body.touch #tally { font-size: 8px; gap: 6px; padding: 3px 5px; }
 body.touch #combo b { font-size: 34px; }
+
+/* Pantalla de muerte: gancho para volver y medallas de esta vida */
+#death-hook .hook { margin: 4px 0 6px; font: 13px var(--px); color: #ff9a40; text-shadow: 2px 2px 0 #000; animation: startBeat 1.2s infinite; }
+#death-hook .dmedals { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0 0 8px; }
+#death-hook .dmedals small { flex-basis: 100%; color: var(--muted); font: 16px var(--vt); }
+#death-hook .dm { padding: 3px 8px; background: #1a1206; border: 2px solid var(--gold); font: 16px var(--vt); color: var(--text); }
+#death-hook .dm b { color: var(--gold); font-weight: normal; }
+/* Rival en el ranking */
+#rank .r.rival span:first-child { color: #ff6070; }
+/* Recompensa diaria */
+.daily { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(5, 2, 10, 0.72); }
+.daily .panel { text-align: center; max-width: min(460px, calc(100vw - 32px)); padding: 18px 20px; border: 3px solid var(--gold); animation: dailyPop 0.4s ease-out; }
+@keyframes dailyPop { from { transform: scale(0.6); opacity: 0; } }
+.daily h2 { color: var(--gold); }
+.daily .big { font: 28px var(--px); color: var(--gold); margin: 8px 0; text-shadow: 3px 3px 0 #000; }
+.daily .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 10px 0; }
+.daily .days div { padding: 4px 0; background: #0c0714; border: 2px solid var(--line); font: 14px var(--vt); color: var(--muted); }
+.daily .days div b { display: block; font: 10px var(--px); color: var(--muted); }
+.daily .days div.got { border-color: #806010; color: var(--text); } .daily .days div.got b { color: var(--gold); }
+.daily .days div.now { border-color: var(--gold); box-shadow: 0 0 10px rgba(255, 208, 64, 0.5); }

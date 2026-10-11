@@ -284,6 +284,23 @@ function render(D) {
     { n: 'Con cuenta Google', v: F.google, f: `${fmt(F.google)} · ${pct(F.visits ? F.google / F.visits : null)}` },
   ]) + `<p class="note">Tutorial empezado: ${fmt(D.tutorial)} jugadores.</p>`);
 
+  // primer minuto de los nuevos
+  const M = D.firstMinute;
+  if (M) {
+    const C = M.coach || {}, nn = M.newPlayers || 0, cs = (k) => (C[k] ? C[k].n : 0);
+    const secs = (v) => (v == null ? '—' : `${fmt(v, 0)} s`);
+    h += card('w6', 'Primer minuto (jugadores nuevos)', `De los ${fmt(nn)} jugadores nuevos (${per}): cuántos completan cada paso de la guía y cuánto tardan en cazar.`, hbars([
+      { n: 'Nuevos', v: nn, f: fmt(nn) },
+      { n: 'Se mueven', v: cs('move'), f: `${fmt(cs('move'))} · ${pct(nn ? cs('move') / nn : null)}` },
+      { n: 'Primera caza (guía)', v: cs('hunt'), f: `${fmt(cs('hunt'))} · ${pct(nn ? cs('hunt') / nn : null)}` },
+      { n: 'Usan Q / E', v: cs('abil'), f: `${fmt(cs('abil'))} · ${pct(nn ? cs('abil') / nn : null)}` },
+      { n: 'Guía completa', v: cs('done'), f: `${fmt(cs('done'))} · ${pct(nn ? cs('done') / nn : null)}` },
+      { n: 'Saltan la guía', v: cs('skip'), f: `${fmt(cs('skip'))} · ${pct(nn ? cs('skip') / nn : null)}` },
+    ]) + `<p class="note">Primera caza: mediana ${secs(M.firstKill.median)} · media ${secs(M.firstKill.avg)} (${fmt(M.firstKill.n)} jugadores).<br>
+      Sesiones de nuevos que se van <b>sin jugar</b>: ${fmt(M.noPlay)} (${pct(M.ended ? M.noPlay / M.ended : null)}) · que juegan <b>menos de 1 min</b>: ${fmt(M.under60)} (${pct(M.ended ? M.under60 / M.ended : null)}).<br>
+      Recompensas diarias recogidas: ${fmt(M.daily?.n)} (${fmt(M.daily?.c)} 🪙).</p>`);
+  }
+
   // concurrencia
   h += card('w12', 'Jugadores a la vez', 'Máximo por hora (últimos 14 días como mucho). Útil para saber cuándo hay gente y para dimensionar el servidor.',
     legend([['Free 4 All', 'var(--s1)'], ['El Señor de la Noche', 'var(--s2)']]) + lines(D.conc, [{ n: 'Free 4 All', c: 'var(--s1)', k: 'f4a' }, { n: 'El Señor de la Noche', c: 'var(--s2)', k: 'nl' }]));

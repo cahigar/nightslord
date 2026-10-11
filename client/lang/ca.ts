@@ -84,6 +84,8 @@ export const CA: Dict = {
     bugSend: 'Envia',
     bugCancel: 'Cancel·la',
     coachMove: 'Mou-te', coachHunt: 'Caça humans', coachAbil: 'Habilitats', coachGrow: 'Puja de nivell i evoluciona', coachHunters: 'Compte amb els caçadors', coachSkip: 'Saltar',
+    dEvo1: 'Estaves a 1 nivell d\'evolucionar!', dEvoN: 'Estaves a {n} nivells d\'evolucionar!', dRecord: '🏆 Nou rècord!', dMedals: 'Medalles d\'aquesta vida', dailyTitle: 'Recompensa diària!', dailyDay: 'Dia {d} seguit', dailyBack: 'Torna demà: el premi puja cada dia seguit!', dailyOk: 'Recollir', rival: 'El teu rival: venja\'t!',
+    daily: '🎁 +{c} 🪙 · Dia {d} seguit',
     dHumans: 'humans', dHunters: 'caçadors', dCombo: 'millor ratxa', combo2: 'Doble caça!', combo3: 'Massacre!', combo4: 'Bany de sang!', combo5: 'Senyor de la nit!',
     reportThanks: 'Gràcies! Hem rebut el teu informe.',
     reportLimit: 'Has enviat molts informes seguits: torna-ho a provar més tard.',

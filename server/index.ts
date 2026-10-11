@@ -198,7 +198,10 @@ wss.on('connection', (ws: WebSocket, req) => {
         ref: clip(msg.ref), utm: clip(msg.utm),
         isNew: Date.now() - profile.createdAt < 10_000, google: !!profile.google, admin: !!profile.master,
       });
+      const daily = store.claimDaily(profile);
       send({ t: 'welcome', profile, dev: DEV, google: GOOGLE_CLIENT_ID || undefined });
+      if (daily) analytics.event(conn, 'daily', String(daily.streak), daily.coins);
+      if (daily) setTimeout(() => send({ t: 'toast', text: `🎁 +${daily.coins}`, k: 'daily', a: { c: daily.coins, d: daily.streak } }), 1500);
       return;
     }
     if (msg.t === 'login' && conn) {
@@ -284,6 +287,11 @@ wss.on('connection', (ws: WebSocket, req) => {
       case 'buy':
         buy(c, String(msg.item ?? ''));
         break;
+      case 'coach': {
+        const step = String(msg.step ?? '');
+        if (['move', 'hunt', 'abil', 'done', 'skip'].includes(step)) analytics.event(c, 'coach', step, Math.max(0, Math.min(3600, Math.round(Number(msg.s) || 0))));
+        break;
+      }
       case 'report': {
         const text = String(msg.text ?? '').trim();
         if (text.length < 3) return;

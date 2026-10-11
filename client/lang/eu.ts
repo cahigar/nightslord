@@ -84,6 +84,8 @@ export const EU: Dict = {
     bugSend: 'Bidali',
     bugCancel: 'Utzi',
     coachMove: 'Mugitu', coachHunt: 'Ehizatu gizakiak', coachAbil: 'Trebetasunak', coachGrow: 'Igo maila eta eboluzionatu', coachHunters: 'Kontuz ehiztariekin', coachSkip: 'Saltatu',
+    dEvo1: 'Maila 1 falta zitzaizun eboluzionatzeko!', dEvoN: '{n} maila falta zitzaizkizun eboluzionatzeko!', dRecord: '🏆 Errekor berria!', dMedals: 'Bizitza honetako dominak', dailyTitle: 'Eguneko saria!', dailyDay: '{d}. eguna jarraian', dailyBack: 'Itzuli bihar: saria handitu egiten da egunero!', dailyOk: 'Jaso', rival: 'Zure arerioa: mendekatu!',
+    daily: '🎁 +{c} 🪙 · {d}. eguna jarraian',
     dHumans: 'gizakiak', dHunters: 'ehiztariak', dCombo: 'bolada onena', combo2: 'Ehiza bikoitza!', combo3: 'Sarraskia!', combo4: 'Odol-bainua!', combo5: 'Gauaren jauna!',
     reportThanks: 'Eskerrik asko! Zure txostena jaso dugu.',
     reportLimit: 'Txosten gehiegi bidali dituzu: saiatu geroago.',

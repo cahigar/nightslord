@@ -177,13 +177,25 @@ class Analytics {
     const winners = q<{ c: string; n: number }>(`SELECT winner_char AS c, COUNT(*) AS n FROM matches WHERE t0 >= ? AND winner_bot = 0 GROUP BY c ORDER BY n DESC LIMIT 6`, since);
     const buys = q<{ kind: string; item: string; n: number; coins: number }>(`SELECT kind, item, COUNT(*) AS n, SUM(value) AS coins FROM events WHERE t >= ? AND kind IN ('buyChar', 'buySkin') GROUP BY kind, item ORDER BY n DESC LIMIT 12`, since);
     const tutorial = one<{ n: number }>(`SELECT COUNT(DISTINCT l.tag) AS n ${L} AND l.mode = 'tutorial'`, since).n;
+    // primer minuto de los jugadores nuevos: guía, primera caza y abandonos
+    const NS = 'FROM sessions WHERE admin = 0 AND is_new = 1 AND t0 >= ?';
+    const fk = q<{ v: number }>(`SELECT value AS v FROM events WHERE t >= ? AND kind = 'firstKill' ORDER BY value`, since).map((r) => r.v);
+    const firstMinute = {
+      newPlayers: one<{ n: number }>(`SELECT COUNT(DISTINCT tag) AS n ${NS}`, since).n,
+      noPlay: one<{ n: number }>(`SELECT COUNT(*) AS n ${NS} AND t1 IS NOT NULL AND played = 0`, since).n,
+      under60: one<{ n: number }>(`SELECT COUNT(*) AS n ${NS} AND t1 IS NOT NULL AND played > 0 AND played < 60`, since).n,
+      ended: one<{ n: number }>(`SELECT COUNT(*) AS n ${NS} AND t1 IS NOT NULL`, since).n,
+      coach: Object.fromEntries(q<{ item: string; n: number; s: number }>(`SELECT item, COUNT(DISTINCT tag) AS n, AVG(value) AS s FROM events WHERE t >= ? AND kind = 'coach' GROUP BY item`, since).map((r) => [r.item, { n: r.n, s: r.s }])),
+      firstKill: { n: fk.length, median: fk.length ? fk[Math.floor(fk.length / 2)] : null, avg: fk.length ? fk.reduce((a, b) => a + b, 0) / fk.length : null },
+      daily: one<{ n: number; c: number | null }>(`SELECT COUNT(*) AS n, SUM(value) AS c FROM events WHERE t >= ? AND kind = 'daily'`, since),
+    };
 
     return {
       generated: now, days, today, online, kpi,
       retention: { d1: c1 ? r1 / c1 : null, d1n: c1, d7: c7 ? r7 / c7 : null, d7n: c7 },
       daily, dailyPlay, hours, conc, chars, modes, maps, causes, killers, lengths, funnel,
       devices: group('device'), langs: group('lang'), refs: group('ref'), utms: group('utm'),
-      matches, winners, buys, tutorial,
+      matches, winners, buys, tutorial, firstMinute,
       names: Object.fromEntries(Object.values(CHARACTERS).map((c) => [c.id, c.name])),
       themes: Object.fromEntries(Object.values(THEMES).map((t) => [t.id, t.name])),
     };

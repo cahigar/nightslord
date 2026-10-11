@@ -84,6 +84,8 @@ export const EN: Dict = {
     bugSend: 'Send',
     bugCancel: 'Cancel',
     coachMove: 'Move', coachHunt: 'Hunt humans', coachAbil: 'Abilities', coachGrow: 'Level up and evolve', coachHunters: 'Beware the hunters', coachSkip: 'Skip',
+    dEvo1: 'You were 1 level away from evolving!', dEvoN: 'You were {n} levels away from evolving!', dRecord: '🏆 New record!', dMedals: 'Medals this life', dailyTitle: 'Daily reward!', dailyDay: 'Day {d} in a row', dailyBack: 'Come back tomorrow: the prize grows every day in a row!', dailyOk: 'Collect', rival: 'Your rival: get revenge!',
+    daily: '🎁 +{c} 🪙 · Day {d} in a row',
     dHumans: 'humans', dHunters: 'hunters', dCombo: 'best combo', combo2: 'Double hunt!', combo3: 'Massacre!', combo4: 'Bloodbath!', combo5: 'Lord of the night!',
     reportThanks: 'Thanks! We got your report.',
     reportLimit: 'You have sent many reports in a row: try again later.',

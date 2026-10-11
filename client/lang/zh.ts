@@ -84,6 +84,8 @@ export const ZH: Dict = {
     bugSend: '发送',
     bugCancel: '取消',
     coachMove: '移动', coachHunt: '猎杀人类', coachAbil: '技能', coachGrow: '升级并进化', coachHunters: '小心猎人', coachSkip: '跳过',
+    dEvo1: '差1级就能进化了！', dEvoN: '差{n}级就能进化了！', dRecord: '🏆 新纪录！', dMedals: '本局获得的勋章', dailyTitle: '每日奖励！', dailyDay: '连续第{d}天', dailyBack: '明天再来：连续登录奖励越来越多！', dailyOk: '领取', rival: '你的宿敌：去复仇！',
+    daily: '🎁 +{c} 🪙 · 连续第{d}天',
     dHumans: '人类', dHunters: '猎人', dCombo: '最高连击', combo2: '双杀！', combo3: '大屠杀！', combo4: '血洗！', combo5: '暗夜之王！',
     reportThanks: '谢谢！我们已收到你的报告。',
     reportLimit: '报告太频繁了，请稍后再试。',

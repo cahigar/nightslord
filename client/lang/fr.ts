@@ -84,6 +84,8 @@ export const FR: Dict = {
     bugSend: 'Envoyer',
     bugCancel: 'Annuler',
     coachMove: 'Déplace-toi', coachHunt: 'Chasse les humains', coachAbil: 'Pouvoirs', coachGrow: 'Monte de niveau et évolue', coachHunters: 'Attention aux chasseurs', coachSkip: 'Passer',
+    dEvo1: 'Tu étais à 1 niveau d\'évoluer !', dEvoN: 'Tu étais à {n} niveaux d\'évoluer !', dRecord: '🏆 Nouveau record !', dMedals: 'Médailles de cette vie', dailyTitle: 'Récompense du jour !', dailyDay: 'Jour {d} d\'affilée', dailyBack: 'Reviens demain : la récompense augmente chaque jour d\'affilée !', dailyOk: 'Récupérer', rival: 'Ton rival : venge-toi !',
+    daily: '🎁 +{c} 🪙 · Jour {d} d\'affilée',
     dHumans: 'humains', dHunters: 'chasseurs', dCombo: 'meilleure série', combo2: 'Double chasse !', combo3: 'Massacre !', combo4: 'Bain de sang !', combo5: 'Seigneur de la nuit !',
     reportThanks: 'Merci ! Nous avons reçu ton signalement.',
     reportLimit: 'Trop de signalements d’affilée : réessaie plus tard.',
