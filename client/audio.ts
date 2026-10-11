@@ -82,6 +82,7 @@ const SFX: Record<SfxId, (v: number) => void> = {
   push: (v) => { noise(0.3, 300, 0.5 * v, 0, 'lowpass', 2000); tone('sine', 160, 40, 0.3, 0.4 * v); },
   mist: (v) => { noise(0.4, 600, 0.3 * v, 0, 'bandpass', 3000); },
   vanish: (v) => { tone('sine', 1200, 200, 0.4, 0.2 * v); tone('triangle', 600, 100, 0.4, 0.15 * v, 0.05); },
+  heart: (v) => { tone('sine', 78, 42, 0.13, 0.55 * v); tone('sine', 66, 38, 0.11, 0.38 * v, 0.2); },
   level: (v) => { [523, 659, 784, 1046].forEach((f, i) => tone('square', f, f, 0.1, 0.18 * v, i * 0.08)); },
   death: (v) => { tone('square', 400, 50, 0.8, 0.3 * v); noise(0.5, 400, 0.2 * v); },
   dash: (v) => { noise(0.25, 1200, 0.3 * v, 0, 'bandpass', 300); },

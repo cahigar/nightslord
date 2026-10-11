@@ -12,6 +12,7 @@ import { currentAt, distToSegment, generateMap, isZombieNpc, NPC_VARIANTS, tvLin
 import { ObstacleGrid } from '../shared/physics';
 import {
   Anim, Flag, Flag2, Kind, type EntSnap, type FxId, type GameEvent, type PowerUpType, type ProjectileType, type ServerMsg, type SfxId, type TvState, type YouState,
+  type DotKind,
 } from '../shared/protocol';
 import { mobStatus, type Hunter, type Minion, type MinionVariant, type Mob, type Npc, type Player, type PowerUp, type Projectile, type Source, type Zone, type ZoneKind } from './entities';
 import { createHash } from 'node:crypto';
@@ -655,7 +656,7 @@ export class Room {
       const hit = (m: Mob) => {
         if (m.dead || fireImmune(m) || m.x < o.x - R || m.x > o.x + o.w + R || m.y < o.y - R || m.y > o.y + o.h + R) return;
         const src: Source = by && by !== m ? { ...this.src(by), raw: true } : { name: 'un incendio', kind: Kind.Player, raw: true };
-        this.damage(m, STATUS.treeFireDps * dt, src, false, true);
+        this.damage(m, STATUS.treeFireDps * dt, src, false, 'fire');
       };
       for (const n of this.npcs.values()) hit(n);
       for (const h of this.hunters.values()) hit(h);
@@ -1185,11 +1186,37 @@ export class Room {
 
   private qChargesMax(p: Player) { return KITS[p.char].qCharges?.(p) ?? 1; }
 
+  // daño continuo (fuego, veneno, sangrado…): se acumula y se enseña en números pequeños cada ~0,45 s
+  private dots = new Map<Mob, Partial<Record<DotKind, number>>>();
+  private dotT = 0;
+  private dotAdd(m: Mob, k: DotKind, amount: number) {
+    if (amount <= 0) return;
+    const r = this.dots.get(m) ?? {};
+    r[k] = (r[k] ?? 0) + amount;
+    this.dots.set(m, r);
+  }
+  private flushDots(dt: number) {
+    this.dotT -= dt;
+    if (this.dotT > 0) return;
+    this.dotT = 0.45;
+    for (const [m, r] of this.dots) {
+      for (const k of Object.keys(r) as DotKind[]) {
+        const v = r[k]!;
+        if (v < 1) continue; // lo que no llega a 1 se guarda para la siguiente
+        const d = Math.floor(v);
+        r[k] = v - d;
+        if (!m.dead || d > 0) this.emit({ e: 'hit', x: Math.round(m.x), y: Math.round(m.y), d, t: m.id, dk: k }, m.x, m.y);
+      }
+      if (m.dead || Object.values(r).every((v) => (v ?? 0) < 1)) this.dots.delete(m);
+    }
+  }
+
   // ------------------------------------------------------------------ bucle principal
   private step() {
     const dt = TICK_DT;
     this.time += dt;
     this.tick++;
+    this.flushDots(dt);
 
     this.tvOn = [...this.players.values()].some((p) => !p.dead && p.char === 'static');
     if (this.broadcast && this.broadcast.until <= this.time) this.broadcast = null;
@@ -1247,19 +1274,19 @@ export class Room {
     if (m.burnT > 0) {
       m.burnT -= dt;
       const by = this.findPlayerById(m.burnBy);
-      this.damage(m, m.burnDps * dt, by && by !== m ? { ...this.src(by), raw: true } : { name: 'el fuego', kind: Kind.Player, raw: true }, false, true);
+      this.damage(m, m.burnDps * dt, by && by !== m ? { ...this.src(by), raw: true } : { name: 'el fuego', kind: Kind.Player, raw: true }, false, 'fire');
       if (m.dead) return true;
     }
     if (m.poisonT > 0) {
       m.poisonT -= dt;
       const by = this.findPlayerById(m.poisonBy);
-      this.damage(m, m.poisonDps * dt, by ? { ...this.src(by), raw: true } : { name: 'veneno', kind: Kind.Player, raw: true }, false, true);
+      this.damage(m, m.poisonDps * dt, by ? { ...this.src(by), raw: true } : { name: 'veneno', kind: Kind.Player, raw: true }, false, 'poison');
       if (m.dead) return true;
     }
     if (m.bleedT > 0) {
       m.bleedT -= dt;
       const by = this.findPlayerById(m.bleedBy);
-      this.damage(m, m.bleedDps * dt, by ? { ...this.src(by), raw: true } : { name: 'sangrado', kind: Kind.Player, raw: true }, false, true);
+      this.damage(m, m.bleedDps * dt, by ? { ...this.src(by), raw: true } : { name: 'sangrado', kind: Kind.Player, raw: true }, false, 'bleed');
       if (m.dead) return true;
     }
     if (m.entombT > 0) {
@@ -1486,7 +1513,7 @@ export class Room {
   }
 
   /** Aplica daño y devuelve el daño efectivo. */
-  damage(m: Mob, amount: number, src: Source, crit = false, quiet = false): number {
+  damage(m: Mob, amount: number, src: Source, crit = false, quiet: boolean | DotKind = false): number {
     if (m.dead) return 0;
     // sarcófago: solo Ramsés puede golpearlo, y se cura al hacerlo
     if (m.entombT > 0) {
@@ -1537,7 +1564,8 @@ export class Room {
       if (ls > 0) src.player.hp = Math.min(src.player.maxHp, src.player.hp + Math.min(amount, Math.max(0, m.hp)) * ls);
     }
     m.hp -= amount;
-    if (!quiet) this.emit({ e: 'hit', x: Math.round(m.x), y: Math.round(m.y), d: Math.round(amount), t: m.id, crit, s: src.player && !src.minion ? src.player.id : undefined }, m.x, m.y);
+    if (quiet) this.dotAdd(m, quiet === true ? 'dot' : quiet, amount);
+    else this.emit({ e: 'hit', x: Math.round(m.x), y: Math.round(m.y), d: Math.round(amount), t: m.id, crit, s: src.player && !src.minion ? src.player.id : undefined }, m.x, m.y);
     if (m.hp <= 0) this.kill(m, src);
     else if (this.time >= m.animUntil && m.entombT <= 0) this.setAnim(m, Anim.Hurt, 0.2);
     return amount;
@@ -2544,7 +2572,7 @@ export class Room {
             m.x = res.x; m.y = res.y;
           }
         }
-        else if (z.kind === 'radiation') { if (owner && this.isEnemyOf(owner, m)) this.damage(m, BAL.alien.beacon.radDps * TICK_DT, { ...this.src(owner), raw: true }, false, true); }
+        else if (z.kind === 'radiation') { if (owner && this.isEnemyOf(owner, m)) this.damage(m, BAL.alien.beacon.radDps * TICK_DT, { ...this.src(owner), raw: true }, false, 'poison'); }
         else if (z.kind === 'goo') { if (owner && this.isEnemyOf(owner, m)) this.slow(m, 0.3, BAL.slime.goo.slowMul); }
         else if (z.kind === 'venom') { if (owner && this.isEnemyOf(owner, m) && m.poisonT < 1) this.poison(m, BAL.slime.trail.poisonT, BAL.slime.trail.poisonDps, owner); }
         else if (z.kind === 'web' || z.kind === 'bigweb' || z.kind === 'thread') {
@@ -2559,7 +2587,7 @@ export class Room {
           if (z.kind === 'fire' && fireImmune(m)) continue;
           if (z.kind === 'storm') this.slow(m, 0.3, BAL.reanimated.ult.slowMul);
           const dps = z.kind === 'storm' ? BAL.reanimated.ult.dps : (z.v ?? BAL.witch.fire.dps);
-          this.damage(m, dps * TICK_DT, { ...this.src(owner), raw: true }, false, true);
+          this.damage(m, dps * TICK_DT, { ...this.src(owner), raw: true }, false, z.kind === 'fire' ? 'fire' : 'dot');
         }
         else if (z.kind === 'holy') {
           // agua bendita: quema poco a poco a los monstruos y los aturde al pisarla

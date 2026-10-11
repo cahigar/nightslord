@@ -48,6 +48,9 @@ export enum Flag2 {
   Ecto = 512, // ectoplasma (El Señor de la Noche): muerto que vaga
 }
 
+/** Daño continuo: fuego, veneno, sangrado, agua u otro. */
+export type DotKind = 'fire' | 'poison' | 'bleed' | 'water' | 'dot';
+
 export type PowerUpType = 'blood' | 'speed' | 'fury' | 'shield' | 'coin' | 'xp' | 'spirits' | 'boots' | 'shovel' | `trap_${TrapId}`;
 export type ProjectileType = 'bat' | 'bandage' | 'bolt' | 'scarab' | 'sandstorm' | 'wave' | 'holy'
   | 'nail' | 'nailback' | 'boulder' | 'potion0' | 'potion1' | 'potion2' | 'bigpotion0' | 'bigpotion1' | 'bigpotion2'
@@ -79,7 +82,7 @@ export interface EntSnap {
 }
 
 export type GameEvent =
-  | { e: 'hit'; x: number; y: number; d: number; t: number; crit?: boolean; s?: number } // s: jugador que golpea (para el impacto en su pantalla)
+  | { e: 'hit'; x: number; y: number; d: number; t: number; crit?: boolean; s?: number; dk?: DotKind } // s: jugador que golpea; dk: daño continuo (números pequeños)
   | { e: 'die'; x: number; y: number; k: Kind; c: string }
   | { e: 'sfx'; s: SfxId; x: number; y: number }
   | { e: 'fx'; f: FxId; x: number; y: number; r?: number; o?: number; tx?: number; ty?: number; n?: number; c?: string; s?: string; d?: number }
@@ -103,7 +106,7 @@ export type FxId =
   | 'waxed' | 'waxIgnite' | 'relight' | 'snuff' | 'candlePick' | 'lightsOut'
   | 'ectoQ' | 'ectoE';
 
-export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew';
+export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew' | 'heart';
 
 export interface YouState {
   id: number;

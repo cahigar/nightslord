@@ -104,7 +104,7 @@ export const wormKit: Kit = {
   tick(room, p, dt) {
     // el agua le daña (se le empapa la arena del cuerpo)
     if (!p.dead && room.waterAt(p.x, p.y)) {
-      room.damage(p, p.maxHp * B.water.dps * dt, { name: 'el agua', kind: Kind.Player, raw: true }, false, true);
+      room.damage(p, p.maxHp * B.water.dps * dt, { name: 'el agua', kind: Kind.Player, raw: true }, false, 'water');
       if (Math.random() < dt * 5) room.fx('sizzle', p.x, p.y, { o: p.id });
       if (p.dead) return;
     }

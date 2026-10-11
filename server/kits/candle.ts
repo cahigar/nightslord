@@ -148,7 +148,7 @@ export const candleKit: Kit = {
     }
     for (const z of fires) room.forEachEnemyNear(p, z.ax, z.ay, z.w / 2, (m) => {
       if (m.dead || !inZone(z, m.x, m.y, m.r * 0.5)) return;
-      room.damage(m, B.glob.fireDps * dt * (1 + 0.03 * (p.level - 1)), { ...room.src(p), raw: true }, false, true);
+      room.damage(m, B.glob.fireDps * dt * (1 + 0.03 * (p.level - 1)), { ...room.src(p), raw: true }, false, 'fire');
       m.wax = 0;
       if (m.burnT < 0.5) room.burn(m, 1, B.flame.burnDps, p);
     });

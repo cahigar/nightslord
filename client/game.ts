@@ -27,7 +27,9 @@ interface CEnt {
   f2: number; hy?: number; o?: number; rr?: number; bx?: number; by?: number; z?: number; wx?: number; g?: string; trail: { x: number; y: number; t: number }[]; tombAt: number;
 }
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number }
-interface Floater { x: number; y: number; text: string; color: string; life: number; big?: boolean }
+interface Floater { x: number; y: number; text: string; color: string; life: number; big?: boolean; small?: boolean }
+const DOT_COLOR: Record<string, string> = { fire: '#ff9a30', poison: '#9cff4a', bleed: '#ff4060', water: '#60c8ff', dot: '#d090ff' };
+
 interface Ring { x: number; y: number; r: number; life: number; max: number; color: string; width: number }
 interface Swing { x: number; y: number; a: number; life: number; color: string }
 interface Corpse { x: number; y: number; k: Kind; c: string; s?: string; f: 1 | -1; life: number; seed: number }
@@ -129,6 +131,9 @@ export class Game {
   private corpses: Corpse[] = [];
   private shake = 0;
   private punch = 0; // pequeño «zoom de impacto» al golpear
+  private hurt = 0; // bordes rojos al recibir daño (0..1)
+  private beatAt = 0; // latido con poca vida
+  private redEdge: HTMLCanvasElement | null = null;
   cam = { x: MAP_SIZE / 2, y: MAP_SIZE / 2, zoom: 1 };
   /** Altura (fracción de la pantalla) donde se centra el personaje: en móvil, el centro de la zona que no tapan HUD y controles. */
   focusY = 0.5;
@@ -322,15 +327,24 @@ export class Game {
       case 'sfx': playSfx(ev.s, spatialVol(ev.x - me.x, ev.y - me.y)); break;
       case 'hit': {
         const target = this.ents.get(ev.t);
-        if (target) target.flash = performance.now();
         const mine = ev.t === this.youId;
+        if (ev.dk) { // daño continuo: número pequeño del color del efecto, sin sangre ni sacudida fuerte
+          this.floaters.push({ x: ev.x + (Math.random() - 0.5) * 34, y: ev.y - 46 - Math.random() * 14, text: String(ev.d), color: DOT_COLOR[ev.dk] ?? '#d090ff', life: 0.7, small: true });
+          if (mine) this.hurt = Math.max(this.hurt, 0.12);
+          break;
+        }
+        if (target) target.flash = performance.now();
         if (ev.d > 0) {
           this.floaters.push({ x: ev.x + (Math.random() - 0.5) * 20, y: ev.y - 50, text: String(ev.d), color: mine ? '#ff4050' : ev.crit ? '#ffd040' : '#ffffff', life: 0.9, big: ev.crit });
           const col = target?.c === 'mummy' ? '#c8b888' : target?.c === 'invisible' || target?.c === 'poltergeist' ? '#a0d0ff' : target && WOODY.has(target.c) ? '#6a5030' : '#b0101a';
           this.burst(ev.x, ev.y - 40, 6, col, 140, 2);
           if (col === '#b0101a') this.splat(ev.x, ev.y, 3 + Math.min(6, ev.d / 6));
         }
-        if (mine) this.shake = Math.min(14, this.shake + 6);
+        if (mine) { // te dan: sacude más cuanto más fuerte es el golpe, y los bordes se tiñen de rojo
+          const frac = ev.d / Math.max(1, this.you?.mhp ?? 100);
+          this.shake = Math.min(24, Math.max(this.shake, 4 + frac * 70));
+          this.hurt = Math.min(1, Math.max(this.hurt, 0.3 + frac * 3));
+        }
         else if (ev.s === this.youId && ev.d > 0) { // tu golpe: que se note
           this.shake = Math.max(this.shake, ev.crit ? 6 : 3.5);
           this.burst(ev.x, ev.y - 40, ev.crit ? 14 : 8, '#fff0c0', 200, 2);
@@ -490,6 +504,10 @@ export class Game {
     this.effects.draw(ctx, 'ground', now);
     // tu monstruo: anillo en el suelo para encontrarte de un vistazo
     if (this.alive) { const pr = 0.75 + Math.sin(now / 260) * 0.08; ctx.globalAlpha = 0.55; pixelEllipse(ctx, me.x, me.y + 2, 30 * pr, 11 * pr, '#ffd040', 2); ctx.globalAlpha = 1; }
+    // los demás monstruos: anillo rojo (enemigos), igual que su barra de vida
+    ctx.globalAlpha = 0.7;
+    for (const e of this.ents.values()) if (e.k === Kind.Player && e.id !== this.youId && !(e.fl & Flag.Invisible) && (e.h ?? 100) > 0 && inView(e.rx, e.ry)) pixelEllipse(ctx, e.rx, e.ry + 2, 27, 10, '#ff3040', 2);
+    ctx.globalAlpha = 1;
     for (const e of this.ents.values()) if (e.k === Kind.Zone && inView(e.rx, e.ry)) { if (e.c.startsWith('trap_')) this.drawTrap(ctx, e, now); else this.effects.drawZone(ctx, e.c, e.rx, e.ry, e.rr ?? 60, (e.h ?? 100) / 100, now, e.id % 97, e.bx, e.by); }
     this.drawScentTrails(ctx, now);
 
@@ -703,7 +721,7 @@ export class Game {
     for (const f of this.floaters) {
       f.life -= dt; f.y -= 40 * dt;
       ctx.globalAlpha = Math.min(1, f.life * 2);
-      ctx.font = `${f.big ? 22 : 15}px "Press Start 2P", monospace`;
+      ctx.font = `${f.big ? 22 : f.small ? 10 : 15}px "Press Start 2P", monospace`;
       ctx.fillStyle = '#000'; ctx.fillText(f.text, f.x + 2, f.y + 2);
       ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
     }
@@ -711,9 +729,38 @@ export class Game {
     this.floaters = this.floaters.filter((f) => f.life > 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ambient.drawVignette(ctx, W, H);
+    this.drawHurt(ctx, W, H, dt, now);
     // tiempo sobrante del fotograma: adelantar el suelo de alrededor (hacia donde vas, más lejos)
     const frameStart = now;
     this.terrain.warmStep(me.x, me.y, (Math.max(W, H) / z) * 0.9, frameStart + (quality.touch ? 8 : 12));
+  }
+
+  /** Bordes de sangre: destello al recibir un golpe y latido (con su sonido) cuando queda poca vida. */
+  private drawHurt(ctx: CanvasRenderingContext2D, W: number, H: number, dt: number, now: number) {
+    const y = this.you;
+    this.hurt = Math.max(0, this.hurt - dt * 2.2);
+    let a = this.hurt * 0.75;
+    const ratio = y && this.alive && y.mhp > 0 && !y.ecto ? y.hp / y.mhp : 1;
+    if (ratio < 0.35) {
+      const danger = 1 - ratio / 0.35; // 0..1
+      const period = 1000 / ((70 + danger * 80) / 60); // de 70 a 150 pulsaciones por minuto
+      if (now - this.beatAt > period) { this.beatAt = now; playSfx('heart', 0.5 + danger * 0.5); }
+      const t = (now - this.beatAt) / period;
+      const beat = Math.max(Math.exp(-t * 14), 0.7 * Math.exp(-Math.abs(t - 0.2) * 16)); // lub… dub
+      a = Math.max(a, 0.18 + danger * 0.22 + beat * (0.25 + danger * 0.3));
+    }
+    if (a <= 0.01) return;
+    if (!this.redEdge || this.redEdge.width !== W || this.redEdge.height !== H) {
+      const v = document.createElement('canvas'); v.width = W; v.height = H;
+      const c = v.getContext('2d')!;
+      const g = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.max(W, H) * 0.72);
+      g.addColorStop(0, 'rgba(160,0,20,0)'); g.addColorStop(0.7, 'rgba(160,0,20,0.55)'); g.addColorStop(1, 'rgba(110,0,10,0.95)');
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      this.redEdge = v;
+    }
+    ctx.globalAlpha = Math.min(1, a);
+    ctx.drawImage(this.redEdge, 0, 0);
+    ctx.globalAlpha = 1;
   }
 
   private drawLighting(ctx: CanvasRenderingContext2D, W: number, H: number, camX: number, camY: number, z: number, now: number, me: { x: number; y: number }, dyn: Light[], cones: { x: number; y: number; a: number }[]) {
