@@ -122,7 +122,7 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Fija resolución interna y zoom de cámara (encuadre de los trailers). */
 export async function lockView(page, { scale = 1.25, zoom = 3.4, focusY = 0.56 } = {}) {
-  await page.evaluate(async ({ scale, zoom }) => {
+  await page.evaluate(async ({ scale, zoom, focusY }) => {
     const { quality } = await import('/quality.ts');
     quality.max = quality.min = quality.scale = scale;
     window.dispatchEvent(new Event('resize'));

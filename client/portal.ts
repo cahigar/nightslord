@@ -20,6 +20,7 @@ interface CrazySdk {
     addSettingsChangeListener(cb: (s: { muteAudio?: boolean }) => void): void;
   };
   data: { getItem(k: string): string | null; setItem(k: string, v: string): void; removeItem(k: string): void };
+  user?: { getUser(): Promise<{ username: string } | null>; addAuthListener?(cb: (u: { username: string } | null) => void): void };
 }
 let sdk: CrazySdk | null = null;
 let playing = false;
@@ -85,4 +86,14 @@ export function reportRoom(code: string | null, joinable = true) {
 /** Enlace de invitación de CrazyGames a una sala (o null). */
 export function portalInviteLink(code: string): string | null {
   try { return sdk?.game.inviteLink?.({ sala: code }) ?? null; } catch { return null; }
+}
+
+// ---------------------------------------------------------------------------- usuario (CrazyGames)
+/** Nombre de usuario de CrazyGames si ha iniciado sesión (se muestra en el juego para que le reconozcan sus amigos). */
+export async function portalUsername(): Promise<string | null> {
+  try { const u = await sdk?.user?.getUser(); return u?.username?.trim() || null; } catch { return null; }
+}
+/** Avisa cuando el jugador inicia o cambia de sesión en CrazyGames. */
+export function onPortalLogin(cb: (username: string) => void) {
+  try { sdk?.user?.addAuthListener?.((u) => { if (u?.username) cb(u.username.trim()); }); } catch { /* */ }
 }

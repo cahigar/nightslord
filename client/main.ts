@@ -14,7 +14,7 @@ import { adaptQuality, quality } from './quality';
 import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './tutorial';
 import { input, setupInput } from './input';
 import { net } from './net';
-import { invitedRoom, isCrazy, initPortal, isInstantMultiplayer, loadingStop, onInviteJoin, portalGet, portalInviteLink, portalSet, reportRoom, setPlaying } from './portal';
+import { invitedRoom, isCrazy, initPortal, isInstantMultiplayer, loadingStop, onInviteJoin, onPortalLogin, portalGet, portalInviteLink, portalSet, portalUsername, reportRoom, setPlaying } from './portal';
 import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
 import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, th, tk, tm, tpu, tt, tu, tw } from './i18n';
 
@@ -957,6 +957,13 @@ $('bugsend').onclick = () => {
 };
 async function boot() {
   await initPortal((m) => { setForcedMute(m); for (const id of ['mute', 'menumute']) $(id).textContent = isMuted() ? '🔇' : '🔊'; });
+  if (isCrazy) {
+    // en CrazyGames se usa su nombre de usuario (obligatorio: los amigos tienen que reconocerse en la sala)
+    const setName = (u: string) => { nameInput.value = u.slice(0, 14); store.set('nl_name', nameInput.value); };
+    const u = await portalUsername();
+    if (u) setName(u);
+    onPortalLogin((u) => { setName(u); net.send({ t: 'hello', token: savedToken(), name: nameInput.value }); });
+  }
   buildLangPicker($('langs'));
   setLang(lang);
   showScreen(new URLSearchParams(location.search).get('sala') ? 'menu' : 'splash');
