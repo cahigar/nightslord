@@ -106,7 +106,7 @@ export type FxId =
   | 'waxed' | 'waxIgnite' | 'relight' | 'snuff' | 'candlePick' | 'lightsOut'
   | 'ectoQ' | 'ectoE';
 
-export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew' | 'heart';
+export type SfxId = 'bite' | 'claw' | 'punch' | 'bat' | 'howl' | 'bolt' | 'stake' | 'scream' | 'pickup' | 'coin' | 'curse' | 'push' | 'mist' | 'vanish' | 'level' | 'death' | 'dash' | 'wave' | 'taunt' | 'ult' | 'scarab' | 'sand' | 'tomb' | 'evolve' | 'surprise' | 'groan' | 'explode' | 'tentacle' | 'splash' | 'bubble' | 'smite' | 'glass' | 'chant' | 'lullaby' | 'zap' | 'thunder' | 'slam' | 'poof' | 'charm' | 'brew' | 'heart' | 'combo';
 
 export interface YouState {
   id: number;
@@ -135,6 +135,8 @@ export interface YouState {
   up: number; // puntos de mejora disponibles
   ups: Record<UpgradeId, number>;
   kills: number;
+  kn?: number; // humanos cazados en esta vida
+  kh?: number; // Cazadores cazados en esta vida
   buffs: { t: string; r: number }[];
   fly?: boolean; // volando: la predicción ignora obstáculos
   trap?: TrapId; // trampa que llevas (X para colocarla)
@@ -178,7 +180,8 @@ export type ServerMsg =
   | { t: 'joined'; code: string; theme: MapThemeId; seed: number; priv: boolean; you: number }
   | { t: 'snap'; tk: number; you: YouState; ents: EntSnap[]; ev: GameEvent[]; burn?: [number, number, number][]; tv?: TvState } // burn: árboles del mapa [índice, s ardiendo, s quemado]
   | { t: 'rank'; list: [string, number, CharacterId, number][]; total: number } // nombre, puntos, personaje, id
-  | { t: 'died'; by: string; pts: number; lvl: number; kills: number; time: number; coins: number }
+  | { t: 'died'; by: string; pts: number; lvl: number; kills: number; time: number; coins: number; npc?: number; hunters?: number; combo?: number }
+  | { t: 'combo'; n: number } // racha de cazas seguidas (2, 3, 4…)
   | { t: 'medal'; id: string }
   | { t: 'rooms'; list: RoomInfo[] }
   | { t: 'left' }

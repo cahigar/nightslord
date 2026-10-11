@@ -345,7 +345,7 @@ details.modes .row:first-of-type { margin-top: 8px; }
 
 /* ---------- Pantalla de muerte compacta: estadísticas en una fila, carrusel y botones a la vista ---------- */
 .death { margin-top: 2vh; }
-.death-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 8px 0; }
+.death-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 8px 0; }
 .death-stats div { padding: 5px 2px; font-size: 15px; }
 .death-stats b { font-size: 12px; }
 .death h3 { margin: 8px 0 0; }
@@ -555,3 +555,23 @@ body.portal .splash-links, body.portal #account { display: none !important; }
 @keyframes arrowNudge { 50% { transform: translateX(8px); } }
 body.touch #coach { top: 54px; padding: 8px 12px 12px; }
 body.touch #coach .coach-text { font-size: 12px; }
+
+/* Contador de cazas (HUD) y rachas */
+#topleft .tally-row { flex-basis: 100%; }
+#tally { display: inline-flex; gap: 10px; padding: 4px 8px; background: rgba(21, 13, 31, 0.8); border: 2px solid var(--line); font: 11px var(--px); color: var(--text); pointer-events: none; }
+#tally span { display: inline-flex; align-items: center; gap: 4px; }
+#tally b { color: var(--gold); font-weight: normal; }
+#tally span.bump { animation: tallyBump 0.45s ease-out; }
+#tally span.bump b { color: #fff; }
+@keyframes tallyBump { 30% { transform: scale(1.45); } }
+.death-stats .hunt { border-color: #5a2030; }
+.death-stats .hunt b { color: #ff8090; }
+#combo { position: absolute; left: 50%; top: 15%; transform: translateX(-50%); text-align: center; pointer-events: none; z-index: 6; text-shadow: 3px 3px 0 #000, 0 0 18px rgba(255, 40, 60, 0.6); }
+#combo b { display: block; font: 44px var(--px); color: #fff; }
+#combo span { display: block; margin-top: 6px; font: 16px var(--px); color: var(--gold); }
+#combo.c3 b { color: #ffb040; } #combo.c4 b { color: #ff5040; font-size: 52px; } #combo.c5 b { color: #ff2050; font-size: 60px; }
+#combo.c5 span { color: #ff90ff; }
+#combo.pop { animation: comboPop 1.6s ease-out forwards; }
+@keyframes comboPop { 0% { transform: translateX(-50%) scale(2.2) rotate(-6deg); opacity: 0; } 12% { transform: translateX(-50%) scale(1) rotate(0); opacity: 1; } 75% { opacity: 1; } 100% { transform: translateX(-50%) translateY(-24px); opacity: 0; } }
+body.touch #tally { font-size: 8px; gap: 6px; padding: 3px 5px; }
+body.touch #combo b { font-size: 34px; }

@@ -2,7 +2,7 @@
 // Los jugadores entran y salen en cualquier momento sin reiniciar la partida.
 // Las habilidades de cada monstruo viven en server/kits; aquí están los sistemas genéricos
 // (movimiento, estados, proyectiles, zonas, recompensas, evolución, red).
-import { BAL, BEASTS, BOTS, CATCH_UP, PLAYER_KILL_XP, XP_EARLY, NIGHTLORD, TRAPS, TRAP_IDS, type TrapId, TUTORIAL, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
+import { BAL, BEASTS, BOTS, CATCH_UP, COMBO, PLAYER_KILL_XP, XP_EARLY, NIGHTLORD, TRAPS, TRAP_IDS, type TrapId, TUTORIAL, CLASS, CRITTERS, CURRENT, HUNTERS, isBeast, ITEMS, ORDER, STATUS, tierOf, ULT, type BeastType, type HunterType, type OrderType } from '../shared/balance';
 import {
   BTN_ATTACK, BTN_E, BTN_Q, BTN_R, HUNTER_RADIUS, MAX_PLAYERS_PER_ROOM, NPC_RADIUS, PLAYER_RADIUS,
   POWERUP_RADIUS, RANK_EVERY, RESPAWN_POINT_KEEP, SNAPSHOT_EVERY, SPAWN_PROTECTION, TICK_DT, TICK_RATE, VIEW_RADIUS,
@@ -334,13 +334,23 @@ export class Room {
       ult: 0, ultT: 0, ultExt: 0, qCharges: 1, qLock: 0, orbit: [], lastCombatT: this.time, reinvisT: 0,
       frenzyT: 0, killSpeedT: 0, hits: new Map(), lastAtkFromInvis: false, stepT: 0,
       submergeT: 0, lastHurtT: -99, spillT: 0, meatId: -1, jetT: 0, jetTick: 0, stillT: 0, growZone: -1, summonedAt: -999, guise: null, flyT: 0, phaseT: 0, leap: null, spiritsT: 0, spiritCd: 0, bootsT: 0, bootsKind: 0, bootsAcc: 0, k: {},
-      lifeStart: this.time, lifeKills: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
+      lifeStart: this.time, lifeKills: 0, lifeNpc: 0, lifeHunters: 0, comboN: 0, comboUntil: 0, bestCombo: 0, diedAt: 0, waved: prev?.waved ?? false, taunted: prev?.taunted ?? false,
       lastAttacker: '', allies: new Set(),
       bestLevel: prev ? Math.max(prev.bestLevel, prev.level) : 1,
     };
     p.maxHp = p.hp = this.calcMaxHp(p);
     if (def.radius) p.r = def.radius;
     this.players.set(conn.id, p);
+    // primera partida (aún no ha cazado nunca): un humano despistado y lento muy cerca, para la primera caza en segundos
+    if (conn.id >= 0 && !this.tutorial && this.mode === 'normal' && conn.profile.stats.npcKills === 0) {
+      for (let i = 0; i < 12; i++) {
+        const a = Math.random() * Math.PI * 2, x = p.x + Math.cos(a) * 130, y = p.y + Math.sin(a) * 130;
+        if (x < 120 || y < 120 || x > this.map.size - 120 || y > this.map.size - 120 || this.grid.blocked(x, y, NPC_RADIUS + 2)) continue;
+        const n = this.spawnNpc({ x, y });
+        n.slowT = 40; n.slowMul = 0.35;
+        break;
+      }
+    }
     analytics.lifeStart(p, this.tutorial ? 'tutorial' : this.mode, this.theme);
     return p;
   }
@@ -1571,6 +1581,16 @@ export class Room {
     return amount;
   }
 
+  /** Cuenta la caza (humano, Cazador o monstruo) y la racha; avisa al cazador desde ×2. */
+  private tally(killer: Player, what: 'npc' | 'hunter' | 'monster') {
+    if (what === 'npc') killer.lifeNpc++;
+    else if (what === 'hunter') killer.lifeHunters++;
+    killer.comboN = this.time < killer.comboUntil ? killer.comboN + 1 : 1;
+    killer.comboUntil = this.time + COMBO.window;
+    killer.bestCombo = Math.max(killer.bestCombo, killer.comboN);
+    if (killer.comboN >= 2) killer.conn.send({ t: 'combo', n: killer.comboN });
+  }
+
   kill(m: Mob, src: Source) {
     if (m.dead) return;
     // Somos Uno (Unidad): la muerte no cuenta si le queda otra Unidad
@@ -1631,6 +1651,7 @@ export class Room {
         const st = killer.conn.profile.stats;
         st.npcKills++;
         this.medal(killer, 'firstblood');
+        this.tally(killer, 'npc');
         if (st.npcKills >= 100) this.medal(killer, 'glutton');
         if (st.npcKills >= 500) this.medal(killer, 'npc500');
       }
@@ -1644,6 +1665,7 @@ export class Room {
           const rw = h.def.reward;
           this.reward(killer, rw.xp * share, rw.pts * share, src.minion ? Math.ceil(rw.coins / 2) : rw.coins);
           this.chargeUlt(killer, rw.ult * share);
+          this.tally(killer, 'hunter');
           if (h.type === 'rex') this.emit({ e: 'kill', a: killer.name, v: h.def.name, ak: Kind.Player, vk: Kind.Hunter }, m.x, m.y, true);
           if (!src.minion) KITS[killer.char].onKill?.(this, killer, m);
         }
@@ -1663,6 +1685,7 @@ export class Room {
         if (st.hunterKills >= 100) this.medal(killer, 'hunter100');
         if (h.type === 'heraldo') this.medal(killer, 'herald');
         if (h.type === 'sectario') this.medal(killer, 'cultist');
+        this.tally(killer, 'hunter');
         this.emit({ e: 'kill', a: killer.name, v: h.def.name, ak: Kind.Player, vk: Kind.Hunter }, m.x, m.y, true);
       }
     } else if (m.kind === Kind.Player) {
@@ -1691,6 +1714,7 @@ export class Room {
         if (this.mode === 'br') killer.brKills = (killer.brKills ?? 0) + 1;
         this.chargeUlt(killer, ULT.player * share);
         killer.lifeKills++;
+        this.tally(killer, 'monster');
         killer.conn.profile.stats.playerKills++;
         if (killer.lifeKills >= 3) this.medal(killer, 'predator');
         if (killer.lifeKills >= 5) this.medal(killer, 'streak5');
@@ -1717,7 +1741,7 @@ export class Room {
         store.touch();
         return;
       }
-      const died = { t: 'died' as const, by, pts: Math.round(v.points), lvl: v.level, kills: v.lifeKills, time: Math.round(this.time - v.lifeStart), coins: v.coinsEarned };
+      const died = { t: 'died' as const, by, pts: Math.round(v.points), lvl: v.level, kills: v.lifeKills, time: Math.round(this.time - v.lifeStart), coins: v.coinsEarned, npc: v.lifeNpc, hunters: v.lifeHunters, combo: v.bestCombo };
       // Último conjuro del Nigromante: la pantalla de muerte espera a que se desintegre su fantasma
       const wait = v.char === 'necro' && v.tier >= 1 ? BAL.necro.last.delay + BAL.necro.last.t : 0;
       if (wait) this.later(wait, () => { v.conn.send(died); v.conn.send({ t: 'profile', profile: v.conn.profile }); });
@@ -3339,7 +3363,7 @@ export class Room {
         pts: Math.round(me.points), coins: me.coinsEarned,
         cd: [+me.cd[0].toFixed(2), +me.cd[1].toFixed(2), +me.cd[2].toFixed(2)],
         cdm: [+(me.cdMax[0] * (KITS[me.char].atkSpeedMul?.(this, me) ?? 1)).toFixed(2), +me.cdMax[1].toFixed(2), +me.cdMax[2].toFixed(2)],
-        up: me.upPts, ups: me.ups, kills: me.lifeKills, buffs,
+        up: me.upPts, ups: me.ups, kills: me.lifeKills, kn: me.lifeNpc, kh: me.lifeHunters, buffs,
         tier: me.tier, ult: Math.round(me.ult), ultOn: +me.ultT.toFixed(1),
       };
       if (me.flyT > 0 || me.phaseT > 0) you.fly = true;

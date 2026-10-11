@@ -84,6 +84,7 @@ export const ZH: Dict = {
     bugSend: '发送',
     bugCancel: '取消',
     coachMove: '移动', coachHunt: '猎杀人类', coachAbil: '技能', coachGrow: '升级并进化', coachHunters: '小心猎人', coachSkip: '跳过',
+    dHumans: '人类', dHunters: '猎人', dCombo: '最高连击', combo2: '双杀！', combo3: '大屠杀！', combo4: '血洗！', combo5: '暗夜之王！',
     reportThanks: '谢谢！我们已收到你的报告。',
     reportLimit: '报告太频繁了，请稍后再试。',
     killedBy: '猎杀你的是：{n}',

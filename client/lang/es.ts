@@ -90,6 +90,7 @@ const UI = {
   bugSend: 'Enviar',
   bugCancel: 'Cancelar',
   coachMove: 'Muévete', coachHunt: 'Caza humanos', coachAbil: 'Habilidades', coachGrow: 'Sube de nivel y evoluciona', coachHunters: 'Cuidado con los cazadores', coachSkip: 'Saltar',
+  dHumans: 'humanos', dHunters: 'cazadores', dCombo: 'mejor racha', combo2: '¡Doble caza!', combo3: '¡Masacre!', combo4: '¡Baño de sangre!', combo5: '¡Señor de la noche!',
   reportThanks: '¡Gracias! Hemos recibido tu reporte.',
   reportLimit: 'Has enviado muchos reportes seguidos: prueba más tarde.',
   killedBy: 'Te ha cazado: {n}',

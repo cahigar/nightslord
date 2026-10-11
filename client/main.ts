@@ -391,6 +391,28 @@ function trapImg(id: string) {
   return u;
 }
 let lastTrap = '', lastEcto = false, lastNightKey = '';
+/** Contador de cazas del HUD: salta al subir. */
+function setTally(id: string, n: number) {
+  const el = $(id), b = el.querySelector('b')!;
+  if (b.textContent === String(n)) return;
+  const up = n > Number(b.textContent);
+  b.textContent = String(n);
+  if (up) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+}
+/** Racha de cazas: ×2, ×3… en grande sobre el juego, con un sonido cada vez más agudo. */
+let comboTimer = 0;
+function showCombo(n: number) {
+  const el = $('combo');
+  const name = t((n >= 5 ? 'combo5' : `combo${n}`) as 'combo2');
+  el.innerHTML = `<b>×${n}</b><span>${escapeHtml(name)}</span>`;
+  el.className = `c${Math.min(5, n)}`;
+  el.hidden = false;
+  void el.offsetWidth; el.classList.add('pop');
+  playSfx('combo', Math.min(1, n / 10));
+  clearTimeout(comboTimer);
+  comboTimer = window.setTimeout(() => { el.hidden = true; }, 1600);
+}
+
 function updateHud() {
   const y = game.you;
   coach.update(y, !tut && !game.night && inGame);
@@ -422,6 +444,7 @@ function updateHud() {
   $('xpfill').style.width = `${(y.xp / y.xpn) * 100}%`;
   $('lvl').textContent = String(y.lvl);
   $('pts').textContent = t('pts', { n: y.pts });
+  setTally('t-npc', y.kn ?? 0); setTally('t-hun', y.kh ?? 0); setTally('t-mon', y.kills);
   $('gcoins').textContent = `🪙 ${y.coins}`;
   for (let i = 0; i < 3; i++) {
     const el = document.getElementById(`ab${i}`);
@@ -715,12 +738,16 @@ net.on((m: ServerMsg) => {
     case 'rank':
       renderRank(m.list, m.total);
       break;
+    case 'combo':
+      showCombo(m.n);
+      break;
     case 'died': {
       $('death-by').textContent = t('killedBy', { n: tw(m.by) });
       const mins = Math.floor(m.time / 60), secs = m.time % 60;
       $('death-stats').innerHTML = `
-        <div><b>${m.pts}</b>${t('dPoints')}</div><div><b>${m.lvl}</b>${t('dLevel')}</div><div><b>${m.kills}</b>${t('dMonsters')}</div>
-        <div><b>${mins}:${String(secs).padStart(2, '0')}</b>${t('dSurvived')}</div><div><b>+${m.coins}🪙</b>${t('dCoins')}</div>`;
+        <div><b>${m.pts}</b>${t('dPoints')}</div><div><b>${m.lvl}</b>${t('dLevel')}</div>
+        <div><b>${mins}:${String(secs).padStart(2, '0')}</b>${t('dSurvived')}</div><div><b>+${m.coins}🪙</b>${t('dCoins')}</div>
+        <div class="hunt"><b>👤 ${m.npc ?? 0}</b>${t('dHumans')}</div><div class="hunt"><b>🏹 ${m.hunters ?? 0}</b>${t('dHunters')}</div><div class="hunt"><b>👹 ${m.kills}</b>${t('dMonsters')}</div><div class="hunt"><b>×${Math.max(1, m.combo ?? 0)}</b>${t('dCombo')}</div>`;
       setTimeout(() => { if (inGame && !game.alive) { showScreen('death'); } }, 1400);
       break;
     }

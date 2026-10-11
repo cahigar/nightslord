@@ -84,6 +84,7 @@ export const FR: Dict = {
     bugSend: 'Envoyer',
     bugCancel: 'Annuler',
     coachMove: 'Déplace-toi', coachHunt: 'Chasse les humains', coachAbil: 'Pouvoirs', coachGrow: 'Monte de niveau et évolue', coachHunters: 'Attention aux chasseurs', coachSkip: 'Passer',
+    dHumans: 'humains', dHunters: 'chasseurs', dCombo: 'meilleure série', combo2: 'Double chasse !', combo3: 'Massacre !', combo4: 'Bain de sang !', combo5: 'Seigneur de la nuit !',
     reportThanks: 'Merci ! Nous avons reçu ton signalement.',
     reportLimit: 'Trop de signalements d’affilée : réessaie plus tard.',
     killedBy: 'Chassé par : {n}',

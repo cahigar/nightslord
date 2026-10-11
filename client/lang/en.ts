@@ -84,6 +84,7 @@ export const EN: Dict = {
     bugSend: 'Send',
     bugCancel: 'Cancel',
     coachMove: 'Move', coachHunt: 'Hunt humans', coachAbil: 'Abilities', coachGrow: 'Level up and evolve', coachHunters: 'Beware the hunters', coachSkip: 'Skip',
+    dHumans: 'humans', dHunters: 'hunters', dCombo: 'best combo', combo2: 'Double hunt!', combo3: 'Massacre!', combo4: 'Bloodbath!', combo5: 'Lord of the night!',
     reportThanks: 'Thanks! We got your report.',
     reportLimit: 'You have sent many reports in a row: try again later.',
     killedBy: 'Hunted by: {n}',

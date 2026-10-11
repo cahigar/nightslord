@@ -84,6 +84,7 @@ export const CA: Dict = {
     bugSend: 'Envia',
     bugCancel: 'Cancel·la',
     coachMove: 'Mou-te', coachHunt: 'Caça humans', coachAbil: 'Habilitats', coachGrow: 'Puja de nivell i evoluciona', coachHunters: 'Compte amb els caçadors', coachSkip: 'Saltar',
+    dHumans: 'humans', dHunters: 'caçadors', dCombo: 'millor ratxa', combo2: 'Doble caça!', combo3: 'Massacre!', combo4: 'Bany de sang!', combo5: 'Senyor de la nit!',
     reportThanks: 'Gràcies! Hem rebut el teu informe.',
     reportLimit: 'Has enviat molts informes seguits: torna-ho a provar més tard.',
     killedBy: 'T\'ha caçat: {n}',

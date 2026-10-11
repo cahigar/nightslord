@@ -84,6 +84,7 @@ export const JA: Dict = {
     bugSend: '送信',
     bugCancel: 'キャンセル',
     coachMove: '移動', coachHunt: '人間を狩れ', coachAbil: 'スキル', coachGrow: 'レベルアップして進化', coachHunters: 'ハンターに注意', coachSkip: 'スキップ',
+    dHumans: '人間', dHunters: 'ハンター', dCombo: '最高コンボ', combo2: 'ダブルハント！', combo3: '大虐殺！', combo4: '血の海！', combo5: '夜の王！',
     reportThanks: 'ありがとう！報告を受け取りました。',
     reportLimit: '報告が多すぎます。しばらくしてからもう一度。',
     killedBy: '狩った相手：{n}',

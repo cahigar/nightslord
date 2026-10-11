@@ -84,6 +84,7 @@ export const EU: Dict = {
     bugSend: 'Bidali',
     bugCancel: 'Utzi',
     coachMove: 'Mugitu', coachHunt: 'Ehizatu gizakiak', coachAbil: 'Trebetasunak', coachGrow: 'Igo maila eta eboluzionatu', coachHunters: 'Kontuz ehiztariekin', coachSkip: 'Saltatu',
+    dHumans: 'gizakiak', dHunters: 'ehiztariak', dCombo: 'bolada onena', combo2: 'Ehiza bikoitza!', combo3: 'Sarraskia!', combo4: 'Odol-bainua!', combo5: 'Gauaren jauna!',
     reportThanks: 'Eskerrik asko! Zure txostena jaso dugu.',
     reportLimit: 'Txosten gehiegi bidali dituzu: saiatu geroago.',
     killedBy: 'Ehizatu zaitu: {n}',

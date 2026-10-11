@@ -133,7 +133,9 @@ export interface Player extends Mob {
   k: Record<string, number>; // estado numérico propio de cada kit
   // estadísticas de la vida actual
   lifeStart: number;
-  lifeKills: number;
+  lifeKills: number; // monstruos cazados en esta vida
+  lifeNpc: number; lifeHunters: number; // humanos y Cazadores cazados en esta vida
+  comboN: number; comboUntil: number; bestCombo: number; // racha de cazas seguidas (y la mejor de esta vida)
   diedAt: number;
   waved: boolean;
   taunted: boolean;
