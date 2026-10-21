@@ -37,9 +37,9 @@ export const scarecrowKit: Kit = {
       room.sfx('bat', p.x, p.y);
       attacked(room, p);
     } else {
-      // Plantarse: inmóvil y muy resistente; los de alrededor huyen aterrorizados
+      // Plantarse: se clava 0,5 s y queda muy resistente unos segundos; los de alrededor huyen aterrorizados
       p.k.plantEnd = room.time + B.plant.t;
-      p.rootT = Math.max(p.rootT, B.plant.t);
+      p.rootT = Math.max(p.rootT, B.plant.rootT); // se clava solo un momento; la resistencia le dura más
       p.dash = null;
       room.setAnim(p, Anim.Taunt, 0.5);
       room.forEachEnemyNear(p, p.x, p.y, B.plant.fearR, (m) => room.scare(m, B.plant.fearT, p.x, p.y));

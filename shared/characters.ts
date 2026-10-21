@@ -7,8 +7,28 @@ export type CharacterId = 'vampire' | 'werewolf' | 'mummy' | 'invisible' | 'zomb
   | 'static' | 'kappa' | 'reaper' | 'unit' | 'necro'
   | 'worm' | 'dino' | 'r800' | 'huntress' | 'candle';
 
-/** Clase del monstruo: cambia vida, armadura, regeneración y robo de vida (ver CLASS en balance.ts). */
-export type Role = 'melee' | 'assassin' | 'summoner' | 'ranged' | 'hybrid';
+/** Clase del monstruo. Todos los de una clase comparten vida, velocidad y armadura base (CLASS_STATS);
+ *  la regeneración y el robo de vida de cada clase están en CLASS (balance.ts). */
+export type Role = 'assassin' | 'ranged' | 'tank' | 'specialist' | 'summoner';
+export const ROLES: Role[] = ['assassin', 'ranged', 'tank', 'specialist', 'summoner'];
+/** Multiplicador global de vida (monstruos y cazadores): las peleas duran más sin tocar el daño. */
+export const HP_MUL = 1.5;
+/** Vida, velocidad y armadura base de cada clase (la vida antes de HP_MUL). */
+export const CLASS_STATS: Record<Role, { hp: number; speed: number; armor: number }> = {
+  assassin: { hp: 95, speed: 218, armor: 0 },
+  ranged: { hp: 100, speed: 210, armor: 0 },
+  tank: { hp: 175, speed: 186, armor: 0.12 },
+  specialist: { hp: 120, speed: 205, armor: 0.05 },
+  summoner: { hp: 95, speed: 205, armor: 0 },
+};
+/** Clase de cada monstruo. */
+const ROLE_OF: Record<CharacterId, Role> = {
+  vampire: 'assassin', invisible: 'assassin', nightmare: 'assassin', spider: 'assassin', reaper: 'assassin', doppy: 'assassin',
+  mummy: 'ranged', witch: 'ranged', poltergeist: 'ranged', alien: 'ranged', static: 'ranged', huntress: 'ranged', candle: 'ranged',
+  reanimated: 'tank', tree: 'tank', worm: 'tank', r800: 'tank', pirate: 'tank', slime: 'tank', werewolf: 'tank',
+  kthula: 'specialist', demon: 'specialist', kappa: 'specialist', scarecrow: 'specialist', dino: 'specialist',
+  zombie: 'summoner', mary: 'summoner', succubus: 'summoner', unit: 'summoner', necro: 'summoner',
+};
 
 export interface AbilityInfo {
   key: 'Q' | 'E' | 'R';
@@ -43,13 +63,13 @@ export interface CharacterDef {
   hover?: boolean;
   /** Inmune al fuego (zonas en llamas, quemaduras, árboles ardiendo). */
   fireImmune?: boolean;
-  /** Clase (por defecto 'hybrid'). */
-  role?: Role;
+  /** Clase (se asigna desde ROLE_OF). */
+  role: Role;
   /** Radio de colisión (por defecto PLAYER_RADIUS). */
   radius?: number;
 }
 
-export const CHARACTERS: Record<CharacterId, CharacterDef> = {
+export const CHARACTERS: Record<CharacterId, CharacterDef> = ({
   vampire: {
     id: 'vampire',
     name: 'El Conde',
@@ -76,7 +96,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   werewolf: {
     id: 'werewolf',
-    role: 'melee',
     name: 'Aullador',
     title: 'Hombre lobo',
     hp: 130,
@@ -101,7 +120,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   mummy: {
     id: 'mummy',
-    role: 'ranged',
     name: 'Ramsés',
     title: 'Momia',
     hp: 150,
@@ -109,7 +127,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     damage: 20,
     range: 52,
     arc: Math.PI / 2,
-    attackCd: 0.5,
+    attackCd: 0.4,
     armor: 0.15,
     attackName: 'Escarabajos',
     passive: 'Vendajes: 15 % menos de daño recibido. Sus escarabajos ralentizan.',
@@ -127,7 +145,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   invisible: {
     id: 'invisible',
-    role: 'assassin',
     name: 'La Dama Velada',
     title: 'Mujer invisible',
     hp: 90,
@@ -152,7 +169,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   zombie: {
     id: 'zombie',
-    role: 'summoner',
     name: 'Paciente Cero',
     title: 'Zombi',
     hp: 105, // invocador: la clase ya le quita vida (CLASS.summoner)
@@ -202,7 +218,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   nightmare: {
     id: 'nightmare',
-    role: 'assassin',
     name: 'Pesadilla',
     title: 'Criatura del sueño',
     hp: 105,
@@ -227,7 +242,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   mary: {
     id: 'mary',
-    role: 'summoner',
     name: 'María Sangrienta',
     title: 'Bloody Mary del espejo',
     hp: 100,
@@ -238,7 +252,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackCd: 0.45,
     armor: 0.05,
     attackName: 'Cristal',
-    passive: 'Puede tener varios espejos activos por el mapa.',
+    passive: 'Puede tener varios espejos activos por el mapa; cada espejo activo le da un 10 % más de daño.',
     abilities: [
       { key: 'Q', name: 'A través del espejo', desc: 'Viaja al espejo más cercano, que estalla en fragmentos de cristal.', cooldown: 5 },
       { key: 'E', name: 'Espejo de sangre', desc: 'Coloca un espejo y gana velocidad, velocidad de ataque y robo de vida unos segundos.', cooldown: 7 },
@@ -252,7 +266,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   reanimated: {
     id: 'reanimated',
-    role: 'melee',
     name: 'Reanimundo',
     title: 'Criatura de Frankenstein',
     hp: 170,
@@ -266,7 +279,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     passive: 'Galvanizado: se regenera mucho más si lleva unos segundos sin recibir daño.',
     abilities: [
       { key: 'Q', name: 'Sacudida', desc: 'Golpea el suelo: daña y aleja a los enemigos cercanos.', cooldown: 7 },
-      { key: 'E', name: 'Clavo pararrayos', desc: 'Lanza un clavo que se queda clavado 15 s. Cada 5 s cae un rayo y el clavo vuelve a ti atravesando enemigos. 2 cargas.', cooldown: 8 },
+      { key: 'E', name: 'Clavo pararrayos', desc: 'Lanza un clavo que daña al pasar. Al 1,5 s cae un rayo en área sobre él y el clavo vuelve a ti atravesando y dañando enemigos. 2 cargas.', cooldown: 8 },
     ],
     ult: { key: 'R', name: 'Tormenta galvánica', desc: 'Nubes de tormenta cubren la zona 5 s: ralentizan y dañan a los enemigos. Tú ves a través.', cooldown: 0 },
     evolution: [
@@ -301,7 +314,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   witch: {
     id: 'witch',
-    role: 'ranged',
     name: 'Hécuba',
     title: 'Bruja del pantano',
     hp: 95,
@@ -327,7 +339,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   succubus: {
     id: 'succubus',
-    role: 'summoner',
     name: 'Lilith',
     title: 'Súcubo',
     hp: 100,
@@ -352,13 +363,12 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   poltergeist: {
     id: 'poltergeist',
-    role: 'ranged',
     name: 'Poltergeist',
     title: 'Fantasma ruidoso',
     hp: 95,
     speed: 210,
     damage: 16,
-    range: 420,
+    range: 300,
     arc: 0,
     attackCd: 0.7,
     armor: 0,
@@ -379,12 +389,11 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   tree: {
     id: 'tree',
-    role: 'melee',
     name: 'Raíz Negra',
     title: 'Árbol maldito',
     hp: 180,
     speed: 168,
-    damage: 22,
+    damage: 19,
     range: 62,
     arc: Math.PI * 0.6,
     attackCd: 0.8,
@@ -392,8 +401,8 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackName: 'Ramazo',
     passive: 'Raíces profundas: si se queda quieto echa raíces; regenera vida y recibe un 25 % menos de daño (puede seguir atacando).',
     abilities: [
-      { key: 'Q', name: 'Zarzas', desc: 'Las raíces revientan donde apuntas: dañan, enredan (no pueden moverse) y dejan espinos que ralentizan.', cooldown: 8 },
-      { key: 'E', name: 'Brotar', desc: 'Junto a ti: una flor que te cura. Sobre un árbol o seto: lo despierta como torreta que dispara espinas. En campo abierto: un muro de raíces que no deja pasar. 2 cargas.', cooldown: 10 },
+      { key: 'Q', name: 'Zarzas', desc: 'Las raíces revientan donde apuntas: dañan, enredan (no pueden moverse) y dejan espinos que ralentizan.', cooldown: 10 },
+      { key: 'E', name: 'Brotar', desc: 'Junto a ti: una flor que te cura. Sobre un árbol o seto: lo despierta como torreta que dispara espinas. En campo abierto: un muro de raíces que no deja pasar. 2 cargas.', cooldown: 13 },
     ],
     ult: { key: 'R', name: 'Bosque maldito', desc: 'Un bosque crece a tu alrededor 7 s: ralentiza, enreda una y otra vez a los enemigos y te cura a ti y a tus plantas.', cooldown: 0 },
     evolution: [
@@ -404,7 +413,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   pirate: {
     id: 'pirate',
-    role: 'melee',
     name: 'Barbasucia',
     title: 'Capitán pirata fantasma',
     hp: 130,
@@ -418,7 +426,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     passive: 'Botín maldito: sus víctimas pueden soltar monedas o sangre.',
     abilities: [
       { key: 'Q', name: 'Garfio', desc: 'Lanza un garfio que atrae al enemigo hacia él.', cooldown: 7 },
-      { key: 'E', name: 'Barril de pólvora', desc: 'Deja un barril que explota a los 2,5 s o al recibir un golpe (y prende los árboles).', cooldown: 8 },
+      { key: 'E', name: 'Barril de pólvora', desc: 'Deja un barril irrompible que explota a los 2,5 s con mucho daño (y prende los árboles).', cooldown: 8 },
     ],
     ult: { key: 'R', name: 'Mar de los ahogados', desc: 'Crea una gran poza 10 s. Navegando en ella con su barco fantasma, cada ataque dispara cañonazos en 4 direcciones y más rápido.', cooldown: 0 },
     evolution: [
@@ -429,7 +437,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   spider: {
     id: 'spider',
-    role: 'assassin',
     name: 'Aracne',
     title: 'Mujer araña',
     hp: 100,
@@ -467,7 +474,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     passive: 'Acecho: si se queda quieto 5 s, su siguiente golpe hace un 80 % más de daño (le dura hasta 3 s después de moverse).',
     abilities: [
       { key: 'Q', name: 'Cuervos', desc: 'Una bandada en línea recta que daña y ciega a quien atraviesa.', cooldown: 7 },
-      { key: 'E', name: 'Plantarse', desc: 'Se clava en el suelo: inmóvil y muy resistente 2,5 s; los enemigos cercanos huyen aterrorizados.', cooldown: 11 },
+      { key: 'E', name: 'Plantarse', desc: 'Se clava en el suelo un instante (0,5 s) y queda muy resistente 2,5 s aunque se mueva; los enemigos cercanos huyen aterrorizados.', cooldown: 11 },
     ],
     ult: { key: 'R', name: 'La Cosecha', desc: 'Crece trigo alto a su alrededor 8 s: dentro es más rápido, pega más y es invisible hasta que ataca.', cooldown: 0 },
     evolution: [
@@ -478,7 +485,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   demon: {
     id: 'demon',
-    role: 'melee',
     name: 'Azufre',
     title: 'Demonio de fuego',
     hp: 110,
@@ -504,7 +510,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   slime: {
     id: 'slime',
-    role: 'melee',
     name: 'Baba',
     title: 'Slime',
     hp: 140,
@@ -529,7 +534,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   alien: {
     id: 'alien',
-    role: 'ranged',
     name: 'El Visitante',
     title: 'Alien',
     hp: 90,
@@ -543,8 +547,8 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackName: 'Rayo de plasma',
     passive: 'Tres impactos seguidos de plasma sobre el mismo objetivo lo silencian 2 s (no puede usar habilidades).',
     abilities: [
-      { key: 'Q', name: 'Abducción', desc: 'Un haz de OVNI levanta al enemigo de la zona y lo deja caer, dañándolo.', cooldown: 8 },
-      { key: 'E', name: 'Baliza', desc: 'Coloca una baliza: a los 2,5 s un OVNI dispara sobre ella (daño en área). Cerca de su baliza corre más.', cooldown: 10 },
+      { key: 'Q', name: 'Abducción', desc: 'Un haz de OVNI levanta a un enemigo de una zona amplia y lo deja caer, dañándolo.', cooldown: 8 },
+      { key: 'E', name: 'Baliza', desc: 'Coloca una baliza indestructible: a los 1,5 s un OVNI dispara sobre ella (daño en área). Cerca de su baliza corre más.', cooldown: 10 },
     ],
     ult: { key: 'R', name: 'Invasión', desc: 'Durante 7 s pequeños OVNIs le acompañan y disparan rayos solos a los enemigos cercanos.', cooldown: 0 },
     evolution: [
@@ -555,7 +559,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   static: {
     id: 'static',
-    role: 'ranged',
     name: 'Interferencia',
     title: 'Señal maldita',
     hp: 95,
@@ -581,7 +584,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
   kappa: {
     id: 'kappa',
-    role: 'melee',
     name: 'Kappa',
     title: 'Duende del río',
     hp: 115,
@@ -596,20 +598,19 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     passive: 'Criatura del agua: cruza el agua profunda y en cualquier agua (charcas incluidas) corre más y se regenera. Desde el agua su ataque dispara burbujas a larga distancia.',
     abilities: [
       { key: 'Q', name: 'Lengua acuática', desc: 'Lanza la lengua y arrastra a la víctima hasta él.', cooldown: 7 },
-      { key: 'E', name: 'Cuenco sagrado', desc: 'Se agacha 2,5 s y rellena el agua de su cabeza: se cura y recibe menos daño. Un golpe fuerte lo interrumpe.', cooldown: 12 },
+      { key: 'E', name: 'Cuenco sagrado', desc: 'Se agacha y rellena el agua de su cabeza: se cura y recibe menos daño hasta que se mueve o llena la vida. Un golpe fuerte lo interrumpe.', cooldown: 12 },
     ],
     ult: { key: 'R', name: 'Remolino del río', desc: 'Un gran remolino arrastra a los enemigos hacia el centro 6 s y les quita vida cada segundo mientras él se mueve libre dentro.', cooldown: 0 },
     evolution: [
-      { lvl: 5, name: 'Ladrón travieso', desc: 'Al golpear por la espalda roba parte de la velocidad del enemigo.' },
+      { lvl: 5, name: 'Dueño de la lluvia', desc: 'De vez en cuando una nube de tormenta llueve cerca de él y la lluvia va formando una poza.' },
       { lvl: 10, name: 'Remolino del río', desc: 'Desbloquea la definitiva R, que se carga con bajas.' },
-      { lvl: 15, name: 'Dueño de la lluvia', desc: 'De vez en cuando una nube de tormenta llueve cerca de él y la lluvia va formando una poza.' },
+      { lvl: 15, name: 'Ladrón travieso', desc: 'Al golpear por la espalda roba parte de la velocidad del enemigo.' },
     ],
   },
   reaper: {
     id: 'reaper',
     name: 'La Parca',
     title: 'Asesina de almas',
-    role: 'assassin',
     hp: 100,
     speed: 215,
     damage: 21,
@@ -634,7 +635,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'unit',
     name: 'Legión',
     title: 'El enjambre',
-    role: 'summoner',
     hp: 95,
     speed: 205,
     damage: 13,
@@ -660,7 +660,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'necro',
     name: 'El Nigromante',
     title: 'Señor de los huesos',
-    role: 'summoner',
     hp: 90,
     speed: 200,
     damage: 15,
@@ -672,7 +671,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackName: 'Orbe oscuro',
     passive: 'Invocador: dispara bolas de magia oscura y levanta esqueletos que le siguen. Se cura un poco con cada baja de sus esqueletos.',
     abilities: [
-      { key: 'Q', name: 'Alzar huesos', desc: 'Invoca un esqueleto guerrero o arquero (máx. 3). A veces sale un perro esqueleto, rapidísimo.', cooldown: 6 },
+      { key: 'Q', name: 'Alzar huesos', desc: 'Invoca un esqueleto guerrero o arquero (máx. 3). A veces sale un perro esqueleto, rapidísimo.', cooldown: 4 },
       { key: 'E', name: 'Marcha de los muertos', desc: '4 s: él y sus esqueletos corren y atacan más rápido. Él levita y puede cruzar el agua.', cooldown: 12 },
     ],
     ult: { key: 'R', name: 'Portales del osario', desc: '7 s: puños y pies de hueso gigantes caen del cielo alrededor del punto elegido, aplastando y empujando a los enemigos.', cooldown: 0 },
@@ -687,7 +686,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     radius: 25,
     name: 'Gusarena',
     title: 'Gusano de las dunas',
-    role: 'melee',
     hp: 175,
     speed: 182,
     damage: 27,
@@ -698,7 +696,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     attackName: 'Mordisco sísmico',
     passive: 'Coloso: más grande que el resto, con más vida y empuje, pero le cuesta girar y arrancar. El agua le hace daño y le frena.',
     abilities: [
-      { key: 'Q', name: 'Sumergirse', desc: 'Se entierra (intocable): bajo tierra solo percibe las pisadas de quien se mueve cerca. Otra Q para emerger mordiendo; si no, sale a los 5 s.', cooldown: 7 },
+      { key: 'Q', name: 'Sumergirse', desc: 'Se entierra (intocable): bajo tierra solo percibe las pisadas de quien se mueve cerca. Otra Q para emerger mordiendo; si no, sale a los 5 s.', cooldown: 10 },
       { key: 'E', name: 'Arenas movedizas', desc: 'Un círculo de arena a su alrededor durante 4 s que ralentiza y arrastra a los enemigos hacia él.', cooldown: 11 },
     ],
     ult: { key: 'R', name: 'Devorador', desc: 'Avanza sin parar 3,5 s: engulle a quien choque con su boca (silenciados), los arrastra quitándoles vida y al final los escupe.', cooldown: 0 },
@@ -712,7 +710,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'dino',
     name: 'Dinozombie',
     title: 'Cambiaformas jurásico',
-    role: 'hybrid',
     hp: 135,
     speed: 208,
     damage: 19,
@@ -737,7 +734,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'r800',
     name: 'R-800',
     title: 'Androide perseguidor',
-    role: 'melee',
     hp: 150,
     speed: 196,
     damage: 26,
@@ -762,7 +758,6 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'huntress',
     name: 'La Cazadora',
     title: 'Veterana desertora',
-    role: 'ranged',
     hp: 110,
     speed: 214,
     damage: 17,
@@ -788,11 +783,10 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     id: 'candle',
     name: 'Cenizo',
     title: 'Hombre vela',
-    role: 'ranged',
     hp: 120,
     speed: 205,
     damage: 16,
-    range: 240,
+    range: 310,
     arc: 0,
     attackCd: 0.55,
     armor: 0.05,
@@ -810,7 +804,12 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
       { lvl: 15, name: 'Incendio de cera', desc: 'Cera ardiente con 2 cargas, y el fuego de la cera salta a las manchas cercanas.' },
     ],
   },
-};
+} as Record<CharacterId, Omit<CharacterDef, 'role'>>) as Record<CharacterId, CharacterDef>;
+// misma vida, velocidad y armadura para toda la clase
+for (const d of Object.values(CHARACTERS)) {
+  const role = ROLE_OF[d.id], st = CLASS_STATS[role];
+  d.role = role; d.hp = Math.round(st.hp * HP_MUL); d.speed = st.speed; d.armor = st.armor;
+}
 
 export const CHARACTER_IDS = Object.keys(CHARACTERS) as CharacterId[];
 

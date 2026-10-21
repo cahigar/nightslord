@@ -8,7 +8,7 @@ import type { Kit } from './types';
 const B = BAL.reanimated;
 const BOULDERS: Record<string, number> = { elm: 0, transylvania: 1, camp: 2, swamp: 2, nile: 0, jungle: 2 }; // piedra · lápida · tronco
 
-/** Rayo sobre un clavo: daña alrededor y, si el dueño está cerca, el clavo vuelve a él atravesando enemigos. */
+/** Rayo sobre un clavo (1,5 s después de lanzarlo): daña en área y el clavo vuelve a su dueño atravesando enemigos. */
 function strike(room: Room, p: Player, z: Zone) {
   room.fx('lightning', z.ax, z.ay, { o: p.id });
   room.sfx('thunder', z.ax, z.ay);

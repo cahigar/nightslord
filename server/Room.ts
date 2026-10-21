@@ -53,7 +53,7 @@ const BEAST_PLAN: Partial<Record<MapThemeId, Partial<Record<BeastType, number>>>
 /** ¿Es una alimaña? */
 export const isCritter = (m: Mob) => m.kind === Kind.Npc && (m as Npc).variant.startsWith('c_');
 /** Clase de un jugador (vida, armadura, regeneración, robo de vida). */
-const classOf = (p: Player) => CLASS[p.def.role ?? 'hybrid'];
+const classOf = (p: Player) => CLASS[p.def.role];
 
 const TR = BAL.tree;
 const plant = (hp: number) => ({ hp, speed: 0, dmg: 0, cd: 0 }); // plantas del Árbol maldito: no se mueven
@@ -68,6 +68,8 @@ const MINION_STATS: Record<MinionVariant, { hp: number; speed: number; dmg: numb
 /** Radio de los esbirros que no tienen el de un humano. */
 const MINION_R: Partial<Record<MinionVariant, number>> = { wall: TR.wall.r, turret: TR.turret.r, flower: TR.flower.r, barrel: 14, spiderling: 9, slimelet: 12, beacon: 12, decoy: PLAYER_RADIUS, fat: 18, tough: 16, skeldog: 12 };
 /** Esbirros con su propio tope (no cuentan con la horda de zombis). */
+/** Esbirros que no se pueden romper a golpes (desaparecen por tiempo o al cumplir su función). */
+const INVULNERABLE = new Set<MinionVariant>(['barrel', 'beacon']);
 const OWN_GROUP = new Set<MinionVariant>(['clone', 'digger', 'wall', 'turret', 'flower', 'barrel', 'buccaneer', 'spiderling', 'decoy', 'slimelet', 'beacon', 'skel', 'skelarcher', 'skeldog', 'unit', 'unitfree', 'militia']);
 /** Grupo con tope común (los tres tipos de esqueleto comparten tope). */
 const capGroup = (v: MinionVariant) => (v === 'skel' || v === 'skelarcher' || v === 'skeldog' ? 'skel' : OWN_GROUP.has(v) ? v : 'horde');
@@ -1525,6 +1527,7 @@ export class Room {
   /** Aplica daño y devuelve el daño efectivo. */
   damage(m: Mob, amount: number, src: Source, crit = false, quiet: boolean | DotKind = false): number {
     if (m.dead) return 0;
+    if (m.kind === Kind.Minion && INVULNERABLE.has((m as Minion).variant)) return 0; // barriles de Barbasucia y balizas del Visitante
     // sarcófago: solo Ramsés puede golpearlo, y se cura al hacerlo
     if (m.entombT > 0) {
       if (!src.player || src.player.id !== m.entombBy) return 0;

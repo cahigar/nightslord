@@ -79,7 +79,7 @@ export const STATUS = {
   treeBurnT: 15, treeFlameT: 8, treeFireDps: 10, treeFireR: 45, // árboles que arden: quemados 15 s, en llamas los 8 primeros
   shock: { r: 260, stun: 1.2, stunPlayer: 0.9, dmg: 8 }, // ataques eléctricos sobre el agua
   fleeSpeed: 150, // los aterrorizados huyen de lo que les asusta
-  hypno: { hold: 3, decay: 12, tPlayer: 1.6, tOther: 2.6, speed: 120, pullR: 900 }, // hipnosis (Interferencia): al llenarse caminan hacia ella o hacia una tele
+  hypno: { hold: 3, decay: 9, tPlayer: 1.6, tOther: 2.6, speed: 120, pullR: 900 }, // hipnosis (Interferencia): al llenarse caminan hacia ella o hacia una tele
   clone: { hp: 60, speed: 230, dmg: 0.55, cd: 0.6 },
 };
 
@@ -119,7 +119,7 @@ export const BAL = {
     ult: { dur: 7, extendPerKill: 1, maxExtend: 5, speedMul: 1.25, atkSpeedMul: 0.65, rangeMul: 1.3, scale: 1.25 },
   },
   mummy: {
-    scarabSpeed: 430, scarabLife: 0.75, scarabDmg: 0.7, scarabSlowT: 0.8, scarabSlowMul: 0.72,
+    scarabSpeed: 540, scarabLife: 0.65, scarabDmg: 0.7, scarabSlowT: 0.8, scarabSlowMul: 0.72,
     curseEvery: 4, curseMarkT: 6, curseMarkSlowT: 2.5, curseMarkSlowMul: 0.35, curseMarkBonus: 0.3, // nivel 5
     bandageSpeed: 500, bandageLife: 0.95, bandageRoot: 1.2, bounceR: 230, // rebote nivel 15
     curseR: 175, curseRT3: 215, curseSlowT: 3, curseSlowMul: 0.5,
@@ -168,17 +168,17 @@ export const BAL = {
     ult: { speed: 360, life: 1.5, hitR: 84, dmg: 1.1, knock: 170, puddleEvery: 70, puddleR: 64 },
   },
   nightmare: {
-    basicDrowsy: 24, // somnolencia por golpe básico
+    basicDrowsy: 34, // somnolencia por golpe básico
     susceptMul: 1.45, susceptT: 8, // nv. 5: quien ya se durmió acumula más rápido
-    lullaby: { range: 210, rangeT3: 270, cone: 0.95, coneT3: 1.15, dmg: 0.45, drowsy: 65 },
+    lullaby: { range: 210, rangeT3: 270, cone: 0.95, coneT3: 1.15, dmg: 0.45, drowsy: 90 },
     stalk: { maxT: 10, chargeT: 3, chargeTT3: 1.6, bonusMax: 1.2, drowsyBonus: 35 }, // Acecho
-    ult: { range: 1400, hopMul: 1.8, window: 7, hops: 5, fieldR: 520, fieldT: 3, fieldRate: 50 }, // R: zona de sueño y saltos entre dormidos
+    ult: { range: 1400, hopMul: 1.8, window: 7, hops: 5, fieldR: 520, fieldT: 3, fieldRate: 70 }, // R: zona de sueño y saltos entre dormidos
   },
   mary: {
     maxMirrors: 3, maxMirrorsT3: 4, mirrorLife: 40,
     eBuff: { t: 4, speedMul: 1.3, atkSpeedMul: 0.7, lifesteal: 0.25 },
-    lifesteal1: 0.12, speed2: 1.12, bleed3: { t: 3, dps: 4 }, // nv. 5 (por espejos activos)
-    boom: { r: 110, rT3: 140, dmg: 1.4, dmgT3: 1.7 },
+    lifesteal1: 0.18, speed2: 1.18, bleed3: { t: 3, dps: 6 }, perMirrorDmg: 0.1, // nv. 5 (por espejos activos)
+    boom: { r: 120, rT3: 150, dmg: 1.8, dmgT3: 2.2 },
     shardsT: 3, shardsSlow: 0.6, // nv. 15: cristales en el suelo
     ult: { cloneLife: 7, clonesCap: 5 },
   },
@@ -186,7 +186,7 @@ export const BAL = {
     regenSafeT: 4, regen: 0.035, // por segundo, fracción de la vida máxima
     overload: { frac: 0.3, r: 150, dmg: 1.0, stun: 1.0 }, // nv. 5
     slam: { r: 150, dmg: 0.8, knock: 190 },
-    nail: { speed: 620, life: 0.6, dmg: 0.9, stayT: 15, every: 5, returnR: 900, returnSpeed: 900, returnDmg: 1.1, strikeR: 60, strikeDmg: 0.6 },
+    nail: { speed: 620, life: 0.6, dmg: 0.9, stayT: 2, every: 1.5, returnR: 1400, returnSpeed: 900, returnDmg: 1.0, strikeR: 95, strikeDmg: 0.85 }, // al 1,5 s: rayo en área y vuelve
     qChargesNail: 2,
     ult: { r: 540, t: 5, dps: 7, slowMul: 0.55 },
     boulder: { speed: 520, life: 0.55, dmg: 1.1, meleeCheck: 80 }, // nv. 15
@@ -216,27 +216,27 @@ export const BAL = {
     ult: { range: 420, r: 230, tPlayer: 3, tOther: 5 }, // R: Pasión desatada (rabia que nunca va contra ella)
   },
   poltergeist: {
-    obj: { range: 420, spawnMin: 110, spawnMax: 200, speed: 640, dmg: 0.72, countT3: 2 }, // casi no se puede esquivar (apunta solo y atraviesa muros): daño moderado // básico: objetos que salen de cualquier sitio
+    obj: { range: 300, spawnMin: 110, spawnMax: 200, speed: 640, dmg: 0.72, countT3: 2 }, // casi no se puede esquivar (apunta solo y atraviesa muros): daño moderado // básico: objetos que salen de cualquier sitio
     objSlow: { t: 1, mul: 0.6 }, // nivel 5: los objetos ralentizan
     storm: { r: 210, count: 6, dmg: 0.7 }, // Q: revuelo
     phase: { t: 2.2, tT3: 3.2 }, // E: intangible
     ult: { r: 270, t: 4, dps: 12 }, // R: drenaje (se cura lo drenado)
   },
   tree: {
-    rootAfter: 1.5, rootRegen: 0.03, rootArmor: 0.25, // pasiva: quieto echa raíces (regenera y aguanta más)
+    rootAfter: 1.5, rootRegen: 0.018, rootArmor: 0.25, // pasiva: quieto echa raíces (regenera y aguanta más)
     lashRootT3: 0.5, // nivel 15: el ramazo enreda
-    bramble: { range: 380, r: 110, dmg: 0.8, root: 1.4, rootT1: 2, zoneT: 4, slowMul: 0.6 }, // Q: zarzas que enredan
+    bramble: { range: 380, r: 110, dmg: 0.65, root: 1.4, rootT1: 2, zoneT: 4, slowMul: 0.6 }, // Q: zarzas que enredan
     seedRange: 360, selfR: 110, charges: 2, chargesT3: 3, // E: brotar (flor junto a él · torreta en la vegetación · muro en campo abierto)
     plantLife: 20, plantLifeT1: 30,
     wall: { hp: 220, r: 26, cap: 2 },
-    turret: { hp: 70, r: 16, cap: 3, range: 360, cd: 1.1, dmg: 0.35, speed: 560, awakenedMul: 1.25 }, // despertada de un árbol del mapa: más fuerte
-    flower: { hp: 50, r: 12, cap: 1, healR: 220, heal: 0.04, healT1: 0.06 },
-    ult: { r: 320, t: 7, every: 1.4, root: 1, dmg: 0.6, slowMul: 0.6, heal: 0.03 }, // R: Bosque maldito
+    turret: { hp: 70, r: 16, cap: 3, range: 360, cd: 1.3, dmg: 0.28, speed: 560, awakenedMul: 1.25 }, // despertada de un árbol del mapa: más fuerte
+    flower: { hp: 50, r: 12, cap: 1, healR: 220, heal: 0.025, healT1: 0.04 },
+    ult: { r: 320, t: 7, every: 1.4, root: 1, dmg: 0.5, slowMul: 0.6, heal: 0.018 }, // R: Bosque maldito
   },
   pirate: {
     lootChance: 0.35, // pasiva: Botín maldito
     hook: { speed: 720, life: 0.5, dmg: 0.6, pull: 110, leapT: 0.28 }, // Q: garfio (nv. 15: se impulsa hacia lo que engancha)
-    barrel: { fuse: 2.5, r: 110, rT3: 150, dmg: 1.6, knock: 160, cap: 3 }, // E: barril de pólvora
+    barrel: { fuse: 2.5, r: 115, rT3: 155, dmg: 2.3, knock: 160, cap: 3 }, // E: barril de pólvora
     cannon: { speed: 620, life: 0.62, dmg: 0.9 }, // nv. 5: en el barco fantasma ataca a distancia
     ult: { r: 280, t: 10, atkMul: 0.55, dirs: 4 }, buccaneer: { hp: 70, speed: 205, dmg: 0.55, cd: 0.8 }, // R: gran poza 10 s (en el barco: cañonazos en 4 direcciones y más rápidos)
   },
@@ -251,7 +251,7 @@ export const BAL = {
   scarecrow: {
     still: { t: 5, grace: 3, mul: 1.8 }, // pasiva: quieto 5 s, el siguiente golpe hace más daño
     crows: { speed: 500, life: 0.8, dmg: 0.7, blindT: 2.5 }, // Q: cuervos (nv. 15: vuelven)
-    plant: { t: 2.5, dmgMul: 0.35, fearR: 220, fearT: 1.6, chargesT3: 2 }, // E: plantarse
+    plant: { t: 2.5, rootT: 0.5, dmgMul: 0.35, fearR: 220, fearT: 1.6, chargesT3: 2 }, // E: plantarse (solo le para 0,5 s)
     decoy: { hp: 40, every: 8, max: 3, life: 10, fearR: 130, fearT: 1, spawnR: 650 }, // nv. 5: espantapájaros por el mapa
     ult: { r: 330, t: 8, speedMul: 1.5, dmgMul: 1.4, reinvis: 1.2 }, // R: la Cosecha (trigo alto)
   },
@@ -273,26 +273,26 @@ export const BAL = {
     ult: { t: 6, hpMul: 0.6, grabR: 70, dps: 10, boomR: 170, boomDmg: 1.4, boomKnock: 200 }, // R: masa crítica
   },
   static: {
-    noise: { speed: 620, life: 0.38, dmg: 0.8, hypno: 22 }, // básico: estática (Ruido)
+    noise: { range: 210, cone: 0.95, dmg: 0.8, hypno: 34 }, // básico: estática en cono (Ruido)
     tvR: 450, tvShotR: 200, tvShotRT3: 290, tvDmg: 0.5, tvMax: 4, // pasiva: las teles cercanas repiten sus ataques
-    wave: { r: 220, tvR: 150, tvRT3: 220, slowT: 1.5, slowMul: 0.6, hypno: 40 }, // Q: señal pirata
-    channel: { range: 950, pick: 260, t: 3, exitR: 300, popR: 130, popHypno: 30 }, // E: meterse en una tele (y salir)
+    wave: { r: 220, tvR: 150, tvRT3: 220, slowT: 1.5, slowMul: 0.6, hypno: 58 }, // Q: señal pirata
+    channel: { range: 950, pick: 260, t: 3, exitR: 300, popR: 130, popHypno: 45 }, // E: meterse en una tele (y salir)
     hypnoDmgMul: 1.5, // nv. 5: más daño a los hipnotizados
-    ult: { t: 6, hop: 0.12, beamW: 30, dmg: 0.55, hypno: 22, hitR: 70 }, // R: el rayo salta de tele en tele
+    ult: { t: 6, hop: 0.12, beamW: 30, dmg: 0.55, hypno: 32, hitR: 70 }, // R: el rayo salta de tele en tele
   },
   kappa: {
     bubble: { speed: 480, life: 1.15, dmg: 0.75, slowT: 1, slowMul: 0.8 }, // desde el agua: burbujas a larga distancia
     tongue: { speed: 700, life: 0.48, dmg: 0.6, stun: 0.35 }, // Q: lengua acuática (arrastra hasta él)
-    bowl: { t: 2.5, heal: 0.07, armorMul: 0.55, breakFrac: 0.12 }, // E: cuenco sagrado (se corta con un golpe fuerte)
-    steal: { t: 3, slowMul: 0.75, speedMul: 1.25 }, // nv. 5: robo de velocidad por la espalda
+    bowl: { max: 15, grace: 0.35, heal: 0.07, armorMul: 0.55, breakFrac: 0.12 }, // E: cuenco sagrado (hasta moverse, llenar la vida o un golpe fuerte)
+    steal: { t: 3, slowMul: 0.75, speedMul: 1.25 }, // nv. 15: robo de velocidad por la espalda
     ult: { r: 270, t: 6, pull: 110, every: 1, dmg: 0.7 }, // R: remolino del río (daño cada segundo)
-    rain: { every: 6, t: 2.4, r: 80, puddleT: 9, near: 220 }, // nv. 15: nubes cuya lluvia forma una poza
+    rain: { every: 6, t: 2.4, r: 80, puddleT: 9, near: 220 }, // nv. 5: nubes cuya lluvia forma una poza
   },
   alien: {
     plasma: { speed: 760, life: 0.5, dmg: 1.0 }, // básico
     silence: { hits: 3, window: 3, t: 2 }, // pasiva
-    abduct: { range: 400, delay: 0.35, r: 70, rT3: 130, t: 1.2, dmg: 1.3 }, // Q (nv. 15: varios)
-    beacon: { hp: 40, range: 300, delay: 2.5, life: 10, r: 120, dmg: 1.6, speedR: 260, speedMul: 1.3, radT: 4, radDps: 6 }, // E
+    abduct: { range: 400, delay: 0.35, r: 115, rT3: 170, t: 1.2, dmg: 1.3 }, // Q (nv. 15: varios)
+    beacon: { hp: 40, range: 300, delay: 1.4, life: 10, r: 120, dmg: 1.6, speedR: 260, speedMul: 1.3, radT: 4, radDps: 6 }, // E
     pickupCd: 0.2, // nv. 5: recoger objetos recorta un 20 % los enfriamientos
     ult: { t: 7, every: 0.6, range: 380, dmg: 0.6, ufos: 3 }, // R: Invasión
   },
@@ -357,7 +357,7 @@ export const BAL = {
     ult: { t: 3, every: 0.13, n: 5, turn: 0.3, speed: 560, life: 0.75, blindT: 3, dmg: 0.6 }, // R: círculo de caza (abanico de virotes en espiral)
   },
   candle: {
-    flame: { speed: 500, life: 0.42, dmg: 1.0, burnT: 1.5, burnDps: 6 }, // básico: llama de vela
+    flame: { speed: 500, life: 0.6, dmg: 1.0, burnT: 1.5, burnDps: 6 }, // básico: llama de vela
     drip: { every: 48, r: 22, t: 5, wax: 26 }, // pasiva: gotas de cera al moverse (encerado por segundo)
     waxRoot: 1, waxDecay: 16, // al llenar la barra de encerado: arraigado 1 s
     nearFire: { r: 220, atkMul: 0.75 }, // pasiva: cerca del fuego ataca más rápido
@@ -373,11 +373,12 @@ export const BAL = {
 /** Clases: invocadores con menos vida y regeneración, asesinos con robo de vida y algo menos de vida,
  *  cuerpo a cuerpo con más vida y armadura. */
 export const CLASS: Record<string, { hp: number; regen: number; armor: number; lifesteal: number }> = {
-  melee: { hp: 1.12, regen: 1, armor: 0.06, lifesteal: 0 },
-  assassin: { hp: 0.9, regen: 1, armor: 0, lifesteal: 0.08 },
-  summoner: { hp: 0.85, regen: 0.5, armor: 0, lifesteal: 0 },
+  // la vida, la velocidad y la armadura base de cada clase están en CLASS_STATS (characters.ts); aquí solo lo que cambia el combate
+  assassin: { hp: 1, regen: 1, armor: 0, lifesteal: 0.08 },
   ranged: { hp: 1, regen: 1, armor: 0, lifesteal: 0 },
-  hybrid: { hp: 1, regen: 1, armor: 0, lifesteal: 0 },
+  tank: { hp: 1, regen: 1.2, armor: 0, lifesteal: 0 },
+  specialist: { hp: 1, regen: 1, armor: 0, lifesteal: 0.03 },
+  summoner: { hp: 1, regen: 0.5, armor: 0, lifesteal: 0 },
 };
 
 /** Alimañas de cada mapa: no atacan, huyen muy rápido y siempre dejan un objeto. */
@@ -406,6 +407,9 @@ export const HUNTERS: Record<HunterType, HunterDef> = {
   raptor: { name: 'Raptor', hp: 75, speed: 245, r: 15, melee: 9, meleeCd: 0.9, reach: 22, reward: { xp: 35, pts: 35, coins: 3, ult: 15 } },
   rex: { name: 'Tiranosaurio', hp: 600, speed: 140, r: 32, melee: 52, meleeCd: 1.7, reach: 44, reward: { xp: 240, pts: 260, coins: 22, ult: 60 } },
 };
+/** Más vida para todos (x1,5, igual que los monstruos: ver HP_MUL en characters.ts) manteniendo el daño. */
+for (const h of Object.values(HUNTERS)) h.hp = Math.round(h.hp * 1.5);
+
 export const isBeast = (t: string) => t === 'croc' || t === 'raptor' || t === 'rex';
 /** Fieras: dónde viven, cuántas hay y cómo cazan. */
 export const BEASTS = {

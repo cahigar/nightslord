@@ -1,6 +1,6 @@
 // 📺 Interferencia: control e hipnosis a través de las teles.
 // - Si hay una Interferencia en la sala, se encienden las teles del mapa (escaparates, casas y teles abandonadas).
-// - Estática (básico): proyectil corto que mete Ruido (hipnosis). Al llenarse la hipnosis, la víctima camina hacia
+// - Estática (básico): onda de ruido en cono que mete Ruido (hipnosis). Al llenarse la hipnosis, la víctima camina hacia
 //   la Interferencia o la tele más cercana.
 // - Pasiva: las teles cercanas repiten sus ataques (estática y señal pirata).
 // - Señal pirata (Q): onda que ralentiza e hipnotiza (también desde las teles cercanas).
@@ -27,9 +27,18 @@ function nearTvs(room: Room, p: Player, r: number) {
   return room.tvSpots().map((s, i) => ({ i, ...s, d: Math.hypot(s.x - p.x, s.y - p.y) })).filter((t) => t.d < r).sort((a, b) => a.d - b.d);
 }
 
-function noise(room: Room, p: Player, x: number, y: number, a: number, dmgMul: number) {
-  const pr = room.shoot('noise', p.id, x, y, a, B.noise.speed, B.noise.life, room.calcDamage(p, B.noise.dmg * dmgMul));
-  pr.hitR = 12;
+const angleDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+
+/** Estática: onda de ruido en cono que daña e hipnotiza a todo lo que pilla. */
+function noise(room: Room, p: Player, x: number, y: number, a: number, dmgMul: number, range = B.noise.range) {
+  const N = B.noise;
+  room.forEachEnemyNear(p, x, y, range, (m) => {
+    if (m.dead) return;
+    if (Math.hypot(m.x - x, m.y - y) > 30 && angleDiff(Math.atan2(m.y - y, m.x - x), a) > N.cone / 2) return;
+    room.damage(m, room.calcDamage(p, N.dmg * dmgMul), room.src(p));
+    room.addHypno(m, N.hypno * room.powMult(p));
+  });
+  room.fx('staticCone', x, y, { o: p.id, r: +a.toFixed(2), d: range, n: Math.round(N.cone * 100), c: colorOf(p) });
 }
 
 function wave(room: Room, p: Player, x: number, y: number, r: number) {
@@ -92,7 +101,7 @@ export const staticKit: Kit = {
     const R = p.tier >= 3 ? B.tvShotRT3 : B.tvShotR;
     for (const tv of nearTvs(room, p, B.tvR).slice(0, B.tvMax)) {
       const t = room.nearestEnemy(p, tv.x, tv.y, R, -1);
-      if (t) noise(room, p, tv.x, tv.y - 20, Math.atan2(t.y - tv.y + 20, t.x - tv.x), B.tvDmg);
+      if (t) noise(room, p, tv.x, tv.y - 20, Math.atan2(t.y - tv.y + 20, t.x - tv.x), B.tvDmg, R);
     }
   },
 

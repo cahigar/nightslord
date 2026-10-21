@@ -236,6 +236,7 @@ export class Effects {
       case 'ambush': this.clawMarks(x + Math.cos(ev.r ?? 0) * 40, y - 42, ev.r ?? 0, '#ff60a0', 0.35, 1.6); this.ripple(x, y - 30, '#a070ff', 0.4, 60); break;
       case 'dreamwalk': this.dreamwalk(ev); break;
       case 'dreamField': this.dreamField(ev); break;
+      case 'staticCone': this.staticCone(ev); break;
       case 'shards': this.burst(x, y - 30, ev.n ?? 5, ['#e8f4ff', '#a0c0e0', '#ff3040'], 170, 2, 500, 0.45); break;
       case 'mirror': this.burst(x, y - 30, 10, ['#e8f4ff', '#ff3040'], 100, 3, -20, 0.6, true); break;
       case 'mirrorBoom': this.mirrorBoom(ev); break;
@@ -266,7 +267,8 @@ export class Effects {
       case 'tvWave': this.tvWave(ev); break;
       case 'ufoRay': this.ufoRay(ev); break;
       case 'scare': this.ripple(x, y - 20, '#ffb020', 0.6, ev.r ?? 200); this.burst(x, y - 50, 10, ['#141018', '#2a2030'], 200, 3, -40, 0.8); break;
-      case 'leapLand': this.burst(x, y, 16, this.terrainColors(x, y), 180, 3, 400, 0.5); this.ripple(x, y, '#e8e8f0', 0.4, ev.r ?? 120); break;
+      case 'leapLand': this.leapLand(ev); break;
+      case 'stampede': this.stampede(ev); break;
       case 'sprout': this.burst(x, y - 10, 22, ['#5a4632', '#2e4a24', '#a0e040', '#4a7a34'], 200, 3, 400, 0.6); this.ripple(x, y, '#a0e040', 0.5, 40); break;
       case 'bramble': this.brambleFx(ev); break;
       case 'forest': if (ev.c === 'wheat') { this.burst(x, y - 30, 60, ['#e0c050', '#c8a040', '#8a6a20'], 420, 4, 200, 1); this.ripple(x, y, '#e0c050', 0.9, ev.r ?? 320); break; }
@@ -875,6 +877,60 @@ export class Effects {
     });
   }
 
+  /** Aterrizaje del velocirraptor: polvo, onda en el suelo y grietas. */
+  private leapLand(ev: FxEv) {
+    const R = ev.r ?? 110, x = ev.x, y = ev.y;
+    this.burst(x, y, 30, ['#d8c8a0', '#b8a880', '#f0e4c8', ...this.terrainColors(x, y)], 280, 3, 420, 0.65);
+    this.burst(x, y - 10, 14, ['#ffffff', '#fff0c8'], 160, 3, 200, 0.45, true);
+    this.ripple(x, y, '#fff4dc', 0.45, R); this.ripple(x, y, '#e8d8b0', 0.65, R * 0.7); this.ripple(x, y, '#ffffff', 0.3, R * 0.4);
+    const cracks = Array.from({ length: 7 }, (_, i) => ({ a: (i / 7) * Math.PI * 2 + Math.random() * 0.5, l: R * (0.45 + Math.random() * 0.35) }));
+    this.add(0.9, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.85 * (1 - k);
+      ctx.fillStyle = '#c8b890';
+      for (const c of cracks) for (let t = 6; t < c.l; t += PIXEL) { const wig = Math.sin(t * 0.3 + c.a * 5) * 4; ctx.fillRect(snap(x + Math.cos(c.a) * t - Math.sin(c.a) * wig), snap(y + Math.sin(c.a) * t * 0.55 + Math.cos(c.a) * wig * 0.55), PIXEL, PIXEL); }
+      pixelEllipse(ctx, x, y, 22, 10, '#2a2014');
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Estampida del triceratops: nubes de polvo y huellas a su paso. */
+  private stampede(ev: FxEv) {
+    const x = ev.x, y = ev.y, a = ev.r ?? 0, cols = ['#d8c8a0', '#b8a880', '#e8dcc0', '#9a8a6a'];
+    for (let i = 0; i < 9; i++) this.particles.push({ x: x - Math.cos(a) * 20 + (Math.random() - 0.5) * 34, y: y + (Math.random() - 0.5) * 14, vx: -Math.cos(a) * 60 + (Math.random() - 0.5) * 80, vy: -40 - Math.random() * 50, life: 0.7, max: 0.7, color: cols[i % cols.length], size: PIXEL * (Math.random() < 0.5 ? 3 : 2), grav: 30 });
+    const nx = -Math.sin(a), ny = Math.cos(a);
+    this.add(1.6, 'ground', (ctx, k) => {
+      ctx.globalAlpha = 0.6 * (1 - k); ctx.fillStyle = '#b0a080';
+      for (const side of [-1, 1]) { const px = x + nx * side * 10, py = y + ny * side * 6; ctx.fillRect(snap(px - 4), snap(py - 2), PIXEL * 3, PIXEL * 2); }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** Estática (Interferencia): un abanico de nieve de tele que se abre en cono. */
+  private staticCone(ev: FxEv) {
+    const a = ev.r ?? 0, R = ev.d ?? 210, cone = (ev.n ?? 95) / 100, col = ev.c ?? '#40ff90';
+    const pts = Array.from({ length: 80 }, () => ({ aa: a + (Math.random() - 0.5) * cone, rr: Math.random(), c: Math.random() < 0.25 ? col : Math.random() < 0.5 ? '#ffffff' : '#8a8a96' }));
+    this.add(0.42, 'glow', (ctx, k) => {
+      ctx.globalAlpha = Math.min(1, 1.6 * (1 - k));
+      for (const q of pts) {
+        const rr = R * Math.min(1, q.rr * 0.35 + k * 1.3) ;
+        ctx.fillStyle = q.c;
+        ctx.fillRect(snap(ev.x + Math.cos(q.aa) * rr), snap(ev.y - 30 + Math.sin(q.aa) * rr * 0.8), PIXEL * 2, PIXEL * (Math.random() < 0.4 ? 2 : 1));
+      }
+      // abanico translúcido
+      ctx.globalAlpha = 0.16 * (1 - k); ctx.fillStyle = col;
+      const rf = R * Math.min(1, 0.4 + k * 1.2);
+      ctx.beginPath(); ctx.moveTo(ev.x, ev.y - 30);
+      for (let i = 0; i <= 10; i++) { const aa = a - cone / 2 + (i / 10) * cone; ctx.lineTo(ev.x + Math.cos(aa) * rf, ev.y - 30 + Math.sin(aa) * rf * 0.8); }
+      ctx.closePath(); ctx.fill();
+      // borde del cono
+      ctx.globalAlpha = 0.7 * (1 - k);
+      ctx.fillStyle = col;
+      const rr = R * Math.min(1, k * 1.4);
+      for (let i = 0; i <= 12; i++) { const aa = a - cone / 2 + (i / 12) * cone; ctx.fillRect(snap(ev.x + Math.cos(aa) * rr), snap(ev.y - 30 + Math.sin(aa) * rr * 0.8), PIXEL * 2, PIXEL); }
+      ctx.globalAlpha = 1;
+    });
+  }
+
   /** Entre sueños (Pesadilla): ondas de sueño que se expanden por una gran zona, con zetas flotando. */
   private dreamField(ev: FxEv) {
     const R = ev.r ?? 520, T = ev.d ?? 3;
@@ -1471,31 +1527,69 @@ export class Effects {
     this.add(dur, 'glow', (ctx, k, now) => {
       const pos = ev.o !== undefined ? this.entPos(ev.o) : null;
       if (!pos) return;
-      ctx.globalAlpha = Math.min(1, (1 - k) * 5) * 0.8;
-      const R = 46;
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * Math.PI * 2 + now / 120;
-        ctx.fillStyle = i % 4 === 0 ? '#ffffff' : '#c8ccd8';
-        ctx.fillRect(snap(pos.x + Math.cos(a) * R), snap(pos.y - 6 + Math.sin(a) * R * 0.5), PIXEL * (i % 4 === 0 ? 2 : 1), PIXEL);
+      const fade = Math.min(1, k * dur * 6, (1 - k) * 5);
+      // círculo de caza: anillo de plata con runas y una mira que gira
+      ctx.globalAlpha = 0.18 * fade;
+      pixelEllipse(ctx, pos.x, pos.y, 74, 38, '#c8d8ff');
+      for (const [R, sp, n, col] of [[74, 1, 28, '#e8f0ff'], [56, -1.6, 18, '#9ab0e0']] as [number, number, number, string][]) {
+        ctx.globalAlpha = 0.85 * fade;
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2 + (now / 600) * sp;
+          ctx.fillStyle = i % 7 === 0 ? '#ffffff' : col;
+          ctx.fillRect(snap(pos.x + Math.cos(a) * R), snap(pos.y + Math.sin(a) * R * 0.5), PIXEL * (i % 7 === 0 ? 3 : 2), PIXEL);
+        }
       }
-      if (Math.random() < 0.5) this.particles.push({ x: pos.x + (Math.random() - 0.5) * 80, y: pos.y - Math.random() * 60, vx: 0, vy: -30, life: 0.4, max: 0.4, color: '#f0f4ff', size: PIXEL, grav: 0, glow: true });
+      // cuatro marcas de mira
+      ctx.fillStyle = '#ffffff';
+      for (let q = 0; q < 4; q++) {
+        const a = q * (Math.PI / 2) + now / 400;
+        for (let t = 0; t < 4; t++) ctx.fillRect(snap(pos.x + Math.cos(a) * (80 + t * 4)), snap(pos.y + Math.sin(a) * (80 + t * 4) * 0.5), PIXEL, PIXEL);
+      }
+      if (Math.random() < 0.6) this.particles.push({ x: pos.x + (Math.random() - 0.5) * 140, y: pos.y - Math.random() * 70, vx: 0, vy: -40, life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#f0f4ff' : '#a8c8ff', size: PIXEL, grav: 0, glow: true });
       ctx.globalAlpha = 1;
     });
   }
 
+  /** Virote de ballesta (Cazadora): asta, punta de plata y plumas, con la inclinación exacta. */
+  drawBolt(ctx: CanvasRenderingContext2D, x: number, y: number, a: number, big: boolean) {
+    const L = big ? 30 : 22, ca = Math.cos(a), sa = Math.sin(a), nx = -sa, ny = ca;
+    const dot = (t: number, o: number, col: string, sz = PIXEL) => { ctx.fillStyle = col; ctx.fillRect(snap(x + ca * t + nx * o), snap(y + sa * t + ny * o), sz, sz); };
+    if (big) { ctx.globalAlpha = 0.35; for (let t = -L / 2; t <= L / 2; t += PIXEL) dot(t, 0, '#a8c8ff', PIXEL * 3); ctx.globalAlpha = 1; }
+    for (let t = -L / 2; t <= L / 2 - 6; t += PIXEL / 1.5) dot(t, 0, big ? '#c8d0e0' : '#7a5230');
+    for (let t = L / 2 - 6; t <= L / 2; t += PIXEL / 1.5) dot(t, 0, '#f4f8ff');
+    dot(L / 2 - 4, 2, '#d8e4f8'); dot(L / 2 - 4, -2, '#d8e4f8');
+    for (const o of [-3, 3]) { dot(-L / 2, o, big ? '#ffffff' : '#e8e8e8'); dot(-L / 2 + 3, o * 0.7, big ? '#a8c8ff' : '#c02030'); }
+    if (Math.random() < (big ? 0.9 : 0.4)) this.particles.push({ x: x - ca * L / 2, y: y - sa * L / 2, vx: 0, vy: 0, life: big ? 0.35 : 0.2, max: big ? 0.35 : 0.2, color: big ? '#c8dcff' : '#e8eef8', size: PIXEL, grav: 0, glow: big });
+  }
+
   /** Remolino del pterodáctilo: embudo de viento pixelado. */
   drawTwister(ctx: CanvasRenderingContext2D, x: number, y: number, now: number) {
-    for (let i = 0; i < 14; i++) {
-      const t = i / 14, w = 8 + t * 34, yy = y - t * 70;
-      for (let j = 0; j < 3; j++) {
-        const a = now / 70 + i * 0.7 + j * 2.1;
-        ctx.globalAlpha = 0.5 + 0.4 * Math.sin(a);
-        ctx.fillStyle = j === 0 ? '#e8f0f8' : j === 1 ? '#a8c0d8' : '#6a8aa8';
-        ctx.fillRect(snap(x + Math.cos(a) * w), snap(yy), PIXEL * 2, PIXEL);
+    // sombra y polvo en la base
+    ctx.globalAlpha = 0.35; pixelEllipse(ctx, x, y + 2, 50, 16, '#000000'); pixelEllipse(ctx, x, y + 2, 34, 11, '#000000');
+    const H = 130, N = 24;
+    for (let i = 0; i < N; i++) {
+      const t = i / N, w = 12 + Math.pow(t, 1.4) * 84 + Math.sin(now / 120 + i) * 4, yy = y - t * H, sway = Math.sin(now / 260 + t * 3) * 8 * t;
+      // núcleo oscuro del embudo
+      ctx.globalAlpha = 0.28; ctx.fillStyle = '#2a3a52'; ctx.fillRect(snap(x + sway - w * 0.45), snap(yy), snap(w * 0.9), PIXEL * 2);
+      for (let j = 0; j < 5; j++) {
+        const a = now / 55 + i * 0.6 + j * 1.26;
+        const front = Math.sin(a) > 0;
+        ctx.globalAlpha = front ? 0.95 : 0.45;
+        ctx.fillStyle = j === 0 ? '#f4f8ff' : j === 1 ? '#c8d8ec' : j === 2 ? '#8aa4c4' : j === 3 ? '#5a7494' : '#e0e8f4';
+        ctx.fillRect(snap(x + sway + Math.cos(a) * w), snap(yy + Math.sin(a) * 3), PIXEL * (front ? 3 : 2), PIXEL);
       }
     }
+    // escombros girando: hojas, piedras y ramas
+    for (let d = 0; d < 7; d++) {
+      const a = now / 90 + d * 0.9, t = ((now / 900 + d / 7) % 1), w = 16 + t * 60;
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = ['#5a8a30', '#7a5a3a', '#8a8a80', '#3a6a28'][d % 4];
+      ctx.fillRect(snap(x + Math.cos(a) * w), snap(y - t * H + Math.sin(a) * 4), PIXEL * 2, PIXEL * 2);
+    }
     ctx.globalAlpha = 1;
+    if (Math.random() < 0.6) this.particles.push({ x: x + (Math.random() - 0.5) * 60, y: y - 4, vx: (Math.random() - 0.5) * 120, vy: -30, life: 0.5, max: 0.5, color: Math.random() < 0.5 ? '#b0a080' : '#8a7a60', size: PIXEL, grav: 40 });
   }
+
 
   /** OVNI que se queda sobre un punto con su haz de abducción. */
   private ufoBeam(ev: FxEv) {

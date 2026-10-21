@@ -22,7 +22,7 @@ function stopBowl(room: Room, p: Player) {
 }
 
 function steal(room: Room, p: Player, m: Mob) {
-  if (p.tier < 1 || m.dead || (p.x - m.x) * m.facing >= 0) return;
+  if (p.tier < 3 || m.dead || (p.x - m.x) * m.facing >= 0) return; // nv. 15: ladrón travieso
   room.slow(m, B.steal.t, B.steal.slowMul);
   p.k.stealEnd = room.time + B.steal.t;
   room.fx('drain', m.x, m.y, { tx: Math.round(p.x), ty: Math.round(p.y), o: p.id, n: 1, c: 'water' });
@@ -53,12 +53,12 @@ export const kappaKit: Kit = {
       pr.hitR = 14;
       room.sfx('splash', p.x, p.y);
     } else {
-      // Cuenco sagrado
-      p.k.bowlEnd = room.time + B.bowl.t;
-      p.rootT = Math.max(p.rootT, B.bowl.t);
+      // Cuenco sagrado: se cura hasta que se mueva, se llene la vida o le den un golpe fuerte
+      p.k.bowlEnd = room.time + B.bowl.max;
+      p.k.bowlStart = room.time; p.k.bowlFx = room.time + 1.2;
       p.dash = null;
-      room.setAnim(p, Anim.Cast, B.bowl.t);
-      room.fx('bowl', p.x, p.y, { o: p.id, d: B.bowl.t });
+      room.setAnim(p, Anim.Cast, 1.4);
+      room.fx('bowl', p.x, p.y, { o: p.id, d: 1.4 });
       room.sfx('bubble', p.x, p.y);
     }
   },
@@ -92,7 +92,11 @@ export const kappaKit: Kit = {
   },
 
   tick(room, p, dt) {
-    if (bowling(room, p)) p.hp = Math.min(p.maxHp, p.hp + p.maxHp * B.bowl.heal * dt);
+    if (bowling(room, p)) {
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * B.bowl.heal * dt);
+      if (p.hp >= p.maxHp || (p.moving && room.time - (p.k.bowlStart ?? 0) > B.bowl.grace)) stopBowl(room, p);
+      else if (room.time >= (p.k.bowlFx ?? 0)) { p.k.bowlFx = room.time + 1.2; room.setAnim(p, Anim.Cast, 1.4); room.fx('bowl', p.x, p.y, { o: p.id, d: 1.4 }); }
+    }
     // Remolino: cada segundo quita vida a quien esté dentro
     if (p.ultT > 0 && room.time >= (p.k.whirlHit ?? 0)) {
       p.k.whirlHit = room.time + B.ult.every;
@@ -100,7 +104,7 @@ export const kappaKit: Kit = {
       if (z) room.forEachEnemyNear(p, z.ax, z.ay, z.w / 2, (m) => { if (!m.dead) room.damage(m, room.calcDamage(p, B.ult.dmg * room.powMult(p)), room.src(p)); });
     }
     // nv. 15: nubes cuya lluvia forma una poza
-    if (p.tier < 3) return;
+    if (p.tier < 1) return; // nv. 5: dueño de la lluvia
     p.k.rainT = (p.k.rainT ?? B.rain.every) - dt;
     if (p.k.rainT > 0) return;
     p.k.rainT = B.rain.every * (0.7 + Math.random() * 0.6);

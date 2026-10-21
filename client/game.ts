@@ -1714,6 +1714,7 @@ export class Game {
     }
     if (e.c === 'sandstorm') { this.effects.drawStorm(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     if (e.c === 'twister') { this.effects.drawTwister(ctx, e.rx, e.ry, now); return; }
+    if (e.c === 'silver' || e.c === 'bigsilver') { this.effects.drawBolt(ctx, e.rx, e.ry - 40, e.r ?? 0, e.c === 'bigsilver'); return; }
     if (e.c === 'wave') { this.effects.drawWave(ctx, e.rx, e.ry, e.r ?? 0, now); return; }
     const big = e.c.startsWith('bigpotion');
     const spin = e.c === 'egg' || e.c === 'waxglob' || e.c === 'fireball' || e.c === 'ember' || e.c === 'bandage' || e.c === 'holy' || e.c === 'boulder' || e.c.includes('potion') || e.c.startsWith('obj');

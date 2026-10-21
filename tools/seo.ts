@@ -26,8 +26,8 @@ const IDS = Object.keys(CHARACTERS) as CharacterId[];
 
 // ---------------------------------------------------------------- textos
 const ROLE: Record<Lang, Record<string, string>> = {
-  es: { melee: 'Cuerpo a cuerpo', assassin: 'Asesino', summoner: 'Invocador', ranged: 'A distancia', hybrid: 'Híbrido' },
-  en: { melee: 'Melee', assassin: 'Assassin', summoner: 'Summoner', ranged: 'Ranged', hybrid: 'Hybrid' },
+  es: { assassin: 'Acechador · Asesino', ranged: 'Espectro · Tirador', tank: 'Abominación · Tanque', specialist: 'Embrujador · Especialista', summoner: 'Conjurador · Invocador' },
+  en: { assassin: 'Stalker · Assassin', ranged: 'Wraith · Marksman', tank: 'Abomination · Tank', specialist: 'Hexer · Specialist', summoner: 'Conjurer · Summoner' },
 };
 
 const MAPDESC: Record<Lang, Partial<Record<MapThemeId, string>>> = {
@@ -317,9 +317,9 @@ for (const lang of ['es', 'en'] as Lang[]) {
     const desc = t.charDesc(v.name, v.title, strip(v.passive));
     const body = `${crumbHtml(cr)}
 <div class="hero"><div class="portrait"><img src="/img/monstruos/${id}.png" alt="${esc(`${v.name} (${v.title})`)}" width="156" height="204" /></div>
-<div><h1>${esc(v.name)}</h1><p class="sub">${esc(v.title)} · ${ROLE[lang][d.role ?? 'hybrid']}</p>
+<div><h1>${esc(v.name)}</h1><p class="sub">${esc(v.title)} · ${ROLE[lang][d.role]}</p>
 <p>${esc(t.charIntro(v.name, v.title))}</p><a class="cta" href="/">${t.play}</a>
-<ul class="stats"><li>${t.hp}<b>${d.hp}</b></li><li>${t.speed}<b>${d.speed}</b></li><li>${t.armor}<b>${Math.round(d.armor * 100)} %</b></li><li>${t.cls}<b>${ROLE[lang][d.role ?? 'hybrid']}</b></li></ul></div></div>
+<ul class="stats"><li>${t.hp}<b>${d.hp}</b></li><li>${t.speed}<b>${d.speed}</b></li><li>${t.armor}<b>${Math.round(d.armor * 100)} %</b></li><li>${t.cls}<b>${ROLE[lang][d.role]}</b></li></ul></div></div>
 <h2>${t.lore}</h2>
 <div class="lore"><p>${esc(LORE[id][lang])}</p></div>
 <h2>${t.abilities}</h2>

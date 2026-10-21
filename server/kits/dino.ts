@@ -83,7 +83,7 @@ export const dinoKit: Kit = {
       for (let i = 0; i < n; i++) {
         const aa = a + (n > 1 ? (i - 0.5) * 0.45 : 0);
         const pr = room.shoot('twister', p.id, p.x + Math.cos(aa) * 20, p.y + Math.sin(aa) * 20, aa, T.speed, T.life, room.calcDamage(p, T.dmg));
-        pr.pierce = true; pr.ghost = true; pr.hitSet = new Set(); pr.hitR = 30;
+        pr.pierce = true; pr.ghost = true; pr.hitSet = new Set(); pr.hitR = 44; // remolino grande
       }
       room.setAnim(p, Anim.Cast, 0.4);
       room.sfx('poof', p.x, p.y);
@@ -159,6 +159,8 @@ export const dinoKit: Kit = {
   tick(room, p, dt) {
     // tricerátops: los aturdimientos se le pasan antes
     if (form(p) === TRIKE && p.stunT > 0) p.stunT = Math.max(0, p.stunT - dt * (1 / B.trike.ccMul - 1));
+    // estampida: polvo y huellas mientras carga
+    if (form(p) === TRIKE && p.dash && room.time >= (p.k.dustT ?? 0)) { p.k.dustT = room.time + 0.07; room.fx('stampede', p.x, p.y, { r: +Math.atan2(p.dash.dy, p.dash.dx).toFixed(2) }); }
     // pterodáctilo: vuela (por encima del agua y los obstáculos)
     if (form(p) === PTERO && !inEgg(room, p) && !p.dead) p.flyT = Math.max(p.flyT, 0.3);
   },

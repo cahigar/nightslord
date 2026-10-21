@@ -81,6 +81,6 @@ export const maryKit: Kit = {
     const ls = ((p.k.buffEnd ?? 0) > room.time ? B.eBuff.lifesteal : 0) + (n >= 1 ? B.lifesteal1 : 0);
     if (ls > 0) p.hp = Math.min(p.maxHp, p.hp + amount * ls);
     if (n >= 3) room.bleed(target, B.bleed3.t, B.bleed3.dps, p);
-    return amount;
+    return amount * (1 + B.perMirrorDmg * mirrorsOf(room, p).length); // cada espejo activo la potencia
   },
 };

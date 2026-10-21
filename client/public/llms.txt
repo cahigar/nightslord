@@ -17,7 +17,7 @@
 - [Patient Zero (Zombie)](https://mooonsters.com/en/monsters/zombie/): Infection: his zombies attack humans, monsters and Hunters on their own.
 - [K'thula (Abyssal horror)](https://mooonsters.com/en/monsters/abyssal-horror/): Walks on deep water; in water (and in any puddle) it is faster, regenerates and its attack becomes a jet. Standing still out of water, a puddle springs up beneath it.
 - [Nightmare (Dream creature)](https://mooonsters.com/en/monsters/dream-creature/): Drowsiness: its hits and abilities fill a bar on enemies; when full, they fall asleep for a moment.
-- [Bloody Mary (Mirror legend)](https://mooonsters.com/en/monsters/mirror-legend/): Can have several mirrors active around the map.
+- [Bloody Mary (Mirror legend)](https://mooonsters.com/en/monsters/mirror-legend/): Can have several mirrors active around the map; each active mirror gives her 10% more damage.
 - [Reanimund (Frankenstein's creature)](https://mooonsters.com/en/monsters/stitched-corpse/): Galvanized: regenerates much faster after a few seconds without taking damage.
 - [Doppy (Doppelgänger)](https://mooonsters.com/en/monsters/doppelganger/): A thousand faces: after a while without fighting, it looks like an ordinary human. Its first hit from the disguise stuns.
 - [Hecuba (Swamp witch)](https://mooonsters.com/en/monsters/swamp-witch/): Alchemist: throws random flasks of acid (poisons for a few seconds) or fire (the ground burns).

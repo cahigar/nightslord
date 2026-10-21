@@ -66,6 +66,7 @@ input:focus, select:focus { border-color: #8050c0; }
 .charinfo { margin-top: 10px; background: #0c0714; border: 2px dashed var(--line); padding: 8px 10px; font-size: 18px; line-height: 1.2; }
 .charinfo b { font-family: var(--px); font-size: 10px; color: var(--gold); }
 .charinfo .stats { color: var(--muted); }
+.charinfo .cls { font-family: var(--px); font-size: 10px; color: #d8c0ff; margin-bottom: 6px; letter-spacing: 0.5px; }
 .charinfo .charpage { display: inline-block; margin-top: 8px; font-family: var(--px); font-size: 10px; color: var(--gold); text-decoration: none; border: 2px solid var(--gold); padding: 5px 8px; background: #1a1028; }
 .charinfo .charpage:hover { background: var(--gold); color: #1a1028; }
 .menu-inner { position: relative; }
@@ -599,3 +600,16 @@ body.touch #combo b { font-size: 34px; }
 .daily .days div b { display: block; font: 10px var(--px); color: var(--muted); }
 .daily .days div.got { border-color: #806010; color: var(--text); } .daily .days div.got b { color: var(--gold); }
 .daily .days div.now { border-color: var(--gold); box-shadow: 0 0 10px rgba(255, 208, 64, 0.5); }
+
+/* Nuevo parche */
+.patchbox { width: min(620px, 100%); max-height: 86vh; overflow-y: auto; border-color: var(--gold); box-shadow: 0 0 0 3px #000, 0 0 40px rgba(255, 208, 64, 0.18); }
+.patch-head { display: flex; align-items: flex-end; gap: 14px; margin-bottom: 10px; }
+#patchpirate { width: 120px; height: 132px; image-rendering: pixelated; flex: none; }
+.patch-bubble { position: relative; background: #f4ecd8; color: #1a1028; border: 3px solid #000; padding: 10px 12px; margin-bottom: 40px; }
+.patch-bubble::before { content: ''; position: absolute; left: -14px; bottom: 10px; border: 7px solid transparent; border-right-color: #000; }
+.patch-bubble h2 { font-family: var(--px); font-size: 15px; margin: 0 0 6px; color: #c0182a; }
+.patch-bubble p { margin: 0; font-size: 20px; }
+.patch-list { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 7px; font-size: 19px; line-height: 1.15; }
+.patch-list li { background: #120a1c; border-left: 3px solid var(--line); padding: 6px 9px; }
+.patch-list b { color: var(--gold); font-weight: normal; }
+@media (max-width: 520px) { #patchpirate { width: 84px; height: 92px; } .patch-bubble h2 { font-size: 12px; } .patch-list { font-size: 17px; } }

@@ -16,6 +16,7 @@ import { LESSONS, stepText, TUT_CHARS, tt2, type TutChar, type TutCtx } from './
 import { input, setupInput } from './input';
 import { net } from './net';
 import { MONSTER_PAGE } from '../shared/monsterPages';
+import { PATCH_ID, PATCH_NOTES } from './patch';
 import { invitedRoom, isCrazy, isPortal, PORTAL, initPortal, isInstantMultiplayer, loadingStop, onInviteJoin, onPortalLogin, portalGet, portalInviteLink, portalSet, portalUsername, reportRoom, setPlaying } from './portal';
 import { ANIMS, getFrame, getItem, SH, SW } from './sprites';
 import { applyStatic, buildLangPicker, lang, onLangChange, setLang, t, tb, tc, th, tk, tm, tpu, tt, tu, tw } from './i18n';
@@ -261,6 +262,7 @@ function monsterLink(id: CharacterId) {
 function buildCharInfo() {
   const d = CHARACTERS[selChar], x = tc(selChar);
   $('charinfo').innerHTML = `
+    <div class="cls">${t(`role_${d.role}` as 'role_tank')}</div>
     <div><b>${x.attack}</b> · ${x.passive}</div>
     <div><b>Q ${x.q[0]}</b> · ${x.q[1]}</div>
     <div><b>E ${x.e[0]}</b> · ${x.e[1]}</div>
@@ -699,7 +701,7 @@ function enterMenu() {
   initAudio();
   startMusic();
   $('splash').classList.add('out');
-  setTimeout(() => { $('splash').classList.remove('out'); showScreen('menu'); }, 260);
+  setTimeout(() => { $('splash').classList.remove('out'); showScreen('menu'); maybeShowPatch(); }, 260);
 }
 $('start').onclick = enterMenu;
 window.addEventListener('keydown', (e) => { if (!$('splash').hidden && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); enterMenu(); } });
@@ -1007,6 +1009,24 @@ $('tutbtn').onclick = () => { initAudio(); startMusic(); $('splash').hidden = tr
 $('tutbtn2').onclick = () => showScreen('tutorial');
 $('tut-back').onclick = () => showScreen('splash');
 $('home').onclick = () => showScreen('splash');
+
+/** «Nuevo parche»: Barbasucia lo cuenta al entrar al menú (solo en la web y a quien ya había jugado), una vez por parche. */
+let patchAnim = 0;
+function maybeShowPatch() {
+  if (isPortal || store.get('nl_patch') === PATCH_ID) return;
+  if (store.get('nl_coach') !== 'done') { store.set('nl_patch', PATCH_ID); return; } // jugadores nuevos: no hay nada «nuevo» que contarles
+  const N = PATCH_NOTES[lang] ?? PATCH_NOTES.en;
+  $('patch-title').textContent = N.title; $('patch-sub').textContent = N.sub; $('patch-ok').textContent = N.ok;
+  $('patch-list').innerHTML = N.items.map((x) => `<li>${x}</li>`).join('');
+  const cv = $<HTMLCanvasElement>('patchpirate'); cv.width = SW; cv.height = SH;
+  const c = cv.getContext('2d')!; c.imageSmoothingEnabled = false;
+  let f = 0;
+  const draw = () => { const fr = getFrame('monster', 'pirate', 'classic', f < 8 ? Anim.Wave : Anim.Idle, f % 4); c.clearRect(0, 0, SW, SH); c.drawImage(fr.base, 0, 0, SW, SH); f = (f + 1) % 16; };
+  draw(); clearInterval(patchAnim); patchAnim = window.setInterval(draw, 160);
+  $('patch').hidden = false;
+  playSfx('wave');
+}
+$('patch-ok').onclick = () => { $('patch').hidden = true; clearInterval(patchAnim); store.set('nl_patch', PATCH_ID); };
 $('tut-menu').onclick = () => showScreen('menu');
 tutStatic();
 
