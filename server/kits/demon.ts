@@ -6,8 +6,8 @@
 // - Infierno (R): se rodea de llamas que queman alrededor, sus golpes lanzan ondas de fuego hacia delante; ataca y corre más rápido.
 // - Nv. 15: el fuego le cura.
 import { BAL } from '../../shared/balance';
-import { Anim } from '../../shared/protocol';
-import type { Mob, Player, Projectile } from '../entities';
+import { Anim, Kind } from '../../shared/protocol';
+import type { Minion, Mob, Player, Projectile } from '../entities';
 import type { Room } from '../Room';
 import type { Kit } from './types';
 
@@ -15,6 +15,9 @@ const B = BAL.demon;
 /** A quién ha quemado ya cada Azufre durante su Paso ardiente. */
 const burned = new Map<number, Set<number>>();
 const blazing = (room: Room, p: Player) => (p.k.blazeEnd ?? 0) > room.time;
+/** Plantas de Raíz Negra (muros, torretas y flores): el fuego de Azufre las quema el doble. */
+const PLANTS = new Set(['wall', 'turret', 'flower']);
+const isPlant = (m: Mob) => m.kind === Kind.Minion && PLANTS.has((m as Minion).variant);
 
 /** Daño de fuego de una habilidad: con Combustión (nv. 5) pega más a quien ya arde. */
 function fireHit(room: Room, p: Player, m: Mob, mult: number) {
@@ -33,7 +36,8 @@ function explode(room: Room, p: Player, x: number, y: number, r: number, dmg: nu
 export const demonKit: Kit = {
   basic(room, p, a) {
     const res = room.meleeSwing(p, a, { sfx: 'punch' });
-    for (const h of res.hits) if (!h.m.dead) room.burn(h.m, B.burn.t, B.burn.dps, p);
+    for (const h of res.hits) if (!h.m.dead) room.burn(h.m, isPlant(h.m) ? B.burn.t * 2 : B.burn.t, B.burn.dps, p);
+    room.ignite(p.x + Math.cos(a) * (p.def.range + 10), p.y + Math.sin(a) * (p.def.range + 10), 34, p.id); // sus golpes prenden la vegetación
     if (p.ultT > 0) {
       // Infierno: cada golpe lanza una onda de fuego hacia delante
       const w = B.ult.wave;
@@ -81,6 +85,7 @@ export const demonKit: Kit = {
         const A = B.ult.aura;
         p.k.auraT = A.every;
         room.forEachEnemyNear(p, p.x, p.y, A.r, (m) => { if (!m.dead) fireHit(room, p, m, A.dmg); });
+        room.ignite(p.x, p.y, A.r, p.id);
       }
     }
     // Paso ardiente: rastro de llamas y quema a quien toca (una vez por enemigo)
@@ -99,6 +104,8 @@ export const demonKit: Kit = {
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * B.fireHealT3 * dt);
     }
   },
+
+  onDealDamage: (_room, _p, t, amount) => (isPlant(t) ? amount * 2 : amount),
 
   onProjectileHit(room, p, pr: Projectile, m) {
     if (pr.type === 'firewave' && !m.dead) fireHit(room, p, m, B.ult.wave.dmg);

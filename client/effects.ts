@@ -291,7 +291,7 @@ export class Effects {
       case 'boneSlam': this.boneSlam(ev); break;
       case 'raise': this.raise(ev); break;
       case 'ghostRise': this.ghostRise(ev); break;
-      case 'ectoQ': this.ripple(x, y, '#80ffb0', 0.6, ev.r ?? 230); this.burst(x, y - 30, 24, ['#80ffb0', '#e0fff0', '#2a8a5a'], 220, 3, 0, 0.7, true); break;
+      case 'ectoQ': this.ripple(x, y, '#80ffb0', 0.4, ev.r ?? 70); this.burst(x, y - 20, 14, ['#80ffb0', '#e0fff0', '#2a8a5a'], 160, 3, 0, 0.5, true); break; // Sed de vida
       case 'ectoE': this.ripple(x, y, '#c0ffe0', 0.35, ev.r ?? 120); this.ripple(x, y, '#80ffb0', 0.5, (ev.r ?? 120) * 0.7); this.burst(x, y - 30, 14, ['#c0ffe0', '#80ffb0'], 260, 3, 0, 0.4, true); break;
       case 'lockOn': this.lockOn(ev); break;
       case 'asteroid': this.asteroid(ev); break;

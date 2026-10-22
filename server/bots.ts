@@ -136,7 +136,7 @@ export function botInput(room: Room, p: Player, br: Brain, dt: number, real: num
     if (t) {
       const L = go(t.x, t.y, 30);
       if (L < 110) b |= BTN_E;
-      if (L < 200 && Math.random() < dt * 0.5) b |= BTN_Q;
+      if (L > 350 && Math.random() < dt * 0.5) b |= BTN_Q; // Sed de vida: para alcanzar a su presa
     }
     return { mx, my, a, b, d };
   }

@@ -1738,7 +1738,7 @@ export class Room {
         v.ecto = true; v.ectoCd = [0, 0];
         this.nl.deaths.push(v.id);
         this.fx('ghostRise', v.x, v.y, { o: v.id });
-        v.conn.send({ t: 'toast', text: '👻 Eres un ectoplasma: Q ralentiza, E vibra. Mata a un vivo para resucitar.', k: 'ectoBorn' });
+        v.conn.send({ t: 'toast', text: '👻 Eres un ectoplasma: Q Sed de vida (vuelas el doble de rápido), E vibra. Mata a un vivo para resucitar.', k: 'ectoBorn' });
         if (ecto) this.revive(ecto);
         else if (killer && !src.minion) KITS[killer.char].onKill?.(this, killer, m);
         this.emit({ e: 'die', x: Math.round(m.x), y: Math.round(m.y), k: m.kind, c }, m.x, m.y);
@@ -3119,7 +3119,7 @@ export class Room {
     p.conn.send({ t: 'toast', text: '¡Has resucitado!', k: 'ectoRevive' });
   }
 
-  /** Ectoplasma: vuela por el mapa; Q ralentiza alrededor, E vibra (poco daño). A los 9 min queda silenciado. */
+  /** Ectoplasma: vuela por el mapa; Q «Sed de vida» (velocidad doble unos segundos), E vibra (daño). A los 9 min queda silenciado. */
   private updateEcto(p: Player, dt: number) {
     const E = NL.ecto, S = this.map.size;
     const inp = p.queue.shift();
@@ -3127,7 +3127,7 @@ export class Room {
     let { mx, my } = p.input;
     const { a, b } = p.input;
     if (!inp) { mx = 0; my = 0; }
-    const sp = this.mode === 'br' && this.nl.phase === 'match' ? E.speed : 0;
+    const sp = this.mode === 'br' && this.nl.phase === 'match' ? E.speed * ((p.k.thirstEnd ?? 0) > this.time ? E.q.mul : 1) : 0;
     const move = (x: number, y: number) => { p.x = Math.max(p.r, Math.min(S - p.r, p.x + x * sp * dt)); p.y = Math.max(p.r, Math.min(S - p.r, p.y + y * sp * dt)); };
     move(mx, my);
     p.moving = mx !== 0 || my !== 0;
@@ -3137,10 +3137,11 @@ export class Room {
     cd[0] = Math.max(0, cd[0] - dt); cd[1] = Math.max(0, cd[1] - dt);
     if (this.nl.t >= NL.silenceAt || this.nl.phase !== 'match') return;
     const living = () => [...this.players.values()].filter((o) => !o.dead && o.protectT <= 0);
+    void living;
     if (b & BTN_Q && cd[0] <= 0) {
       cd[0] = E.q.cd;
-      for (const m of [...living(), ...this.npcs.values(), ...this.minions.values()]) if (dist2(m.x, m.y, p.x, p.y) < E.q.r ** 2) this.slow(m, E.q.t, E.q.mul);
-      this.fx('ectoQ', p.x, p.y, { o: p.id, r: E.q.r });
+      p.k.thirstEnd = this.time + E.q.t; // Sed de vida: vuela al doble de velocidad
+      this.fx('ectoQ', p.x, p.y, { o: p.id, r: 70 });
       this.sfx('vanish', p.x, p.y);
     }
     if (b & BTN_E && cd[1] <= 0) {
@@ -3376,7 +3377,7 @@ export class Room {
       if (me.trap) you.trap = me.trap;
       if (me.ecto) {
         you.alive = true; you.ecto = true; you.fly = true; you.st = this.nl.phase !== 'match';
-        you.spd = NL.ecto.speed; you.hp = 0;
+        you.spd = NL.ecto.speed * ((me.k.thirstEnd ?? 0) > this.time ? NL.ecto.q.mul : 1); you.hp = 0;
         you.cd = [0, +(me.ectoCd?.[0] ?? 0).toFixed(2), +(me.ectoCd?.[1] ?? 0).toFixed(2)]; you.cdm = [1, NL.ecto.q.cd, NL.ecto.e.cd];
         if (this.nl.t >= NL.silenceAt) you.sil = true;
       }

@@ -46,7 +46,7 @@ export const NIGHTLORD = {
   altar: { r: 70, base: 10, perSec: 3, max: 60 }, // experiencia por segundo encima de un altar (crece mientras sigues encima)
   sun: { start: 45, cover: 480, dps: 0.02, dpsGrow: 0.012, dpsMax: 0.09 }, // % de la vida máxima por segundo (crece con el tiempo al sol)
   fog: { r: 950, shrinkAt: 500, shrinkEnd: 600, rEnd: 160, gone: 690 }, // círculo de niebla que tapa el sol
-  ecto: { speed: 300, q: { r: 230, t: 2, mul: 0.4, cd: 9 }, e: { r: 120, dmg: 9, cd: 2.5 }, reviveHp: 0.5 },
+  ecto: { speed: 190, q: { t: 5, mul: 2, cd: 30 }, e: { r: 120, dmg: 14, cd: 45 }, reviveHp: 0.5 }, // Q: Sed de vida (velocidad x2) · E: vibración
   coins: [100, 50, 25], killCoins: 15,
   npcs: 150, powerups: 70, traps: 26,
   horde: { every: 50, size: [7, 11] as [number, number], minDist: 900 }, // hordas de zombis que aparecen por la ciudad
@@ -236,7 +236,7 @@ export const BAL = {
   pirate: {
     lootChance: 0.35, // pasiva: Botín maldito
     hook: { speed: 720, life: 0.5, dmg: 0.6, pull: 110, leapT: 0.28 }, // Q: garfio (nv. 15: se impulsa hacia lo que engancha)
-    barrel: { fuse: 2.5, r: 115, rT3: 155, dmg: 2.3, knock: 160, cap: 3 }, // E: barril de pólvora
+    barrel: { fuse: 2.5, r: 115, rT3: 155, dmg: 3.0, knock: 160, cap: 3 }, // E: barril de pólvora
     cannon: { speed: 620, life: 0.62, dmg: 0.9 }, // nv. 5: en el barco fantasma ataca a distancia
     ult: { r: 280, t: 10, atkMul: 0.55, dirs: 4 }, buccaneer: { hp: 70, speed: 205, dmg: 0.55, cd: 0.8 }, // R: gran poza 10 s (en el barco: cañonazos en 4 direcciones y más rápidos)
   },
@@ -292,7 +292,7 @@ export const BAL = {
     plasma: { speed: 760, life: 0.5, dmg: 1.0 }, // básico
     silence: { hits: 3, window: 3, t: 2 }, // pasiva
     abduct: { range: 400, delay: 0.35, r: 115, rT3: 170, t: 1.2, dmg: 1.3 }, // Q (nv. 15: varios)
-    beacon: { hp: 40, range: 300, delay: 1.4, life: 10, r: 120, dmg: 1.6, speedR: 260, speedMul: 1.3, radT: 4, radDps: 6 }, // E
+    beacon: { hp: 40, range: 300, delay: 1.4, life: 10, r: 120, dmg: 2.2, speedR: 260, speedMul: 1.3, radT: 4, radDps: 6 }, // E
     pickupCd: 0.2, // nv. 5: recoger objetos recorta un 20 % los enfriamientos
     ult: { t: 7, every: 0.6, range: 380, dmg: 0.6, ufos: 3 }, // R: Invasión
   },

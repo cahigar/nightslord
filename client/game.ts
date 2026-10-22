@@ -2016,29 +2016,32 @@ export class Game {
   /** Ectoplasma: un fantasma verdoso translúcido que flota (gris si está silenciado). */
   private drawEcto(ctx: CanvasRenderingContext2D, e: CEnt, now: number, glows: { img: HTMLCanvasElement; x: number; y: number; w: number; h: number; flip: boolean; a: number }[]) {
     void glows;
-    const x = e.rx, y = e.ry - 44 + Math.sin(now / 260 + e.id) * 5;
+    // fantasmito pequeño y semitransparente: no tapa la partida
+    const S = 0.55, x = e.rx, y = e.ry - 30 + Math.sin(now / 260 + e.id) * 4;
     const sil = this.night?.ph === 'match' && this.night.sil <= 0;
     const body = sil ? '#a0a8b0' : '#80ffb0', light = sil ? '#d0d8e0' : '#e0fff0', dark = sil ? '#40484e' : '#1a6a4a';
-    ctx.globalAlpha = e.id === this.youId ? 0.75 : 0.55;
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(x, e.ry + 2, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
-    for (let py = -33; py <= 30; py += PIXEL) {
-      const half = py < 0 ? Math.sqrt(1 - (py / 33) ** 2) * 24 : 24 - (py > 18 ? Math.abs(Math.sin(now / 150 + py)) * 4 : 0);
+    const mine = e.id === this.youId;
+    ctx.globalAlpha = mine ? 0.55 : 0.32;
+    for (let py = -33 * S; py <= 30 * S; py += PIXEL) {
+      const half = py < 0 ? Math.sqrt(Math.max(0, 1 - (py / (33 * S)) ** 2)) * 24 * S : 24 * S - (py > 18 * S ? Math.abs(Math.sin(now / 150 + py)) * 3 : 0);
       for (let px = -half; px <= half; px += PIXEL) {
-        if (py > 21 && Math.floor((px + 24 + now / 60) / 9) % 2) continue; // bajo ondulante
-        ctx.fillStyle = px < -half + 6 || py < -27 ? light : body;
+        if (py > 21 * S && Math.floor((px + 24 + now / 60) / 6) % 2) continue; // bajo ondulante
+        ctx.fillStyle = px < -half + 4 || py < -27 * S ? light : body;
         ctx.fillRect(Math.round((x + px) / PIXEL) * PIXEL, Math.round((y + py) / PIXEL) * PIXEL, PIXEL, PIXEL);
       }
     }
-    ctx.globalAlpha = 0.9;
+    ctx.globalAlpha = mine ? 0.8 : 0.5;
     ctx.fillStyle = dark;
-    ctx.fillRect(Math.round((x - 11) / PIXEL) * PIXEL, Math.round((y - 12) / PIXEL) * PIXEL, PIXEL * 3, PIXEL * 4);
-    ctx.fillRect(Math.round((x + 4) / PIXEL) * PIXEL, Math.round((y - 12) / PIXEL) * PIXEL, PIXEL * 3, PIXEL * 4);
-    ctx.fillRect(Math.round((x - 4) / PIXEL) * PIXEL, Math.round((y + 4) / PIXEL) * PIXEL, PIXEL * 3, PIXEL * 3);
+    ctx.fillRect(Math.round((x - 6) / PIXEL) * PIXEL, Math.round((y - 7) / PIXEL) * PIXEL, PIXEL * 2, PIXEL * 2);
+    ctx.fillRect(Math.round((x + 3) / PIXEL) * PIXEL, Math.round((y - 7) / PIXEL) * PIXEL, PIXEL * 2, PIXEL * 2);
+    ctx.fillRect(Math.round((x - 2) / PIXEL) * PIXEL, Math.round((y + 2) / PIXEL) * PIXEL, PIXEL * 2, PIXEL * 2);
     ctx.globalAlpha = 1;
-    if (!sil && Math.random() < 0.25) this.particles.push({ x: x + (Math.random() - 0.5) * 24, y: y + 18, vx: 0, vy: 20, life: 0.6, max: 0.6, color: body, size: 3, grav: 30 });
-    ctx.font = '9px "Press Start 2P", monospace'; ctx.textAlign = 'center';
-    ctx.fillStyle = '#000'; ctx.fillText(e.n ?? '', x + 1, y - 41);
-    ctx.fillStyle = sil ? '#c0c8d0' : '#a0ffc8'; ctx.fillText(e.n ?? '', x, y - 42);
+    if (!sil && Math.random() < 0.12) this.particles.push({ x: x + (Math.random() - 0.5) * 14, y: y + 10, vx: 0, vy: 15, life: 0.5, max: 0.5, color: body, size: 3, grav: 20 });
+    if (mine) {
+      ctx.font = '8px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+      ctx.globalAlpha = 0.8; ctx.fillStyle = '#000'; ctx.fillText(e.n ?? '', x + 1, y - 21);
+      ctx.fillStyle = sil ? '#c0c8d0' : '#a0ffc8'; ctx.fillText(e.n ?? '', x, y - 22); ctx.globalAlpha = 1;
+    }
   }
 
   /** Avisos de los Ojos rituales: un ojo que parpadea donde pasó alguien (o una flecha si queda fuera de pantalla). */
