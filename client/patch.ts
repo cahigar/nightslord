@@ -1,8 +1,9 @@
 // Aviso de «Nuevo parche» (solo en mooonsters.com, no en portales): lo presenta Barbasucia al entrar al menú,
-// una vez por parche y solo a quien ya había jugado antes. Para un parche nuevo: cambia PATCH_ID y las notas.
+// una vez por parche y a todo el mundo (así se ve que el juego se actualiza). Para un parche nuevo: cambia PATCH_ID y las notas.
 import type { Lang } from './i18n';
 
-export const PATCH_ID = '2026-10-22';
+/** Versión del parche: se muestra en el título y es la clave de «ya visto». */
+export const PATCH_ID = 'v1.12';
 
 interface Notes { title: string; sub: string; ok: string; items: string[] }
 

@@ -1010,13 +1010,12 @@ $('tutbtn2').onclick = () => showScreen('tutorial');
 $('tut-back').onclick = () => showScreen('splash');
 $('home').onclick = () => showScreen('splash');
 
-/** «Nuevo parche»: Barbasucia lo cuenta al entrar al menú (solo en la web y a quien ya había jugado), una vez por parche. */
+/** «Nuevo parche»: Barbasucia lo cuenta al entrar al menú (solo en la web), una vez por parche, a todo el mundo. */
 let patchAnim = 0;
 function maybeShowPatch() {
   if (isPortal || store.get('nl_patch') === PATCH_ID) return;
-  if (store.get('nl_coach') !== 'done') { store.set('nl_patch', PATCH_ID); return; } // jugadores nuevos: no hay nada «nuevo» que contarles
   const N = PATCH_NOTES[lang] ?? PATCH_NOTES.en;
-  $('patch-title').textContent = N.title; $('patch-sub').textContent = N.sub; $('patch-ok').textContent = N.ok;
+  $('patch-title').textContent = `${N.title} · ${PATCH_ID}`; $('patch-sub').textContent = N.sub; $('patch-ok').textContent = N.ok;
   $('patch-list').innerHTML = N.items.map((x) => `<li>${x}</li>`).join('');
   const cv = $<HTMLCanvasElement>('patchpirate'); cv.width = SW; cv.height = SH;
   const c = cv.getContext('2d')!; c.imageSmoothingEnabled = false;
